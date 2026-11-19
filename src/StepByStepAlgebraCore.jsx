@@ -97,7 +97,7 @@ import { hintCostSentence } from './platform/supports/hints/hintCopy.js';
 import { isStepNotQueued } from './platform/student/submissionNotQueued.js';
 import { focusForEnter, resolveToolEnterAction } from './platform/interaction/answerEntryUx.js';
 import { useDeferredFocusHost } from './platform/interaction/answerFocusPolicy.js';
-import { focusFellToPage, operationTileAfterStep, typeAheadIntoOperand } from './platform/algebra/boardFocus.js';
+import { focusFellToPage, operationTileAfterStep, operationTileKeyAction, typeAheadIntoOperand } from './platform/algebra/boardFocus.js';
 import { START_OVER } from './platform/student/studentWords.js';
 import { SR_ONLY_STYLE } from './ui/srOnly.js';
 
@@ -580,6 +580,20 @@ export default function StepByStepAlgebra({
   const [shake, setShake] = useState(false);
   const [savingStep, setSavingStep] = useState(false);
   const [cancelAnimating, setCancelAnimating] = useState(false);
+  /*
+   * ONE STEP COMMITTED AT A TIME (a review after #386). A balanced step settles
+   * for 620 ms (its animation) before it is saved, and Check my
+   * simplification, disabled only while the save ran, took a second press in
+   * between: two clicks, a double click, Enter twice in the box or on the
+   * button, a phone's second tap, in a composed question's step too. Each
+   * committed the step again: 2 step grades and 2 work steps, both "Divided
+   * both sides by 5" (stepAlgebraFirstOperand.mjs `double`). The check now
+   * waits for the step to settle like Keep as written, and this mark, taken
+   * in the event that begins a commit (commitMove, a pair cancelled with no
+   * operation in hand) and given back once the step is committed or held,
+   * refuses any second commit before then, from whatever control.
+   */
+  const stepCommitInFlightRef = useRef(false);
   // The cancellation sequence. `lockedStroke` is the line the student drew,
   // kept on screen after the pointer lifts so the strike reads as a decision
   // rather than as ink that vanished; `struckIndices` highlights what it went
@@ -1122,12 +1136,16 @@ export default function StepByStepAlgebra({
   };
 
   const commitMove = async (move, { resolution = 'normal', crossedSidesOverride = null } = {}) => {
+    // One commit at a time (stepCommitInFlightRef): a second press while this
+    // step settles commits nothing.
+    if (stepCommitInFlightRef.current) return;
+    stepCommitInFlightRef.current = true;
     // Taken as the student commits (their Enter, Check or last cross-out), so
     // anything they do while the step settles outranks the focus below.
     const focusTicket = deferredFocusHost?.ticket({ since: 'now', channel: 'step-commit' }) || null;
     setCancelAnimating(true);
     setCollapsingSides(move.requiredCancellationSides || []);
-    window.setTimeout(async () => {
+    const settle = async () => {
       const verdict = evaluateMove(move, supportLevel);
       const normalizedSimplificationAnswers = Object.fromEntries(
         Object.entries(simplificationAnswers || {}).map(([side, value]) => [side, latexToExpression(value)]),
@@ -1211,7 +1229,9 @@ export default function StepByStepAlgebra({
               ? 'Balanced step complete. Continue from the equation shown.'
               : verdict.message,
       });
-    }, motionDuration(620, reducedMotion, { floor: 40 }));
+    };
+    // Committed, held for "Apply the step again", or failed: the next commit may begin.
+    window.setTimeout(() => { settle().finally(() => { stepCommitInFlightRef.current = false; }); }, motionDuration(620, reducedMotion, { floor: 40 }));
   };
 
   const hasPartialCancellationSelection = () => Object.values(selectedCancellationIndices || {})
@@ -1687,7 +1707,12 @@ export default function StepByStepAlgebra({
   };
 
   const commitStandaloneCancellation = async (side, model) => {
-    if (!model?.resultExpression || savingStep || cancelAnimating) return;
+    if (!model?.resultExpression || savingStep || cancelAnimating || stepCommitInFlightRef.current) return;
+    stepCommitInFlightRef.current = true;
+    // Taken as the student completes the pair (Enter on a term, a click, a
+    // slash), as a committed step's is: anything they do while the
+    // cancellation settles outranks the focus below.
+    const focusTicket = deferredFocusHost?.ticket({ since: 'now', channel: 'step-commit' }) || null;
 
     const beforeEquation = equation;
     const nextEquation = { ...equation, [side]: model.resultExpression };
@@ -1723,9 +1748,14 @@ export default function StepByStepAlgebra({
           tone: 'success',
           text: 'Cancellation complete. Continue from the equation shown.',
         });
+        // The term the student pressed went with its pair. The cursor goes
+        // where a committed step sends it, with no operation in hand: the
+        // first tile of the cancelled side's rail (the phone's palette).
+        setStepCommitFocus({ ticket: focusTicket, operation: null, side, phone: Boolean(mobileInteraction?.isMobile) });
       } finally {
         setSavingStep(false);
         setCancelAnimating(false);
+        stepCommitInFlightRef.current = false;
       }
     }, motionDuration(420, reducedMotion, { floor: 40 }));
   };
@@ -1829,7 +1859,8 @@ export default function StepByStepAlgebra({
   };
 
   const checkSimplifications = async () => {
-    if (!pendingMove || savingStep) return;
+    // Not while the step settles: its 620 ms come before the save.
+    if (!pendingMove || savingStep || cancelAnimating) return;
     const targets = pendingMove.simplificationTargets || [];
     const missing = targets.filter((target) => !String(simplificationAnswers[target.side] || '').trim());
     if (missing.length) {
@@ -2157,6 +2188,20 @@ export default function StepByStepAlgebra({
     }
     setMessage(null);
     setOperationFocusSignal((value) => value + 1);
+  };
+
+  // A KEY ON AN OPERATION TILE (boardFocus.js operationTileKeyAction). Space
+  // chooses the tile as it goes down, as Enter does, so a character typed
+  // before Space comes up reaches a chosen tile; its own release then presses
+  // nothing. A character typed at the tile just chosen goes into its box.
+  const operationTileKeyDown = (event, operation, sourceSide) => {
+    const action = operationTileKeyAction(event, { chosen: armedTile?.operation === operation });
+    if (action === 'choose') {
+      event.preventDefault();
+      selectOperation(operation, sourceSide);
+    } else if (action === 'type') {
+      typeIntoOperationBox(event);
+    }
   };
 
   const activateTapPlacement = () => {
@@ -2891,7 +2936,7 @@ export default function StepByStepAlgebra({
       {mobileInteraction.isMobile && !pendingMove && !inlineToolActive && (
         <div className="algebra-mobile-operation-palette" role="group" aria-label="Choose an algebra operation">
           {OPERATIONS.map((operation) => (
-            <button type="button" key={`mobile-${operation.id}`} className={`algebra-rail-tile ${armedTile?.operation === operation.id ? 'is-selected' : ''}`} onClick={() => selectOperation(operation.id, 'left')} onKeyDown={armedTile?.operation === operation.id ? typeIntoOperationBox : undefined} disabled={disabled || savingStep || Boolean(pendingMove)} title={operation.label} aria-label={`Choose ${operation.label} operation`}>
+            <button type="button" key={`mobile-${operation.id}`} className={`algebra-rail-tile ${armedTile?.operation === operation.id ? 'is-selected' : ''}`} onClick={() => selectOperation(operation.id, 'left')} onKeyDown={(event) => operationTileKeyDown(event, operation.id, 'left')} disabled={disabled || savingStep || Boolean(pendingMove)} title={operation.label} aria-label={`Choose ${operation.label} operation`}>
               <span aria-hidden="true">{operation.symbol}</span><small>{operation.label}</small>
             </button>
           ))}
@@ -2901,7 +2946,7 @@ export default function StepByStepAlgebra({
       <div className={`algebra-balance-workspace-shell ${mobileInteraction.isMobile ? 'is-mobile-tap-layout' : ''}`}>
         {!mobileInteraction.isMobile && !inlineToolActive && <div ref={leftRailRef} className="algebra-rail algebra-rail-left">
           {OPERATIONS.map((operation) => (
-            <button type="button" key={`left-${operation.id}`} className={`algebra-rail-tile ${armedTile?.operation === operation.id ? 'is-selected' : ''}`} onClick={() => selectOperation(operation.id, 'left')} onKeyDown={armedTile?.operation === operation.id ? typeIntoOperationBox : undefined} disabled={disabled || savingStep || Boolean(pendingMove)} title={operation.label} aria-label={`Choose ${operation.label} operation`}>
+            <button type="button" key={`left-${operation.id}`} className={`algebra-rail-tile ${armedTile?.operation === operation.id ? 'is-selected' : ''}`} onClick={() => selectOperation(operation.id, 'left')} onKeyDown={(event) => operationTileKeyDown(event, operation.id, 'left')} disabled={disabled || savingStep || Boolean(pendingMove)} title={operation.label} aria-label={`Choose ${operation.label} operation`}>
               {operation.symbol}
             </button>
           ))}
@@ -3071,7 +3116,7 @@ export default function StepByStepAlgebra({
 
         {!mobileInteraction.isMobile && !inlineToolActive && <div ref={rightRailRef} className="algebra-rail algebra-rail-right">
           {OPERATIONS.map((operation) => (
-            <button type="button" key={`right-${operation.id}`} className={`algebra-rail-tile ${armedTile?.operation === operation.id ? 'is-selected' : ''}`} onClick={() => selectOperation(operation.id, 'right')} onKeyDown={armedTile?.operation === operation.id ? typeIntoOperationBox : undefined} disabled={disabled || savingStep || Boolean(pendingMove)} title={operation.label} aria-label={`Choose ${operation.label} operation`}>
+            <button type="button" key={`right-${operation.id}`} className={`algebra-rail-tile ${armedTile?.operation === operation.id ? 'is-selected' : ''}`} onClick={() => selectOperation(operation.id, 'right')} onKeyDown={(event) => operationTileKeyDown(event, operation.id, 'right')} disabled={disabled || savingStep || Boolean(pendingMove)} title={operation.label} aria-label={`Choose ${operation.label} operation`}>
               {operation.symbol}
             </button>
           ))}
@@ -3193,7 +3238,7 @@ export default function StepByStepAlgebra({
             {!equation.objective?.requireSimplifiedFinalForm && (
               <button type="button" className="algebra-keep-written" onClick={keepPendingMoveAsWritten} disabled={savingStep || cancelAnimating}>Keep as written</button>
             )}
-            <button type="button" className="algebra-check-simplification" onClick={checkSimplifications} disabled={savingStep}>Check my simplification</button>
+            <button type="button" className="algebra-check-simplification" onClick={checkSimplifications} disabled={savingStep || cancelAnimating}>Check my simplification</button>
           </div>
           <p className="algebra-simplification-note">
             {equation.objective?.requireSimplifiedFinalForm

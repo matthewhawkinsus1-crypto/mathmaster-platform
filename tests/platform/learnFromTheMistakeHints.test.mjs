@@ -116,6 +116,10 @@ test('"What might have gone wrong?" is offered, then shows the diagnosis once as
     assert.ok(!offered.includes(sign), 'offered, never shown unasked');
     const shown = render({ diagnosis: { shown: { text: sign, source: 'generic' }, onShow: () => {} } });
     assert.match(shown, /<div data-miss-diagnosis-hint="generic"[^>]*><strong[^>]*>What might have gone wrong<\/strong>/);
+    // Its button goes once it is read, so focus comes to it (hintPanelReveal.js, hintPanelFocusTarget): it can take
+    // focus, and it is not a live region, so it is read once.
+    assert.match(shown, /<div data-miss-diagnosis-hint="generic" tabindex="-1"/);
+    assert.doesNotMatch(shown, /<div data-miss-diagnosis-hint[^>]*(role="(status|alert)"|aria-live)/);
     assert.ok(shown.includes('Your answer has the right size but the opposite sign.'));
     assert.doesNotMatch(shown, /data-miss-diagnosis-offer/, 'not offered again once read');
     assert.doesNotMatch(render({}), /What might have gone wrong/, 'nothing without a diagnosis');
@@ -189,7 +193,7 @@ test('QuestionEngine offers the rung only where hints are, while the item is ope
   // The permission it reads is the one that withholds hints on a DOL, quiz,
   // test and a server-graded host.
   assert.match(engine, /\n\s*const hintControlAllowed = toolHintsAllowed && !serverGrading && ladderRoleKnown;/);
-  const show = region(engine, 'const showMissDiagnosis = () => {', '};', 'reading the rung');
+  const show = region(engine, 'const showMissDiagnosis = (from) => {', '};', 'reading the rung');
   assert.match(show, /\n\s*recordHintUse\(\);/);
   assert.match(engine, /diagnosis=\{missRung && !locked \? \{ shown: missRung\.shown \? missRung\.hint : null, onShow: showMissDiagnosis \} : null\}/);
   // The open box itself still names no move.

@@ -61,10 +61,7 @@ import path from 'node:path';
 import { chooseVariable, choosePair, combineRound, scaleEquation } from './day2NonuniqueDriver.mjs';
 import { setMathField, settle } from './stepAlgebraDriver.mjs';
 import { screenshotKeepingTouch } from './support/touchEmulation.mjs';
-import { MISCONCEPTION_STUDENT_MESSAGES } from '../../functions/shared/misconceptionStudentMessages.mjs';
-import { GENERIC_MISS_MESSAGES } from '../../src/platform/supports/feedback/genericMissChecks.js';
-import { FALLBACK_HINTS } from '../../src/platform/supports/hints/questionHints.js';
-import { PENDING_RUNG_TEXT } from '../../src/platform/supports/hints/hintCopy.js';
+import { ASSESSMENT_LEAK_TEXTS } from './support/assessmentLadderWords.mjs';
 
 const ORIGIN = process.env.AUDIT_ORIGIN || 'http://127.0.0.1:5199';
 // Screenshots of any journey that could not be completed.
@@ -750,25 +747,15 @@ const threePlaneReveal = async () => {
 
 /* ------------------------------------------------------- feedback ladder */
 
-// Every text the classroom feedback ladder can produce (Student push, Job A):
-// authored supports (marked LEAKCHECK in the fixtures), every misconception
-// and generic miss message, and the ladder's own words. On a DOL or test none
-// may be anywhere in the document — visible text, aria-labels, live regions
-// or hidden nodes — while the item can still be answered, nor after a
-// submission whose outcome is held.
-const LADDER_WORDS = ['LEAKCHECK', 'A hint is ready', 'Show a hint', 'See why it works', 'Worked solution', 'Why it works', 'Try a similar one', 'A similar problem, worked out', 'Let’s back up',
-  // Student pass 3, Batch 4: the worked sibling after a miss, the diagnosis
-  // rung, and the sentence beside every hint offer.
-  'See a similar problem worked', 'What might have gone wrong', 'Hints never lower your grade', 'won\'t count toward unlocking',
-  // Student pass 3, wave 6 (HELP-23): the pointer beside the fallbacks, and
-  // every fallback (none may reach a DOL or test).
-  'These hints are general', ...Object.values(FALLBACK_HINTS).flat(),
-  // Hint-ladder timing: the line a rung shows while its tool loads.
-  PENDING_RUNG_TEXT];
+// Every text the classroom feedback ladder can produce (Student push, Job A;
+// support/assessmentLadderWords.mjs): authored supports (marked LEAKCHECK in
+// the fixtures), every misconception and generic miss message, and the
+// ladder's own words. On a DOL or test none may be anywhere in the document —
+// visible text, aria-labels, live regions or hidden nodes — while the item can
+// still be answered, nor after a submission whose outcome is held.
 const ladderLeaks = async (page) => {
   const html = await page.evaluate(() => document.documentElement.outerHTML);
-  const messages = [...Object.values(MISCONCEPTION_STUDENT_MESSAGES), ...Object.values(GENERIC_MISS_MESSAGES)];
-  return [...LADDER_WORDS, ...messages].filter((text) => html.includes(text.replace(/&/g, '&amp;')));
+  return ASSESSMENT_LEAK_TEXTS.filter((text) => html.includes(text.replace(/&/g, '&amp;')));
 };
 const typeAnswer = async (page, value) => {
   await setMathField(page, page.locator('.mathmaster-question-tool-workspace math-field').first(), value);

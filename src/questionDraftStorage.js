@@ -1,5 +1,6 @@
 import { auditDraftWrite } from './platform/persistence/draftSyncDiagnostics.js';
 import { reportDraftSaveProblem, clearDraftSaveProblem, clearDraftSaveProblemsForFamily, DRAFT_SAVE_PROBLEM } from './platform/persistence/draftSaveHealth.js';
+import { keepsOwnStepAlgebraOperation, stampStepAlgebraOperationEdit } from './platform/persistence/stepAlgebraOperationEdit.js';
 import {
   fieldRecordDraftKind,
   copyFieldRecordGroup,
@@ -313,15 +314,24 @@ export const writeQuestionDraft = (key, value, { edit } = {}) => {
     // no merge brings back an answer dated before it.
     const resetting = written === null && isEdit;
     const resetAt = resetting ? now : resetTimeOf(stored);
-    const fieldEditedAt = resetting ? {} : stampFieldRecordEdits({
+    // Step Algebra's operation, not yet applied, is dated on its own
+    // (stepAlgebraOperationEdit.js): the work's time moves only with a step.
+    const fieldEditedAt = resetting ? {} : stampStepAlgebraOperationEdit({
       kind: fieldKind,
       previous: storedValue,
-      // A copy an older build stored has no per-answer times: its answers are
-      // dated at its edit time, not left as never edited.
-      previousEditedAt: stored ? adoptedFieldEditedAt(fieldKind, stored) : null,
       next: written,
       edit: isEdit,
       now,
+      times: stampFieldRecordEdits({
+        kind: fieldKind,
+        previous: storedValue,
+        // A copy an older build stored has no per-answer times: its answers are
+        // dated at its edit time, not left as never edited.
+        previousEditedAt: stored ? adoptedFieldEditedAt(fieldKind, stored) : null,
+        next: written,
+        edit: isEdit,
+        now,
+      }),
     });
     // Fresh means "not yet settled against the server's copy": a draft begun
     // after this page read that copy (reconcileFieldRecordDrafts) has seen it.
@@ -541,21 +551,28 @@ const serverCopySeen = (key) => [...serverCopiesSeen].some((prefix) => String(ke
  *
  * Yielding protects saved steps; here nothing committed differs, so nothing is
  * protected by it. When both copies hold the same equation, steps and step
- * answers, the copy edited later keeps its operation and value, as every other
- * answer goes to the copy that edited it last. Where the saved copy holds work
- * this one lacks, it still comes back whole: an operation typed here was
- * chosen for an equation that is no longer on the board.
+ * answers, this device keeps its operation and value when it edited the
+ * operation later, as every other answer goes to the copy that edited it last.
+ * Where the saved copy holds work this one lacks, it still comes back whole: an
+ * operation typed here was chosen for an equation that is no longer on the
+ * board.
+ *
+ * "Later" is the operation's own edit time (stepAlgebraOperationEdit.js), not
+ * the copy's: judged on the whole copy, a prompt answer typed on this device
+ * after a Start over elsewhere brought its operation from before the Start over
+ * back, and one typed on a fresh Chromebook dropped the operation left
+ * unapplied on another (a review of this rule).
  */
 const STEP_ALGEBRA_WORK = 'work';
-const keepNewerOperationOnSameBoard = (kind, own, saved, merged) => {
+const keepNewerOperationOnSameBoard = (kind, own, saved, merged, canonicalAt = 0) => {
   if (kind !== 'step-algebra' || !merged) return merged;
   const mine = fieldRecordGroups(kind, own?.value).get(STEP_ALGEBRA_WORK);
   const theirs = fieldRecordGroups(kind, saved?.value).get(STEP_ALGEBRA_WORK);
   // The signature of this group is its committed work alone.
   if (!mine || !theirs || mine.signature !== theirs.signature) return merged;
-  // At the same time too: the saved copy can be this device's own first save,
-  // which the server merged with the older operation in it.
-  if (own.savedAtIsEdit !== true || (Number(own.savedAt) || 0) < (Number(saved.savedAt) || 0)) return merged;
+  // A tie too: the saved copy can be this device's own first save, which the
+  // server merged with the older operation in it.
+  if (!keepsOwnStepAlgebraOperation({ own, saved, merged, canonicalAt })) return merged;
   const value = { ...merged.value };
   (fieldRecordGroups(kind, merged.value).get(STEP_ALGEBRA_WORK)?.fields || []).forEach((field) => { delete value[field]; });
   copyFieldRecordGroup(value, own.value, mine);
@@ -650,7 +667,7 @@ export const reconcileFieldRecordDrafts = (entries = [], { studentId, assignment
       // A copy from before the question's last submission and one from after
       // it are not merged answer by answer: the restore decides, whole.
       canonicalAt,
-    }));
+    }), canonicalAt);
     if (!merged) {
       if (!fresh) return;
       // Copies this rule cannot merge (a value an older build stored): the

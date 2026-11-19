@@ -15,6 +15,7 @@ import { projectionBoardRows, rewardSummaryLines, roundResultsView, scorePresent
 import { readLastSeenRound, roundsClosedWhileAway, seenRoundOf, missedRoundsNotice, writeLastSeenRound } from '../../platform/liveChallenge/challengeMissedRounds.js';
 import { normalizeMatchRecap, recapHighlights, withOwnAnswers } from '../../platform/liveChallenge/challengeRecapModel.js';
 import { keepOwnAnswer, recallOwnAnswers } from '../../platform/liveChallenge/challengeOwnAnswers.js';
+import { readStoredChallengeResult, readStoredPendingAnswer } from '../../platform/liveChallenge/challengeRoundStore.js';
 import { roomShowsFullStandings } from '../../../functions/shared/liveChallengePrivacy.mjs';
 import { roomFullRoundMs, storedTimeMultiplier } from '../../../functions/shared/liveChallengeAccommodations.mjs';
 import { resolveSupportEntitlements } from '../../../functions/shared/supportEntitlements.mjs';
@@ -82,6 +83,21 @@ const ownAnswerStorage = () => {
 const readStoredJson = (key) => {
   if (!key) return null;
   try { return JSON.parse(window.localStorage.getItem(key) || 'null'); } catch { return null; }
+};
+// A round's kept result and locked answer, read through their checks
+// (challengeRoundStore.js): what is not one is not kept, never a locked round.
+const reportStoreRepair = (what, issues) => {
+  if (issues.length) console.warn(`MathMaster set aside a damaged Live Challenge ${what} kept on this device — ${issues.join(', ')}`);
+};
+const readStoredResult = (key) => {
+  const { value, issues } = readStoredChallengeResult(readStoredJson(key));
+  reportStoreRepair('result', issues);
+  return value;
+};
+const readStoredPending = (key, round) => {
+  const { value, issues } = readStoredPendingAnswer(readStoredJson(key), round);
+  reportStoreRepair('locked answer', issues);
+  return value;
 };
 const writeStoredJson = (key, value) => {
   if (!key) return;
@@ -251,9 +267,9 @@ export function ChallengeRound({
   const lockedLong = !roundClosed && endsAtMs > 0 && elapsedMs - personalClock.durationMs >= LOCKED_WAIT_NOTICE_MS;
   const urgent = !expired && remainingMs <= 10000;
   const resultKey = persistResult ? challengeResultKey(room.roomId, roundIndex, room.roundVersion) : null;
-  const [result, setResult] = useState(() => readStoredJson(resultKey));
+  const [result, setResult] = useState(() => readStoredResult(resultKey));
   const pendingKey = `live-challenge-pending-${room.roomId}-${roundIndex}-${room.roundVersion || 0}`;
-  const [pending, setPending] = useState(() => readStoredJson(pendingKey));
+  const [pending, setPending] = useState(() => readStoredPending(pendingKey, { roomId: room.roomId, roundIndex, roundVersion: room.roundVersion }));
   // The student's own public row says whether the server already holds their
   // answer for this round — true after a refresh on this device or a switch to
   // another one, when no local result or pending envelope survives. It is their
@@ -325,7 +341,7 @@ export function ChallengeRound({
   useEffect(() => () => stopSpeaking(), [roundIndex, question?.questionInstanceId]);
 
   useEffect(() => {
-    const stored = readStoredJson(resultKey);
+    const stored = readStoredResult(resultKey);
     setResult(stored);
     resultRef.current = stored;
     setAlreadyRecorded(false);

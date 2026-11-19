@@ -83,6 +83,96 @@ test('the student-build workspace numbers each boundary it draws, and keeps the 
   assert.deepEqual(names(markup), ['1', '2']);
 });
 
+/*
+ * A system of two equations: graphed for the student (the linear mode), or from the two points the student plots on
+ * each line. Both lines were solid, blue and red, beside a key whose "Equation 1" and "Equation 2" were swatches of
+ * those colours, and a contrast theme draws both lines and both swatches alike. Each line is numbered now, as the
+ * inequality modes number their boundaries.
+ */
+test('the Systems Workspace numbers a system\'s two lines in both its equation modes, each in a ring of its colour, and keeps them solid', async () => {
+  // The student's two lines as a reload finds them: two points typed or plotted on each, in the tool's saved draft.
+  const memory = new Map();
+  const before = Object.getOwnPropertyDescriptor(globalThis, 'window');
+  globalThis.window = { localStorage: { getItem: (key) => (memory.has(key) ? memory.get(key) : null), setItem: (key, value) => memory.set(key, String(value)), removeItem: (key) => memory.delete(key), key: (index) => [...memory.keys()][index] ?? null, get length() { return memory.size; } } };
+  try {
+    const { writeQuestionDraft } = await server.ssrLoadModule('/src/questionDraftStorage.js');
+    const { ToolDraftScopeProvider, toolDraftKey } = await server.ssrLoadModule('/src/tools/shared/usePersistentToolState.js');
+    const { default: SystemsWorkspace } = await server.ssrLoadModule('/src/tools/systemsWorkspace/SystemsWorkspace.jsx');
+    writeQuestionDraft(toolDraftKey('plane-names:plotted'), { linePoints: [{ x1: '0', y1: '1', x2: '1', y2: '3' }, { x1: '0', y1: '7', x2: '1', y2: '6' }] }, { edit: true });
+    const modes = {
+      'graphing both equations': renderToStaticMarkup(React.createElement(SystemsWorkspace, { questionData: {}, onAction: () => {} })),
+      'plotting both lines': renderToStaticMarkup(React.createElement(ToolDraftScopeProvider, { draftKey: 'plane-names:plotted' }, React.createElement(SystemsWorkspace, { questionData: { interaction: 'construct' }, onAction: () => {} }))),
+    };
+    for (const [mode, markup] of Object.entries(modes)) {
+      const lines = [...markup.matchAll(/<line [^>]*data-mm-plane-part="line"[^>]*>/g)].map(([tag]) => attributes(tag));
+      assert.equal(lines.length, 2, `${mode}: two lines`);
+      lines.forEach((line) => assert.equal(line['stroke-dasharray'], undefined, `${mode}: each line solid, as an equation's is`));
+      // Each in a ring of its own line's colour, numbered as the key's "Equation 1" and "Equation 2".
+      const tags = [...markup.matchAll(/<g data-curve-label="(\d)"[^>]*>\s*<circle ([^>]*?)\/?>/g)].map(([, label, circle]) => ({ label, ring: attributes(circle) }));
+      assert.deepEqual(tags.map((tag) => tag.label), ['1', '2'], `${mode}: numbered`);
+      tags.forEach((tag, index) => {
+        assert.equal(tag.ring.stroke, lines[index].stroke, `${mode}: ring ${tag.label} in its line's colour`);
+        assert.equal(tag.ring['data-mm-plane-part'], 'chip', `${mode}: a chip under a contrast theme`);
+      });
+      assert.deepEqual([...markup.matchAll(/<strong>(Equation \d)<\/strong>/g)].map((match) => match[1]), ['Equation 1', 'Equation 2'], `${mode}: the key names them so`);
+    }
+  } finally {
+    if (before) Object.defineProperty(globalThis, 'window', before);
+    else delete globalThis.window;
+  }
+});
+
+/*
+ * The build mode writes names beside its points itself (a test point's coordinates, "Your point", a vertex's letter, a
+ * handle's number), as the plane's children: the plane kept each boundary's ringed number off its own point names
+ * only, and a ring sat on a test point's coordinates ("(5, 8)" under ring 1 read "(5"). With the default system, a
+ * test point at (5, 3), (5, 7) or (5, 8) was covered.
+ */
+const ringsIn = (markup) => [...markup.matchAll(/<g data-curve-label="(\d)"[^>]*>\s*<circle cx="([\d.]+)" cy="([\d.]+)" r="([\d.]+)"/g)]
+  .map(([, label, cx, cy, r]) => ({ label, cx: Number(cx), cy: Number(cy), r: Number(r) }));
+
+test('the build mode\'s constraint numbers keep off the coordinates it writes beside a test point, wherever the point is', async () => {
+  let read = 0;
+  for (let x = -5; x <= 7; x += 1) {
+    for (let y = -3; y <= 9; y += 1) {
+      const markup = await render('/src/tools/systemsWorkspace/SystemsWorkspace.jsx', { questionData: { mode: 'inequalities', studentBuild: { shading: true }, testPoint: { x, y } }, onAction: () => {} });
+      const rings = ringsIn(markup);
+      assert.deepEqual(rings.map((ring) => ring.label), ['1', '2'], `(${x}, ${y}): both boundaries numbered`);
+      // The point's coordinates as written (a minus sign for a negative), and the box the plane gives a word: 0.62em
+      // a letter, from where the text starts.
+      const written = `(${x}, ${y})`.replace(/-/g, '−');
+      const word = [...markup.matchAll(/<text ([^>]*)>([^<]*)<\/text>/g)].find(([, , text]) => text === written);
+      assert.ok(word, `${written} is written beside the test point`);
+      const at = attributes(`<text ${word[1]}>`);
+      const size = Number(at['font-size']);
+      const box = { left: Number(at.x), right: Number(at.x) + written.length * 0.62 * size, top: Number(at.y) - 0.78 * size, bottom: Number(at.y) + 0.2 * size };
+      for (const ring of rings) {
+        const gap = Math.max(box.left - (ring.cx + ring.r), ring.cx - ring.r - box.right, box.top - (ring.cy + ring.r), ring.cy - ring.r - box.bottom);
+        assert.ok(gap >= 2, `ring ${ring.label} is ${gap.toFixed(1)} units from ${written}`);
+      }
+      read += 1;
+    }
+  }
+  assert.equal(read, 169);
+});
+
+test('the build mode hands the plane every name it writes beside a point, and the plane keeps the rings off them', () => {
+  // One list: what InequalityGraphLayers writes is what the plane is told of, whatever the step (a handle's number, a
+  // vertex's letter, "Your point", a test point's coordinates).
+  const mode = executableSource(read('src/tools/systemsWorkspace/StudentBuildInequalityMode.jsx'));
+  assert.match(mode, /const pointNames = graphPoints\.map\(\(point, index\) => \(graphPointRoles\[index\]\?\.label\s*\? \{ x: point\.x, y: point\.y, label: graphPointRoles\[index\]\.label, \.\.\.POINT_NAME_PLACE \}/);
+  assert.match(region(mode, '<CoordinatePlane', '</CoordinatePlane>', 'the build mode\'s plane'), /\n\s+toolLabels=\{pointNames\}\n/);
+  assert.match(region(mode, '<InequalityGraphLayers', '/>', 'its layers'), /\n\s+pointNames=\{pointNames\}\n/);
+  const layers = region(executableSource(read('src/tools/systemsWorkspace/InequalityBuildPanels.jsx')), 'export function InequalityGraphLayers(', '\n}\n', 'InequalityGraphLayers');
+  const words = [...layers.matchAll(/<text\b/g)];
+  assert.equal(words.length, 1, 'one place the layers write a word');
+  assert.match(layers, /\{pointNames\.map\(\(\{ x, y, label, dx, dy, textSize \}, index\) => \(\s*<text key=\{`label\$\{index\}`\} x=\{sx\(x\) \+ dx\} y=\{sy\(y\) \+ dy\} fontSize=\{textSize\}/);
+  // The plane: each such word's box among those its curves' names keep off.
+  const plane = executableSource(read('src/tools/shared/CoordinatePlane.jsx'));
+  const placing = region(plane, 'const curveLabelSpots = curveNamed ? placeNames({', 'textSize: curveTextSize,', 'the curves\' names');
+  assert.match(placing, /\.\.\.toolLabels\.map\(\(entry\) => \{[\s\S]*?placedLabelBox\(\{ spot, label: String\(entry\.label\), textSize: Number\(entry\.textSize\) \|\| 12 \}\)/);
+});
+
 test('the Transformations Lab draws the source\'s points as squares and the student\'s as dots', async () => {
   const spec = await sampleSpec('transformationsLab');
   const markup = await render('/src/tools/transformations/TransformationsLab.jsx', { questionData: spec, onAction: () => {} });

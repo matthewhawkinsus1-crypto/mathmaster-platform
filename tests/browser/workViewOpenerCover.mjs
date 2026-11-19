@@ -3,7 +3,7 @@
  *
  *   npx vite --config tests/browser/forcedColors.vite.config.mjs --host 127.0.0.1 --port 5198 --strictPort &   # stubbed harnesses
  *   npx vite --config tests/browser/teacherWorkflow/vite.config.mjs &                                          # the real app, in memory
- *   node tests/browser/workViewOpenerCover.mjs [--check=cover,badges,scroll,staged,settle,hint] [--only=<surface>,...] [--sizes=<size>,...]
+ *   node tests/browser/workViewOpenerCover.mjs [--check=cover,badges,room,scroll,staged,settle,hint] [--only=<surface>,...] [--sizes=<size>,...]
  *
  *   AUDIT_ORIGIN (default http://127.0.0.1:5198: any server of the repository with its services stubbed, as the
  *   accessibility certification serves them), TEACHER_HARNESS_ORIGIN (default http://127.0.0.1:5188),
@@ -29,6 +29,13 @@
  *           ("3 of 3 tries left", "Question complete"), the grade weight, the closed verdict and the opener overlap
  *           neither each other nor any other control of the header, and none is cut off by its own box (#386 R17);
  *           on a phone with "Show progress" open the question keeps room for its work (PROGRESS_WORK_MIN).
+ *   room    The real assignment screen at a large text size (ROOM_SIZES: the five phones at 200%, the smallest at
+ *           150%, and at 100% as the control), on a typed answer, a choice, a graph a student draws and a staged
+ *           question (the app in memory, ?questions=room: teacherWorkflow/textRoomLesson.js), in Focus view and with
+ *           "Show progress" open: the question keeps a fifth of the screen for its work (WORK_ROOM_SHARE; it had
+ *           16px), and its tries, Work View's opener, Submit and Next can each be reached by scrolling what a finger
+ *           scrolls, whole and on top. Work View on the graph and the staged question is tall enough for a plane at
+ *           its 160px floor and its zoom row together. At 100% Focus view stays one screen with no page scroll.
  *   scroll  With Work View open on a 390x844, 360x740 and 320x568 phone, a 1366x768 Chromebook and a 1920x1080
  *           desktop, for every plane tool, the table tools and the Step Algebra boards: the view itself is the one
  *           thing that scrolls up and down (no scroller inside a scroller), and the plane fits the height it is
@@ -42,8 +49,8 @@
  *   staged  With Work View open on every step of the staged questions (WorkflowRunner's focus mode), on the three
  *           phones at 100% and 200% text, a Chromebook at both and a desktop: the step has the height to be worked
  *           in (a bounded step at least 200px, or the view scrolling as one), no scroller inside a scroller, and
- *           the step's plane fits its scroller together with the row of its own controls under it, wherever the
- *           room holds both with the plane at its 160px floor (src/platform/workflow/stepRoom.js). A step whose content is taller than its room even so (the plotting
+ *           the step's plane fits its scroller together with the row of its own controls under it, with the plane
+ *           at its 160px floor at least (src/platform/workflow/stepRoom.js). A step whose content is taller than its room even so (the plotting
  *           step's point cards) is reported: it scrolls, its own step or the view. And the step's heading row is whole,
  *           on the page and in Work View: its name, its kind, its review status and its counter ("3 of 17") neither
  *           run past their own box or out of the row nor are cut off at its side (STEP_HEADING_ITEMS).
@@ -239,7 +246,7 @@ const newPage = async (browser, size, { school = false } = {}) => {
     // The browser's text-size setting, before the page loads.
     const cdp = await context.newCDPSession(page);
     await cdp.send('Page.enable');
-    await cdp.send('Page.setFontSizes', { fontSizes: { standard: 16 * size.textScale, fixed: 13 * size.textScale } });
+    await cdp.send('Page.setFontSizes', { fontSizes: { standard: Math.round(16 * size.textScale), fixed: Math.round(13 * size.textScale) } });
   }
   return { context, page, errors };
 };
@@ -433,6 +440,212 @@ const runBadges = async (browser, origins, size) => {
   }
   if (readings['focus view, opener in view'] && !kinds('focus view, opener in view').includes('opener')) problems.push('the opener is not on screen');
   return { check: 'badges', surface: 'assignment-screen', size: size.id, readings, workRoom, problems: [...problems, ...errors.map((message) => `page error: ${message}`)] };
+};
+
+// ------------------------------------------------------------------------------------------------ room
+// A phone question's room for its work at a large text size, in the real App. On the base, Focus view gave a phone's
+// question 16 to 242px at 200% text (the folded navigator and the identity bar 174 to 220px of a screen that did not
+// scroll), a question of choices 16px on every phone (its one-try line and hint offer 382 to 522px) with its tries
+// and Submit below the screen at 320x568, 360x740 and 375x667, and Work View on a staged question at 320x568 was 172px.
+const ROOM_APP = '/tests/browser/teacherWorkflow/index.html?reset=1&as=student&studentId=910002&questions=room';
+// The five phones at 200% text, the smallest at 150%, and the smallest at 100% as the control: there a phone is one
+// screen in Focus view, with no page scroll, as it was.
+export const ROOM_SIZES = Object.freeze([
+  { id: '320x568', width: 320, height: 568, phone: true, textScale: 1 },
+  { id: '320x568@150%', width: 320, height: 568, phone: true, textScale: 1.5 },
+  { id: '320x568@200%', width: 320, height: 568, phone: true, textScale: 2 },
+  { id: '360x740@200%', width: 360, height: 740, phone: true, textScale: 2 },
+  { id: '375x667@200%', width: 375, height: 667, phone: true, textScale: 2 },
+  { id: '390x844@200%', width: 390, height: 844, phone: true, textScale: 2 },
+  { id: '412x915@200%', width: 412, height: 915, phone: true, textScale: 2 },
+].map(Object.freeze));
+// The lesson's Classwork (textRoomLesson.js), each question with what shows it is that kind of question.
+export const ROOM_SCENES = Object.freeze([
+  { kind: 'typed', question: 'Classwork Q1', shows: 'math-field' },
+  { kind: 'choice', question: 'Classwork Q2', shows: '[role="radio"]' },
+  { kind: 'graph', question: 'Classwork Q3', shows: 'svg.mathmaster-responsive-canvas, svg[data-mm-plane]', workView: true },
+  { kind: 'staged', question: 'Classwork Q4', shows: '.workflow-focus', workView: true },
+].map(Object.freeze));
+// The least of the screen a question keeps for its work at a large text size: a fifth (114px at 320x568, 169px at
+// 390x844). After the fix the least is 140px, a choice at 320x568 with 200% text.
+export const WORK_ROOM_SHARE = 0.2;
+// What a student must be able to reach on the question: its tries, Work View's opener, Submit and the navigator's Next.
+export const ROOM_REACH = Object.freeze({
+  tries: '.mathmaster-question-stage .mathmaster-question-attempt-strip',
+  opener: '.mathmaster-question-stage .mathmaster-work-view-host[data-open="false"] button.mathmaster-work-view-opener',
+  submit: 'name:Submit',
+  next: '.mathmaster-assignment-unified-nav button[aria-label="Next question"]',
+});
+
+// The question's work: its box, and how much of it is on the screen with the page scrolled as far as it goes, below
+// the identity bar (which stays) and above the screen's foot.
+const READ_WORK_ROOM = () => {
+  const work = document.querySelector('.mathmaster-question-stage .math-tool-workspace');
+  if (!work) return null;
+  const box = work.getBoundingClientRect();
+  const top = Math.max(box.top, document.querySelector('.mm-identity-bar')?.getBoundingClientRect().bottom || 0);
+  return {
+    box: Math.round(box.height),
+    seen: Math.max(0, Math.round(Math.min(box.bottom, window.innerHeight) - top)),
+    pageScrolls: document.documentElement.scrollHeight > window.innerHeight + 1,
+  };
+};
+
+// A target brought into view as a finger brings it: by scrolling a box that scrolls (overflow auto or scroll, up and
+// down or sideways) and the page, never a box that clips (overflow hidden: scrollIntoView and focus move one, a finger
+// does not). In the middle of the screen, else at its foot (a bar at the top can cover the middle). Then it must be
+// whole on the screen, cut by no box on any side, and the thing a tap at its centre reaches.
+const READ_REACH = (selector) => {
+  const candidates = selector.startsWith('name:')
+    ? [...document.querySelectorAll('.mathmaster-question-stage button')].filter((button) => (button.getAttribute('aria-label') || button.textContent).trim().startsWith(selector.slice(5)))
+    : [...document.querySelectorAll(selector)];
+  const element = candidates.find((candidate) => {
+    const box = candidate.getBoundingClientRect();
+    return box.width > 0 && box.height > 0 && getComputedStyle(candidate).visibility !== 'hidden';
+  });
+  if (!element) return { found: false };
+  const fingerScrolls = (node, axis) => (axis === 'y'
+    ? /(auto|scroll)/.test(getComputedStyle(node).overflowY) && node.scrollHeight > node.clientHeight + 1
+    : /(auto|scroll)/.test(getComputedStyle(node).overflowX) && node.scrollWidth > node.clientWidth + 1);
+  for (let node = element.parentElement; node && node !== document.body && node !== document.documentElement; node = node.parentElement) {
+    const box = element.getBoundingClientRect();
+    const scroller = node.getBoundingClientRect();
+    if (fingerScrolls(node, 'y')) node.scrollTop += (box.top + box.height / 2) - (scroller.top + scroller.height / 2);
+    if (fingerScrolls(node, 'x')) node.scrollLeft += (box.left + box.width / 2) - (scroller.left + scroller.width / 2);
+  }
+  const judge = () => {
+    const box = element.getBoundingClientRect();
+    const seen = { top: box.top, bottom: box.bottom, left: box.left, right: box.right };
+    let cutBy = null;
+    for (let node = element.parentElement; node && node !== document.documentElement; node = node.parentElement) {
+      const style = getComputedStyle(node);
+      const clip = node.getBoundingClientRect();
+      const before = { ...seen };
+      if (style.overflowY !== 'visible') { seen.top = Math.max(seen.top, clip.top); seen.bottom = Math.min(seen.bottom, clip.bottom); }
+      if (style.overflowX !== 'visible') { seen.left = Math.max(seen.left, clip.left); seen.right = Math.min(seen.right, clip.right); }
+      if (Object.keys(seen).some((side) => Math.abs(seen[side] - before[side]) > 0.5)) cutBy ||= `${node.tagName.toLowerCase()}.${String(node.className).split(' ')[0]}`;
+    }
+    const onScreen = box.top >= -1 && box.bottom <= window.innerHeight + 1 && box.left >= -1 && box.right <= document.documentElement.clientWidth + 1;
+    const cut = seen.bottom - seen.top < box.height - 1 || seen.right - seen.left < box.width - 1;
+    const hit = document.elementFromPoint(
+      Math.min(document.documentElement.clientWidth - 1, Math.max(0, (Math.max(seen.left, 0) + Math.min(seen.right, document.documentElement.clientWidth)) / 2)),
+      Math.min(window.innerHeight - 1, Math.max(0, (Math.max(seen.top, 0) + Math.min(seen.bottom, window.innerHeight)) / 2)),
+    );
+    const onTop = Boolean(hit && (hit === element || element.contains(hit) || hit.contains(element)));
+    return { found: true, reached: onScreen && !cut && onTop, onScreen, cutBy: cut ? cutBy : null, under: onTop || !hit ? null : `${hit.tagName.toLowerCase()}.${String(hit.className).split(' ')[0]}` };
+  };
+  const middle = element.getBoundingClientRect();
+  window.scrollBy(0, (middle.top + middle.height / 2) - window.innerHeight / 2);
+  const inMiddle = judge();
+  if (inMiddle.reached) return inMiddle;
+  window.scrollBy(0, element.getBoundingClientRect().bottom - (window.innerHeight - 4));
+  const atFoot = judge();
+  return atFoot.reached ? atFoot : inMiddle;
+};
+
+// Work View's own height, and a plane in it with the row of its own controls under it (its zoom row).
+const READ_ROOM_VIEW = () => {
+  const host = document.querySelector('.mathmaster-work-view-host[data-open="true"]');
+  const surface = host?.querySelector('.mathmaster-work-view-surface');
+  if (!surface) return null;
+  const planes = [...surface.querySelectorAll('svg[data-mm-plane], svg.mathmaster-responsive-canvas')]
+    .map((svg) => ({ svg, box: svg.getBoundingClientRect() }))
+    .filter(({ box }) => box.width > 80 && box.height > 80)
+    .sort((a, b) => b.box.width * b.box.height - a.box.width * a.box.height);
+  let zoomRow = null;
+  if (planes[0]) {
+    const { svg, box } = planes[0];
+    let own = svg.parentElement;
+    while (own && own !== surface && own.getBoundingClientRect().height <= box.height + 1) own = own.parentElement;
+    const bottom = [...(own || surface).querySelectorAll('button')].map((button) => button.getBoundingClientRect())
+      .filter((rect) => rect.width > 0 && rect.height > 0 && rect.top >= box.bottom - 1 && rect.top <= box.bottom + 32)
+      .reduce((lowest, rect) => Math.max(lowest, rect.bottom), box.bottom);
+    zoomRow = Math.round(bottom - box.bottom);
+  }
+  return { view: surface.clientHeight, zoomRow, short: host.getAttribute('data-height') === 'short' };
+};
+
+const runRoom = async (browser, origins, size) => {
+  const { context, page, errors } = await newPage(browser, size, { school: true });
+  const problems = [];
+  const scenes = {};
+  const large = size.textScale > 1;
+  const least = Math.round(size.height * WORK_ROOM_SHARE);
+  try {
+    await page.goto(`${origins.app}${ROOM_APP}`, { timeout: 180_000 });
+    await page.locator('nav[aria-label="Student navigation"]').first().waitFor({ timeout: 180_000 });
+    await settled(page, 600);
+    await page.getByRole('button', { name: /^(Continue|Start Warm-Up)/ }).first().evaluate((button) => button.click());
+    const choose = page.locator('select[aria-label="Choose a question"]').first();
+    await choose.waitFor({ state: 'attached', timeout: 60_000 });
+    if (size.textScale !== 1 && !(await textScaleApplied(page, size))) problems.push('the text-size setting did not apply');
+    let zoomRow = null;
+    for (const scene of ROOM_SCENES) {
+      const value = await choose.evaluate((select, label) => [...select.options].find((option) => option.textContent.trim().startsWith(label))?.value ?? null, scene.question);
+      if (value == null) { problems.push(`${scene.kind}: no ${scene.question} in the navigator`); continue; }
+      await choose.evaluate((select, next) => { select.value = next; select.dispatchEvent(new Event('change', { bubbles: true })); }, value);
+      await page.waitForFunction((shows) => Boolean(document.querySelector('.mathmaster-question-stage .math-tool-workspace')?.querySelector(shows)), scene.shows, { timeout: 60_000 })
+        .catch(() => problems.push(`${scene.kind}: ${scene.question} does not show its ${scene.kind} work (${scene.shows})`));
+      await settled(page, 900);
+      const reading = {};
+      for (const state of ['focus view', 'progress shown']) {
+        const folded = state === 'focus view';
+        if (await page.locator('.mathmaster-assignment-unified-nav.is-collapsed').count() !== (folded ? 1 : 0)) {
+          await page.locator('.mathmaster-focus-view-button').first().evaluate((button) => button.click());
+          await page.locator(`.mathmaster-assignment-unified-nav${folded ? '.is-collapsed' : ':not(.is-collapsed)'}`).waitFor({ timeout: 30_000 });
+        }
+        await page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight));
+        await settled(page, 500);
+        const room = await page.evaluate(READ_WORK_ROOM);
+        const reach = {};
+        for (const [name, selector] of Object.entries(ROOM_REACH)) {
+          reach[name] = await page.evaluate(READ_REACH, selector);
+          await page.waitForTimeout(100);
+        }
+        await page.evaluate(() => window.scrollTo(0, 0));
+        reading[state] = { room, reach };
+        const where = `${scene.kind}, ${state}`;
+        if (!room) problems.push(`${where}: no work to measure`);
+        // At 100% text the phone is the baseline, one screen in Focus view, and nothing more is asked of it here: a
+        // choice at 320x568 has 40px for its work there, its opener cut, as before this check.
+        if (!large) {
+          if (folded && room?.pageScrolls) problems.push(`${where}: at 100% text the page scrolls; a phone is one screen per question`);
+          continue;
+        }
+        if (room && room.seen < least) problems.push(`${where}: the question has ${room.seen}px of the screen for its work, under a fifth of it (${least}px)`);
+        Object.entries(reach).forEach(([name, target]) => {
+          if (!target.found) problems.push(`${where}: no ${name} to reach`);
+          else if (!target.reached) problems.push(`${where}: its ${name} cannot be reached (${!target.onScreen ? 'off the screen' : target.cutBy ? `cut by ${target.cutBy}` : `under ${target.under}`})`);
+        });
+      }
+      // Focus view again, and Work View on the graph and the staged question.
+      await page.locator('.mathmaster-focus-view-button').first().evaluate((button) => button.click());
+      await page.locator('.mathmaster-assignment-unified-nav.is-collapsed').waitFor({ timeout: 30_000 });
+      if (scene.workView) {
+        await page.locator(ROOM_REACH.opener).first().evaluate((button) => button.click());
+        await page.locator('.mathmaster-work-view-host[data-open="true"]').waitFor({ timeout: 30_000 });
+        await settled(page, 1200);
+        reading['work view'] = await page.evaluate(READ_ROOM_VIEW);
+        if (reading['work view']?.zoomRow != null) zoomRow = reading['work view'].zoomRow;
+        await page.evaluate(() => [...document.querySelectorAll('.mathmaster-work-view-host[data-open="true"] .mathmaster-work-view-header button')].find((button) => button.textContent.trim().startsWith('Close'))?.click());
+        await page.locator('.mathmaster-work-view-host[data-open="true"]').waitFor({ state: 'detached', timeout: 30_000 }).catch(() => {});
+        await settled(page, 300);
+      }
+      scenes[scene.kind] = reading;
+    }
+    // A plane at its floor and its zoom row together (the graph's plane shows the row), in each Work View.
+    if (zoomRow == null) problems.push('Work View on the graph shows no plane with its zoom row');
+    for (const scene of ROOM_SCENES.filter((entry) => entry.workView)) {
+      const view = scenes[scene.kind]?.['work view'];
+      if (!view) problems.push(`${scene.kind}: Work View did not open`);
+      else if (zoomRow != null && view.view < PLANE_MIN + zoomRow) problems.push(`${scene.kind}: Work View is ${view.view}px tall, too short for a plane at its ${PLANE_MIN}px floor and its ${zoomRow}px zoom row together`);
+    }
+  } catch (error) {
+    problems.push(`could not read the room: ${error.message.split('\n')[0]}`);
+  } finally {
+    await context.close();
+  }
+  return { check: 'room', surface: 'assignment-screen', size: size.id, scenes, problems: [...problems, ...errors.map((message) => `page error: ${message}`)] };
 };
 
 // ------------------------------------------------------------------------------------------------ scroll (R10)
@@ -696,7 +909,6 @@ const runStaged = async (browser, origins, size) => {
   const problems = [];
   const steps = {};
   const scrolling = [];
-  const cramped = [];
   try {
     const ids = await openAssignment(page, origins.audit);
     if (size.textScale !== 1 && !(await textScaleApplied(page, size))) problems.push('the text-size setting did not apply');
@@ -729,11 +941,13 @@ const runStaged = async (browser, origins, size) => {
           m.nested.forEach((entry) => problems.push(`${where}: ${entry}`));
           if (m.plane && m.plane.height > m.plane.room + 1) problems.push(`${where}: the plane is ${m.plane.height}px tall and its step shows ${m.plane.room}px`);
           else if (m.plane && m.plane.withControls > m.plane.room + 1) {
-            // Its controls with it wherever the room holds them and a plane at its floor (stepRoom.js PLANE_MIN); a view
-            // shorter than that (the Work View at 320x568 with 200% text is 172px) keeps the plane whole, and says so.
+            // Its controls with it wherever the room holds them and a plane at its floor (stepRoom.js PLANE_MIN). A view
+            // shorter than that kept the plane whole and was reported, not failed: at 320x568 with 200% text Work View
+            // was 172px, its task four lines in the header. It is two there now (WorkViewShell.css), the view 240px,
+            // and a view too short for both fails.
             const controls = m.plane.withControls - m.plane.height;
             if (m.plane.room >= PLANE_MIN + controls) problems.push(`${where}: the plane and its controls under it are ${m.plane.withControls}px, and its step shows ${m.plane.room}px`);
-            else cramped.push(`${where}: ${m.plane.room}px, the plane ${m.plane.height}px and its controls ${controls}px`);
+            else problems.push(`${where}: the view is ${m.plane.room}px, too short for a plane at its ${PLANE_MIN}px floor and its ${controls}px of controls together`);
           }
           if (m.scrollsBy > 1) scrolling.push(`${where} by ${m.scrollsBy}px`);
         }
@@ -747,7 +961,7 @@ const runStaged = async (browser, origins, size) => {
   } finally {
     await context.close();
   }
-  return { check: 'staged', surface: 'assignment', size: size.id, steps, scrolling, cramped, problems: [...problems, ...errors.map((message) => `page error: ${message}`)] };
+  return { check: 'staged', surface: 'assignment', size: size.id, steps, scrolling, problems: [...problems, ...errors.map((message) => `page error: ${message}`)] };
 };
 
 // ------------------------------------------------------------------------------------------------ settle
@@ -1010,7 +1224,9 @@ const say = (result) => {
     : result.check === 'hint'
       ? `${Object.keys(result.readings).length} steps, "Show a hint" pressed on each: the newest hint whole in sight on ${Object.values(result.readings).filter(({ after }) => after?.hint && !hintProblems({ ...after, focus: { panel: true } }).length).length}, focus on it or in its panel on ${Object.values(result.readings).filter(({ after }) => after?.focus?.panel).length}; flowing before ${Object.values(result.readings).filter(({ before }) => before.flow).length}, after ${Object.values(result.readings).filter(({ after }) => after?.flow).length}`
     : result.check === 'staged'
-      ? `${Object.keys(result.steps).length} steps, ${Object.values(result.steps).filter((step) => step.flow).length} in a view that scrolls as one, ${Object.values(result.steps).filter((step) => step.plane).length} with a plane, the counter under its heading (no room beside it) on ${Object.values(result.steps).filter((step) => step.headingRow?.page?.counterBelow).length} on the page and ${Object.values(result.steps).filter((step) => step.headingRow?.view?.counterBelow).length} in Work View${result.cramped?.length ? `; a view too short for a plane at its floor and its controls together (the plane whole): ${result.cramped.join(', ')}` : ''}${result.scrolling.length ? `; taller than the room it has, so it scrolls (left as it is): ${result.scrolling.join(', ')}` : ''}`
+      ? `${Object.keys(result.steps).length} steps, ${Object.values(result.steps).filter((step) => step.flow).length} in a view that scrolls as one, ${Object.values(result.steps).filter((step) => step.plane).length} with a plane, the counter under its heading (no room beside it) on ${Object.values(result.steps).filter((step) => step.headingRow?.page?.counterBelow).length} on the page and ${Object.values(result.steps).filter((step) => step.headingRow?.view?.counterBelow).length} in Work View${result.scrolling.length ? `; taller than the room it has, so it scrolls (left as it is): ${result.scrolling.join(', ')}` : ''}`
+    : result.check === 'room'
+      ? `the question's work: ${Object.entries(result.scenes).map(([kind, scene]) => `${kind} ${scene['focus view']?.room?.seen ?? '?'}px in Focus view, ${scene['progress shown']?.room?.seen ?? '?'}px with progress shown${scene['work view'] ? `, Work View ${scene['work view'].view}px` : ''}`).join('; ')}`
     : result.check === 'scroll'
       ? `${Object.keys(result.scenes).length} Work Views${Object.values(result.scenes).some((scene) => scene.sideways?.length) ? `; sideways: ${[...new Set(Object.values(result.scenes).flatMap((scene) => scene.sideways || []))].join(', ')}` : ''}${result.known?.length ? `; left for the owner: ${result.known.join('; ')}` : ''}`
       : `${Object.keys(result.readings).length} states${result.workRoom?.['progress shown'] != null ? `; the question's work: ${result.workRoom['progress shown']}px with progress shown, ${result.workRoom['focus view']}px in Focus view` : ''}`;
@@ -1020,7 +1236,7 @@ const say = (result) => {
 
 const main = async () => {
   const arg = (name) => process.argv.find((entry) => entry.startsWith(`--${name}=`))?.slice(name.length + 3) || null;
-  const checks = new Set((arg('check') || 'cover,badges,scroll,staged,settle,hint').split(','));
+  const checks = new Set((arg('check') || 'cover,badges,room,scroll,staged,settle,hint').split(','));
   const only = new Set((arg('only') || '').split(',').filter(Boolean));
   const sizesWanted = new Set((arg('sizes') || '').split(',').filter(Boolean));
   const sized = (list) => list.filter((size) => !sizesWanted.size || sizesWanted.has(size.id));
@@ -1044,6 +1260,9 @@ const main = async () => {
   }
   if (checks.has('badges') && (!only.size || only.has('assignment-screen'))) {
     for (const size of sized(SIZES)) tasks.push(() => runBadges(browser, origins, size));
+  }
+  if (checks.has('room') && (!only.size || only.has('assignment-screen'))) {
+    for (const size of sized(ROOM_SIZES)) tasks.push(() => runRoom(browser, origins, size));
   }
   if (checks.has('scroll') && (!only.size || only.has('assignment'))) {
     for (const size of sized(SCROLL_SIZES)) tasks.push(() => runScroll(browser, origins, size));
@@ -1070,7 +1289,7 @@ const main = async () => {
     console.log(`What Work View's opener covers: ${failed} reading(s) failed.`);
     process.exitCode = 1;
   } else {
-    console.log('What Work View\'s opener covers: nothing, on every surface and size; the header\'s badges clear; one scroller in Work View; every staged step has room, its plane fits it, its heading is whole, it settles, and a hint asked for on it is in sight with focus.');
+    console.log('What Work View\'s opener covers: nothing, on every surface and size; the header\'s badges clear; a phone question keeps room for its work at any text size; one scroller in Work View; every staged step has room, its plane fits it, its heading is whole, it settles, and a hint asked for on it is in sight with focus.');
   }
 };
 

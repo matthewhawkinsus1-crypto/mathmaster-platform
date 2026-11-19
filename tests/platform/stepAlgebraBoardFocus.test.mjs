@@ -19,10 +19,12 @@ import { readFileSync } from 'node:fs';
 import {
   focusFellToPage,
   operationTileAfterStep,
+  operationTileKeyAction,
   typeAheadIntoOperand,
   typesACharacter,
 } from '../../src/platform/algebra/boardFocus.js';
 import { h } from './helpers/miniDom.mjs';
+import { fieldWithKeyboardPath, installKeyEvents } from './helpers/mathLiveKeyPath.mjs';
 import { executableSource, region } from './helpers/sourceContract.mjs';
 
 /* ------------------------------------------------------- after a step */
@@ -103,37 +105,62 @@ test('only a key that types one character is taken from the tile', () => {
   assert.equal(typesACharacter(null), false);
 });
 
-// A stand-in <math-field>, as tests/platform/mathFieldFocusHandoff.test.mjs
-// builds one: an open shadow root holding a focusable sink.
-const makeField = ({ built = true, connected = true } = {}) => {
-  const sink = { focusCalls: [] };
-  const field = {
-    isConnected: connected,
-    value: '',
-    dispatched: [],
-    shadowRoot: { activeElement: null, querySelector: (selector) => (built && /keyboard-sink/.test(selector) ? sink : null) },
-    executeCommand(command) {
-      if (Array.isArray(command) && command[0] === 'typedText') this.value += command[1];
-      return true;
-    },
-    dispatchEvent(event) { this.dispatched.push(event.type); return true; },
-    sink,
-  };
-  sink.focus = (options) => {
-    sink.focusCalls.push(options);
-    field.shadowRoot.activeElement = sink;
-  };
-  return field;
+// A stand-in <math-field> with MathLive's keyboard path on its sink
+// (helpers/mathLiveKeyPath.mjs): a key pressed in it, and a character merely
+// inserted into it, come out differently, as they do in the browser.
+installKeyEvents();
+const makeField = (options = {}) => fieldWithKeyboardPath({ name: 'operand', ...options });
+// The student's next key, once the box has the cursor: MathLive's own path.
+const typeInBox = (field, value) => {
+  const down = new KeyboardEvent('keydown', { key: value, bubbles: true, cancelable: true, composed: true });
+  down.isTrusted = true;
+  if (field.sink.dispatchEvent(down)) field.sink.dispatchEvent(new InputEvent('input', { data: value, inputType: 'insertText' }));
 };
 
 test('a character typed at the tile goes into the box, which takes the cursor in the same event', () => {
   const field = makeField();
-  const event = key('5');
+  const event = key('5', { code: 'Digit5' });
   assert.equal(typeAheadIntoOperand(event, field), true);
   assert.equal(field.value, '5', 'the character is in the box');
   assert.deepEqual(field.sink.focusCalls, [{ preventScroll: true }], 'with the cursor, and the page does not scroll');
-  assert.equal(event.prevented, true, 'the tile does nothing with it');
-  assert.ok(field.dispatched.includes('input'), 'the box reports it, so the operand state follows');
+  assert.equal(event.prevented, true, 'the tile does nothing with it, and the browser types it nowhere else');
+  assert.deepEqual(field.keysSeen, ['5'], 'the box saw the key once, as a key pressed in it');
+});
+
+// Review after 608e5ee6: replayed with executeCommand(['typedText', key]) the
+// key skipped the box's keyboard path. Measured in Chromium, typed before the
+// box's first frame: "(-5)" became \left((-5\right) (shown "((-5)"; placed on
+// both sides, "Parenthesis ) expected"), "pi" and "sqrt(2)" stayed letters.
+test('the key is typed as a key pressed in the box: "(" opens its pair, and "p" then "i" make π', () => {
+  const paren = makeField();
+  typeAheadIntoOperand(key('(', { code: 'Digit9', shiftKey: true }), paren);
+  assert.equal(paren.value, '\\left(\\right)', 'the box\'s own pair, not a bare "("');
+  assert.deepEqual(paren.commands, [], 'nothing inserted behind the keyboard path');
+
+  const pi = makeField();
+  typeAheadIntoOperand(key('p', { code: 'KeyP' }), pi);
+  typeInBox(pi, 'i');
+  assert.equal(pi.value, '\\pi', 'the shortcut sees the first letter too');
+
+  // What the old replay did, in the same stand-in: the letters stay letters.
+  const inserted = makeField();
+  inserted.executeCommand(['typedText', 'p']);
+  typeInBox(inserted, 'i');
+  assert.equal(inserted.value, 'pi');
+});
+
+test('the replayed key carries what the student pressed, and is typed exactly once', () => {
+  const field = makeField();
+  const seen = [];
+  field.sink.addEventListener('keydown', (event) => seen.push({ key: event.key, code: event.code, shiftKey: event.shiftKey, bubbles: event.bubbles, composed: event.composed, cancelable: event.cancelable }), { capture: true });
+  const inputs = [];
+  field.sink.addEventListener('input', (event) => inputs.push(event.data));
+  typeAheadIntoOperand(key('(', { code: 'Digit9', shiftKey: true }), field);
+  assert.deepEqual(seen, [{ key: '(', code: 'Digit9', shiftKey: true, bubbles: true, composed: true, cancelable: true }]);
+  assert.deepEqual(inputs, [], 'a key the box took as it went down sends no text after it');
+  typeAheadIntoOperand(key('7', { code: 'Digit7' }), field);
+  assert.deepEqual(inputs, ['7'], 'a character it left to text entry arrives once, as the browser would send it');
+  assert.equal(field.value, '\\left(\\right)7');
 });
 
 test('anything else is left to the tile', () => {
@@ -177,11 +204,61 @@ test('the board sends the cursor back to the tile after a committed step, throug
   assert.match(region(board, 'const selectOperation = (operation, sourceSide) => {', 'setArmedTile({ operation, sourceSide });'), /operationTileRef\.current = \{ operation, sourceSide \};/);
 });
 
-test('every tile of the operation just chosen sends a character typed at it into its box', () => {
+// A pair cancelled with no operation in hand (commitStandaloneCancellation):
+// measured in Chromium before this (stepAlgebraFirstOperand.mjs `cancel`),
+// the pressed term went with its pair and the cursor fell to the page in 8 of
+// 8 runs (left and right side, Chromebook and phone, keyboard and pointer).
+test('with no operation in hand the cursor goes to the first tile of the cancelled side\'s rail, or the phone\'s palette', () => {
+  assert.equal(named(operationTileAfterStep(desktopBoard(), { label: '', side: 'left' })), 'left:Choose Add operation');
+  assert.equal(named(operationTileAfterStep(desktopBoard(), { label: '', side: 'right' })), 'right:Choose Add operation');
+  assert.equal(named(operationTileAfterStep(phoneBoard(), { label: '', side: 'right', phone: true })), 'phone:Choose Add operation');
+  assert.equal(named(operationTileAfterStep(desktopBoard({ right: { disabled: ['Add'] } }), { label: '', side: 'right' })), 'right:Choose Subtract operation', 'the first that can take it');
+});
+
+test('a cancellation committed with no operation in hand sends the cursor where a committed step does, through the question\'s authority', () => {
+  const cancel = region(board, 'const commitStandaloneCancellation = async (side, model) => {', 'const registerCancellationHits = async', 'commitStandaloneCancellation');
+  // Taken as the student completes the pair, before the cancellation settles.
+  const ticket = cancel.match(/const (\w+) = deferredFocusHost\?\.ticket\(\{ since: 'now', channel: 'step-commit' \}\) \|\| null;/);
+  assert.ok(ticket, 'a ticket of its own, from the moment the pair is complete');
+  assert.ok(cancel.indexOf(ticket[0]) < cancel.indexOf('window.setTimeout('), 'before it settles');
+  // Asked for only once the cancellation is committed, never for a held one.
+  const signal = cancel.indexOf('setStepCommitFocus({');
+  assert.ok(signal > cancel.indexOf('setEquation(nextEquation);'), 'after the pair leaves the board');
+  assert.ok(signal > cancel.indexOf('if (holdUnsavedStep('), 'never for a cancellation that was held');
+  assert.match(cancel.slice(signal), new RegExp(`^setStepCommitFocus\\(\\{ ticket: ${ticket[1]}, operation: null, side, phone: Boolean\\(mobileInteraction\\?\\.isMobile\\) \\}\\);`), 'no operation, on the cancelled side');
+});
+
+test('every tile chooses itself on Space going down, and the tile just chosen sends a character typed at it into its box', () => {
   const handler = region(board, 'const typeIntoOperationBox = useCallback((event) => {', '}, []);', 'the tile key handler');
   assert.match(handler, /typeAheadIntoOperand\(event, operationComposerRef\.current\?\.querySelector\('math-field'\)\);/, 'the operation box, as Enter there reads it');
   assert.match(board, /<div ref=\{operationComposerRef\} className="algebra-operation-composer"/, 'which is the composer\'s own box');
+  assert.match(board, /import \{[^}]*\boperationTileKeyAction\b[^}]*\} from '\.\/platform\/algebra\/boardFocus\.js';/);
+  const keyDown = region(board, 'const operationTileKeyDown = (event, operation, sourceSide) => {', 'const activateTapPlacement', 'the tile key handler');
+  assert.match(keyDown, /const action = operationTileKeyAction\(event, \{ chosen: armedTile\?\.operation === operation \}\);/, 'chosen: the tile of the operation in hand');
+  assert.match(keyDown, /if \(action === 'choose'\) \{\s*event\.preventDefault\(\);\s*selectOperation\(operation, sourceSide\);\s*\} else if \(action === 'type'\) \{\s*typeIntoOperationBox\(event\);\s*\}/, 'Space chooses it as a click does, and its release clicks nothing');
   const tileTags = board.match(/<button type="button" key=\{`(?:mobile|left|right)-\$\{operation\.id\}`\}[\s\S]*?aria-label=\{`Choose \$\{operation\.label\} operation`\}>/g) || [];
   assert.equal(tileTags.length, 3, 'the phone palette and both rails');
-  tileTags.forEach((tag) => assert.match(tag, /onKeyDown=\{armedTile\?\.operation === operation\.id \? typeIntoOperationBox : undefined\}/, tag.slice(0, 60)));
+  tileTags.forEach((tag) => {
+    const side = tag.match(/onClick=\{\(\) => selectOperation\(operation\.id, '(left|right)'\)\}/)?.[1];
+    assert.ok(side, tag.slice(0, 60));
+    assert.ok(tag.includes(`onKeyDown={(event) => operationTileKeyDown(event, operation.id, '${side}')}`), `${tag.slice(0, 60)}: every tile, the side its click chooses from`);
+  });
+});
+
+// A review after #386: a tile pressed with Space is chosen as Space comes up,
+// so a 5 typed while Space was still held reached a tile not chosen yet and
+// was lost (Space held, 5, Space up: an empty box), measured in Chromium
+// (stepAlgebraFirstOperand.mjs `space`).
+test('Space on a tile chooses it as it goes down; a character goes to the box only from the tile already chosen', () => {
+  assert.equal(operationTileKeyAction(key(' ')), 'choose');
+  assert.equal(operationTileKeyAction(key(' '), { chosen: true }), 'choose', 'the tile in hand too, as a click on it does');
+  assert.equal(operationTileKeyAction(key(' ', { repeat: true })), null, 'a held Space repeating chooses nothing again');
+  assert.equal(operationTileKeyAction(key(' ', { ctrlKey: true })), null, 'nor a shortcut');
+  assert.equal(operationTileKeyAction(key(' ', { isComposing: true })), null);
+  assert.equal(operationTileKeyAction(key(' ', { defaultPrevented: true })), null, 'nor a key already handled');
+  assert.equal(operationTileKeyAction(key('Enter')), null, 'Enter presses the tile as it goes down already');
+  assert.equal(operationTileKeyAction(key('5')), null, 'a tile not chosen keeps a character');
+  assert.equal(operationTileKeyAction(key('5'), { chosen: true }), 'type');
+  assert.equal(operationTileKeyAction(key('Tab'), { chosen: true }), null);
+  assert.equal(operationTileKeyAction(null), null);
 });

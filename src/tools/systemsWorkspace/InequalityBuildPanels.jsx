@@ -317,6 +317,15 @@ export function ModelingFields({ entries, variables, onChange }) {
 }
 
 /*
+ * Where the build mode writes a point's name (a test point's coordinates, "Your
+ * point", a vertex's letter, a handle's number): up and to the right of its
+ * dot, from where the text starts, in viewBox units. The plane is handed the
+ * same names (CoordinatePlane `toolLabels`), so a constraint's ringed number
+ * keeps off them.
+ */
+export const POINT_NAME_PLACE = Object.freeze({ dx: 10, dy: -10, textSize: 12 });
+
+/*
  * EVERYTHING THE STUDENT BUILT, DRAWN ON THE PLANE.
  *
  * Each constraint's shaded half-plane and its line in its own colour — the
@@ -326,11 +335,13 @@ export function ModelingFields({ entries, variables, onChange }) {
  * its edges are the student's own boundaries, drawn solid or dashed as built,
  * and an outline showed through the gaps of a dashed edge as a solid line. The
  * labels of points use the theme's graph-label colour: the plane's own point
- * labels are a fixed dark ink that disappears on the dark graph.
+ * labels are a fixed dark ink that disappears on the dark graph. `pointNames`
+ * are those labels ({ x, y, label, dx, dy, textSize }, POINT_NAME_PLACE), the
+ * list the plane keeps the constraints' numbers off.
  */
 export function InequalityGraphLayers({
   sx, sy, plotClip, build, effectiveLines, buildConfig, workingConstraints, bounds,
-  combined, studentPolygon, emphasised, hatchId, graphPoints, graphPointRoles,
+  combined, studentPolygon, emphasised, hatchId, pointNames,
 }) {
   return (
     <>
@@ -376,16 +387,12 @@ export function InequalityGraphLayers({
           );
         })}
       </g>
-      {graphPoints.map((point, index) => {
-        const role = graphPointRoles[index];
-        if (!role?.label) return null;
-        return (
-          <text key={`label${index}`} x={sx(point.x) + 10} y={sy(point.y) - 10} fontSize="12" fontWeight="800"
-            style={{ fill: 'var(--mm-graph-label)', paintOrder: 'stroke', stroke: 'var(--mm-graph-bg)', strokeWidth: 3 }} pointerEvents="none">
-            {role.label}
-          </text>
-        );
-      })}
+      {pointNames.map(({ x, y, label, dx, dy, textSize }, index) => (
+        <text key={`label${index}`} x={sx(x) + dx} y={sy(y) + dy} fontSize={textSize} fontWeight="800"
+          style={{ fill: 'var(--mm-graph-label)', paintOrder: 'stroke', stroke: 'var(--mm-graph-bg)', strokeWidth: 3 }} pointerEvents="none">
+          {label}
+        </text>
+      ))}
     </>
   );
 }

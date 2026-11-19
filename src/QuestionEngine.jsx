@@ -663,6 +663,10 @@ function QuestionEngineBody({
   // shown }. It outlives the first keystroke (like "Your last try") and is
   // replaced by the next submit.
   const [missRung, setMissRung] = useState(null);
+  // Each press of "What might have gone wrong?": the reveal below follows a
+  // press, never a new miss replacing the rung (a Submit brings its own result
+  // into view).
+  const [missRungReads, setMissRungReads] = useState(0);
   const [workedExampleUsed, setWorkedExampleUsed] = useState(restoredSupport.workedExampleUsed);
   const [similarOpen, setSimilarOpen] = useState(false);
   // The graded work behind the feedback on screen, kept beside it for the
@@ -1932,10 +1936,10 @@ function QuestionEngineBody({
     if (locked && helpRequested && typeof onAskTeacher === 'function') onAskTeacher(false);
   }, [locked, helpRequested, onAskTeacher]);
   const hintPanelRef = useRef(null);
-  // What a press asked the panel for ('hint' or 'example'), with the moment it
-  // asked (a deferred-focus ticket): focus goes there once it is drawn. A press
-  // made in a panel stays in that panel: Work View's Help drawer draws one of
-  // its own beside the one in the work.
+  // What a press asked the panel for ('hint', 'example' or 'diagnosis'), with
+  // the moment it asked (a deferred-focus ticket): focus goes there once it is
+  // drawn. A press made in a panel stays in that panel: Work View's Help
+  // drawer draws one of its own beside the one in the work.
   const hintFocusRequestRef = useRef(null);
   const requestHintFocus = (asked, from) => {
     const scope = from?.currentTarget?.closest?.('[data-hint-panel]') || null;
@@ -1972,9 +1976,11 @@ function QuestionEngineBody({
     setHintPanelOpen(true);
   };
   // The diagnosis rung, read on request: recorded exactly like a hint.
-  const showMissDiagnosis = () => {
+  const showMissDiagnosis = (from) => {
     if (!missRung || locked) return;
+    requestHintFocus('diagnosis', from);
     setMissRung((current) => (current ? { ...current, shown: true } : current));
+    setMissRungReads((count) => count + 1);
     recordHintUse();
     setHintPanelOpen(true);
   };
@@ -1994,12 +2000,13 @@ function QuestionEngineBody({
         hintFocusRequestRef.current = { ...request, ticket: focusAuthority.ticket({ since: 'now', channel: 'hint' }) };
       }
     }
-    // Under a miss the page moves only as far as the newest hint needs; a rung
-    // that was loading is that hint again once it is here. And again while the
-    // page settles around it: a staged step in Work View can flow a frame or
-    // two after the panel takes its room, and move the hint out of the view.
-    return keepHintPanelInView(panel, { place: hintPanelPlace, similarOpen, behavior: scrollMotion() });
-  }, [hintPanelOpen, hintPanelPlace, hintsRevealed, similarOpen, toolRungsPending, focusAuthority]);
+    // Under a miss the page moves only as far as the newest hint needs (or
+    // "What might have gone wrong", just asked for); a rung that was loading is
+    // that hint again once it is here. And again while the page settles around
+    // it: a staged step in Work View can flow a frame or two after the panel
+    // takes its room, and move the hint out of the view.
+    return keepHintPanelInView(panel, { place: hintPanelPlace, similarOpen, asked: request?.asked, behavior: scrollMotion() });
+  }, [hintPanelOpen, hintPanelPlace, hintsRevealed, similarOpen, toolRungsPending, missRungReads, focusAuthority]);
   const supportedTextReadAloud = readAloudOffered || (languageTools.tools.includes('read-aloud') && readAloudReady)
     ? { language: 'en' }
     : null;

@@ -13,7 +13,8 @@ import { SR_ONLY_STYLE } from '../../ui/srOnly.js';
 import { describePlot } from './plotAnnouncement.js';
 import { baselineBelowAxis, originLabelPlacement, planeDotGrowth, planeFontSize } from './planeTextScale.js';
 import { axisNumberBox, boxesTouch, placePointLabels, placedLabelBox } from './planePointLabels.js';
-import { curveLabelSize, placeCurveLabels, sampleFunctionRuns } from '../../platform/graph/curveLabels.js';
+import { curveLabelSize, sampleFunctionRuns } from '../../platform/graph/curveLabels.js';
+import { useCurveLabelPlacer } from '../../platform/graph/curveLabelPlacer.js';
 import { useCoveredByOpener } from '../../platform/graph/useCoveredByOpener.js';
 import { equalUnitPlaneHeight } from './planeEqualUnits.js';
 import { FINGER_REACH_PX, keyboardGridPoint, pressPicksUpPoint, readoutChipSpot, snapInsideWindow } from './planeTouch.js';
@@ -155,6 +156,13 @@ export default function CoordinatePlane({
   // the curve's `stroke`.
   functionLabels = [],
   curveLabels = [],
+  // Words a tool writes on the plane itself, beside its points, as children
+  // ({ x, y, label } in graph units; `dx`, `dy` from there to where the text
+  // starts and `textSize`, in viewBox units): the Systems Workspace's build
+  // mode writes a test point's coordinates, "Your point", a vertex's letter, a
+  // handle's number. The curves' names keep clear of them, as of the plane's
+  // own point names.
+  toolLabels = [],
   onPlot = null,
   // The tool's count after a plot, said with it ("2 of 2 points plotted.").
   // Optional: without it a screen reader hears what the plot did and no count.
@@ -816,6 +824,8 @@ export default function CoordinatePlane({
     || polylines.some((entry) => entry?.label) || curveLabels.some((entry) => entry?.label);
   // Work View's opener over the plot's corner: no name goes under it.
   const openerCover = useCoveredByOpener(planeRef, width, curveNamed);
+  // Placed again only when what the names are placed among changes: not for the readout following a pointer.
+  const placeNames = useCurveLabelPlacer();
   const curveTextSize = svgFont(12);
   const inView = (path) => (Array.isArray(path) ? path : []).map((point) => pointXY(point))
     .filter(([x, y]) => Number.isFinite(x) && Number.isFinite(y)).map(([x, y]) => [sx(x), sy(y)]);
@@ -837,7 +847,7 @@ export default function CoordinatePlane({
     ...(xMin <= 0 && xMax >= 0 ? [{ label: '', paths: [[[sx(0), pad], [sx(0), height - pad]]] }] : []),
     ...(yMin <= 0 && yMax >= 0 ? [{ label: '', paths: [[[pad, sy(0)], [width - pad, sy(0)]]] }] : []),
   ] : [];
-  const curveLabelSpots = curveNamed ? placeCurveLabels({
+  const curveLabelSpots = curveNamed ? placeNames({
     curves: namedCurves,
     dots: points.map((point, index) => {
       let [pointX, pointY] = pointXY(point);
@@ -850,6 +860,12 @@ export default function CoordinatePlane({
     avoid: [
       ...axisNumberBoxes,
       ...labelSpots.map((spot, index) => (spot ? placedLabelBox({ spot, label: points[index].label, textSize: svgFont(11) }) : null)).filter(Boolean),
+      ...toolLabels.map((entry) => {
+        const [pointX, pointY] = pointXY(entry);
+        if (!entry?.label || !Number.isFinite(pointX) || !Number.isFinite(pointY)) return null;
+        const spot = { x: sx(pointX) + (Number(entry.dx) || 0), y: sy(pointY) + (Number(entry.dy) || 0), anchor: entry.anchor || 'start' };
+        return placedLabelBox({ spot, label: String(entry.label), textSize: Number(entry.textSize) || 12 });
+      }).filter(Boolean),
     ],
     hidden: openerCover ? [openerCover] : [],
     bounds: { left: pad, right: width - pad, top: pad, bottom: height - pad },

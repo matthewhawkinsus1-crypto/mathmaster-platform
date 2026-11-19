@@ -10,7 +10,7 @@ import { quadrantLabelPositions } from './platform/graph/quadrantLabels.js';
 import { BOUNDARY_DASH } from './platform/graph/verticalLineStyle.js';
 import { boundaryIsLine, boundaryIsVertical, SHADE_OPACITY, shadingPolygon, shadingRegions } from './platform/graph/halfPlaneShading.js';
 import { constraintColor } from './tools/systemsWorkspace/constraintPalette.js';
-import { placeCurveLabels } from './platform/graph/curveLabels.js';
+import { useCurveLabelPlacer } from './platform/graph/curveLabelPlacer.js';
 import { useCoveredByOpener } from './platform/graph/useCoveredByOpener.js';
 import { describeCoordinatePlane, GRAPH_WORDS, joinSegmentPaths } from './platform/language/graphDescription.js';
 import { useQuestionLifecycle } from './platform/question/QuestionLifecycleContext.jsx';
@@ -330,6 +330,9 @@ export default function GraphDisplay({ graph, title = 'Coordinate graph', enlarg
   // corner is measured, so no name goes under it (useCoveredByOpener.js).
   const svgRef = useRef(null);
   const openerCover = useCoveredByOpener(svgRef, DEFAULT_WIDTH, Array.isArray(graph?.functions) && graph.functions.some((spec) => String(spec?.label ?? '').trim()));
+  // The names are placed again only when what they are placed among changes, not on every render: a system
+  // question renders its figure on every key typed in its answer box (curveLabelPlacer.js).
+  const placeNames = useCurveLabelPlacer();
   if (!graph) return null;
 
   // STATIC_GRAPH_PLOT_ASPECT is this plot area's (620 x 430 less padding).
@@ -460,10 +463,12 @@ export default function GraphDisplay({ graph, title = 'Coordinate graph', enlarg
    * question that asks for one.
    */
   const curveName = (spec) => String(spec?.label ?? '').trim();
+  // Each function's runs, sampled once a render: drawn below, and the curves its names are placed among.
+  const functionPaths = functions.map((spec) => buildFunctionPaths(spec, xMin, xMax, yMin, yMax, toScreenX, toScreenY));
   const keptClearAsymptotes = functions.some(curveName) ? graphAsymptoteLines(graph) : [];
-  const curveNameSpots = functions.some(curveName) ? placeCurveLabels({
+  const curveNameSpots = functions.some(curveName) ? placeNames({
     curves: [
-      ...functions.map((spec) => ({ label: curveName(spec), paths: buildFunctionPaths(spec, xMin, xMax, yMin, yMax, toScreenX, toScreenY) })),
+      ...functions.map((spec, index) => ({ label: curveName(spec), paths: functionPaths[index] })),
       ...verticalLines.map((line) => ({ label: '', paths: [[[toScreenX(line.x), PADDING], [toScreenX(line.x), PADDING + innerHeight]]] })),
       ...segments.map((segment) => {
         const from = segment.from || segment.start;
@@ -775,7 +780,7 @@ export default function GraphDisplay({ graph, title = 'Coordinate graph', enlarg
           <rect x={plotLeft} y={PADDING} width={innerWidth} height={innerHeight} />
         </clipPath>
         {functions.map((spec, functionIndex) =>
-          buildFunctionPaths(spec, xMin, xMax, yMin, yMax, toScreenX, toScreenY).map((path, pathIndex) => (
+          functionPaths[functionIndex].map((path, pathIndex) => (
             <path
               clipPath={`url(#${plotClipId})`}
               key={`function-${functionIndex}-${pathIndex}`}

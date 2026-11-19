@@ -69,6 +69,14 @@ test('at the top the whole panel is brought into view; under a miss, the newest 
   assert.equal(hintPanelRevealTarget(empty, { place: 'results' }), empty);
   assert.equal(hintPanelRevealTarget(null, { place: 'results' }), null);
   assert.equal(hintPanelRevealTarget({}, { place: 'results' }), null, 'not an element');
+  // "What might have gone wrong", just asked for, is the newest thing in it; asked for nothing, the last hint read.
+  const diagnosis = { tag: 'diagnosis' };
+  const withDiagnosis = { ...panel, querySelector: (selector) => ({ '[data-similar-example]': example, '[data-miss-diagnosis-hint]': diagnosis }[selector] ?? null) };
+  assert.equal(hintPanelRevealTarget(withDiagnosis, { place: 'results', asked: 'diagnosis' }), diagnosis);
+  assert.equal(hintPanelRevealTarget(withDiagnosis, { place: 'results', asked: 'diagnosis', similarOpen: true }), diagnosis);
+  assert.equal(hintPanelRevealTarget(withDiagnosis, { place: 'results' }), second, 'not asked for: the hint, as before');
+  assert.equal(hintPanelRevealTarget(withDiagnosis, { place: 'top', asked: 'diagnosis' }), withDiagnosis, 'at the top: the panel, as always');
+  assert.equal(hintPanelRevealTarget(panel, { place: 'results', asked: 'diagnosis' }), second, 'none drawn: the hint');
 });
 
 test('the page moves only as far as needed, and the glide follows the motion preference', () => {
@@ -131,8 +139,8 @@ test('the work bar\'s Hint control opens the panel at the top, and closing it le
 
 test('the page follows the newest hint, and again when the panel moves', () => {
   // ...and when a rung that was loading arrives (hint-ladder timing), and while the page settles around it (below).
-  const effect = region(engine, 'useEffect(() => {\n    if (!hintPanelOpen) return undefined;', '[hintPanelOpen, hintPanelPlace, hintsRevealed, similarOpen, toolRungsPending, focusAuthority]);', 'the reveal effect');
-  assert.match(effect, /return keepHintPanelInView\(panel, \{ place: hintPanelPlace, similarOpen, behavior: scrollMotion\(\) \}\);/, 'its watch stops when the effect is cleaned up');
+  const effect = region(engine, 'useEffect(() => {\n    if (!hintPanelOpen) return undefined;', '[hintPanelOpen, hintPanelPlace, hintsRevealed, similarOpen, toolRungsPending, missRungReads, focusAuthority]);', 'the reveal effect');
+  assert.match(effect, /return keepHintPanelInView\(panel, \{ place: hintPanelPlace, similarOpen, asked: request\?\.asked, behavior: scrollMotion\(\) \}\);/, 'its watch stops when the effect is cleaned up');
   assert.match(effect, /const panel = hintPanelRef\.current;/);
   assert.match(engine, /import \{ hintPanelFocusTarget, keepHintPanelInView, requestedHintPanelPlace \} from '\.\/platform\/supports\/hints\/hintPanelReveal\.js';/);
   assert.doesNotMatch(engine, /revealHintPanel\(/, 'no reveal that runs once and leaves the page to move on');
@@ -257,6 +265,32 @@ test('the student\'s own press, tap, key or wheel ends the watch; the app\'s own
   assert.equal(once.reveals.length, 1);
 });
 
+test('"What might have gone wrong", once asked for, is kept in sight the same way: it, not the hint above it', () => {
+  const reveals = [];
+  const view = { offsetTop: 58, offsetParent: null };
+  const hint = { offsetTop: 300, offsetHeight: 136, offsetParent: view, isConnected: true, scrollIntoView: () => reveals.push('the hint') };
+  const diagnosis = { offsetTop: 450, offsetHeight: 120, offsetParent: view, isConnected: true, scrollIntoView: (options) => reveals.push(options) };
+  const panel = {
+    querySelector: (selector) => (selector === '[data-miss-diagnosis-hint]' ? diagnosis : null),
+    querySelectorAll: (selector) => (selector === 'li[data-hint-source]' ? [hint] : []),
+  };
+  const win = fakeWindow();
+  keepHintPanelInView(panel, { place: 'results', asked: 'diagnosis', behavior: 'auto', win });
+  assert.deepEqual(reveals, [{ block: 'nearest', behavior: 'auto' }], 'revealed as it opens');
+  win.frame();
+  win.frame();
+  assert.equal(reveals.length, 1, 'nothing moved: nothing more (it is the diagnosis that is watched, every frame)');
+  diagnosis.offsetTop = 800;
+  win.frame();
+  assert.deepEqual(reveals, [{ block: 'nearest', behavior: 'auto' }, { block: 'nearest', behavior: 'auto' }], 'it moved: revealed again');
+  hint.offsetTop = 340;
+  win.frame();
+  assert.equal(reveals.length, 2, 'the hint above it moving is not its move');
+  for (let frame = 0; frame < SETTLE_QUIET_FRAMES; frame += 1) win.frame();
+  assert.equal(win.waiting, 0, 'until it settles');
+  assert.ok(!reveals.includes('the hint'));
+});
+
 /* ------------------------------------------- focus goes to what the press asked for */
 
 const element = (attributes = {}) => ({ getAttribute: (name) => attributes[name] ?? null });
@@ -277,6 +311,11 @@ test('focus goes to the newest hint, to the panel while that rung loads, and to 
   assert.equal(hintPanelFocusTarget(panelWith([])), own, 'nothing read yet: the panel');
   assert.equal(hintPanelFocusTarget(panelWith([first], { example: true }), { asked: 'example' }), summary, 'the example: its heading');
   assert.equal(hintPanelFocusTarget(panelWith([first]), { asked: 'example' }), own);
+  // "What might have gone wrong?": its button goes once it is read; focus goes to what it showed.
+  const diagnosis = element();
+  const withDiagnosis = { ...panelWith([first]), querySelector: (selector) => ({ '[data-hint-panel]': own, '[data-miss-diagnosis-hint]': diagnosis }[selector] ?? null) };
+  assert.equal(hintPanelFocusTarget(withDiagnosis, { asked: 'diagnosis' }), diagnosis);
+  assert.equal(hintPanelFocusTarget(panelWith([first]), { asked: 'diagnosis' }), own, 'not drawn: the panel');
   assert.equal(hintPanelFocusTarget(null), null);
   // Asked of the panel itself (the one in Work View's Help drawer, where its own button was pressed): the same, in it.
   const drawer = {
@@ -300,9 +339,15 @@ test('a press that reveals a hint or opens the example sends focus there once it
   assert.match(reveal, /if \(!hintState\.canRevealNext \|\| !hintLadder\.next\) return;\s*requestHintFocus\('hint', place\);/);
   const similar = region(engine, 'const openSimilarExample = (place) => {', '};', 'opening the example');
   assert.match(similar, /if \(!similarExample\) return;\s*requestHintFocus\('example', place\);/);
+  // "What might have gone wrong?" asks too, after its guard, and counts the press: the reveal follows a press of it,
+  // never a new miss replacing the rung (a Submit brings its own result into view), so the rung itself is no dependency.
+  const diagnosis = region(engine, 'const showMissDiagnosis = (from) => {', '\n  };', 'reading the rung');
+  assert.match(diagnosis, /if \(!missRung \|\| locked\) return;\s*requestHintFocus\('diagnosis', from\);/);
+  assert.match(diagnosis, /setMissRungReads\(\(count\) => count \+ 1\);/);
+  assert.match(engine, /diagnosis=\{missRung && !locked \? \{ shown: missRung\.shown \? missRung\.hint : null, onShow: showMissDiagnosis \} : null\}/, 'the panel\'s button hands over its click event');
   // The work bar's Hint control opens and closes the panel and keeps focus: it asks for none.
   assert.doesNotMatch(region(engine, 'data-hint-control=""', 'style={{ minHeight', 'the Hint control'), /requestHintFocus/);
-  const effect = region(engine, 'useEffect(() => {\n    if (!hintPanelOpen) return undefined;', '[hintPanelOpen, hintPanelPlace, hintsRevealed, similarOpen, toolRungsPending, focusAuthority]);', 'the reveal effect');
+  const effect = region(engine, 'useEffect(() => {\n    if (!hintPanelOpen) return undefined;', '[hintPanelOpen, hintPanelPlace, hintsRevealed, similarOpen, toolRungsPending, missRungReads, focusAuthority]);', 'the reveal effect');
   assert.match(effect, /const request = hintFocusRequestRef\.current;\s*hintFocusRequestRef\.current = null;/, 'one focus per press');
   assert.match(effect, /if \(request && focusAuthority\.isLive\(request\.ticket\)\) \{/, 'a press, tap or key since, or focus moved, wins');
   assert.match(effect, /const target = hintPanelFocusTarget\(request\.scope\?\.isConnected \? request\.scope : panel, \{ asked: request\.asked \}\);\s*target\?\.focus\?\.\(\{ preventScroll: true \}\);/, 'focus does not scroll: the watch does');

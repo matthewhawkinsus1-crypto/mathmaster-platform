@@ -161,3 +161,53 @@ test('speechSpans finds exactly the spans DELIMITED_SPEECH matches, after a span
     assert.deepEqual(collect(speechText.speechSpans(text), text, keep), collect(mathSafeText.DELIMITED_SPEECH, text, keep), JSON.stringify(text));
   });
 });
+
+/*
+ * THE REST OF READ ALOUD'S LONG BOXES (the November build's handoff, section
+ * 6, "The student's runtime, measured and left"). Each says exactly what it
+ * said (the commit compares the full output of every reader over the
+ * repository's banks and generated boxes, old against new).
+ *
+ *   - A box of many short pieces ("x y x y …", "1 2 3 …") read every piece
+ *     from the start, 0.25 to 0.35 s; a piece is read once a text now.
+ *   - A nest of brackets, "((…x…))", looked for a minus between terms in each
+ *     bracket's content from every character of it: 4 s at 2,000 characters,
+ *     100 s at 6,000. A bracket that holds no minus is not read for one now.
+ *     A nest of applications, "f(f(…x…))", read each bracket with a call of
+ *     its own: past about 5,000 deep every reader threw.
+ */
+const nest = (open, inner, close, length = MAX_DRAFT_TEXT_LENGTH) => {
+  const depth = Math.floor((length - inner.length) / (open.length + close.length));
+  return `${open.repeat(depth)}${inner}${close.repeat(depth)}`;
+};
+const SHORT_PIECES = Object.freeze({ 'letters apart': 'x y ', 'numbers apart': '1 2 3 ', 'signed numbers apart': '-1 2 -3 ' });
+const NESTS = Object.freeze({ 'a nest of brackets': nest('(', 'x', ')') });
+
+test(`a ${MAX_DRAFT_TEXT_LENGTH.toLocaleString('en-US')}-character box of many short pieces, or of nested brackets, is read aloud in well under ${BUDGET_MS} ms`, (t) => {
+  const slow = [];
+  let slowest = 0;
+  const boxes = { ...Object.fromEntries(Object.entries(SHORT_PIECES).map(([name, unit]) => [name, box(unit)])), ...NESTS };
+  for (const [name, text] of Object.entries(boxes)) {
+    assert.ok(text.length > 15000 && text.length <= MAX_DRAFT_TEXT_LENGTH, name);
+    for (const [reader, read] of Object.entries(READERS)) {
+      const ms = fastest(read, text);
+      slowest = Math.max(slowest, ms);
+      if (ms >= BUDGET_MS) slow.push(`${reader}: ${name} took ${Math.round(ms)} ms`);
+    }
+  }
+  t.diagnostic(`slowest reading: ${slowest.toFixed(1)} ms`);
+  assert.deepEqual(slow, []);
+});
+
+test('a nest of applications as deep as a box holds is read aloud, as one a few deep is', () => {
+  const deep = nest('f(', 'x', ')');
+  assert.equal(deep.length, MAX_DRAFT_TEXT_LENGTH);
+  for (const [reader, read] of Object.entries(READERS)) {
+    let spoken;
+    assert.doesNotThrow(() => { spoken = read(deep); }, reader);
+    assert.match(String(spoken), /^f of f of f of /, reader);
+  }
+  // As a few deep reads, at every depth.
+  assert.equal(speechText.mathToSpeech('f(f(f(x)))'), 'f of f of f of x');
+  assert.equal(speechText.mathToSpeech('f(g(2)) + f(x - 3)'), 'f of g of 2 plus f of the quantity x minus 3');
+});

@@ -9,10 +9,13 @@
  * with both kinds of round done and its key, the CCMR readiness wheel in every
  * state, and the planes that drew two lines alike but for their colour (the
  * Inverse & Composition Lab's f and y = x, the Exponential ↔ Log Bridge's, the
- * Systems Workspace's two non-strict boundaries in both its modes, the
+ * Systems Workspace's two non-strict boundaries in both its modes (the
+ * build mode again with a test point, whose coordinates it writes itself) and
+ * a system's two solid lines, graphed and plotted by the student, the
  * Transformations Lab's source and image, the graph workspace's curve and its
  * inverse, a figure's two named solid functions, a system of equations' two
- * lines beside its equations, and Graph the Line's line drawn without the
+ * lines beside its equations, two more whose steep lines leave a long name no
+ * place clear of the other line, and Graph the Line's line drawn without the
  * method). Each is mounted with its real component and props, in the
  * state a student sees it in. Nothing is restyled: the page takes the app's
  * stylesheets, and its theme from <html data-theme>, as the app's pages do.
@@ -77,6 +80,11 @@ const READINESS_RECOMMENDATIONS = {
 // The Lab's sample (S1, S2, S3), with the student's first two images plotted. On the page, not in Work View.
 const TRANSFORM_KEY = 'mm-colour-cues:transformations';
 
+// ------------------------------------------------------------------ the Systems Workspace's two equations
+// Graphed for the student (the default system: y = 2x + 1 and y = −x + 7), and plotted by the student from two points
+// on each line, as a reload finds them.
+const LINES_KEY = 'mm-colour-cues:systems-plotted';
+
 // ------------------------------------------------------------------ the graph workspace, building the inverse
 // y = 2x + 1 from two points, its inverse from the two reflected points: both
 // curves drawn, as a reload finds the work.
@@ -112,11 +120,19 @@ const FIGURE = {
 // ------------------------------------------------------------------ a system of equations
 // The system generator's question as one student's key makes it: y = 2x - 1 and
 // y = -x + 8, listed beside their lines' colours, and the two lines on its graph.
-const SYSTEM = generateQuestion({
+const SYSTEM_SETTINGS = { kind: 'linearSystem', xRange: [-5, 5], yRange: [-5, 5], slopeChoices: [-3, -2, -1, 1, 2, 3] };
+const systemFor = (key, generator = SYSTEM_SETTINGS) => generateQuestion({
   questionId: 'colour-cues-system', type: 'system', prompt: 'Solve the system and enter the intersection as an ordered pair.',
-  showEquations: true, showGraph: true,
-  generator: { kind: 'linearSystem', xRange: [-5, 5], yRange: [-5, 5], slopeChoices: [-3, -2, -1, 1, 2, 3] },
-}, 'colour-cues|student|1|variant:0');
+  showEquations: true, showGraph: true, generator,
+}, key);
+const SYSTEM = systemFor('colour-cues|student|1|variant:0');
+// Two systems whose lines meet steeply near an axis, where a long name has no place clear of the other line: y = −3x − 2
+// and y = −x + 2 (this page's settings), and y = 5x − 42 and y = 4x − 34 (the generator's defaults). Each name was
+// drawn nearer the other line (src/platform/graph/curveLabels.js).
+const SYSTEM_CROSSING = systemFor('colour-cues|student|10|variant:0');
+const SYSTEM_STEEP = systemFor('colour-cues|student|19|variant:0', { kind: 'linearSystem' });
+// Which line is whose, by the colour each is drawn in (the equations' list says it as the page draws them).
+const namedLines = (system) => JSON.stringify(Object.fromEntries(system.equationsLatex.map((equation, index) => [equation.replace(/-/g, '−'), system.graph.functions[index].stroke])));
 
 // ------------------------------------------------------------------ Graph the Line
 const tokens = (text) => Object.fromEntries(String(text).split(';').map((entry) => entry.trim()).filter(Boolean)
@@ -137,6 +153,7 @@ function LineWithoutMethod() {
 
 const seedDrafts = () => {
   writeQuestionDraft(toolDraftKey(TRANSFORM_KEY), { plottedPoints: [[0, -3], [2, -1]] }, { edit: true });
+  writeQuestionDraft(toolDraftKey(LINES_KEY), { linePoints: [{ x1: '0', y1: '1', x2: '1', y2: '3' }, { x1: '0', y1: '7', x2: '1', y2: '6' }] }, { edit: true });
   writeQuestionDraft(`${WORKSPACE_KEY}:graph-stage`, 'analysis', { edit: true });
   writeQuestionDraft(`${WORKSPACE_KEY}:graph-construction`, {
     placements: { p0: [0, 1], p1: [1, 3] }, chosenXValues: { p0: '0', p1: '1' }, pointsValidated: true,
@@ -149,8 +166,9 @@ const seedDrafts = () => {
 };
 
 // ------------------------------------------------------------------ the page
-const Scene = ({ id, title, children, wide = false }) => (
-  <section data-cue-scene={id} aria-label={title} style={{ display: 'grid', gap: 8, minWidth: 0, alignContent: 'start', gridColumn: wide ? '1 / -1' : undefined }}>
+// `lines`: which drawn line each name is the name of, by its colour (data-named-lines, read by colourAloneCues.mjs).
+const Scene = ({ id, title, children, wide = false, lines }) => (
+  <section data-cue-scene={id} data-named-lines={lines} aria-label={title} style={{ display: 'grid', gap: 8, minWidth: 0, alignContent: 'start', gridColumn: wide ? '1 / -1' : undefined }}>
     <h2 style={{ margin: 0, fontSize: 'calc(16 * var(--mm-px))' }}>{title}</h2>
     {children}
   </section>
@@ -178,6 +196,18 @@ function Cues() {
       <Scene id="systems-build" title="Systems Workspace, built by the student" wide>
         <SystemsWorkspace questionData={{ mode: 'inequalities', studentBuild: { shading: true } }} onAction={ignore} />
       </Scene>
+      {/* A test point where a boundary's number went: the build mode writes its coordinates beside it itself. */}
+      <Scene id="systems-build-test-point" title="Systems Workspace, built by the student, with a test point" wide>
+        <SystemsWorkspace questionData={{ mode: 'inequalities', studentBuild: { shading: true }, testPoint: { x: 5, y: 8 } }} onAction={ignore} />
+      </Scene>
+      <Scene id="systems-linear" title="Systems Workspace: a system's two equations, graphed" wide>
+        <SystemsWorkspace questionData={{}} onAction={ignore} />
+      </Scene>
+      <Scene id="systems-linear-plotted" title="Systems Workspace: a system's two lines, plotted by the student" wide>
+        <ToolDraftScopeProvider draftKey={LINES_KEY}>
+          <SystemsWorkspace questionData={{ interaction: 'construct' }} onAction={ignore} />
+        </ToolDraftScopeProvider>
+      </Scene>
       <Scene id="transformations" title="Transformations Lab, plot mode" wide>
         <ToolDraftScopeProvider draftKey={TRANSFORM_KEY}>
           <TransformationsLab questionData={{ ...SAMPLE_SPECS.transformationsLab, presentEnlarged: false }} onAction={ignore} />
@@ -186,11 +216,17 @@ function Cues() {
       <Scene id="workspace-inverse" title="The graph workspace, building the inverse" wide>
         <FunctionGraphBuilder question={WORKSPACE} draftKey={WORKSPACE_KEY} onStateChange={ignore} revealPointCorrectness />
       </Scene>
-      <Scene id="static-figure" title="A figure with two named solid functions">
+      <Scene id="static-figure" title="A figure with two named solid functions" lines={JSON.stringify({ f: '#1a73e8', g: '#d93025' })}>
         <GraphDisplay graph={FIGURE} title="A figure with two named solid functions" />
       </Scene>
-      <Scene id="system-equations" title="A system of equations: its two lines and their equations">
+      <Scene id="system-equations" title="A system of equations: its two lines and their equations" lines={namedLines(SYSTEM)}>
         <SystemGrader question={SYSTEM} onStateChange={ignore} onUndoStateChange={ignore} feedback={null} draftKey={null} />
+      </Scene>
+      <Scene id="system-equations-crossing" title="A system whose lines meet steeply by an axis" lines={namedLines(SYSTEM_CROSSING)}>
+        <SystemGrader question={SYSTEM_CROSSING} onStateChange={ignore} onUndoStateChange={ignore} feedback={null} draftKey={null} />
+      </Scene>
+      <Scene id="system-equations-steep" title="A system of two steep lines, close all the way" lines={namedLines(SYSTEM_STEEP)}>
+        <SystemGrader question={SYSTEM_STEEP} onStateChange={ignore} onUndoStateChange={ignore} feedback={null} draftKey={null} />
       </Scene>
       <Scene id="line-method" title="Graph the Line: the right line, drawn without the method">
         <LineWithoutMethod />

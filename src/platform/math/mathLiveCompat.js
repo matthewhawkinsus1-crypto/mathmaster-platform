@@ -38,6 +38,14 @@
  *                    model there (settleMathFieldBlur). During those 60 ms
  *                    the model ignores a real blur, so a field whose late
  *                    focus was refused still thinks it is focused until told.
+ *   keystroke path   a key pressed in a field reaches MathLive as a `keydown`
+ *                    on the sink, where a capture listener runs its keystroke
+ *                    handler (the paired fence a "(" opens, inline shortcuts
+ *                    such as "pi" and "sqrt", key bindings); a character that
+ *                    handler leaves to the browser is typed from the sink's
+ *                    `input` event, by its `data`. The handler skips a key the
+ *                    page already handled only when the key is trusted
+ *                    (pressKeyInMathField).
  *
  * Two alarms, neither visible to a student:
  *
@@ -81,6 +89,53 @@ export const mathFieldHasFocus = (mathField) => {
   } catch {
     return false;
   }
+};
+
+/*
+ * A KEY REPLAYED INTO A FIELD IS TYPED AS IF IT WERE PRESSED THERE.
+ *
+ * Two places type a key into a field it did not reach: Step Algebra's tile,
+ * when a character is typed at it before its operation box has the cursor
+ * (boardFocus.js typeAheadIntoOperand), and a field MathLive has left, when a
+ * key still reaches its sink (mathFieldFocusHandoff.js guardStaleKeys). Both
+ * replayed it with `executeCommand(['typedText', key])`, which inserts the
+ * bare character and skips the keystroke path above. Measured in Chromium
+ * (tests/browser/stepAlgebraFirstOperand.mjs `blind`, tests/browser/
+ * mathBoxFocus.mjs): "(-5)" became `\left((-5\right)`, shown "((-5)", a "("
+ * alone stayed unclosed, and "pi" and "sqrt(2)" stayed letters, every time.
+ *
+ * So the key goes through the field's own keyboard path: a keydown on its sink
+ * carrying what the original key said (key, code, location, modifiers), past
+ * every listener a key typed in the field passes (MathInput's typed fraction,
+ * root and mixed-number rules, then MathLive's), and, for a character nothing
+ * took at keydown, the `input` the browser's text entry would send next. A key
+ * the page handled above the sink (MathInput's own "\") stops there, as
+ * MathLive's handler would skip it if it were trusted. The caller has given
+ * the sink focus and prevented the original key's default, so nothing else
+ * types it: the key is typed once. Returns whether the key was pressed in the
+ * field: false when it has no sink yet (MathLive has not built it).
+ */
+export const pressKeyInMathField = (mathField, key) => {
+  const sink = mathFieldKeyboardSink(mathField);
+  if (!sink || !key?.key || typeof KeyboardEvent !== 'function') return false;
+  // What a KeyboardEvent says, copied as it is: an absent part takes the default.
+  const { key: name, code, location, shiftKey, ctrlKey, altKey, metaKey, repeat } = key;
+  const root = sink.getRootNode?.();
+  const handledAbove = (event) => { if (event.defaultPrevented) event.stopPropagation(); };
+  root?.addEventListener('keydown', handledAbove, true);
+  let leftToTextEntry;
+  try {
+    leftToTextEntry = sink.dispatchEvent(new KeyboardEvent('keydown', {
+      key: name, code, location, shiftKey, ctrlKey, altKey, metaKey, repeat, bubbles: true, cancelable: true, composed: true,
+    }));
+  } finally {
+    root?.removeEventListener('keydown', handledAbove, true);
+  }
+  // One character (not a key name such as "Backspace"), with no shortcut held.
+  if (leftToTextEntry && [...name].length === 1 && !ctrlKey && !metaKey && !altKey) {
+    sink.dispatchEvent(new InputEvent('input', { data: name, inputType: 'insertText', bubbles: true, composed: true }));
+  }
+  return true;
 };
 
 /** Whether a <math-span>/<math-div> has typeset its content yet. */

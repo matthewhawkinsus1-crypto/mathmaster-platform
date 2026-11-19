@@ -900,8 +900,10 @@ test('22. the student never sees a platform failure called incorrect — held an
   const assessment = region(runner, 'function AssessmentRunner(', 'export default function SectionRecoveryRunner(', 'assessment runner');
   assert.match(assessment, /draftNamespace=\{`recovery~\$\{entry\.section\}~o\$\{plan\?\.opportunity \|\| 1\}\$\{current\.replaces \? `~\$\{current\.itemId\}` : ''\}`\}/);
   // What this device could not show is kept with the answers until Submit,
-  // so leaving and coming back still reports it.
-  assert.match(assessment, /useState\(\(\) => readSaved\(unavailableKey\)\)/);
+  // so leaving and coming back still reports it: the screen opens on the
+  // stored marks, read through their check (recoveryDeviceRecords.js), which
+  // keeps every mark that is a classification.
+  assert.match(assessment, /useState\(\(\) => readSaved\(unavailableKey, readRecoveryUnavailable\b/);
   assert.match(region(assessment, 'const markUnavailable = useCallback(', '}, [currentItemId, unavailableKey]);', 'mark unavailable'), /writeSaved\(unavailableKey, next\)/);
   assert.match(region(assessment, 'const submitAll = async () => {', '\n  };', 'submit handler'), /clearSaved\(unavailableKey\);/);
   // A Practice item refused as not this Recovery's is replaced, not retried.

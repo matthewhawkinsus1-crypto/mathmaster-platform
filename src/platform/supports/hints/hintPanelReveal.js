@@ -37,12 +37,15 @@ export const requestedHintPanelPlace = (value) => (
 
 /**
  * What to bring into view: at the top, the whole panel, as it always was;
- * under a miss, the newest thing in it — the open worked example, else the
- * last hint read — and the panel itself when it holds neither.
+ * under a miss, the newest thing in it — "What might have gone wrong" just
+ * asked for (`asked`), else the open worked example, else the last hint read —
+ * and the panel itself when it holds none of them.
  */
-export const hintPanelRevealTarget = (panel, { place = HINT_PANEL_PLACES.TOP, similarOpen = false } = {}) => {
+export const hintPanelRevealTarget = (panel, { place = HINT_PANEL_PLACES.TOP, similarOpen = false, asked = null } = {}) => {
   if (!panel || typeof panel.querySelector !== 'function') return null;
   if (place !== HINT_PANEL_PLACES.RESULTS) return panel;
+  const diagnosis = asked === 'diagnosis' ? panel.querySelector('[data-miss-diagnosis-hint]') : null;
+  if (diagnosis) return diagnosis;
   const example = similarOpen ? panel.querySelector('[data-similar-example]') : null;
   if (example) return example;
   const hints = typeof panel.querySelectorAll === 'function' ? panel.querySelectorAll('li[data-hint-source]') : [];
@@ -50,8 +53,8 @@ export const hintPanelRevealTarget = (panel, { place = HINT_PANEL_PLACES.TOP, si
 };
 
 /** Scrolls it into view, only as far as needed. Returns whether it could. */
-export const revealHintPanel = (panel, { place, similarOpen = false, behavior = 'auto' } = {}) => {
-  const target = hintPanelRevealTarget(panel, { place, similarOpen });
+export const revealHintPanel = (panel, { place, similarOpen = false, asked = null, behavior = 'auto' } = {}) => {
+  const target = hintPanelRevealTarget(panel, { place, similarOpen, asked });
   if (!target || typeof target.scrollIntoView !== 'function') return false;
   target.scrollIntoView({ block: 'nearest', behavior });
   return true;
@@ -99,18 +102,19 @@ export const laidOutAt = (element) => {
 export const keepHintPanelInView = (panel, {
   place,
   similarOpen = false,
+  asked = null,
   behavior = 'auto',
   win = typeof window !== 'undefined' ? window : null,
   quietFrames = SETTLE_QUIET_FRAMES,
   limitMs = SETTLE_LIMIT_MS,
 } = {}) => {
   const idle = () => {};
-  if (!revealHintPanel(panel, { place, similarOpen, behavior })) return idle;
+  if (!revealHintPanel(panel, { place, similarOpen, asked, behavior })) return idle;
   if (typeof win?.requestAnimationFrame !== 'function') return idle;
   const doc = win.document || null;
   const now = () => (typeof win.performance?.now === 'function' ? win.performance.now() : Date.now());
   const started = now();
-  let target = hintPanelRevealTarget(panel, { place, similarOpen });
+  let target = hintPanelRevealTarget(panel, { place, similarOpen, asked });
   let at = laidOutAt(target);
   let quiet = 0;
   let frame = 0;
@@ -127,14 +131,14 @@ export const keepHintPanelInView = (panel, {
   const tick = () => {
     frame = 0;
     if (stopped) return;
-    const current = hintPanelRevealTarget(panel, { place, similarOpen });
+    const current = hintPanelRevealTarget(panel, { place, similarOpen, asked });
     if (!current || current.isConnected === false) { stop(); return; }
     const moved = laidOutAt(current);
     if (current !== target || Math.abs(moved.top - at.top) > 0.5 || Math.abs(moved.bottom - at.bottom) > 0.5) {
       target = current;
       at = moved;
       quiet = 0;
-      revealHintPanel(panel, { place, similarOpen, behavior });
+      revealHintPanel(panel, { place, similarOpen, asked, behavior });
     } else {
       quiet += 1;
     }
@@ -150,24 +154,27 @@ export const keepHintPanelInView = (panel, {
  * FOCUS GOES TO WHAT THE PRESS ASKED FOR.
  *
  * The button pressed is usually gone once the panel opens — the first-hint
- * offer goes with the first hint, and "Show a hint" under a miss and "Show
- * the next hint" go while the next one waits for a try — and focus fell to
- * <body>: nothing showed where the keyboard was, and a screen reader said
- * nothing of the hint. Hints are not live regions (only the line a rung shows
- * while its tool loads is), so focus is how the hint is read, once:
+ * offer goes with the first hint, "Show a hint" under a miss and "Show the
+ * next hint" go while the next one waits for a try, and "What might have gone
+ * wrong?" goes once it is read — and focus fell to <body>: nothing showed
+ * where the keyboard was, and a screen reader said nothing of what opened.
+ * Hints and the diagnosis are not live regions (only the line a rung shows
+ * while its tool loads is), so focus is how they are read, once:
  *
- *   'hint'     the newest hint (tabIndex -1 in HintPanel), or, while that rung
- *              is still loading, the panel ("Hints"): the loading line is a
- *              status that says itself, and the hint takes focus when it is
- *              here;
- *   'example'  the open worked example's heading (its summary).
+ *   'hint'       the newest hint (tabIndex -1 in HintPanel), or, while that
+ *                rung is still loading, the panel ("Hints"): the loading line
+ *                is a status that says itself, and the hint takes focus when it
+ *                is here;
+ *   'example'    the open worked example's heading (its summary);
+ *   'diagnosis'  "What might have gone wrong" (tabIndex -1 in HintPanel).
  *
- * The panel itself when it holds neither.
+ * The panel itself when it holds none of them.
  */
 export const hintPanelFocusTarget = (panel, { asked = 'hint' } = {}) => {
   if (!panel || typeof panel.querySelector !== 'function') return null;
   const own = panel.querySelector('[data-hint-panel]') || panel;
   if (asked === 'example') return panel.querySelector('[data-similar-example] > summary') || own;
+  if (asked === 'diagnosis') return panel.querySelector('[data-miss-diagnosis-hint]') || own;
   const hints = typeof panel.querySelectorAll === 'function' ? panel.querySelectorAll('li[data-hint-source]') : [];
   const newest = hints.length ? hints[hints.length - 1] : null;
   return newest && newest.getAttribute?.('data-hint-source') !== 'pending' ? newest : own;

@@ -2128,8 +2128,9 @@
  * could not be reached until the student folded the navigator (Focus view).
  * There the page scrolls instead: the navigator first, and under it the
  * question keeps a whole screen, as much room as in Focus view or more once
- * the navigator is scrolled out of the way. Focus view is one screen, as
- * before; a wider screen, or a phone at 100% text from 360px, is unchanged.
+ * the navigator is scrolled out of the way. Focus view is one screen at 100%
+ * text, as before, and scrolls the same way at 150% and over (below); a wider
+ * screen, or a phone at 100% text from 360px, is unchanged.
  */
 @media (max-width: 22em) and (orientation: portrait) {
   .mathmaster-assignment-screen:has(.mathmaster-assignment-unified-nav:not(.is-collapsed)) {
@@ -2141,6 +2142,67 @@
     height: auto !important;
     grid-template-rows: auto calc(100dvh - var(--mm-student-identity-stack-offset, 0px));
     overflow: visible;
+  }
+}
+
+/*
+ * AT A LARGE TEXT SIZE THE QUESTION KEEPS ITS SCREEN IN FOCUS VIEW TOO.
+ *
+ * Folded (Focus view) the navigator is one row at 100% text and two at 150%
+ * and 200%, and with the identity bar it took 174 to 220px of a screen that
+ * does not scroll; the task, the tries and the action bar grow with the text
+ * as well. A phone's question was left 16 to 242px for its work at 200% text
+ * (16px at 320x568, 111 at 360x740, 189 at 390x844) and 67 to 327px at 150%
+ * (tests/browser/workViewOpenerCover.mjs --check=room). Below 19em held
+ * upright the page scrolls as it does with "Show progress" open (above): the
+ * navigator first, and under it the question keeps a whole screen below the
+ * identity bar, which stays where it is. An em in a media query is the
+ * browser's own text size: 19em is every phone up to 456px wide at 150% text
+ * and over (a 412px phone is 17.2em there), the 320 to 380px phones at 125%
+ * (a choice at 375x667 had 92px there), and no phone 320px or wider at 100%
+ * (20em), which stays one screen with no page scroll. The question's
+ * screen only, the one with the assignment's shell: a Warm-Up played as a Live
+ * Challenge is drawn in a screen of the same name without one (App.jsx), and
+ * Live Challenge keeps its frame.
+ */
+@media (max-width: 19em) and (orientation: portrait) {
+  .mathmaster-assignment-screen:has(> .mathmaster-assignment-shell) {
+    height: auto !important;
+    overflow: visible !important;
+  }
+
+  .mathmaster-assignment-screen .mathmaster-assignment-shell {
+    height: auto !important;
+    grid-template-rows: auto calc(100dvh - var(--mm-student-identity-stack-offset, 0px));
+    overflow: visible;
+  }
+
+  /* ...AND A QUESTION OPENS ON IT. App.jsx brings the stage into view when a
+     question opens, with the 142px margin a desktop's sticky navigator needs
+     (below): the stage stopped 142px down the screen, and the bottom of the
+     question, its save lines and its action bar, was under the screen's foot.
+     Here the stage lands right under the identity bar (whose 8px of scroll
+     padding keeps a focused control off it: StudentIdentityBar.css), its
+     whole screen in view, and the navigator is a scroll up. */
+  .mathmaster-assignment-screen .mathmaster-assignment-shell .mathmaster-question-stage {
+    scroll-margin-top: -8px;
+  }
+
+  /* ...AND THE LINES UNDER THE TASK TAKE NO MORE OF IT THAN THE TASK DOES. A
+     question of choices has one try, said before it is spent with what a hint
+     costs and the button that shows one (QuestionEngine, HELP-18): at 200%
+     text that paragraph and the tries line were 382 to 522px, more than a
+     320x568 phone's whole screen, and its choices, its tries and Submit were
+     below a question that does not scroll. Like the task card above them (a
+     quarter of the screen, MathToolMobileLayout.css), past that they scroll
+     in place. In the question's stage: a Live Challenge question is in none.
+     (No hint-ladder words in a stylesheet's comments: in development Vite
+     serves them in the page, where the leak gate refuses them on an exit
+     ticket or a test; stylesheetsQuoteNoLeakWords.test.mjs.) */
+  .mathmaster-assignment-screen .mathmaster-question-stage .mathmaster-question-container.mode-portrait .mathmaster-question-context-panel {
+    max-height: 25dvh;
+    overflow-y: auto;
+    overscroll-behavior: contain;
   }
 }
 

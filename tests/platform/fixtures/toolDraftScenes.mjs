@@ -102,6 +102,13 @@ export const RESPONSE_MODULE_SCENES = Object.freeze([
     ':graph-analysis': [{ selections: { domain: [[0, 1]] }, answers: { domain: '(-∞, ∞)' }, typedPoints: {}, noneSelections: { domain: false }, inversePointsValidated: false, inverseStrokes: [], inverseSketchView: null, inverseSnapped: false }],
     ':graph-stage': ['analysis'],
   } },
+  // A square root's "Undefined 1" card placed with "Not Real / Undefined" (stored as the word), recorded in Chromium.
+  { id: 'function-graph-square-root', module: '/src/FunctionGraphBuilder.jsx', question: { id: 'draft-graph-root', type: 'functionGraph', prompt: 'Graph y = √(x − 2).', functionSpec: { type: 'squareRoot', a: 1, h: 2, k: 0 } }, valid: {
+    ':graph-construction': [
+      { placements: { 'undefined-1': 'undefined' }, chosenXValues: { 'point-1': '3', 'point-2': '6', 'point-key': '2', 'point-4': '11', 'point-5': '18', 'undefined-1': '1' }, pointsValidated: false, strokes: [], sketchView: null, snapped: false, markerPlacements: {} },
+      { placements: { 'point-key': [2, 0], 'point-1': [3, 1], 'undefined-1': 'undefined' }, chosenXValues: { 'point-1': '3', 'point-2': '6', 'point-key': '2', 'point-4': '11', 'point-5': '18', 'undefined-1': '1' }, pointsValidated: false, strokes: [], sketchView: null, snapped: false, markerPlacements: {} },
+    ],
+  } },
   { id: 'graph-analysis', module: '/src/GraphAnalysis.jsx', question: { id: 'draft-analysis', type: 'graphAnalysis', prompt: 'Give the domain and range of the graph.', graph: { xMin: -5, xMax: 7, yMin: -1, yMax: 8 }, functionSpec: { type: 'linear', m: -1, b: 5, domain: { min: -2, max: 5, minClosed: true, maxClosed: true } }, analysisParts: [{ id: 'domain', kind: 'domain', notation: 'interval', acceptedAnswers: ['[-2, 5]'] }, { id: 'range', kind: 'range', notation: 'interval', acceptedAnswers: ['[0, 7]'] }] } },
   { id: 'step-algebra', module: '/src/StepByStepAlgebra.jsx', question: { questionId: 'draft-step', type: 'stepAlgebra', prompt: 'Solve 2x + 5 = 19 and show each balanced step.', equation: '2*x + 5 = 19', variable: 'x', answer: '7', supportPresentation: { algebraAutoApply: true } }, valid: {
     // A committed step whose words hold mathematics ({ latex }), and an operation picked up from the tray (no side yet).

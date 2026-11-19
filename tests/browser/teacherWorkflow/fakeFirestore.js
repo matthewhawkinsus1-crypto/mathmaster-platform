@@ -224,12 +224,15 @@ const persist = () => {
 // `?questions=radicals`: a real Algebra II lesson, compiled by the real import
 // chain; `?questions=runtime`, the
 // performance certification's flow compiled the same way
-// (studentRuntimeLesson.js). Loaded only when asked for: it pulls in the
-// lesson files and the compile modules every other page does not need.
+// (studentRuntimeLesson.js); `?questions=room`, one question of each kind whose
+// room for its work the opener sweep reads (textRoomLesson.js). Loaded only
+// when asked for: it pulls in the lesson files and the compile modules every
+// other page does not need.
 const requestedLesson = new URLSearchParams(window.location.search).get('questions');
 const lessonFixtures = ['matrices', 'dividing', 'radicals'].includes(requestedLesson)
   ? await import('./lessonFixtures.js')
-  : requestedLesson === 'runtime' ? await import('./studentRuntimeLesson.js') : null;
+  : requestedLesson === 'runtime' ? await import('./studentRuntimeLesson.js')
+    : requestedLesson === 'room' ? await import('./textRoomLesson.js') : null;
 const compiledSections = lessonFixtures ? () => lessonFixtures.lessonSectionsFor(requestedLesson) : null;
 // `&inspector=1`: today's lesson answered and graded, for the Response
 // Inspector (inspectorFixture.js). Loaded only then: it pulls in every grader.

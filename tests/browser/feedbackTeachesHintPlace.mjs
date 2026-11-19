@@ -14,7 +14,11 @@
 //                  tool's own Check is still on screen (on the base the page
 //                  jumped 941px up and Check ended 1157px further down it);
 //   Hint control   the work bar's Hint opens the panel at the top, as before;
-//   "similar"      "See a similar problem worked" opens under the box as well.
+//   "similar"      "See a similar problem worked" opens under the box as well;
+//   diagnosis      after a second miss written upside down (4/3 for 3/4), the
+//                  panel's "What might have gone wrong?" shows the diagnosis on
+//                  screen, and focus goes to it: its button goes once it is
+//                  read, and focus went to the page with it.
 //
 // Not yet run by a workflow (the student runtime gates list their drivers by
 // name): it belongs beside feedbackTeaches.mjs in student-teacher-journeys.yml.
@@ -171,6 +175,49 @@ for (const device of DEVICES) {
     await context.close();
   }
 
+  /* ------------------------------------------ "What might have gone wrong?" */
+  {
+    const { page, context } = await openPage(device, `${ORIGIN}/tests/browser/feedbackTeaches.html?q=multi&role=practice&run=${Date.now()}`);
+    await page.locator('[data-feedback-fixture]').waitFor();
+    await page.waitForTimeout(800);
+    const answer = async (value) => {
+      const field = page.locator('.mathmaster-question-tool-workspace math-field').first();
+      await field.waitFor();
+      await field.evaluate((element, next) => { element.setValue(next); element.dispatchEvent(new Event('input', { bubbles: true })); }, value);
+      await page.waitForTimeout(250);
+    };
+    const submit = async () => {
+      await page.locator('button:visible', { hasText: /^Submit/ }).first().click();
+      await page.waitForTimeout(600);
+    };
+    await answer('5');
+    await submit();
+    // Upside down: the diagnosis names a reciprocal, which the open box holds back while tries are left.
+    await answer('4/3');
+    await submit();
+    const offer = page.locator('[data-attempt-results] button:visible', { hasText: 'Show a hint' }).first();
+    await offer.waitFor();
+    await offer.scrollIntoViewIfNeeded();
+    await offer.click();
+    await page.waitForTimeout(900);
+    const ask = page.locator('.mathmaster-hint-panel [data-miss-diagnosis-offer]');
+    check(await ask.count() === 1, `${device.name} diagnosis: the panel offers "What might have gone wrong?"`, String(await ask.count()));
+    if (await ask.count()) {
+      await ask.scrollIntoViewIfNeeded();
+      await ask.click();
+      await page.waitForTimeout(900);
+      const shown = page.locator('.mathmaster-hint-panel [data-miss-diagnosis-hint]');
+      check(await shown.count() === 1 && await ask.count() === 0, `${device.name} diagnosis: one press shows it, and the offer goes`);
+      check(await onScreen(page, shown), `${device.name} diagnosis: it is on screen`);
+      const focus = await page.evaluate(() => {
+        const active = document.activeElement;
+        return { onIt: Boolean(active?.closest?.('[data-miss-diagnosis-hint]')), on: !active || active === document.body ? 'body' : active.tagName.toLowerCase() };
+      });
+      check(focus.onIt, `${device.name} diagnosis: focus goes to what it showed, not to the page`, focus.on);
+    }
+    await context.close();
+  }
+
   /* ------------------------------------------------- Matrix Lab, own Check */
   {
     const { page, context } = await openPage(device, `${ORIGIN}/tests/browser/algebra2MatricesLesson.html?run=hintplace-${Date.now()}`);
@@ -221,4 +268,4 @@ if (failures.length) {
   console.error(`\n${failures.length} hint-place failure(s):\n- ${failures.join('\n- ')}`);
   process.exit(1);
 }
-console.log('\nhint place: after a miss the hint opens under the box the student pressed in.');
+console.log('\nhint place: after a miss the hint opens under the box the student pressed in, and "What might have gone wrong?" leaves its diagnosis in sight, with focus.');

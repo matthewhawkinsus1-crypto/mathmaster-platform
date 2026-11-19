@@ -25,7 +25,9 @@
  * key, and each plane) in the app's light and dark themes, at 1440×900,
  * 1366×768 and 390×844 (a touch phone), read with the page's colour taken away
  * (filter: grayscale(1)), and the key and the readiness list again at 200%
- * text. It fails:
+ * text; and the planes' names again under a dark and a light contrast theme
+ * (forced colours) at 1366×768 and 390×844, where every line is drawn in the
+ * theme's one text colour and only its name tells it from another. It fails:
  *   - a wheel with two levels drawn alike once colour is gone (their fill, a
  *     hatch's lines, an empty level's edge and its dash), or a level not drawn;
  *   - the two round-done marks not a ring and a dot, or not visible;
@@ -35,6 +37,8 @@
  *     outside its plane, or under something drawn over it, Work View's opener
  *     included), or covering a point or another word on its plane (a point's
  *     name, an axis number, another curve's name);
+ *   - a name as near another named line as its own, where the scene says which
+ *     line is whose (data-named-lines: a figure's f and g, each system's two);
  *   - the Transformations Lab's source points not squares beside the student's
  *     dots, and Graph the Line's line drawn without the method without its badge.
  * A picture of each scene, grey, is kept for each reading.
@@ -56,16 +60,26 @@ export const CUE_VIEWPORTS = Object.freeze([
   Object.freeze({ id: 'phone', width: 390, height: 844, isMobile: true, hasTouch: true }),
 ]);
 export const CUE_THEMES = Object.freeze(['light', 'dark']);
+// Windows' contrast themes, dark and light, where every line is drawn in the one text colour: the planes' names alone
+// tell two lines apart there, so they are read again under each, at a laptop's and a phone's size.
+export const CUE_CONTRAST_THEMES = Object.freeze(['dark', 'light']);
+export const CUE_CONTRAST_VIEWPORTS = Object.freeze(CUE_VIEWPORTS.filter((viewport) => viewport.id !== 'desktop'));
 // The names each plane carries on its lines.
 export const PLANE_NAMES = Object.freeze({
   'inverse-lab': ['f', 'f⁻¹', 'y = x'],
   'exp-log': ['f', 'f⁻¹', 'y = x'],
   systems: ['1', '2'],
   'systems-build': ['1', '2'],
+  'systems-build-test-point': ['1', '2'],
+  // A system's two equations, graphed and plotted: numbered as the key names them.
+  'systems-linear': ['1', '2'],
+  'systems-linear-plotted': ['1', '2'],
   'workspace-inverse': ['f', 'f⁻¹'],
   'static-figure': ['f', 'g'],
-  // The page's generated system (its key is fixed): each line named by the equation listed for it.
+  // The page's generated systems (their keys are fixed): each line named by the equation listed for it.
   'system-equations': ['y = 2x − 1', 'y = −x + 8'],
+  'system-equations-crossing': ['y = −3x − 2', 'y = −x + 2'],
+  'system-equations-steep': ['y = 5x − 42', 'y = 4x − 34'],
 });
 
 /**
@@ -102,7 +116,7 @@ export const drawLineWithoutMethod = async (page) => {
 
 // ------------------------------------------------------------------ in the page
 // Every check runs in the page, on what is laid out and painted now.
-const READ = ({ planeNames }) => {
+const READ = ({ planeNames, namesOnly = false }) => {
   const problems = [];
   const facts = {};
   const sceneOf = (id) => document.querySelector(`[data-cue-scene="${id}"]`);
@@ -124,67 +138,70 @@ const READ = ({ planeNames }) => {
     return colour;
   };
 
-  // ---------------------------------------------------------------- the wheels
-  for (const id of ['mastery-wheel', 'readiness-wheel']) {
-    const scene = sceneOf(id);
-    const svg = scene?.querySelector('svg[data-mm-drawing]');
-    if (!svg) { problems.push(`${id}: no wheel`); continue; }
-    const card = surfaceOf(svg.parentElement);
-    const looks = new Map();
-    for (const wedge of svg.querySelectorAll('path[data-wheel-fill]')) {
-      const level = wedge.getAttribute('data-wheel-fill');
-      if (looks.has(level)) continue;
-      const s = style(wedge);
-      if (!area(box(wedge))) { problems.push(`${id}: a ${level} wedge is not drawn`); continue; }
-      const pattern = patternOf(svg, s.fill);
-      const lines = pattern ? [...pattern.querySelectorAll('line')].map((line) => (line.getAttribute('x1') === line.getAttribute('x2') ? 'upright' : 'level')).join('+') : '';
-      const filled = pattern ? `hatch ${pattern.getAttribute('patternTransform')} ${lines}` : s.fill === card ? 'empty' : 'colour';
-      const edged = pattern || filled === 'colour' ? '' : `edge ${s.strokeDasharray === 'none' ? 'solid' : 'dashed'}`;
-      looks.set(level, `${filled} ${edged}`.trim());
+  // The wheels, their round marks and the keys; under a contrast theme only the planes' names are read (below).
+  if (!namesOnly) {
+    // ---------------------------------------------------------------- the wheels
+    for (const id of ['mastery-wheel', 'readiness-wheel']) {
+      const scene = sceneOf(id);
+      const svg = scene?.querySelector('svg[data-mm-drawing]');
+      if (!svg) { problems.push(`${id}: no wheel`); continue; }
+      const card = surfaceOf(svg.parentElement);
+      const looks = new Map();
+      for (const wedge of svg.querySelectorAll('path[data-wheel-fill]')) {
+        const level = wedge.getAttribute('data-wheel-fill');
+        if (looks.has(level)) continue;
+        const s = style(wedge);
+        if (!area(box(wedge))) { problems.push(`${id}: a ${level} wedge is not drawn`); continue; }
+        const pattern = patternOf(svg, s.fill);
+        const lines = pattern ? [...pattern.querySelectorAll('line')].map((line) => (line.getAttribute('x1') === line.getAttribute('x2') ? 'upright' : 'level')).join('+') : '';
+        const filled = pattern ? `hatch ${pattern.getAttribute('patternTransform')} ${lines}` : s.fill === card ? 'empty' : 'colour';
+        const edged = pattern || filled === 'colour' ? '' : `edge ${s.strokeDasharray === 'none' ? 'solid' : 'dashed'}`;
+        looks.set(level, `${filled} ${edged}`.trim());
+      }
+      facts[id] = Object.fromEntries(looks);
+      if (looks.size < (id === 'mastery-wheel' ? 5 : 7)) problems.push(`${id}: ${looks.size} levels drawn (${[...looks.keys()]})`);
+      const distinct = new Set(looks.values());
+      if (distinct.size !== looks.size) problems.push(`${id}: two levels look alike without colour: ${JSON.stringify(facts[id])}`);
     }
-    facts[id] = Object.fromEntries(looks);
-    if (looks.size < (id === 'mastery-wheel' ? 5 : 7)) problems.push(`${id}: ${looks.size} levels drawn (${[...looks.keys()]})`);
-    const distinct = new Set(looks.values());
-    if (distinct.size !== looks.size) problems.push(`${id}: two levels look alike without colour: ${JSON.stringify(facts[id])}`);
-  }
-  // The two kinds of round done: a ring and a dot, each visible, on its plate.
-  const wheel = sceneOf('mastery-wheel')?.querySelector('svg[data-mm-drawing]');
-  const rounds = {};
-  for (const shape of ['ring', 'dot']) {
-    const mark = wheel?.querySelector(`[data-round-mark="${shape}"]`);
-    const inner = mark?.querySelector('circle:not([data-mm-plane-part="plate"])');
-    if (!mark || !inner || !area(box(inner))) { problems.push(`mastery-wheel: no ${shape} for a round done`); continue; }
-    const s = style(inner);
-    rounds[shape] = { hollow: s.fill === surfaceOf(wheel.parentElement), edged: s.stroke !== 'none' && parseFloat(s.strokeWidth) > 0, size: Math.round(box(inner).width * 10) / 10 };
-  }
-  facts.rounds = rounds;
-  if (rounds.ring && rounds.dot && !(rounds.ring.hollow && rounds.ring.edged && !rounds.dot.hollow)) {
-    problems.push(`mastery-wheel: a practice round and a Level 3 round are not a ring and a dot: ${JSON.stringify(rounds)}`);
-  }
+    // The two kinds of round done: a ring and a dot, each visible, on its plate.
+    const wheel = sceneOf('mastery-wheel')?.querySelector('svg[data-mm-drawing]');
+    const rounds = {};
+    for (const shape of ['ring', 'dot']) {
+      const mark = wheel?.querySelector(`[data-round-mark="${shape}"]`);
+      const inner = mark?.querySelector('circle:not([data-mm-plane-part="plate"])');
+      if (!mark || !inner || !area(box(inner))) { problems.push(`mastery-wheel: no ${shape} for a round done`); continue; }
+      const s = style(inner);
+      rounds[shape] = { hollow: s.fill === surfaceOf(wheel.parentElement), edged: s.stroke !== 'none' && parseFloat(s.strokeWidth) > 0, size: Math.round(box(inner).width * 10) / 10 };
+    }
+    facts.rounds = rounds;
+    if (rounds.ring && rounds.dot && !(rounds.ring.hollow && rounds.ring.edged && !rounds.dot.hollow)) {
+      problems.push(`mastery-wheel: a practice round and a Level 3 round are not a ring and a dot: ${JSON.stringify(rounds)}`);
+    }
 
-  // ---------------------------------------------------------------- the keys
-  const swatchLooks = (swatches) => swatches.map((swatch) => {
-    const s = style(swatch);
-    const fill = swatch.getAttribute('data-mm-swatch');
-    const hatch = /repeating-linear-gradient/.test(s.backgroundImage);
-    const empty = s.backgroundImage === 'none' && s.backgroundColor === surfaceOf(swatch.parentElement);
-    return { fill, look: hatch ? `hatch ${(s.backgroundImage.match(/-?\d+deg/g) || []).join(',')}` : empty ? `empty ${s.borderTopStyle}` : 'colour' };
-  });
-  const keys = {
-    mastery: swatchLooks([...(sceneOf('mastery-wheel')?.querySelectorAll('[data-mastery-key] [data-mm-swatch]') || [])]),
-    readiness: swatchLooks([...(sceneOf('readiness-wheel')?.querySelectorAll('li [data-mm-swatch]') || [])]),
-  };
-  facts.keys = keys;
-  for (const [key, swatches] of Object.entries(keys)) {
-    if (swatches.length < (key === 'mastery' ? 5 : 7)) problems.push(`${key} key: ${swatches.length} swatches`);
-    if (new Set(swatches.map((swatch) => swatch.look)).size !== swatches.length) problems.push(`${key} key: two swatches look alike without colour: ${JSON.stringify(swatches)}`);
-    for (const swatch of swatches) {
-      if (swatch.fill.startsWith('hatch') && !swatch.look.startsWith('hatch')) problems.push(`${key} key: the ${swatch.fill} swatch is not hatched (${swatch.look})`);
-      if (swatch.fill === 'muted' && swatch.look !== 'empty dashed') problems.push(`${key} key: the muted swatch is not an empty dashed box (${swatch.look})`);
+    // ---------------------------------------------------------------- the keys
+    const swatchLooks = (swatches) => swatches.map((swatch) => {
+      const s = style(swatch);
+      const fill = swatch.getAttribute('data-mm-swatch');
+      const hatch = /repeating-linear-gradient/.test(s.backgroundImage);
+      const empty = s.backgroundImage === 'none' && s.backgroundColor === surfaceOf(swatch.parentElement);
+      return { fill, look: hatch ? `hatch ${(s.backgroundImage.match(/-?\d+deg/g) || []).join(',')}` : empty ? `empty ${s.borderTopStyle}` : 'colour' };
+    });
+    const keys = {
+      mastery: swatchLooks([...(sceneOf('mastery-wheel')?.querySelectorAll('[data-mastery-key] [data-mm-swatch]') || [])]),
+      readiness: swatchLooks([...(sceneOf('readiness-wheel')?.querySelectorAll('li [data-mm-swatch]') || [])]),
+    };
+    facts.keys = keys;
+    for (const [key, swatches] of Object.entries(keys)) {
+      if (swatches.length < (key === 'mastery' ? 5 : 7)) problems.push(`${key} key: ${swatches.length} swatches`);
+      if (new Set(swatches.map((swatch) => swatch.look)).size !== swatches.length) problems.push(`${key} key: two swatches look alike without colour: ${JSON.stringify(swatches)}`);
+      for (const swatch of swatches) {
+        if (swatch.fill.startsWith('hatch') && !swatch.look.startsWith('hatch')) problems.push(`${key} key: the ${swatch.fill} swatch is not hatched (${swatch.look})`);
+        if (swatch.fill === 'muted' && swatch.look !== 'empty dashed') problems.push(`${key} key: the muted swatch is not an empty dashed box (${swatch.look})`);
+      }
     }
+    const ring = [...(sceneOf('mastery-wheel')?.querySelectorAll('[data-mm-swatch="ring"]') || [])].map((el) => el.textContent.trim());
+    if (ring.join('') !== '○') problems.push(`mastery key: the practice round's mark is ${JSON.stringify(ring)}, not a ring`);
   }
-  const ring = [...(sceneOf('mastery-wheel')?.querySelectorAll('[data-mm-swatch="ring"]') || [])].map((el) => el.textContent.trim());
-  if (ring.join('') !== '○') problems.push(`mastery key: the practice round's mark is ${JSON.stringify(ring)}, not a ring`);
 
   // ---------------------------------------------------------------- the planes' names
   const POINT_PARTS = new Set(['point', 'closed', 'open', 'held', 'held-open']);
@@ -230,16 +247,47 @@ const READ = ({ planeNames }) => {
     }
   }
 
-  // ---------------------------------------------------------------- the Transformations Lab and Graph the Line
-  const transform = sceneOf('transformations')?.querySelector('svg[data-mm-plane]');
-  const squares = transform ? transform.querySelectorAll('[data-point-shape="square"]').length : 0;
-  const dots = transform ? [...transform.querySelectorAll('circle[data-mm-plane-part="point"]')].filter((dot) => area(box(dot))).length : 0;
-  facts.transformations = { squares, dots };
-  if (squares !== 3) problems.push(`transformations: ${squares} source points drawn as squares, not 3`);
-  if (dots < 2) problems.push(`transformations: ${dots} of the student's points drawn as dots`);
-  const badge = sceneOf('line-method')?.querySelector('[data-verdict-mark]');
-  facts.method = badge ? badge.getAttribute('data-verdict-mark') : null;
-  if (!badge || badge.getAttribute('data-verdict-mark') !== 'bang' || !area(box(badge))) problems.push(`line-method: the line drawn without the method has ${badge ? `a "${badge.getAttribute('data-verdict-mark')}" badge` : 'no badge'}`);
+  // ---------------------------------------------------------------- whose line each name is beside
+  // Where a scene says which drawn line each name names (by its colour), the name is nearer its own line than any
+  // other it names: measured in the plane's own units, from the middle of the name to each line as drawn.
+  const pointsOf = (path) => [...(path.getAttribute('d') || '').matchAll(/[ML]\s*(-?[\d.]+)[\s,]+(-?[\d.]+)/g)].map((m) => [Number(m[1]), Number(m[2])]);
+  const distanceTo = ([px, py], runs) => runs.reduce((nearest, run) => run.slice(1).reduce((best, b, i) => {
+    const a = run[i];
+    const t = Math.max(0, Math.min(1, ((px - a[0]) * (b[0] - a[0]) + (py - a[1]) * (b[1] - a[1])) / ((b[0] - a[0]) ** 2 + (b[1] - a[1]) ** 2 || 1)));
+    return Math.min(best, Math.hypot(px - (a[0] + t * (b[0] - a[0])), py - (a[1] + t * (b[1] - a[1]))));
+  }, nearest), Infinity);
+  facts.nearest = {};
+  for (const scene of document.querySelectorAll('[data-cue-scene][data-named-lines]')) {
+    const id = scene.getAttribute('data-cue-scene');
+    const strokes = JSON.parse(scene.getAttribute('data-named-lines'));
+    const svg = scene.querySelector('svg[data-mm-plane]');
+    const runsOf = (stroke) => [...(svg?.querySelectorAll('path[data-mm-plane-part="line"]') || [])]
+      .filter((path) => (path.getAttribute('stroke') || '').toLowerCase() === String(stroke).toLowerCase()).map(pointsOf);
+    for (const name of svg?.querySelectorAll('[data-curve-label]') || []) {
+      const label = name.getAttribute('data-curve-label');
+      const text = name.matches('text') ? name : name.querySelector('text');
+      const b = text.getBBox();
+      const middle = [b.x + b.width / 2, b.y + b.height / 2];
+      const own = distanceTo(middle, runsOf(strokes[label]));
+      const others = Object.entries(strokes).filter(([other]) => other !== label).map(([other, stroke]) => ({ other, away: distanceTo(middle, runsOf(stroke)) }));
+      const nearest = others.reduce((best, entry) => (entry.away < best.away ? entry : best), { other: null, away: Infinity });
+      (facts.nearest[id] ||= {})[label] = Math.round((nearest.away / own) * 100) / 100;
+      if (!(own < Infinity) || !(own < nearest.away)) problems.push(`${id}: "${label}" is ${own.toFixed(1)} from its own line and ${nearest.away.toFixed(1)} from "${nearest.other}"`);
+    }
+  }
+
+  if (!namesOnly) {
+    // ---------------------------------------------------------------- the Transformations Lab and Graph the Line
+    const transform = sceneOf('transformations')?.querySelector('svg[data-mm-plane]');
+    const squares = transform ? transform.querySelectorAll('[data-point-shape="square"]').length : 0;
+    const dots = transform ? [...transform.querySelectorAll('circle[data-mm-plane-part="point"]')].filter((dot) => area(box(dot))).length : 0;
+    facts.transformations = { squares, dots };
+    if (squares !== 3) problems.push(`transformations: ${squares} source points drawn as squares, not 3`);
+    if (dots < 2) problems.push(`transformations: ${dots} of the student's points drawn as dots`);
+    const badge = sceneOf('line-method')?.querySelector('[data-verdict-mark]');
+    facts.method = badge ? badge.getAttribute('data-verdict-mark') : null;
+    if (!badge || badge.getAttribute('data-verdict-mark') !== 'bang' || !area(box(badge))) problems.push(`line-method: the line drawn without the method has ${badge ? `a "${badge.getAttribute('data-verdict-mark')}" badge` : 'no badge'}`);
+  }
 
   return { problems, facts };
 };
@@ -319,12 +367,44 @@ const main = async () => {
         }
       }
     }
+    // The planes' names again under a contrast theme (the page in the theme the device is in, as the forced-colours
+    // walk puts it): there, and only there, two lines are drawn alike whatever their colours.
+    for (const viewport of CUE_CONTRAST_VIEWPORTS) {
+      for (const scheme of CUE_CONTRAST_THEMES) {
+        const theme = `forced ${scheme}`;
+        const context = await browser.newContext({
+          viewport: { width: viewport.width, height: viewport.height },
+          isMobile: Boolean(viewport.isMobile),
+          hasTouch: Boolean(viewport.hasTouch),
+          colorScheme: scheme,
+          forcedColors: 'active',
+          reducedMotion: 'reduce',
+        });
+        await context.route(/^(?!http:\/\/(127\.0\.0\.1|localhost)[:/])/, (route) => route.abort());
+        const page = await context.newPage();
+        const errors = [];
+        page.on('pageerror', (error) => errors.push(error.message));
+        try {
+          await openCues(page, origin, scheme);
+          const reading = await page.evaluate(READ, { planeNames: PLANE_NAMES, namesOnly: true });
+          const problems = [...reading.problems, ...errors.map((message) => `page error: ${message}`)];
+          results.push({ viewport: viewport.id, theme, problems, facts: reading.facts });
+          console.log(`${problems.length ? 'FAIL' : 'ok  '} ${viewport.id.padEnd(10)} ${theme} names ${Object.values(reading.facts.names || {}).flat().length}`);
+          problems.forEach((problem) => console.log(`       ${problem}`));
+        } catch (error) {
+          results.push({ viewport: viewport.id, theme, problems: [`could not read the page: ${error.message.split('\n')[0]}`] });
+          console.log(`FAIL ${viewport.id} ${theme}: ${error.message.split('\n')[0]}`);
+        } finally {
+          await context.close();
+        }
+      }
+    }
   } finally {
     await browser.close();
   }
   const failing = results.filter((result) => result.problems.length);
   writeFileSync(path.join(artifacts, 'report.json'), `${JSON.stringify({ origin, results }, null, 2)}\n`);
-  console.log(`\n${results.length} reading(s) at ${CUE_VIEWPORTS.length} viewport(s) in ${CUE_THEMES.length} themes, ${Math.round((Date.now() - started) / 1000)}s.`);
+  console.log(`\n${results.length} reading(s) at ${CUE_VIEWPORTS.length} viewport(s) in ${CUE_THEMES.length} themes and ${CUE_CONTRAST_THEMES.length} contrast themes, ${Math.round((Date.now() - started) / 1000)}s.`);
   if (failing.length) {
     console.log(`Told apart without colour: ${failing.length} reading(s) failed. Report: ${path.relative(process.cwd(), path.join(artifacts, 'report.json'))}`);
     process.exitCode = 1;

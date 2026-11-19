@@ -129,11 +129,12 @@ jobs:
           if-no-files-found: ignore
           retention-days: 14
 
-  # What Work View's opener covers, the header's badges, one scroller in Work View and every staged step's room (see
-  # the header). The stubbed harness serves the assignment harness, the hosts' page and the colour-alone page (its own
-  # dependency cache: forcedColors.vite.config.mjs); the in-memory app serves the Math Tools Lab and the assignment
-  # screen. 48 readings: 24 minutes on a shared four-core machine at a load of 12 to 20, two at a time (2026-11-18);
-  # about eleven before the staged steps, three at a time.
+  # What Work View's opener covers, the header's badges, one scroller in Work View, every staged step's room and a hint
+  # asked for on it (see the header). The stubbed harness serves the assignment harness, the hosts' page and the
+  # colour-alone page (its own dependency cache: forcedColors.vite.config.mjs); the in-memory app serves the Math Tools
+  # Lab and the assignment screen. 58 readings: about 23 minutes here, three at a time (the 52 before the hint check
+  # took 18.1 minutes on 2026-11-18, and each of its six readings presses "Show a hint" on 23 steps, about two minutes);
+  # 36 minutes on a shared four-core machine at a load of 15 to 27, two at a time.
   work-view-opener-cover:
     runs-on: ubuntu-24.04
     timeout-minutes: 45

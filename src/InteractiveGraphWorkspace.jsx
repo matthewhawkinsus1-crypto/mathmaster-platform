@@ -58,6 +58,7 @@ import { connectPointsStrokes, constructionBranchSplitX, constructionPointsToCon
 import { KEYBOARD_ACCESS_SUPPORT_ID, connectPointsOffered, connectPointsProvidedByPlan } from './platform/graph/connectPointsPolicy.js';
 import { STUDENT_MARK_COLOR } from './platform/graph/studentMarkColor.js';
 import { placeCurveLabels } from './platform/graph/curveLabels.js';
+import { useCurveLabelPlacer } from './platform/graph/curveLabelPlacer.js';
 import { useCoveredByOpener } from './platform/graph/useCoveredByOpener.js';
 import { useDrawnUnit } from './platform/graph/useDrawnUnit.js';
 import FocusSafeButton from './components/common/FocusSafeButton.jsx';
@@ -129,10 +130,12 @@ const markerPoint = (placement) => Array.isArray(placement?.point) ? placement.p
  * names are in the inks this paper writes its labels in (the points' blue,
  * y = x's purple: 7.8:1 and 8.0:1 on it), on a plate of the paper: Canvas and the
  * text colour under a contrast theme. `original` and `inverse` are each the
- * curve's runs of viewBox points, as drawn.
+ * curve's runs of viewBox points, as drawn. `place` places them: the board's
+ * own placer, which places them again only when what they are placed among
+ * changes, never for a pointer move (curveLabelPlacer.js).
  */
 const CURVE_NAME_SIZE = 14;
-export const inverseCurveNames = ({ naming, original, inverse, mirror, axes, dots, avoid, hidden = [], unit = 0 }) => {
+export const inverseCurveNames = ({ naming, original, inverse, mirror, axes, dots, avoid, hidden = [], unit = 0, place = placeCurveLabels }) => {
   if (!naming) return [];
   const curves = [
     { label: 'f', ink: '#174ea6', paths: original },
@@ -140,7 +143,7 @@ export const inverseCurveNames = ({ naming, original, inverse, mirror, axes, dot
     ...(mirror ? [{ label: '', paths: [mirror] }] : []),
     ...axes.map((axis) => ({ label: '', paths: [axis] })),
   ];
-  const spots = placeCurveLabels({
+  const spots = place({
     curves, dots, avoid, hidden, bounds: { left: PADDING, right: WIDTH - PADDING, top: PADDING, bottom: HEIGHT - PADDING }, textSize: CURVE_NAME_SIZE, gap: 6, unit,
   });
   return curves.map((curve, index) => (spots[index] ? { label: curve.label, ink: curve.ink, spot: spots[index] } : null)).filter(Boolean);
@@ -283,6 +286,10 @@ const analysisAnswerShape = (part) => describeAnswerFormat({
  * construction and analysis the workspace keeps in its drafts: points are
  * [x, y] pairs, a sketch is a list of strokes of such points, a camera is the
  * four edges of the window it was drawn in, a typed answer is what was typed.
+ * A card is placed at a point, or, where its value is not real ("Undefined 1"
+ * on a square root or a logarithm), as the word 'undefined' (placeTask): that
+ * placement was dropped as not a point, so a reload took it away. Every route
+ * to a point (a click, a drag, the keyboard, the typed x and y) stores numbers.
  * A point, stroke, marker or answer that is not one is dropped; a collection
  * the workspace reads on every render opens empty in its place (the task's
  * chosen x values: the question's own), and the rest of the work comes back.
@@ -294,8 +301,9 @@ const sketchCameraDraft = draftShape.nullable(draftShape.record(
 ));
 const TYPED = draftShape.nullable(draftShape.cell());
 const FLAG = draftShape.nullable(draftShape.boolean());
+const PLACEMENT = draftShape.either(draftShape.point(), draftShape.oneOf(['undefined']));
 const constructionDraft = (chosenXValues) => draftNormalizer(draftShape.record({
-  placements: draftShape.required(draftShape.map(draftShape.point(), { or: {} })),
+  placements: draftShape.required(draftShape.map(PLACEMENT, { or: {} })),
   chosenXValues: draftShape.required(draftShape.map(TYPED, { or: chosenXValues })),
   pointsValidated: FLAG,
   strokes: draftShape.required(sketchStrokesDraft),
@@ -1309,6 +1317,9 @@ export default function InteractiveGraphWorkspace({
   const openerCover = useCoveredByOpener(svgRef, WIDTH, stage === 'analysis' && inverseReflectionEnabled);
   // How small the board is drawn: a name keeps two pixels of room on a board drawn small (curveLabels.js).
   const drawnUnit = useDrawnUnit(svgRef, WIDTH, stage === 'analysis' && inverseReflectionEnabled);
+  // Every pointer move over the board renders it (the readout follows the pointer): the names are placed again only
+  // when what they are placed among changes.
+  const placeCurveNames = useCurveLabelPlacer();
   const curveNames = inverseCurveNames({
     naming: stage === 'analysis' && inverseReflectionEnabled,
     original: [
@@ -1350,6 +1361,7 @@ export default function InteractiveGraphWorkspace({
       ...yTicks.filter((tick) => tick !== 0).map((tick) => ({ left: axisY - 9 - String(tick).length * 8, right: axisY - 7, top: toScreenY(tick) - 8, bottom: toScreenY(tick) + 8 })),
     ],
     hidden: openerCover ? [openerCover] : [],
+    place: placeCurveNames,
     unit: drawnUnit,
   });
 
