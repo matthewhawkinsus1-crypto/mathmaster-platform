@@ -8,7 +8,8 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 
 import { RECEIPT_READS_AFTER_CLOSE_MS, receiptRereadsAfter } from '../../src/platform/assessment/dolReceiptRefresh.js';
-import { executableSource } from './helpers/sourceContract.mjs';
+import { executableSource, region } from './helpers/sourceContract.mjs';
+import { appHookSource, appSurfaceSource } from './helpers/appScreens.mjs';
 
 const open = (assignmentId) => ({ assignmentId, open: true });
 const closed = (assignmentId) => ({ assignmentId, open: false });
@@ -28,9 +29,19 @@ test('only the open assignment\'s exit ticket closing reads the receipts again',
 
 test('App reads the receipts again on those timers, and clears them when the screen moves on', () => {
   const app = executableSource(readFileSync(new URL('../../src/App.jsx', import.meta.url), 'utf8'));
-  assert.match(app, /const state = getDOLState\(\{ assignment, schedule: classSchedule, classId: user\.classId \|\| null, classPeriod: user\.classPeriod, nowValue: now \}\);\s*return state\.enabled \? state\.status === 'active' : null;/);
-  assert.match(app, /const timers = receiptRereadsAfter\(previous, next\)\.map\(\(delay\) => window\.setTimeout\(\(\) => setCheckpointReadRound\(\(round\) => round \+ 1\), delay\)\);\s*return \(\) => timers\.forEach\(\(timer\) => window\.clearTimeout\(timer\)\);\s*\}, \[activeAssignmentId, activeDolOpen\]\);/);
+  // Since the App split the receipts are useDolCheckpointReceipts', which App
+  // calls with the student, the open assignment, the clock and the schedule,
+  // for the checkpointOutcomes the workspace shows.
+  const receipts = executableSource(appHookSource('useDolCheckpointReceipts'));
+  const call = region(app, 'const { checkpointOutcomes } = useDolCheckpointReceipts({', '});', "App's call of the receipts hook");
+  for (const input of ['user', 'assignments', 'activeAssignmentId', 'now', 'classSchedule']) {
+    assert.match(call, new RegExp(`[{,\\s]${input}[,\\s}]`), input);
+  }
+  assert.match(receipts, /return \{ checkpointOutcomes \};/);
+  assert.match(receipts, /const state = getDOLState\(\{ assignment, schedule: classSchedule, classId: user\.classId \|\| null, classPeriod: user\.classPeriod, nowValue: now \}\);\s*return state\.enabled \? state\.status === 'active' : null;/);
+  assert.match(receipts, /const timers = receiptRereadsAfter\(previous, next\)\.map\(\(delay\) => window\.setTimeout\(\(\) => setCheckpointReadRound\(\(round\) => round \+ 1\), delay\)\);\s*return \(\) => timers\.forEach\(\(timer\) => window\.clearTimeout\(timer\)\);\s*\}, \[activeAssignmentId, activeDolOpen\]\);/);
   // The one read of the receipts runs again for each round.
-  assert.match(app, /collection\(db, 'studentResponseCheckpoints'\),[\s\S]{0,900}\}, \[user\?\.role, user\?\.id, activeAssignmentId, checkpointReadRound\]\);/);
-  assert.doesNotMatch(app, /onSnapshot\(query\(\s*collection\(db, 'studentResponseCheckpoints'\)/, 'still no standing listener');
+  assert.match(receipts, /collection\(db, 'studentResponseCheckpoints'\),[\s\S]{0,900}\}, \[user\?\.role, user\?\.id, activeAssignmentId, checkpointReadRound\]\);/);
+  // Refused across App and every hook it calls, so a listener cannot return by moving.
+  assert.doesNotMatch(executableSource(appSurfaceSource()), /onSnapshot\(query\(\s*collection\(db, 'studentResponseCheckpoints'\)/, 'still no standing listener');
 });

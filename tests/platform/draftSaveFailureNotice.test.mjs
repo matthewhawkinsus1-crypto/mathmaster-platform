@@ -31,6 +31,7 @@ import {
 } from '../../functions/shared/workspaceDraftSchema.mjs';
 import { createWorkspaceDraftSync } from '../../src/platform/persistence/workspaceDraftSync.js';
 import { executableSource, region } from './helpers/sourceContract.mjs';
+import { appHookSource, appSurfaceSource } from './helpers/appScreens.mjs';
 import { draftHealthAccountEffect, replayAccounts } from './helpers/draftHealthAccountEffect.mjs';
 
 const STUDENT = 'S-save';
@@ -166,9 +167,19 @@ test('a shared Chromebook: the next student starts clean, and a reload keeps thi
 
 test('App.jsx shows the notice on the assignment screen, for this student and assignment', () => {
   const app = executableSource(readFileSync(new URL('../../src/App.jsx', import.meta.url), 'utf8'));
-  assert.match(app, /import \{[^}]*\bdescribeDraftSaveProblems\b[^}]*\bdraftSaveProblemsFor\b[^}]*\bsubscribeDraftSaveHealth\b[^}]*\} from '\.\/platform\/persistence\/draftSaveHealth\.js';/,
+  // Since the App split the health counter and the account rule are
+  // useDraftSaveHealth's, which App calls with who is signed in for the
+  // draftSaveHealthVersion the problem below is re-read on.
+  const healthSource = appHookSource('useDraftSaveHealth');
+  const health = executableSource(healthSource);
+  assert.match(app, /import \{[^}]*\bdescribeDraftSaveProblems\b[^}]*\bdraftSaveProblemsFor\b[^}]*\} from '\.\/platform\/persistence\/draftSaveHealth\.js';/,
     'imported next to its use');
-  assert.match(app, /useEffect\(\(\) => subscribeDraftSaveHealth\(\(\) => setDraftSaveHealthVersion\(\(value\) => value \+ 1\)\), \[\]\);/);
+  assert.match(health, /import \{[^}]*\bsubscribeDraftSaveHealth\b[^}]*\} from '\.\.\/\.\.\/platform\/persistence\/draftSaveHealth\.js';/,
+    'imported next to its use');
+  assert.match(app, /const \{ draftSaveHealthVersion \} = useDraftSaveHealth\(\{[^}]*[{,\s]user[,\s}][^}]*\}\);/);
+  assert.match(health, /const \[draftSaveHealthVersion, setDraftSaveHealthVersion\] = useState\(0\);/);
+  assert.match(health, /return \{ draftSaveHealthVersion \};/);
+  assert.match(health, /useEffect\(\(\) => subscribeDraftSaveHealth\(\(\) => setDraftSaveHealthVersion\(\(value\) => value \+ 1\)\), \[\]\);/);
   // The problem is read once per render (re-read on every health change) and
   // shared by the notice and the save line (saveLineIsAboutDrafts, below).
   const problem = region(app, 'const studentDraftSaveProblem = ', ';\n');
@@ -180,9 +191,10 @@ test('App.jsx shows the notice on the assignment screen, for this student and as
   assert.doesNotMatch(problem, /studentPersistenceStatus/);
   // A shared Chromebook's next student starts clean, and a reload of the same
   // student keeps it (pass 3, wave 7): the effect is run, not only read.
-  const { rule, run } = draftHealthAccountEffect(readFileSync(new URL('../../src/App.jsx', import.meta.url), 'utf8'));
+  const { rule, run } = draftHealthAccountEffect(healthSource);
   assert.match(rule, /useEffect\(\(\) => \{/, 'an effect body, not a cleanup');
-  assert.doesNotMatch(app, /useEffect\(\(\) => \(\) => \{ clearDraftSaveProblems\(\); \}, \[user\?\.id\]\)/, 'the old cleanup is gone');
+  // Refused across App and every hook it calls, so it cannot return by moving.
+  assert.doesNotMatch(executableSource(appSurfaceSource()), /useEffect\(\(\) => \(\) => \{ clearDraftSaveProblems\(\); \}, \[user\?\.id\]\)/, 'the old cleanup is gone');
   const ref = { current: null };
   assert.deepEqual(replayAccounts(run, [null, 'stu-a'], ref), [0, 0], 'null → A: a reload keeps the notice');
   assert.deepEqual(replayAccounts(run, ['stu-a'], ref), [0], 'A → A: a re-render');
@@ -190,7 +202,7 @@ test('App.jsx shows the notice on the assignment screen, for this student and as
   assert.deepEqual(replayAccounts(run, [null], ref), [1], 'B → signed out');
   assert.deepEqual(replayAccounts(run, ['stu-b'], ref), [0], 'null → B after that sign-out');
   assert.deepEqual(replayAccounts(run, ['stu-a']), [0], 'a fresh page: null → A');
-  assert.match(app, /^import \{[^}]*\baccountChangeClearsDraftProblems\b[^}]*\} from '\.\/platform\/persistence\/draftSaveHealth\.js';$/m);
+  assert.match(health, /^import \{[^}]*\baccountChangeClearsDraftProblems\b[^}]*\} from '\.\.\/\.\.\/platform\/persistence\/draftSaveHealth\.js';$/m);
 });
 
 /*

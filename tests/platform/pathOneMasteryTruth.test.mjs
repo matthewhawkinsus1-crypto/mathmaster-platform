@@ -25,6 +25,7 @@ import { teksSkillId } from '../../src/platform/path/skillGraph.js';
 import { statusForSkill } from '../../src/platform/path/pathMap.js';
 import { loadStudentMasteryState } from '../../src/platform/mastery/studentMasteryState.js';
 import { executableSource, region } from './helpers/sourceContract.mjs';
+import { appHookSource } from './helpers/appScreens.mjs';
 
 const read = (path) => readFileSync(new URL(`../../${path}`, import.meta.url), 'utf8');
 
@@ -112,8 +113,16 @@ test('the live app, the simulator and the mastery fetch all build from the unifi
   // (Worked out when Home or My Math Path asks for it: appRenderWork.test.mjs.)
   const options = region(app, 'const studentPathOptionsNow = () => renderMemo(', '}));', 'student path options');
   assert.match(options, /serverMasteryProfiles: studentServerMasteryProfiles/);
-  assert.match(app, /subscribeStudentServerMasteryProfiles\(\{/);
-  assert.match(app, /import \{ subscribeStudentServerMasteryProfiles \} from '.\/platform\/mastery\/serverMasteryProfiles.js';/);
+  // Since the App split the listener is useStudentPathSignals', which App
+  // calls with the student and the setter of the profiles the options read.
+  const signals = executableSource(appHookSource('useStudentPathSignals'));
+  assert.match(signals, /return subscribeStudentServerMasteryProfiles\(\{\s*studentId: user\.id,\s*onChange: setStudentServerMasteryProfiles,/);
+  assert.match(signals, /import \{ subscribeStudentServerMasteryProfiles \} from '..\/..\/platform\/mastery\/serverMasteryProfiles.js';/);
+  const signalsCall = region(app, 'useStudentPathSignals({', '});', "App's call of the Path signals hook");
+  for (const input of ['user', 'setStudentServerMasteryProfiles']) {
+    assert.match(signalsCall, new RegExp(`[{,\\s]${input}[,\\s}]`), input);
+  }
+  assert.match(app, /const \[studentServerMasteryProfiles, setStudentServerMasteryProfiles\] = useState\(null\);/);
 
   const simulator = executableSource(read('src/components/teacher/SimulatedStudentExperience.jsx'));
   assert.match(simulator, /masteryProfilesByTEKS: buildUnifiedMasteryProfiles\(/);
