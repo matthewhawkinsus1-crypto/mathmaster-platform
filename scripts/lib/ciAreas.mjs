@@ -292,6 +292,7 @@ export const CI_AREAS = {
     'tests/browser/mathFontsProduction.mjs',
     'tests/browser/toolAttemptOutcome*',
     'tests/browser/assessmentLeakGates*',
+    'tests/browser/support/assessmentLadderWords*',
     'tests/browser/assignmentGraphingCalculator*',
     'tests/browser/systemsWorkspaceStudio*',
     'tests/browser/relationWorkspaceDriver.mjs',

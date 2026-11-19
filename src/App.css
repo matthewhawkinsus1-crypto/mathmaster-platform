@@ -2190,12 +2190,15 @@
 
   /* ...AND THE LINES UNDER THE TASK TAKE NO MORE OF IT THAN THE TASK DOES. A
      question of choices has one try, said before it is spent with what a hint
-     costs and "Show a hint" (QuestionEngine, HELP-18): at 200% text that
-     paragraph and the tries line were 382 to 522px, more than a 320x568
-     phone's whole screen, and its choices, its tries and Submit were below
-     a question that does not scroll. Like the task card above them (a quarter
-     of the screen, MathToolMobileLayout.css), past that they scroll in place.
-     In the question's stage: a Live Challenge question is in none. */
+     costs and the button that shows one (QuestionEngine, HELP-18): at 200%
+     text that paragraph and the tries line were 382 to 522px, more than a
+     320x568 phone's whole screen, and its choices, its tries and Submit were
+     below a question that does not scroll. Like the task card above them (a
+     quarter of the screen, MathToolMobileLayout.css), past that they scroll
+     in place. In the question's stage: a Live Challenge question is in none.
+     (No hint-ladder words in a stylesheet's comments: in development Vite
+     serves them in the page, where the leak gate refuses them on an exit
+     ticket or a test; stylesheetsQuoteNoLeakWords.test.mjs.) */
   .mathmaster-assignment-screen .mathmaster-question-stage .mathmaster-question-container.mode-portrait .mathmaster-question-context-panel {
     max-height: 25dvh;
     overflow-y: auto;
