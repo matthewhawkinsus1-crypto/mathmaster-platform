@@ -5,6 +5,7 @@ import '../../platform/mobile/MobileInteractionFoundation.css';
 import {
   focusAfterKeypadDone,
   focusLeavesQuestion,
+  keypadRevealTarget,
   keypadTargetOnFocus,
   pressReopensKeypad,
   workBarControlAfterKeypad,
@@ -393,11 +394,18 @@ export const MobileViewportContainer = ({
       // Focus was scrolled before the keypad existed. Once its measured space
       // changes the Work View geometry, move only the local vertical scroller
       // again so the active answer control is not left behind the keys.
+      // Focus can have moved on while the keys stay up (a button keeps them):
+      // what has focus is what is brought into view (keypadRevealTarget).
       window.requestAnimationFrame(() => {
         window.requestAnimationFrame(() => {
-          if (numericTarget?.isConnected) {
-            scrollFocusedControlVertically(numericTarget, { root: rootRef.current });
-          }
+          if (!numericTarget?.isConnected) return;
+          const target = keypadRevealTarget({
+            numericTarget,
+            active: document.activeElement,
+            root: rootRef.current,
+            keypad: keypadRef.current,
+          });
+          if (target?.isConnected) scrollFocusedControlVertically(target, { root: rootRef.current });
         });
       });
     };

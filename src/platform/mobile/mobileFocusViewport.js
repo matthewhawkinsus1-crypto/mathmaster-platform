@@ -303,6 +303,32 @@ export const revealFocusedControlAfterResize = ({
 };
 
 /*
+ * WHEN THE KEYPAD CHANGES SIZE, WHAT HAS FOCUS IS WHAT IS BROUGHT INTO VIEW (WCAG 2.4.11).
+ *
+ * The number keypad publishes its height as it opens and whenever it changes
+ * size, and the box it types into is then scrolled into view again
+ * (MobileViewportContainer), because focus scrolled that box before the keys
+ * were there. But the keypad stays up while focus moves on to a button inside
+ * the question (Step Algebra's move to "Apply to both sides"; Tab from the box
+ * to "Show a hint"), and a resize then still brought the box back. On a
+ * 390×844 phone the Constraint Function Builder's "Show a hint" had been
+ * scrolled to sit just above the keys (y 522 to 566, the keys from 570); the
+ * box's reveal moved the work 137px down and left the focused button under
+ * the 5 and the 2. So the reveal follows focus: the box while it has focus,
+ * or one of the keypad's own keys does (they type into it), or nothing in the
+ * question does; another control in the question once focus has moved on to
+ * it. Focus outside the question is left to the question's blur, which
+ * closes the keypad (focusLeavesQuestion below).
+ */
+export const keypadRevealTarget = ({ numericTarget = null, active = null, root = null, keypad = null } = {}) => {
+  if (!numericTarget) return null;
+  const movedOn = Boolean(active) && active !== numericTarget && active.nodeType === 1
+    && typeof root?.contains === 'function' && root.contains(active)
+    && !(typeof keypad?.contains === 'function' && keypad.contains(active));
+  return movedOn ? active : numericTarget;
+};
+
+/*
  * FOCUS THAT LEAVES THE QUESTION CLOSES THE NUMBER KEYPAD (student-a11y-3).
  *
  * The keypad is a software keyboard for the box that has focus, and it stays
