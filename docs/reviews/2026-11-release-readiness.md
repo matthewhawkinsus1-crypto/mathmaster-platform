@@ -10,6 +10,8 @@ Nothing was deployed or run against production. The release plan below was compu
 
 ## Blocks the release
 
+Both are fixed, each with a test that fails before and passes after, in #572.
+
 ### B1. The grades split makes the section trigger send every synced section column again, once per student
 
 - `functions/gradingFunctions.js:1122-1124` moves all of a student's records into the split after their first submission (`functions/lib/gradeDetailStore.js:115`). That rewrites the tracker of **every** assignment the student has.
@@ -23,6 +25,8 @@ Nothing was deployed or run against production. The release plan below was compu
 **If #561 is already live**, this has been happening since: check `classroomGradeSyncs` volume and the "Section grade" logs from Nov 16.
 
 **Smallest fix:** in `functions/lib/classroomTrackerChange.js`, do not count a record as changed when `after` is exactly the split summary of `before` (same fields outside the detail list, `detailRef` new). The assignment then never enters the loop: 0 reads, 0 calls. A column still open is sent once at its next real change, which would send anyway. Test: a tracker and its `splitTracker` summaries are "unchanged"; a summary with a different status is "changed".
+
+**Order matters even with the fix.** The alphabetical plan deploys `ingestStudentSubmissions` (group 10) long before the two triggers (group 26), so old triggers would still see the moves. Deploy `syncGradeToClassroom` and `syncSectionGradeToClassroom` first (`--functions … --only functions`), then run the release.
 
 ### B2. `--functions` also deploys indexes, path-admin, rules and Hosting
 
