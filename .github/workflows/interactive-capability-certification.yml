@@ -56,6 +56,15 @@ jobs:
         uses: ./.github/actions/setup
         with: { browser: "true" }
 
+      # Suites here read the backend's code through
+      # tests/platform/helpers/functionsBackendSource.mjs, whose parser comes
+      # with the release planner. The planner loads the weekly planner's sync
+      # script, which requires the server's plan, and that loads firebase-admin,
+      # which lives only in functions/. Without this they fail on a missing
+      # module rather than on anything they test, as the platform suite's jobs
+      # would (full-platform-suite.yml installs it the same way).
+      - run: npm --prefix functions ci
+
       - name: Certify interactive capabilities
         env:
           PLAYWRIGHT_MODULE: playwright
