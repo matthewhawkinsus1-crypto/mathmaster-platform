@@ -54,6 +54,7 @@ import { fileURLToPath } from 'node:url';
 import { narrativeViolations } from '../../../src/platform/caseReview/narrativeGuard.js';
 import { PRINT_SECTIONS, TEACHER_AUTHORED_LABEL } from '../../../src/platform/caseReview/caseReviewExport.js';
 import { watchUnimplementedCallables } from './journeyChecks.mjs';
+import { settle } from './journeyWaits.mjs';
 import { newSchoolContext } from './schoolClock.mjs';
 
 const { chromium } = await import(process.env.PLAYWRIGHT_MODULE || '/opt/node22/lib/node_modules/playwright/index.mjs');
@@ -181,11 +182,10 @@ const shot = (page, name) => page.screenshot({ path: path.join(ARTIFACTS, `${nam
 
 const TAB_KEYS = ['summary', 'grades', 'questions', 'skills', 'dol', 'completion', 'supports', 'timeline', 'gradebook', 'facts', 'attention', 'print'];
 
+// Each action waits for its own target (the search filters as it is typed).
 const openDrawer = async (page) => {
   await sidebar(page, 'Students');
-  await page.waitForTimeout(1200);
   await page.getByPlaceholder('Search student or class').fill('Garza');
-  await page.waitForTimeout(700);
   await page.getByRole('button', { name: 'Garza, Oakley' }).first().click();
   const entry = page.locator('[data-case-review-entry]');
   await entry.waitFor({ timeout: 20000 });
@@ -205,11 +205,16 @@ const build = async (page, review, { period = null } = {}) => {
   if (period) await review.getByLabel('Marking period').selectOption(period);
   await review.getByRole('button', { name: /^(Build|Rebuild) case review$/ }).click();
   await review.getByRole('tablist').waitFor({ timeout: 30000 });
-  await page.waitForTimeout(600);
+  // A rebuild keeps the old tabs while it reads. The build is done when the
+  // selection has folded away again and the case review is on its summary.
+  await settle(async () => await change.count() > 0 && await review.locator('#cr-tab-summary').getAttribute('aria-selected') === 'true');
 };
+// The tab is chosen and its panel drawn.
 const tab = async (page, review, name) => {
-  await review.getByRole('tab', { name }).click();
-  await page.waitForTimeout(350);
+  const chosen = review.getByRole('tab', { name });
+  await chosen.click();
+  await settle(async () => await chosen.getAttribute('aria-selected') === 'true'
+    && await page.locator(`#${await chosen.getAttribute('aria-controls')}`).isVisible());
 };
 const panel = (review, key) => review.locator(`[data-case-tab="${key}"]`);
 const crumbs = (review) => text(review.locator('nav.cr-crumbs'));
@@ -248,7 +253,7 @@ const journeys = {
     expect('C1', !/could not be loaded/.test(await text(review)), 'per-attempt records loaded through the callable');
     for (const key of TAB_KEYS) {
       await review.locator(`#cr-tab-${key}`).click();
-      await page.waitForTimeout(400);
+      await settle(() => panel(review, key).isVisible());
       const visible = await panel(review, key).isVisible();
       expect('C1', visible, `the ${key} tab renders`);
       const said = await text(panel(review, key));
@@ -257,9 +262,10 @@ const journeys = {
       await noSidewaysScroll('C1', page, `${key} tab`);
       await shot(page, `tab-${key}`);
       if (isPhone(page)) {
-        // Folded content counts too: open every disclosure on the tab.
+        // Folded content counts too: open every disclosure on the tab. (Nothing
+        // in a disclosure is drawn on opening: it is laid out as it is read.)
         await openAllDetails(panel(review, key));
-        await page.waitForTimeout(150);
+        await settle(async () => await panel(review, key).locator('details:not([open])').count() === 0);
         await noSidewaysScroll('C1', page, `${key} tab, every disclosure open`);
         await phoneLayout('C1', page, `${key} tab`);
         await evidenceRoom('C1', page, review, `${key} tab`);
@@ -278,7 +284,8 @@ const journeys = {
     // listed): still usable, and the evidence still reachable.
     await review.getByRole('button', { name: 'Change selection' }).click();
     await review.locator('[data-case-assignment-filter]').evaluate((element) => { element.open = true; });
-    await page.waitForTimeout(300);
+    await settle(async () => await review.locator('#cr-selection').isVisible()
+      && await review.locator('[data-case-assignment-filter]').evaluate((element) => element.open));
     await noSidewaysScroll('C1', page, 'selection reopened');
     await phoneLayout('C1', page, 'selection reopened');
     await evidenceRoom('C1', page, review, 'selection reopened');
@@ -299,7 +306,7 @@ const journeys = {
       const row = element.querySelector('[data-case-assignment="a-lastweek"]');
       element.scrollTop = Math.max(0, row.getBoundingClientRect().top - element.getBoundingClientRect().top + element.scrollTop - 24);
     });
-    await page.waitForTimeout(200);
+    await settle(async () => await scroller.evaluate((element) => element.scrollTop) > 0);
     const scrolled = await scroller.evaluate((element) => element.scrollTop);
     expect('C2', scrolled > 0, `the Grades tab is scrolled before drilling in (${scrolled})`);
     await review.locator('[data-case-assignment="a-lastweek"]').getByRole('button', { name: 'Linear Functions — Review' }).click();
@@ -329,10 +336,11 @@ const journeys = {
     const inspector = page.getByRole('dialog', { name: 'Student Response Inspector' });
     await inspector.waitFor({ timeout: 10000 });
     await page.keyboard.press('Escape');
-    await page.waitForTimeout(500);
+    // Nothing may change: a case review or question that closes is given the 500 ms it always had to.
+    await settle(async () => !(await review.isVisible() && await question.isVisible()), 500);
     expect('C2', await review.isVisible() && await question.isVisible(), 'Escape under the Response Inspector does not close the case review');
     await inspector.getByRole('button', { name: 'Close' }).click();
-    await page.waitForTimeout(400);
+    await settle(async () => await inspector.count() === 0 && await question.isVisible());
     expect('C2', await inspector.count() === 0 && await question.isVisible(), 'closing the inspector returns to the same question');
 
     await review.locator('[data-case-back]').click();
@@ -340,24 +348,32 @@ const journeys = {
     expect('C2', await question.count() === 0, 'Back returns to the assignment');
     await review.locator('[data-case-back]').click();
     await panel(review, 'grades').waitFor({ timeout: 5000 });
-    await page.waitForTimeout(100);
+    // The tab's place comes back as it is shown again.
+    await settle(async () => Math.abs(await scroller.evaluate((element) => element.scrollTop) - scrolled) <= 2
+      && await details.evaluateAll((elements) => elements.every((element) => element.open)));
     const restored = await scroller.evaluate((element) => element.scrollTop);
     expect('C2', Math.abs(restored - scrolled) <= 2, `Back returns to the Grades tab where the teacher left it (scroll ${restored}, was ${scrolled})`);
     expect('C2', await details.evaluateAll((elements) => elements.every((element) => element.open)), 'the details the teacher opened are still open');
     await review.locator('[data-case-back]').click();
-    await page.waitForTimeout(300);
+    await settle(async () => await panel(review, 'summary').isVisible() && await text(review.locator('[data-case-back]')) === 'Back to student');
     expect('C2', await panel(review, 'summary').isVisible(), 'Back walks the trail to the summary');
     const backLabel = await text(review.locator('[data-case-back]'));
     expect('C2', backLabel === 'Back to student', `at the start of the trail Back returns to the student (${backLabel})`);
     await review.locator('[data-case-back]').click();
-    await page.waitForTimeout(500);
+    // The case review closes; the drawer under it must not, and is given the 500 ms it always had to.
+    const reviewCount = () => page.locator('[data-case-review]').count();
+    const drawerCount = () => page.locator('[data-student-profile-drawer]').count();
+    await settle(async () => await reviewCount() === 0);
+    await settle(async () => await drawerCount() === 0, 500);
     expect('C2', await page.locator('[data-case-review]').count() === 0 && await page.locator('[data-student-profile-drawer]').count() === 1, 'Back to student closes to the drawer');
 
     // Escape on top closes the case review, and only the case review.
     const again = await openCaseReview(page, { entry: page.locator('[data-case-review-entry]') });
     await again.waitFor();
     await page.keyboard.press('Escape');
-    await page.waitForTimeout(500);
+    // As above: the drawer is given the 500 ms it always had to close as well.
+    await settle(async () => await reviewCount() === 0);
+    await settle(async () => await drawerCount() === 0, 500);
     expect('C2', await page.locator('[data-case-review]').count() === 0 && await page.locator('[data-student-profile-drawer]').count() === 1, 'Escape closes the case review and keeps the drawer');
   },
 
@@ -390,7 +406,7 @@ const journeys = {
 
     // The teacher says what "Unit Quiz 3" is.
     await table.getByLabel('MathMaster match for Unit Quiz 3').selectOption({ label: 'Systems of Equations — Lesson 2: Substitution — Classwork' });
-    await page.waitForTimeout(400);
+    await settle(async () => /Confirmed by you/.test(await text(table.locator('tr', { hasText: 'Unit Quiz 3' }))));
     const quizRow = await text(table.locator('tr', { hasText: 'Unit Quiz 3' }));
     expect('C3', /Confirmed by you/.test(quizRow), `a confirmed match is labelled (${quizRow})`);
 
@@ -398,7 +414,11 @@ const journeys = {
     const before = under(await db(page), 'grades/910002/sisGradebookSnapshots/').length;
     await uploadGradebook(gradebook);
     await gradebook.locator('[data-case-sis-preview]').getByRole('button', { name: 'Compare and save with this case file' }).click();
-    await page.waitForTimeout(1200);
+    // Saved, and compared as the saved snapshot; a change to the student's
+    // records, which must not come, is given the 1.2 s it always had.
+    await settle(async () => under(await db(page), 'grades/910002/sisGradebookSnapshots/').length === before + 1
+      && /Saved with this case file/.test(await text(gradebook)));
+    await settle(async () => studentRecords(await db(page)) !== recordsBefore, 1200);
     const saved = under(await db(page), 'grades/910002/sisGradebookSnapshots/');
     expect('C3', saved.length === before + 1, 'one snapshot is saved');
     const document = saved[saved.length - 1]?.[1] || {};
@@ -409,10 +429,14 @@ const journeys = {
 
     await build(page, review);
     await tab(page, review, 'Official gradebook');
+    await settle(async () => {
+      const shown = await text(panel(review, 'gradebook'));
+      return /Saved snapshots for this student/.test(shown) && /gradebook-synthetic\.csv/.test(shown);
+    });
     const savedList = await text(panel(review, 'gradebook'));
     expect('C3', /Saved snapshots for this student/.test(savedList) && /gradebook-synthetic\.csv/.test(savedList), 'the saved snapshot is offered after a rebuild');
     await panel(review, 'gradebook').getByRole('button', { name: 'Compare', exact: true }).first().click();
-    await page.waitForTimeout(500);
+    await settle(async () => /Saved with this case file/.test(await text(panel(review, 'gradebook'))));
     expect('C3', /Saved with this case file/.test(await text(panel(review, 'gradebook'))), 'the saved snapshot can be compared again');
     await noSidewaysScroll('C3', page, 'gradebook tab');
   },
@@ -460,7 +484,8 @@ const journeys = {
     expect('C4', /grades\/\{student\}|Assignment instances|Question records/.test(await text(withSources)), 'a fact opens to the records it came from');
     expect('C4', /What this case review never states/.test(await text(panel(review, 'facts'))), 'the conclusions it never draws are listed');
     await panel(review, 'facts').getByRole('button', { name: 'Copy all facts' }).click();
-    await page.waitForTimeout(300);
+    // The clipboard answers, then the tab says what happened.
+    await settle(async () => /All facts copied\.|Copying is blocked/.test(await text(panel(review, 'facts').locator('[role="status"]'))));
     expect('C4', /All facts copied\.|Copying is blocked/.test(await text(panel(review, 'facts').locator('[role="status"]'))), 'copying reports what happened');
     await shot(page, 'narrative-facts');
 
@@ -473,7 +498,7 @@ const journeys = {
     await panel(review, 'attention').locator('table').last().getByRole('button').first().click();
     await review.locator('[data-case-question-detail]').waitFor({ timeout: 5000 });
     await review.locator('[data-case-back]').click();
-    await page.waitForTimeout(300);
+    await settle(() => panel(review, 'attention').isVisible());
     expect('C4', await panel(review, 'attention').isVisible(), 'Back returns from the question to the attention list');
     await noSidewaysScroll('C4', page, 'attention tab');
   },
@@ -512,11 +537,17 @@ const journeys = {
     // Print: only the case review, black on white, on as many pages as it needs.
     await page.evaluate(() => { window.__printCalls = 0; window.print = () => { window.__printCalls += 1; }; });
     await printTab.getByRole('button', { name: 'Print / Save PDF' }).click();
-    await page.waitForTimeout(500);
+    // The print copy goes onto the page, then the dialog is asked for; a
+    // second ask, which must not come, is given the 500 ms it always had.
+    const printCalls = () => page.evaluate(() => window.__printCalls);
+    await settle(async () => await printCalls() >= 1 && await page.locator('body > .cr-print-root').count() === 1);
+    await settle(async () => await printCalls() > 1, 500);
     expect('C5', await page.evaluate(() => window.__printCalls) === 1, 'the browser print dialog is asked for once');
     expect('C5', await page.locator('body > .cr-print-root').count() === 1, 'the print copy is on the page while printing');
     await page.emulateMedia({ media: 'print' });
-    await page.waitForTimeout(300);
+    await settle(() => page.evaluate((titles) => getComputedStyle(document.getElementById('root')).display === 'none'
+      && getComputedStyle(document.querySelector('.cr-print-root')).display === 'block'
+      && titles.every((title) => document.querySelector('.cr-print-root').innerText.includes(title)), PRINT_SECTIONS.map((section) => section.title)));
     const printed = await page.evaluate(() => ({
       app: getComputedStyle(document.getElementById('root')).display,
       copy: getComputedStyle(document.querySelector('.cr-print-root')).display,
@@ -527,7 +558,7 @@ const journeys = {
     await page.screenshot({ path: path.join(ARTIFACTS, `print-${page.viewportSize().width}.png`), fullPage: true });
     await page.emulateMedia({ media: 'screen' });
     await page.evaluate(() => window.dispatchEvent(new Event('afterprint')));
-    await page.waitForTimeout(300);
+    await settle(async () => await page.locator('.cr-print-root').count() === 0 && !(await page.evaluate(() => document.body.classList.contains('cr-printing'))));
     expect('C5', await page.locator('.cr-print-root').count() === 0 && !(await page.evaluate(() => document.body.classList.contains('cr-printing'))), 'after printing the print copy is removed');
     expect('C5', await printTab.isVisible(), 'the teacher is still on the print tab');
   },
@@ -542,11 +573,12 @@ const journeys = {
       await tab(page, review, 'Print & export');
       return { review, box: panel(review, 'print').getByLabel('Teacher-entered next steps (optional)') };
     };
+    // The next action (opening the student) waits for its own target.
     const signedIn = async (url) => {
       await page.goto(url, { timeout: 180000 });
       await page.getByText('Instructor Dashboard').first().waitFor({ timeout: 120000 });
-      await page.waitForTimeout(2500);
     };
+    const printCopy = page.locator('body > .cr-print-root');
 
     let { review, box } = await openPrintTab();
     expect('C7', await box.inputValue() === '', 'a first case review starts with no next steps');
@@ -556,9 +588,10 @@ const journeys = {
 
     // Closed and opened again: the teacher's words are there, printed and exported.
     await review.getByRole('button', { name: 'Close', exact: true }).click();
-    await page.waitForTimeout(400);
+    await settle(async () => await page.locator('[data-case-review]').count() === 0);
     expect('C7', await page.locator('[data-case-review]').count() === 0, 'the case review closed');
     ({ review, box } = await openPrintTab(page.locator('[data-case-review-entry]')));
+    await settle(async () => await box.inputValue() === steps);
     expect('C7', await box.inputValue() === steps, 'the next steps come back after the case review is closed');
     expect('C7', (await text(panel(review, 'print').locator('.cr-print-preview'))).includes(steps), 'the restored steps are in the print preview');
     const [download] = await Promise.all([page.waitForEvent('download'), panel(review, 'print').getByRole('button', { name: 'JSON (full case file)' }).click()]);
@@ -566,14 +599,15 @@ const journeys = {
     expect('C7', exported.teacherEnteredNextSteps?.text === steps && exported.teacherEnteredNextSteps?.label === TEACHER_AUTHORED_LABEL, 'the restored steps are in the JSON export, labelled as the teacher\'s');
     await page.evaluate(() => { window.__printCalls = 0; window.print = () => { window.__printCalls += 1; }; });
     await panel(review, 'print').getByRole('button', { name: 'Print / Save PDF' }).click();
-    await page.waitForTimeout(500);
+    await settle(async () => (await printCopy.innerText()).includes(steps));
     expect('C7', (await page.locator('body > .cr-print-root').innerText()).includes(steps), 'the restored steps are on the printed copy');
     await page.evaluate(() => window.dispatchEvent(new Event('afterprint')));
-    await page.waitForTimeout(300);
+    await settle(async () => await printCopy.count() === 0);
 
     // A reload of the page.
     await signedIn(PAGE);
     ({ review, box } = await openPrintTab());
+    await settle(async () => await box.inputValue() === steps);
     expect('C7', await box.inputValue() === steps, 'the next steps survive a reload');
 
     // Cleared by the teacher: gone, and still gone after reopening.
@@ -595,9 +629,10 @@ const journeys = {
     // Signing out takes every account's drafts with it.
     await review.getByRole('button', { name: 'Close', exact: true }).click();
     await page.keyboard.press('Escape');
-    await page.waitForTimeout(300);
+    // Escape closes the student's drawer, which covers the header, before Log Out.
+    await settle(async () => await page.locator('[data-case-review], [data-student-profile-drawer]').count() === 0);
     await page.getByRole('button', { name: 'Log Out', exact: true }).first().click();
-    await page.waitForTimeout(1500);
+    await settle(async () => (await drafts()).length === 0);
     expect('C7', (await drafts()).length === 0, `signing out leaves no draft in the tab (${(await drafts()).join(', ')})`);
   },
 
@@ -606,7 +641,12 @@ const journeys = {
     page.on('request', (request) => requested.push(request.url()));
     await page.goto(`${PAGE}&as=student&studentId=910002`, { timeout: 180000 });
     await page.getByText('Log Out').first().waitFor({ timeout: 120000 });
-    await page.waitForTimeout(3000);
+    // Home draws its "Do this next" card. Case review code, elements or words,
+    // which must not come, are then given the 3 s they always had.
+    await settle(async () => await page.locator('section[aria-labelledby="what-now-heading"]').count() > 0);
+    await settle(async () => requested.some((url) => url.includes('/caseReview/'))
+      || await page.locator('[data-case-review], [data-case-review-entry]').count() > 0
+      || /case review|Academic evidence|deep dive|Narrative facts|gradebook snapshot/i.test(await text(page.locator('body'))), 3000);
     const home = await text(page.locator('body'));
     expect('C6', !/case review|Academic evidence|deep dive|Narrative facts|gradebook snapshot/i.test(home), 'nothing of the case review is on the student\'s screen');
     expect('C6', !requested.some((url) => url.includes('/caseReview/')), 'no case review code is loaded for a student');
@@ -624,10 +664,10 @@ for (const viewport of VIEWPORTS) {
     const unimplemented = watchUnimplementedCallables(page);
     const label = `${name} @ ${viewport.width}x${viewport.height}`;
     try {
+      // A journey's first action waits for its own target.
       if (name !== 'C6') {
         await page.goto(PAGE, { timeout: 180000 });
         await page.getByText('Instructor Dashboard').first().waitFor({ timeout: 120000 });
-        await page.waitForTimeout(2500);
       }
       const before = findings.length;
       await run(page);
