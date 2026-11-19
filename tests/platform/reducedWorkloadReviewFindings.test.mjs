@@ -25,6 +25,7 @@ import { studentRequiredQuestions } from '../../src/assignmentLifecycle.js';
 import { normalizeStudentProfile, sameStudentProfile } from '../../src/studentSupport.js';
 import { followSupportProfile } from '../../src/platform/student/rosterMembership.js';
 import { region, executableSource } from './helpers/sourceContract.mjs';
+import { appHookSource } from './helpers/appScreens.mjs';
 import { availabilityEventId, buildStudentEvidenceEvent, PLATFORM_EVALUATED_SUPPORT_IDS } from '../../functions/shared/supportEvidenceModel.mjs';
 import { buildSupportEvidenceReport, supportHeadline } from '../../src/platform/supportEvidence/supportEvidenceReport.js';
 
@@ -217,12 +218,20 @@ test('the App plans on the stored document, records the accommodation over the c
   const launch = executableSource(region(app, 'const launchedSupportKeyRef = useRef(\'\');', 'const activeDOLState = ', 'launch evidence'));
   assert.match(launch, /accommodation = studentRequiredFor\(activeAssignmentData\);/);
   assert.match(launch, /workload: accommodation \}\)/);
-  const listener = executableSource(region(app, "doc(db, 'grades', user.id),", 'Object.entries(next).forEach', 'student grades listener'));
+  // Since the App split the grades listener is useStudentGradeDocument's,
+  // which App calls with the signed-in student and the setUser the profile is
+  // followed through.
+  const gradeDocument = appHookSource('useStudentGradeDocument');
+  const gradeDocumentCall = region(executableSource(app), 'useStudentGradeDocument({', '});', "App's call of the grade document hook");
+  for (const input of ['user', 'setUser']) {
+    assert.match(gradeDocumentCall, new RegExp(`[{,\\s]${input}[,\\s}]`), input);
+  }
+  const listener = executableSource(region(gradeDocument, "doc(db, 'grades', user.id),", 'Object.entries(next).forEach', 'student grades listener'));
   assert.match(listener, /const liveProfile = normalizeStudentProfile\(snapshot\.data\(\)\?\.profile \|\| snapshot\.data\(\)\);/);
   // The session takes the re-saved profile through followSupportProfile (rosterMembership.js): its supports replace the
   // session's when sameStudentProfile says they changed (below), and the course and level the class sets stay.
   assert.match(listener, /setUser\(\(current\) => followSupportProfile\(current, liveProfile\)\);/);
-  assert.match(app, /^import \{[^}]*\bfollowSupportProfile\b[^}]*\} from '\.\/platform\/student\/rosterMembership\.js';$/m);
+  assert.match(gradeDocument, /^import \{[^}]*\bfollowSupportProfile\b[^}]*\} from '\.\.\/\.\.\/platform\/student\/rosterMembership\.js';$/m);
 
   const a = normalizeStudentProfile(profileAt(25), { nowValue: NOW });
   const b = normalizeStudentProfile(JSON.parse(JSON.stringify(profileAt(25))), { nowValue: NOW });

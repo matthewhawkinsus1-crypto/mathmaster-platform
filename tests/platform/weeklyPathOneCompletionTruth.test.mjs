@@ -21,6 +21,7 @@ import {
 } from '../../functions/shared/weeklyPathCompletion.mjs';
 import { evaluateWeeklyGoalProgress, describeWeeklyGradeForStudent, gradeWeeklyGoal } from '../../functions/shared/weeklyPathGrade.mjs';
 import { executableSource, region } from './helpers/sourceContract.mjs';
+import { appHookSource, appSurfaceSource } from './helpers/appScreens.mjs';
 import { weeklyStartLabel } from '../../src/platform/path/pathSessionLaunch.js';
 import { functionsBackendSource, topLevelDeclaration } from './helpers/functionsBackendSource.mjs';
 
@@ -121,13 +122,22 @@ test('Home reads the same server completions, and App.jsx imports what it calls'
   const app = executableSource(read('src/App.jsx'));
   // Through the page's week (studentWeeklyPath.js), which My Math Path shares:
   // its completions are pathStore's fetchMyWeeklyPathCompletions.
-  const home = region(app, 'return studentWeeklyPathFacts.follow(currentWeekKey, {', '\n    });', 'Home weekly status');
+  // Since the App split, app/student/useStudentWeeklyPathProgress.js owns Home's
+  // weekly status: App calls it with the student, the setter and the clock, and
+  // the hook imports the page's week it calls.
+  const weekly = executableSource(appHookSource('useStudentWeeklyPathProgress'));
+  const weeklyCall = region(app, 'useStudentWeeklyPathProgress({', '});', "App's useStudentWeeklyPathProgress call");
+  ['user', 'setStudentWeeklyPathProgress', 'now']
+    .forEach((input) => assert.match(weeklyCall, new RegExp(`[{,\\s]${input}[,\\s}]`), `App hands ${input} to useStudentWeeklyPathProgress`));
+  const home = region(weekly, 'return studentWeeklyPathFacts.follow(currentWeekKey, {', '\n    });', 'Home weekly status');
   assert.match(home, /const completions = weeklyFacts\?\.completions \|\| \[\];\s*setStudentWeeklyPathProgress\(evaluateWeeklyGoalProgress\(\{ goal, completions, now \}\)\);/, 'Home weekly status must use server completions');
   assert.match(app, /import \{[^}]*\bstudentWeeklyPath\b[^}]*\} from '.\/platform\/path\/pathStore.js'/s);
+  assert.match(weekly, /import \{[^}]*\bstudentWeeklyPath\b[^}]*\} from '\.\.\/\.\.\/platform\/path\/pathStore\.js'/s);
+  assert.match(weekly, /import \{[^}]*\bevaluateWeeklyGoalProgress\b[^}]*\} from '\.\.\/\.\.\/platform\/path\/weeklyPathGoal\.js'/s);
   const store = executableSource(read('src/platform/path/pathStore.js'));
   assert.match(region(store, 'export const studentWeeklyPath = createStudentWeeklyPath({', '});', 'the page week'), /completions: fetchMyWeeklyPathCompletions,\s*history: fetchMyWeeklyPathHistory,/);
   assert.match(read('src/platform/path/studentWeeklyPath.js'), /client\.completions\(\{ weekKey \}\)/);
-  assert.doesNotMatch(app, /deriveCompletionsFromEvidence\(/);
+  assert.doesNotMatch(executableSource(appSurfaceSource()), /deriveCompletionsFromEvidence\(/);
 });
 
 test('a half-done weekly session keeps Resume and cannot be swapped mid-session', () => {

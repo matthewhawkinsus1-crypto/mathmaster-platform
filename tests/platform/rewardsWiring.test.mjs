@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import { executableSource, region } from './helpers/sourceContract.mjs';
 import { importsComponent } from './helpers/componentImport.mjs';
+import { appHookSource } from './helpers/appScreens.mjs';
 import { functionsBackendSource } from './helpers/functionsBackendSource.mjs';
 
 /*
@@ -105,7 +106,12 @@ test('My Rewards is a student destination with its own screen, imported where it
 });
 
 test('the reward listeners are scoped to one student and one class, and only after the role gate', () => {
-  const effect = region(app, "if (user?.role !== 'student' || !user.id || !user.classId) {", '}, [user?.role, user?.id, user?.classId]);', 'student rewards effect');
+  // Since the App split the listeners are useStudentClassPoints', which App
+  // calls with who is signed in, for the studentClassPoints the screens read.
+  const classPoints = appHookSource('useStudentClassPoints');
+  assert.match(app, /const \{ studentClassPoints \} = useStudentClassPoints\(\{[^}]*[{,\s]user[,\s}][^}]*\}\);/);
+  assert.match(classPoints, /\n  return \{ studentClassPoints \};\n\}/);
+  const effect = region(classPoints, "if (user?.role !== 'student' || !user.id || !user.classId) {", '}, [user?.role, user?.id, user?.classId]);', 'student rewards effect');
   assert.match(effect, /subscribeToStudentRewardInventory\(\{\s*db,\s*studentId: user\.id,\s*classId: user\.classId,/);
   const inventory = executableSource(region(read('src/platform/rewards/rewardsClient.js'), 'export const subscribeToStudentRewardInventory', '\n};', 'inventory'));
   assert.match(inventory, /where\('studentId', '==', student\),\s*where\('classId', '==', cls\),\s*where\('status', '==', 'available'\)/);

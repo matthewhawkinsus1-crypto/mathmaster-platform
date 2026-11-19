@@ -1,7 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
-import { executableSource } from './helpers/sourceContract.mjs';
+import { executableSource, region } from './helpers/sourceContract.mjs';
+import { appHookSource } from './helpers/appScreens.mjs';
 import {
   activeClassPointAnnouncements,
   classPointAccountId,
@@ -114,11 +115,16 @@ test('the Practice Pass flow never computes its own eligibility list', async () 
 
 test('teacher preview is isolated before subscriptions and identity points rendering', async () => {
   const app = await read('src/App.jsx');
-  const effectStart = app.indexOf("// Teacher Preview and synthetic student views can never cross this role gate.");
-  const effectEnd = app.indexOf('}, [user?.role, user?.id, user?.classId]);', effectStart);
-  const effect = app.slice(effectStart, effectEnd);
+  // Since the App split the subscriptions are useStudentClassPoints'; App
+  // hands it the signed-in user the gate reads and draws the points it returns.
+  const classPoints = appHookSource('useStudentClassPoints');
+  assert.match(app, /const \{[^}]*\bstudentClassPoints\b[^}]*\} = useStudentClassPoints\(\{[^}]*[{,\s]user[,\s}][^}]*\}\);/);
+  assert.match(classPoints, /\n {2}return \{[^}]*\bstudentClassPoints\b[^}]*\};\n\}/);
+  const effect = region(classPoints, "// Teacher Preview and synthetic student views can never cross this role gate.", '}, [user?.role, user?.id, user?.classId]);', 'the Class Points subscriptions');
   assert.match(effect, /user\?\.role !== 'student'/);
   assert.match(effect, /subscribeToStudentClassPoints/);
+  assert.notEqual(effect.indexOf("user?.role !== 'student'"), -1);
+  assert.notEqual(effect.indexOf('subscribeToStudentClassPoints'), -1);
   assert.ok(effect.indexOf("user?.role !== 'student'") < effect.indexOf('subscribeToStudentClassPoints'));
   assert.match(app, /classPointsBalance=\{preview \|\| studentClassPoints\.unavailable \? null/);
 });

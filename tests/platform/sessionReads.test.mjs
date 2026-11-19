@@ -24,6 +24,7 @@ import { readFileSync } from 'node:fs';
 
 import { FULL_CLASS, buildTeacherWorkflowFixture } from '../browser/teacherWorkflow/fixture.js';
 import { executableSource, region } from './helpers/sourceContract.mjs';
+import { appHookSource } from './helpers/appScreens.mjs';
 
 const read = (relativePath) => readFileSync(new URL(`../../${relativePath}`, import.meta.url), 'utf8');
 const APP = executableSource(read('src/App.jsx'));
@@ -117,7 +118,15 @@ test('a student\'s device reads its own class, never the collection', () => {
   const studentHydrate = hydrate.slice(hydrate.indexOf("if (session.role !== 'student'"));
   assert.match(studentHydrate, /const loadedClasses = await fetchStudentClass\(studentData\.classId\);/);
   assert.doesNotMatch(studentHydrate, /fetchClasses\(\)/, 'a student session never reads every class');
-  const follower = region(APP, 'const classReadForRosterRef = useRef(null);', '}, [user?.role, user?.classId, studentRosterMembership, classesById, courseProfiles]);', 'the roster follower');
+  // Since the App split the follower is useRosterClassFollow's, which App
+  // calls with the one-class loader above and the roster row it follows.
+  const followerCall = region(APP, 'useRosterClassFollow({', '});', "App's call of the roster follower");
+  for (const input of ['user', 'fetchStudentClass', 'studentRosterMembership']) {
+    assert.match(followerCall, new RegExp(`[{,\\s]${input}[,\\s}]`), input);
+  }
+  assert.doesNotMatch(followerCall, /fetchClasses/);
+  const follower = region(executableSource(appHookSource('useRosterClassFollow')), 'const classReadForRosterRef = useRef(null);', '}, [user?.role, user?.classId, studentRosterMembership, classesById, courseProfiles]);', 'the roster follower');
+  assert.match(follower, /fetchStudentClass\(classId\)\.then\(/);
   assert.doesNotMatch(follower, /fetchClasses\(\)/);
   // The teacher's screens still span their classes.
   assert.match(hydrate.slice(0, hydrate.indexOf("if (session.role !== 'student'")), /classesRef\.current = await fetchClasses\(\);/);
@@ -149,8 +158,17 @@ test('sign-in\'s reads and the listeners that follow them ride one target', () =
   assert.match(region(APP, 'hydrateSession();', '}, [auth.status, auth.session?.uid]);', 'the sign-in cleanup'), /return \(\) => \{\s*cancelled = true;\s*signInHolds\.forEach\(\(release\) => release\(\)\);\s*\};/);
   const release = /useEffect\(\(\) => \{\s*if \(user\) releaseSignInHolds\(\);\s*\}, \[user\]\);/.exec(APP);
   assert.ok(release, 'released once a user is set, and not on the first run, which comes with the hydration that takes the holds');
-  const lessons = effectAround(APP, /const unsubscribe = onSnapshot\(\s*collection\(db, 'assignments'\),/, 'the lesson listener');
+  // Since the App split the lesson listener is useAssignmentListeners' and the
+  // grade listener useStudentGradeDocument's. Each hook's effects run where
+  // App calls it, so the order is the order of the two calls and the release.
+  effectAround(executableSource(appHookSource('useAssignmentListeners')), /const unsubscribe = onSnapshot\(\s*collection\(db, 'assignments'\),/, 'the lesson listener');
   // (Since #561 the listener is kept as stopGrades, beside the stored detail's.)
-  const grades = effectAround(APP, /(?:return|const stopGrades =) onSnapshot\(\s*doc\(db, 'grades', user\.id\),/, 'the student\'s grade listener');
+  effectAround(executableSource(appHookSource('useStudentGradeDocument')), /(?:return|const stopGrades =) onSnapshot\(\s*doc\(db, 'grades', user\.id\),/, 'the student\'s grade listener');
+  const lessons = { start: APP.indexOf('useAssignmentListeners({') };
+  const grades = { start: APP.indexOf('useStudentGradeDocument({') };
+  assert.ok(lessons.start !== -1 && grades.start !== -1, 'App calls both hooks');
+  for (const start of [lessons.start, grades.start]) {
+    assert.match(APP.slice(start, APP.indexOf('});', start)), /[{,\s]user[,\s}]/, 'each listener is opened for the signed-in user');
+  }
   assert.ok(lessons.start < release.index && grades.start < release.index, 'the release runs after the listeners open');
 });

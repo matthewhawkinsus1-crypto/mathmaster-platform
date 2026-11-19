@@ -40,7 +40,7 @@ import {
 } from '../../src/platform/assignments/studentAssignmentScope.js';
 import { analyzeAssignmentCompletion } from '../../src/platform/caseReview/completionAnalysis.js';
 import { executableSource, region } from './helpers/sourceContract.mjs';
-import { appAndTeacherWorkspaceSource } from './helpers/appScreens.mjs';
+import { appAndTeacherWorkspaceSource, appHookSource } from './helpers/appScreens.mjs';
 import { functionsBackendSource, topLevelDeclaration } from './helpers/functionsBackendSource.mjs';
 
 const require = createRequire(import.meta.url);
@@ -339,7 +339,15 @@ test('App: a student listens to their class; Duplicate copies no instance state'
   const duplicate = executableSource(region(teacherWorkspace, 'const handleDuplicateAssignment', '\n  };', 'handleDuplicateAssignment'));
   assert.ok(takesFromAuthoringKit(duplicate, 'stripAssignmentInstanceState', 'functions/shared/assignmentPrivacy.mjs'), 'Duplicate binds the rule from the authoring code');
   assert.match(duplicate, /\} = stripAssignmentInstanceState\(assignment\);/);
-  const listener = executableSource(region(app, 'const studentClassAssignmentsRef = useRef', 'const studentWorkedAssignmentKey', 'assignment listener'));
+  // Since the App split the listener is useAssignmentListeners'; App still
+  // declares the ref the class's lessons are kept in and hands it, and who
+  // is signed in, to the hook.
+  assert.match(executableSource(app), /const studentClassAssignmentsRef = useRef/);
+  const listenersCall = executableSource(region(app, 'useAssignmentListeners({', '});', "App's call of the assignment listeners"));
+  for (const input of ['user', 'studentClassAssignmentsRef', 'publishStudentAssignments']) {
+    assert.match(listenersCall, new RegExp(`[{,\\s]${input}[,\\s}]`), input);
+  }
+  const listener = executableSource(region(appHookSource('useAssignmentListeners'), 'export function useAssignmentListeners({', 'const studentWorkedAssignmentKey', 'assignment listener'));
   // The student branch subscribes to its class and returns before the
   // whole-collection listener is reached.
   const studentBranch = region(listener, "if (user.role === 'student') {", 'const unsubscribe = onSnapshot(', 'student branch');

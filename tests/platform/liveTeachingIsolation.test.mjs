@@ -83,7 +83,9 @@ test('Teacher Preview suspends high-churn teacher reads while keeping cached das
   const livePresence = region(
     app,
     '// Teachers stream presence only while the live grid is on screen.',
-    '// The server writes one compact receipt only after Google Classroom accepts',
+    // Since the App split the receipt listener that followed (and its comment)
+    // is useStudentGradeDocument's: the presence effect ends at that call.
+    'const { studentRosterMembership } = useStudentGradeDocument({',
     'teacher live presence subscriptions',
   );
   assert.match(livePresence, /if \(teacherPreviewRuntimeActive\) return undefined;/);

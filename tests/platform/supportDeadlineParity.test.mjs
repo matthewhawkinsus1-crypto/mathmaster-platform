@@ -17,6 +17,7 @@ import { resolveStudentFinalDeadlineFromAssignment } from '../../src/platform/gr
 import { withStudentSupportDates } from '../../functions/shared/supportDeadline.mjs';
 import { buildSupportProjection } from '../../functions/shared/supportProfileModel.mjs';
 import { region, executableSource } from './helpers/sourceContract.mjs';
+import { appHookSource } from './helpers/appScreens.mjs';
 import { functionsBackendSource } from './helpers/functionsBackendSource.mjs';
 
 const CHICAGO = 'America/Chicago';
@@ -127,14 +128,21 @@ test('the student client injects its own dates wherever assignments are loaded, 
   assert.match(app, /import \{[^}]*\bEMPTY_STUDENT_CONTROLS\b[^}]*\bprojectStudentAssignments\b[^}]*\} from '\.\/platform\/assignments\/studentAssignmentControls\.js';/);
   const publish = region(app, 'const publishStudentAssignments = () => {', '\n  };', 'publishStudentAssignments');
   assert.match(publish, /setAssignments\(projectStudentAssignments\(\{[\s\S]*studentId,[\s\S]*profile,[\s\S]*controls: studentControlsRef\.current/);
-  const listener = executableSource(region(app, "if (user.role === 'student') {\n      return subscribeStudentClassAssignments({", '(error) =>', 'student assignment listener'));
+  // Since the App split, app/shell/useAssignmentListeners.js owns the class
+  // listener, the prior-work fetch and the re-projection effect: App calls it
+  // and hands it its one publisher and the viewer the publisher reads.
+  const assignmentListeners = appHookSource('useAssignmentListeners');
+  const listenersCall = region(app, 'useAssignmentListeners({', '});', "App's useAssignmentListeners call");
+  ['user', 'publishStudentAssignments', 'studentViewerRef', 'studentAssignmentControls']
+    .forEach((input) => assert.match(listenersCall, new RegExp(`[{,\\s]${input}[,\\s}]`), `App hands ${input} to useAssignmentListeners`));
+  const listener = executableSource(region(assignmentListeners, "if (user.role === 'student') {\n      return subscribeStudentClassAssignments({", '(error) =>', 'student assignment listener'));
   assert.match(listener, /publishStudentAssignments\(\);/);
   const hydrate = executableSource(region(app, 'const hydrateSession = async', 'hydrateSession();', 'hydrateSession'));
   const studentHydrate = hydrate.slice(hydrate.indexOf("if (session.role !== 'student'"));
   assert.match(studentHydrate, /const projectedAssignments = projectStudentAssignments\(\{[\s\S]*profile: studentProfile/);
   assert.match(studentHydrate, /setAssignments\(projectedAssignments\);/);
   assert.doesNotMatch(studentHydrate, /setAssignments\(fetchedAssignments\)/, 'never the lessons as Firestore sent them');
-  const reproject = executableSource(region(app, "if (user?.role === 'student' && user.id) {\n      studentViewerRef.current", '}, [user?.role, user?.id, user?.profile', 're-projection'));
+  const reproject = executableSource(region(assignmentListeners, "if (user?.role === 'student' && user.id) {\n      studentViewerRef.current", '}, [user?.role, user?.id, user?.profile', 're-projection'));
   // The profile re-projects with the student (D7 added the timing profile beside it).
   assert.match(reproject, /studentViewerRef\.current = \{ studentId: user\.id, profile: user\.profile \|\| null(?:, timingProfile: user\.timingProfile \|\| null)? \};\s*publishStudentAssignments\(\);/);
 });

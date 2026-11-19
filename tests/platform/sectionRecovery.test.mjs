@@ -56,6 +56,7 @@ import { projectSectionRecoveryForAssignment } from '../../src/platform/grading/
 import { canonicalPresentedAssignmentGrade } from '../../src/platform/grading/canonicalGradeProjection.js';
 import { componentSource, region } from './helpers/sourceContract.mjs';
 import { importsComponent } from './helpers/componentImport.mjs';
+import { appHookSource } from './helpers/appScreens.mjs';
 import { functionsBackendSource } from './helpers/functionsBackendSource.mjs';
 
 const require = createRequire(import.meta.url);
@@ -885,7 +886,16 @@ test('the Live Challenge Warm-Up grade reaches the student Grade Center and both
   assert.match(display, /projectSectionRecoveriesForDisplay\([\s\S]*warmupChallengeByAssignment,\s*(\/\/[^\n]*\n\s*)*(user\?\.role === 'student' \? user\.profile \|\| null : null,\s*)?\)/);
   assert.match(display, /\[tracker, teacherGradeOverridesByAssignment, sectionRecoveryByAssignment, assignments, warmupChallengeByAssignment(, [^\]]+)?\]/);
   // (Kept as it was while the snapshot says the same: keepSame, appRenderWork.test.mjs.)
-  assert.match(app, /setWarmupChallengeByAssignment\((?:keepSame\()?snapshot\.data\(\)\?\.warmupChallengeByAssignment \|\| \{\}\)\)?;/, 'a finished match reaches the Grade Center without a reload');
+  // Since the App split the grade document's listener is
+  // useStudentGradeDocument's, which App calls with the setter of the map the
+  // display memo above reads.
+  const gradeDocument = appHookSource('useStudentGradeDocument');
+  assert.match(gradeDocument, /setWarmupChallengeByAssignment\((?:keepSame\()?snapshot\.data\(\)\?\.warmupChallengeByAssignment \|\| \{\}\)\)?;/, 'a finished match reaches the Grade Center without a reload');
+  const gradeDocumentCall = region(app, 'useStudentGradeDocument({', '});', "App's call of the grade document hook");
+  for (const input of ['user', 'setWarmupChallengeByAssignment']) {
+    assert.match(gradeDocumentCall, new RegExp(`[{,\\s]${input}[,\\s}]`), input);
+  }
+  assert.match(app, /const \[warmupChallengeByAssignment, setWarmupChallengeByAssignment\] = useState\(\{\}\);/);
   const index = functionsBackendSource();
   const sync = region(index, 'exports.syncGradeToClassroom', 'exports.queueReleasedAssessmentGrades', 'whole-assignment passback');
   assert.match(sync, /challengeCredit: afterData\.warmupChallengeByAssignment\?\.\[assignmentId\] \|\| null,/);

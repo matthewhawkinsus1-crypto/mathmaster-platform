@@ -35,6 +35,7 @@ import { renderToStaticMarkup } from 'react-dom/server';
 import { createServer } from 'vite';
 
 import { executableSource, region } from './helpers/sourceContract.mjs';
+import { appHookSource } from './helpers/appScreens.mjs';
 import {
   ASK_MODE,
   QUESTION_STATUS,
@@ -130,13 +131,27 @@ test('a student signed in across a handover follows the class\'s new teacher at 
 
 test('the app passes every snapshot of the student\'s roster row on to be followed, and both ways to ask send with what it holds', () => {
   const app = code('src/App.jsx');
-  const listener = region(app, 'const liveTimingProfile = snapshot.data()?.profile || null;', 'Object.entries(next).forEach', 'the student\'s grade document listener');
+  // Since the App split the listener is useStudentGradeDocument's, which
+  // holds the row it hears and returns it to App.
+  const gradeDocument = executableSource(appHookSource('useStudentGradeDocument'));
+  const listener = region(gradeDocument, 'const liveTimingProfile = snapshot.data()?.profile || null;', 'Object.entries(next).forEach', 'the student\'s grade document listener');
   // Each snapshot of the row, as it arrives: its class, period and teacher, kept when they change.
   assert.match(listener, /const membership = rosterMembershipOf\(snapshot\.data\(\)\);\s*setStudentRosterMembership\(\(current\) => \(sameRosterMembership\(current, membership\) \? current : membership\)\);/, 'each snapshot of the row, as it arrives');
+  assert.match(gradeDocument, /const \[studentRosterMembership, setStudentRosterMembership\] = useState\(null\);/);
+  assert.match(gradeDocument, /\n {2}return \{[^}]*\bstudentRosterMembership\b[^}]*\};\n\}/, 'the row the listener keeps is the one App is handed');
+  assert.match(app, /const \{[^}]*\bstudentRosterMembership\b[^}]*\} = useStudentGradeDocument\(\{/, 'App takes the row from the listener\'s hook');
   // The session follows what it holds: a handover is followRosterTeacher's answer (the same class, the row's teacher).
-  const follower = region(app, 'const classReadForRosterRef = useRef(null);', '}, [user?.role, user?.classId, studentRosterMembership', 'the roster row\'s follower');
+  // Since the App split the follower is useRosterClassFollow's; App hands it
+  // that row, the session to move and the classes and courses to move it by.
+  const rosterFollow = executableSource(appHookSource('useRosterClassFollow'));
+  const followCall = region(app, 'useRosterClassFollow({', '});', 'App\'s call of the roster row\'s follower');
+  for (const input of ['studentRosterMembership', 'setUser', 'user', 'classesById', 'courseProfiles', 'fetchStudentClass']) {
+    assert.match(followCall, new RegExp(`[{,\\s]${input}[,\\s}]`), input);
+  }
+  assert.ok(app.indexOf('useStudentGradeDocument({') !== -1 && app.indexOf('useStudentGradeDocument({') < app.indexOf('useRosterClassFollow({'), 'the row is in hand before the follower is called with it');
+  const follower = region(rosterFollow, 'const classReadForRosterRef = useRef(null);', '}, [user?.role, user?.classId, studentRosterMembership', 'the roster row\'s follower');
   assert.match(follower, /setUser\(\(current\) => followRosterClass\(current, studentRosterMembership, \{ classesById: byId, courseProfiles \}\)\)/);
-  assert.match(app, /^import \{[^}]*\bfollowRosterClass\b[^}]*\} from '\.\/platform\/student\/rosterMembership\.js';$/m);
+  assert.match(rosterFollow, /^import \{[^}]*\bfollowRosterClass\b[^}]*\} from '\.\.\/\.\.\/platform\/student\/rosterMembership\.js';$/m);
   const student = { id: 'S1', role: 'student', classId: 'C1', assignedTeacherEmail: TEACHER, profile: { course: 'algebra1' } };
   const handover = { classId: 'C1', assignedTeacherEmail: 'new.teacher@example.org' };
   assert.deepEqual(followRosterClass(student, handover), followRosterTeacher(student, handover));

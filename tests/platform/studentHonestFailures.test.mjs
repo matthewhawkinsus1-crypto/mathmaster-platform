@@ -39,6 +39,7 @@ import { extraTimeFrom, saysExtraTime } from '../../src/platform/assessment/extr
 import { resolveNextAction } from '../../src/studentDashboardModel.js';
 import { executableSource, region } from './helpers/sourceContract.mjs';
 import { draftHealthAccountEffect, replayAccounts } from './helpers/draftHealthAccountEffect.mjs';
+import { appHookSource, appSurfaceSource } from './helpers/appScreens.mjs';
 
 const read = (path) => executableSource(readFileSync(new URL(`../../${path}`, import.meta.url), 'utf8'));
 const app = read('src/App.jsx');
@@ -370,9 +371,12 @@ test('a save problem is kept across a reload while it is still true, and clears 
 });
 
 test('App clears the kept problems when an account gives way, never when one arrives (a reload)', () => {
-  const { run } = draftHealthAccountEffect(readFileSync(new URL('../../src/App.jsx', import.meta.url), 'utf8'));
+  // Since the App split, app/student/useDraftSaveHealth.js owns the account
+  // rule: App calls it with the signed-in user.
+  assert.match(region(app, 'useDraftSaveHealth({', '})', "App's useDraftSaveHealth call"), /[{,\s]user[,\s}]/);
+  const { run } = draftHealthAccountEffect(appHookSource('useDraftSaveHealth'));
   assert.deepEqual(replayAccounts(run, [null, 'stu-a', 'stu-a', 'stu-b', null, 'stu-b']), [0, 0, 0, 1, 1, 0]);
   // The old cleanup ran on every change of user?.id, null → student included,
   // which wiped what was kept for the reload as the account loaded.
-  assert.doesNotMatch(app, /useEffect\(\(\) => \(\) => \{ clearDraftSaveProblems\(\); \}, \[user\?\.id\]\);/);
+  assert.doesNotMatch(executableSource(appSurfaceSource()), /useEffect\(\(\) => \(\) => \{ clearDraftSaveProblems\(\); \}, \[user\?\.id\]\);/);
 });

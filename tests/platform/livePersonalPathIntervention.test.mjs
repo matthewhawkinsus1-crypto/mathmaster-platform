@@ -6,6 +6,9 @@ import { getStudentPathOptions, STATUS } from '../../src/platform/path/recommend
 import { getSkillGraph } from '../../src/platform/path/skillGraph.js';
 import { functionsBackendSource } from './helpers/functionsBackendSource.mjs';
 
+import { region } from './helpers/sourceContract.mjs';
+import { appHookSource } from './helpers/appScreens.mjs';
+
 const read = (path) => readFileSync(new URL(`../../${path}`, import.meta.url), 'utf8');
 
 test('Live Class exposes a one-student current-TEKS Path recommendation, not a class-wide override', () => {
@@ -25,7 +28,15 @@ test('student Path reads the personal intervention after class-wide overrides so
   const app = read('src/App.jsx');
   const store = read('src/platform/path/pathStore.js');
 
-  assert.match(app, /subscribeStudentPathIntervention/);
+  // Since the App split the listener is useStudentPathSignals', which App
+  // calls with the student and the setter of the state the override reads.
+  const signals = appHookSource('useStudentPathSignals');
+  assert.match(signals, /return subscribeStudentPathIntervention\(\{\s*studentId: user\.id,\s*onChange: setStudentPathInterventionState,/);
+  const signalsCall = region(app, 'useStudentPathSignals({', '});', "App's call of the Path signals hook");
+  for (const input of ['user', 'setStudentPathInterventionState']) {
+    assert.match(signalsCall, new RegExp(`[{,\\s]${input}[,\\s}]`), input);
+  }
+  assert.match(app, /const \[studentPathIntervention, setStudentPathInterventionState\] = useState\(null\);/);
   assert.match(app, /const personal = interventionAsOverride\(studentPathIntervention\)/);
   assert.match(app, /\[\.\.\.classOverrides, personal\]/);
   assert.match(store, /STUDENT_PATH_INTERVENTION_COLLECTION = 'studentPathInterventions'/);

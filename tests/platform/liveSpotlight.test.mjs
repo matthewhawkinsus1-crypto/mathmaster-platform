@@ -12,6 +12,8 @@ import {
   SPOTLIGHT_MAX_FRAME_BYTES,
 } from '../../src/platform/liveSpotlight.js';
 
+import { appHookSource } from './helpers/appScreens.mjs';
+
 const require = createRequire(import.meta.url);
 const spotlightCleanup = require('../../functions/lib/liveSpotlight.js');
 
@@ -128,13 +130,37 @@ test('Spotlight wiring remains separate from presence, drafts, grades, attempts,
   // the frame on screen the moment Present Now is pressed (a memoised
   // QuestionEngine is drawn again only for a new prop).
   assert.match(app, /onSpotlightFrame=\{preview \? null : studentSpotlightRequest && publishSpotlightWork\}/);
-  assert.match(app, /const publishSpotlightWork = useCallback\([\s\S]*?\}, \[studentSpotlightRequest, /);
+  // Since the App split the request, the publisher and publishSpotlightWork
+  // are useStudentSpotlight's, which App calls with the student and the
+  // question on screen, for the request and the frame sender used above.
+  const spotlight = appHookSource('useStudentSpotlight');
+  assert.match(spotlight, /from '\.\.\/\.\.\/platform\/liveSpotlight\.js'/);
+  const spotlightCall = app.match(/const \{([^}]*)\} = useStudentSpotlight\(\{([^}]*)\}\);/);
+  assert.ok(spotlightCall, 'App takes what the hook returns');
+  for (const output of ['studentSpotlightRequest', 'publishSpotlightWork']) {
+    assert.match(spotlightCall[1], new RegExp(`[{,\\s]${output}[,\\s}]`), output);
+    assert.match(spotlight, new RegExp(`\\n  return \\{[^}]*[{,\\s]${output}[,\\s}][^}]*\\};\\n\\}`), output);
+  }
+  for (const input of ['user', 'activeAssignmentId', 'currentQuestionIndex', 'activeAssignmentData', 'studentRecord']) {
+    assert.match(spotlightCall[2], new RegExp(`[{,\\s]${input}[,\\s}]`), input);
+  }
+  assert.match(spotlight, /const publishSpotlightWork = useCallback\([\s\S]*?\}, \[studentSpotlightRequest, /);
   assert.match(app, /Present Now/);
   assert.match(app, /Stop Presenting/);
   assert.doesNotMatch(presence, /liveSpotlightFrames|studentWorkspaceDrafts/);
   assert.match(rules, /match \/liveSpotlightFrames\/\{requestId\}/);
   assert.match(rules, /match \/studentWorkspaceDrafts\/\{draftId\}[\s\S]*allow read: if rootAdmin\(\) \|\| ownsStudent/);
-  assert.doesNotMatch(app.slice(app.indexOf('publishSpotlightWork'), app.indexOf('// Persistent support/intervention')), /gradesByAssignment|assignmentActivity|evidence|passback|attemptCount/);
+  // The same region in the hook: from publishSpotlightWork to the hook's
+  // return (in App it ran to the support-history comment that still follows
+  // the hook's call).
+  const publishStart = spotlight.indexOf('const publishSpotlightWork = useCallback(');
+  const publishEnd = spotlight.indexOf('\n  return { studentSpotlightRequest', publishStart);
+  assert.ok(publishStart !== -1 && publishEnd > publishStart, 'the publishing region');
+  assert.doesNotMatch(spotlight.slice(publishStart, publishEnd), /gradesByAssignment|assignmentActivity|evidence|passback|attemptCount/);
+  const callAt = app.indexOf('useStudentSpotlight({');
+  const supportAt = app.indexOf('// Persistent support/intervention');
+  assert.ok(callAt !== -1 && supportAt > callAt, 'the hook is called where the code was');
+  assert.doesNotMatch(app.slice(callAt, supportAt), /gradesByAssignment|assignmentActivity|evidence|passback|attemptCount/);
   assert.match(monitor, /activeTeacherSpotlightQueries\(db, \{[\s\S]*teacherEmail, classId: activeClassId, studentIds: spotlightStudentIds/);
   assert.match(monitor, /entry\.classId === activeClassId/);
   assert.match(monitor, /!row\.live\?\.assignmentId/);
