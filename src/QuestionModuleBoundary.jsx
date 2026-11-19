@@ -100,6 +100,15 @@ export default class QuestionModuleBoundary extends Component {
       message: `${this.props.questionType || 'unknown type'}: ${error?.message || error} | ${where.assignmentId} ${where.questionId} family=${where.family} role=${where.activityRole} lifecycle=${where.lifecycle} variant=${where.variant} attempts=${where.attempts} origin=${where.origin} pin=${where.pin} draft=v${where.draftVersion}`,
       source: 'question',
       limit: QUESTION_DIAGNOSTIC_MESSAGE_LIMIT,
+      // For the crash count (crashReporter.js): which family and module, and
+      // which question when the owner chose that detail. Never the student.
+      report: {
+        error: `${error?.name || 'Error'}: ${error?.message ?? error}`,
+        family: context.family,
+        questionType: this.props.questionType,
+        assignmentId: context.assignmentId,
+        questionId: context.questionId,
+      },
     });
   }
 

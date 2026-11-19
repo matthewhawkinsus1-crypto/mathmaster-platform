@@ -1,11 +1,11 @@
-// PLATFORM: which build is live, student presence and spotlight frames.
+// PLATFORM: which build is live, crash counts for the owner, student presence and spotlight frames.
 //
 // One of the domain modules functions/index.js loads (see its header). The
 // code here was moved from index.js as it stood; helpers that another domain
 // also uses are in functionsCommon.js.
 
 const { getFirestore, FieldValue } = require("firebase-admin/firestore");
-const { onCall } = require("firebase-functions/v2/https");
+const { onCall, HttpsError } = require("firebase-functions/v2/https");
 const { onDocumentDeleted } = require("firebase-functions/v2/firestore");
 const { onSchedule } = require("firebase-functions/v2/scheduler");
 const logger = require("firebase-functions/logger");
@@ -14,7 +14,9 @@ const studentSessionSummary = require("./lib/studentSessionSummary");
 const { deployProvenance } = require("./lib/deployProvenance");
 const {
   STUDENT_SESSION_SUMMARY_COLLECTION,
+  requireRootAdmin,
   studentIdentity,
+  writeAdminAudit,
 } = require("./functionsCommon");
 
 // WHICH COMMIT IS LIVE (F-REL-3). Read-only and deliberately unauthenticated:
@@ -31,6 +33,43 @@ exports.platformBuildInfo = onCall({ maxInstances: 2 }, () => ({
   treeClean: deployProvenance.treeClean,
   writtenAt: deployProvenance.writtenAt,
 }));
+
+// CRASH COUNTS THE OWNER CAN SEE (lib/platformHealth.js, shared/crashReport.mjs).
+// Off unless the root administrator turns it on. A device sends counts in
+// closed-shape buckets, never a student, an answer, question text or a stack.
+let platformHealthService = null;
+const platformHealth = () => {
+  if (!platformHealthService) {
+    platformHealthService = require("./lib/platformHealth").createPlatformHealthService({ db: getFirestore(), HttpsError });
+  }
+  return platformHealthService;
+};
+
+// Any signed-in account; rate-limited per account per day inside. Capped
+// instances: a crash storm must not become a bill.
+exports.reportClientCrashes = onCall({ maxInstances: 5 }, (request) => platformHealth().report(request));
+
+// Root administrator: read or change the reporting mode, or turn it off and
+// delete everything collected.
+exports.managePlatformHealthReporting = onCall({ maxInstances: 2 }, async (request) => {
+  const actor = await requireRootAdmin(request);
+  return platformHealth().manage({
+    data: request.data,
+    actor,
+    audit: (who, action, target, details) => writeAdminAudit(getFirestore(), who, action, target, details),
+  });
+});
+
+// Retention: daily counts are kept 30 days, rate-limit records 2.
+exports.prunePlatformHealth = onSchedule({
+  schedule: "41 3 * * *",
+  timeZone: "America/Chicago",
+  timeoutSeconds: 120,
+  invoker: "private",
+}, async () => {
+  const removed = await platformHealth().prune();
+  console.log("Platform health retention sweep", removed);
+});
 const PRESENCE_STALE_AFTER_MS = 3 * 60 * 1000;
 
 async function archiveStudentPresenceSnapshot({

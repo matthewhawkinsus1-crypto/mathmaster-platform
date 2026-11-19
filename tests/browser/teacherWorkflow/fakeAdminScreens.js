@@ -1,7 +1,9 @@
 /*
- * The callables behind four screens the accessibility scenes open, so that each shows what it shows
+ * The callables behind five screens the accessibility scenes open, so that each shows what it shows
  * a school and not the harness's "no fake for the callable" banner (TT27):
  *
+ *   Administration > Classes & rosters    managePlatformHealthReporting (the Platform health panel: the
+ *                                          mode a new school has, off; nothing is changed from here)
  *   Administration > Accounts & sign-in    listAdminAuditLog
  *   Administration > Pre-production reset  resetPreproductionTestData (the read-only preview)
  *   Administration > Path content coverage getPathRuntimeStatus, getCoursePathReleaseStatusV2
@@ -142,6 +144,11 @@ const PRESERVED_COLLECTIONS = [
 ];
 
 export const adminScreenHandlers = {
+  // functions/lib/platformHealth.js `manage`: status answers the mode; this school never turned reporting on.
+  managePlatformHealthReporting: ({ action = 'status' } = {}) => {
+    if (action !== 'status') throw refusal('failed-precondition', 'The harness does not change crash reporting.');
+    return { mode: 'off', changed: false };
+  },
   listAdminAuditLog: ({ limit } = {}) => ({
     events: AUDIT_EVENTS.slice(0, Math.max(1, Math.min(100, Number(limit) || 40))),
   }),
