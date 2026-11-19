@@ -241,12 +241,12 @@ test('NV02: only an own close later than the class\'s holds anything', () => {
 test('NV02: both triggers hold the return and record the student\'s own close for the scheduler', () => {
   const index = executableSource(functionsBackendSource());
   const section = executableSource(readFileSync(new URL('../../functions/classroomSectionEntry.js', import.meta.url), 'utf8'));
-  // index.js's own release policy holds by the lib's one rule: the rule is
-  // imported from the lib (beside whatever else index.js takes from it).
-  assert.match(index, /const \{[^}]*\bextendedTimeReturnHeldUntil\b[^}]*\} = require\("\.\/lib\/classroomGradeRuntime"\);/);
-  const releaseHelper = region(index, 'function classroomGradeReleasePolicy(', '\n}\n', 'index.js release policy');
-  assert.match(releaseHelper, /extendedTimeReturnHeldUntil\(\{ assignment, nowValue: now, studentFinalCutoff \}\)/);
-  assert.match(releaseHelper, /const studentVisible = explicitlyStudentVisible \|\| \(partialAfterDue && heldUntilMs === null\);/);
+  // Both triggers hold by the lib's one rule: index.js takes the release
+  // policy itself from the lib and keeps no copy of its own
+  // (classroomReleasePolicyOneRule.test.mjs), and the lib's policy holds the
+  // return until the student's own close (its heldUntilMs, asserted above).
+  assert.match(index, /const \{[^}]*\bclassroomGradeReleasePolicy\b[^}]*\} = require\("\.\/lib\/classroomGradeRuntime"\);/);
+  assert.doesNotMatch(index, /function classroomGradeReleasePolicy\(/);
   // A held return is recorded as the student's own final wake-up, in both triggers.
   const sync = region(index, 'exports.syncGradeToClassroom = onDocumentWritten(', 'exports.queueReleasedAssessmentGrades', 'syncGradeToClassroom');
   assert.match(sync, /if \(releasePolicy\.heldUntilMs\) \{\s*await classroomStudentCheckpoints\.recordDeferredStudentCheckpoint\(\{\s*stateRef: db\.collection\(CLASSROOM_GRADE_CHECKPOINT_COLLECTION\)\.doc\(assignmentId\),\s*assignmentId,\s*studentId: event\.params\.studentId,\s*deferred: \{ kind: "final", atMs: releasePolicy\.heldUntilMs \},/);
@@ -308,16 +308,19 @@ test('both Classroom paths record a deferred student and both schedulers wake th
   // is not returned) and their own final cutoff (NV02: nothing partial is
   // returned while their extended time runs).
   assert.match(sync, /classroomGradeReleasePolicy\(\{\s*stage,\s*assignment,\s*nowValue: stageNow,\s*studentDueAt,\s*studentFinalCutoff,\s*\}\)/);
-  // index.js's own stage helper defers BOTH class-wide wake-ups, and its
-  // release policy reads the student's own due — the same rules as the lib.
+  // index.js's own stage helper defers BOTH class-wide wake-ups, by the same
+  // rules as the lib; its release policy is the lib's own, which reads the
+  // student's own due.
   const stageHelper = region(index, 'function resolveClassroomGradeStage(', 'if (progress.complete)', 'index.js stage helper');
   assert.match(stageHelper, /const dueAt = studentDueDate\(assignment, studentDueAt\);/);
   assert.match(stageHelper, /if \(reason === "due-checkpoint" && !\(dueAt && now < dueAt\.getTime\(\)\)\) return "due-checkpoint";/);
-  const releaseHelper = region(index, 'function classroomGradeReleasePolicy(', 'const explicitlyStudentVisible', 'index.js release policy');
-  assert.match(releaseHelper, /const dueAt = studentDueDate\(assignment, studentDueAt\);/);
+  const runtimeSource = executableSource(readFileSync(new URL('../../functions/lib/classroomGradeRuntime.js', import.meta.url), 'utf8'));
+  const releaseHelper = region(runtimeSource, 'function classroomGradeReleasePolicy(', 'const explicitlyStudentVisible', 'the lib release policy');
+  assert.match(releaseHelper, /const dueAt = laterDate\(assignment\?\.dueAt \|\| assignment\?\.dueDate, studentDueAt\);/);
   assert.match(sync, /recordDeferredStudentCheckpoint\(\{\s*stateRef: db\.collection\(CLASSROOM_GRADE_CHECKPOINT_COLLECTION\)\.doc\(assignmentId\),/);
-  // index.js takes the deferral rule from the lib (beside NV02's hold rule).
+  // index.js takes the deferral rule and the release policy from the lib.
   assert.match(index, /const \{[^}]*\bdeferredClassCheckpoint\b[^}]*\} = require\("\.\/lib\/classroomGradeRuntime"\);/);
+  assert.match(index, /const \{[^}]*\bclassroomGradeReleasePolicy\b[^}]*\} = require\("\.\/lib\/classroomGradeRuntime"\);/);
   const scheduler = topLevelDeclaration(index, 'exports.queueClassroomGradeCheckpoints');
   assert.match(scheduler, /classroomStudentCheckpoints\.wakeArrivedStudentCheckpoints\(\{\s*stateRef,\s*state,\s*now,/);
 

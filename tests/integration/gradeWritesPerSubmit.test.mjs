@@ -764,7 +764,8 @@ test('a secure Test item: a draft save that answers it, the older one-call submi
   // Not a Submit: the teacher releases the Test. The score and the
   // Corrections plan the failed Test opens are one transaction, so the record
   // and its projection are written once (before, twice: the release, then the
-  // plan), and the recorded grade goes to the Test Cycle's Classroom column.
+  // plan), and the recorded grade goes to the Test Cycle's Classroom column,
+  // assigned and returned, with the student's receipt.
   const release = () => ledger.asActor('proctorExamAction', () => fns.proctorExamAction.run(teacherRequest({ examSessionId, action: 'releaseFeedback' })));
   const recordRef = db.collection('testCycleRecords').doc(`${TC_ASSIGNMENT}__${TC_STUDENT}`);
   const planRef = db.collection('testCycleCorrectionPlans').doc(`${TC_ASSIGNMENT}__${TC_STUDENT}`);
@@ -772,11 +773,16 @@ test('a secure Test item: a draft save that answers it, the older one-call submi
   resetClassroomCalls();
   const released = await step('secure', 'the teacher releases the Test', context, release);
   pin(released, {
-    gradeWrites: ['proctorExamAction: testCycleGrades'],
+    gradeWrites: ['proctorExamAction: testCycleGrades', RECEIPT],
     detailWrites: 0,
-    triggerRuns: 2,
+    triggerRuns: 4,
     triggerRunsWithWork: 1,
-  }, 'the released grade and the Corrections it opens, in one write');
+  }, 'the released grade and the Corrections it opens in one write, and the receipt for the grade Classroom now shows the student');
+  // The release rule both triggers share: a released Test grade is assigned
+  // to the student and returned, so their receipt is one they can see.
+  pin(patchGradeCalls().map((call) => call.assignToStudent), [true], 'assigned to the student, not a teacher\'s draft');
+  const receipt = (await db.collection('grades').doc(TC_STUDENT).get()).data().classroomSyncStatusByAssignment?.[TC_ASSIGNMENT];
+  pin([receipt?.stage, receipt?.studentVisible, receipt?.returnedToStudent], ['testcycle-test', true, true], 'the student\'s receipt says Classroom shows them the grade');
   const releasedRecord = (await recordRef.get()).data();
   const { plan } = (await planRef.get()).data();
   const projection = await projectionOf();
@@ -935,10 +941,11 @@ const CLASSROOM_BY_STEP = {
   },
   // The teacher releases the failed Test: its recorded grade, to the Test
   // Cycle's own column (sent once, as when the release wrote the grade
-  // record twice).
+  // record twice), assigned to the student and returned, by the release
+  // rule both triggers share (classroomReleasePolicyOneRule.test.mjs).
   'secure: the teacher releases the Test': {
-    pushes: ['patchGrade gw-tc-whole-cw 4 draft'],
-    auditRows: ['gw-tc-whole-cw synced testcycle-test 4'],
+    pushes: ['patchGrade gw-tc-whole-cw 4 assigned', 'returnSubmission gw-tc-whole-cw'],
+    auditRows: ['gw-tc-whole-cw synced testcycle-test 4 visible returned'],
   },
   'recovery: the Recovery Submit': {
     pushes: ['patchGrade gw-rc-whole-cw 90 assigned', 'returnSubmission gw-rc-whole-cw', 'patchGrade gw-rc-dol-cw 90 assigned', 'returnSubmission gw-rc-dol-cw'],
