@@ -138,8 +138,10 @@ import {
   getClassPackUpState,
   getDOLState,
   getWarmupState,
-  // The plain function, under another name: App binds `getSectionAccessState`
-  // to the signed-in student's own grades below (sectionAccessForStudent).
+  // Not the plain getSectionAccessState: App binds that name to the signed-in
+  // student's own grades below (sectionAccessForStudent). The one teacher
+  // handler that needs the plain function imports it itself, under another
+  // name (app/teacher/controls/warmupSectionControls.js).
   getSectionVariantMode,
   normalizeSchedule,
   prerequisiteAccess,
