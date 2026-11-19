@@ -202,6 +202,43 @@ exports.platformBuildInfo = onCall({ maxInstances: 2 }, () => ({
   writtenAt: deployProvenance.writtenAt,
 }));
 
+// CRASH COUNTS THE OWNER CAN SEE (lib/platformHealth.js, shared/crashReport.mjs).
+// Off unless the root administrator turns it on. A device sends counts in
+// closed-shape buckets, never a student, an answer, question text or a stack.
+let platformHealthService = null;
+const platformHealth = () => {
+  if (!platformHealthService) {
+    platformHealthService = require("./lib/platformHealth").createPlatformHealthService({ db: getFirestore(), HttpsError });
+  }
+  return platformHealthService;
+};
+
+// Any signed-in account; rate-limited per account per day inside. Capped
+// instances: a crash storm must not become a bill.
+exports.reportClientCrashes = onCall({ maxInstances: 5 }, (request) => platformHealth().report(request));
+
+// Root administrator: read or change the reporting mode, or turn it off and
+// delete everything collected.
+exports.managePlatformHealthReporting = onCall({ maxInstances: 2 }, async (request) => {
+  const actor = await requireRootAdmin(request);
+  return platformHealth().manage({
+    data: request.data,
+    actor,
+    audit: (who, action, target, details) => writeAdminAudit(getFirestore(), who, action, target, details),
+  });
+});
+
+// Retention: daily counts are kept 30 days, rate-limit records 2.
+exports.prunePlatformHealth = onSchedule({
+  schedule: "41 3 * * *",
+  timeZone: "America/Chicago",
+  timeoutSeconds: 120,
+  invoker: "private",
+}, async () => {
+  const removed = await platformHealth().prune();
+  console.log("Platform health retention sweep", removed);
+});
+
 const MAX_CLASSROOM_COURSES_PER_BATCH = 20;
 const PUBLISH_LEASE_MS = 5 * 60 * 1000;
 
