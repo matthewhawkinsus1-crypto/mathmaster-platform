@@ -17,7 +17,7 @@ import { createRequire } from 'node:module';
 import test from 'node:test';
 
 import { CRASH_REPORT_LIMITS, crashBucketId, normalizeCrashBucket } from '../../functions/shared/crashReport.mjs';
-import { componentSource, executableSource, region } from './helpers/sourceContract.mjs';
+import { componentSource, executableSource } from './helpers/sourceContract.mjs';
 import { functionsBackendSource, topLevelDeclaration } from './helpers/functionsBackendSource.mjs';
 
 const require = createRequire(import.meta.url);
