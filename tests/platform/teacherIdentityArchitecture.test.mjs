@@ -37,7 +37,7 @@ import {
 } from '../../src/platform/studentName.js';
 import { normalizeTeacherRosterSummary } from '../../src/platform/teacher/teacherRosterSummary.js';
 import { executableSource, region } from './helpers/sourceContract.mjs';
-import { appHookSource } from './helpers/appScreens.mjs';
+import { appHookSource, appModulePaths, teacherControlPaths, teacherControlsSource } from './helpers/appScreens.mjs';
 import { functionsBackendSource } from './helpers/functionsBackendSource.mjs';
 
 const ROOT = fileURLToPath(new URL('../../', import.meta.url));
@@ -184,10 +184,12 @@ const FULL_RECORD_HELPER_CALL = /\b(?:fetchStudentGradeRecord|fetchStudentMaster
 // in App.jsx, the App() body member (`const x =` or the effect's first line).
 const MODULE_ANCHOR = /^(?:export\s+)?(?:default\s+)?(?:async\s+)?function\s+([\w$]+)|^(?:export\s+)?(?:const|let)\s+([\w$]+)\s*=/gm;
 const APP_BODY_ANCHOR = /^ {2}(?:const\s+([\w$]+)\s*=|useEffect\(\(\)\s*=>\s*\{\s*\n\s*([^\n]+))/gm;
+const TEACHER_CONTROL_PATHS = new Set(Object.values(teacherControlPaths()));
 const anchorOf = (source, index, path) => {
   // The teacher workspace's body members are anchored like App's: G2 moved
-  // App's teacher-only handlers into it verbatim.
-  const patterns = path === 'src/App.jsx' || path === 'src/app/teacher/TeacherWorkspace.jsx' ? [MODULE_ANCHOR, APP_BODY_ANCHOR] : [MODULE_ANCHOR];
+  // App's teacher-only handlers into it verbatim. So are the body members of a
+  // teacher control factory (the App split moved App's handlers there verbatim).
+  const patterns = path === 'src/App.jsx' || path === 'src/app/teacher/TeacherWorkspace.jsx' || TEACHER_CONTROL_PATHS.has(path) ? [MODULE_ANCHOR, APP_BODY_ANCHOR] : [MODULE_ANCHOR];
   let best = null;
   patterns.forEach((pattern) => {
     for (const match of source.matchAll(pattern)) {
@@ -231,9 +233,11 @@ const KNOWN_GRADES_DOCUMENT_ACCESS = {
     // split is in app/student/useStudentGradeDocument.js (below).
     // The profile drawer: ONE student, when a teacher opens them.
     "useEffect: if (user?.role !== 'teacher' || !profileDrawerStudentId) {": 1,
-    // Assignment Hub "who has finished?": one class, on request.
-    loadClassGradeRecords: 1,
   },
+  // Assignment Hub "who has finished?": one class, on request. Moved from
+  // App.jsx with the control factory App calls through the teacher kit
+  // (createGradebookNavigation, the App split).
+  'src/app/teacher/controls/gradebookNavigation.js': { loadClassGradeRecords: 1 },
   // The signed-in STUDENT's receipt listener on their own document, moved
   // from App.jsx with the hook App calls (the App split). (Closing a DOL no
   // longer touches the document: the DOL projection is server-owned.)
@@ -274,6 +278,8 @@ test('Test F: no screen reads or listens to grades documents to learn a name —
   assert.deepEqual(census(GRADES_REFERENCE), KNOWN_GRADES_DOCUMENT_ACCESS, guidance);
   // The inventoried listener runs only while App calls the hook that holds it.
   appHookSource('useStudentGradeDocument');
+  // The inventoried hub read exists only while App calls the factory that holds it.
+  teacherControlsSource('createGradebookNavigation');
   assert.deepEqual(census(FULL_RECORD_HELPER_CALL), KNOWN_FULL_RECORD_HELPER_CALLS, guidance);
 });
 
@@ -371,7 +377,14 @@ test('Test G: the identity index is a memo of the compact roster alone', () => {
   assert.ok(importsOf(APP).some(({ names, specifier }) => names.includes('buildStudentIdentityIndex') && /platform\/studentName/.test(specifier)));
   // The roster (and so the index) changes only on a refetch, on sign-out, or
   // when a teacher's own save patches one row — never from a data listener.
-  const writers = [...APP.matchAll(/setTeacherRosterSummaries\(/g)].map((match) => anchorOf(APP, match.index, 'src/App.jsx'));
+  // Counted across App and every module its code moved into (the App split):
+  // handleSupportProfileSaved is in createClassSettingsControls, which App
+  // calls through the teacher kit and hands the setter to by name.
+  const writers = ['src/App.jsx', ...appModulePaths()].flatMap((path) => {
+    const source = path === 'src/App.jsx' ? APP : code(path);
+    return [...source.matchAll(/setTeacherRosterSummaries\(/g)].map((match) => anchorOf(source, match.index, path));
+  });
+  assert.match(teacherControlsSource('createClassSettingsControls'), /export function createClassSettingsControls\([^)]*[(,\s]setTeacherRosterSummaries[,\s)]/);
   assert.deepEqual(writers.sort(), [
     'fetchTeacherRosterSummaries', // the listSignInAccess refetch
     'handleSupportProfileSaved', // one row's profile after the teacher saves it

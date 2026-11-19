@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import { compileAuthoringIntentV5 } from '../../src/platform/contract/authoringIntentV5.js';
 import { functionsBackendSource } from './helpers/functionsBackendSource.mjs';
+import { teacherControlsSource } from './helpers/appScreens.mjs';
 
 const read = (path) => fs.readFileSync(path, 'utf8');
 
@@ -42,7 +43,9 @@ test('V5 compiler preserves canonical publishing intent without reviving legacy 
 });
 
 test('Assignment Review bridges canonical V5 publishing fields into the runtime Classroom package', () => {
-  const app = read('src/App.jsx');
+  // Since the App split opening Preflight is createAssignmentPreflightControls',
+  // which App calls through the teacher kit (the helper holds that seam).
+  const app = teacherControlsSource('createAssignmentPreflightControls');
   assert.match(app, /assignmentV5\.classroomIntegration/);
   assert.match(app, /assignmentV5\.outputProfiles\?\.lessonNotesPdf/);
   assert.match(app, /normalizeLessonPublishingIntentV5/);

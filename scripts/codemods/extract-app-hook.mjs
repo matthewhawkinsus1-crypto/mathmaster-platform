@@ -13,6 +13,12 @@
  *       // a name a statement declares, the line a statement starts on, a range of
  *       // lines, or text exactly one statement contains
  *   "callAt": "first" | "last" | "<selector>"        // where the hook is called (default first)
+ *   "from": { "object": "teacherKit", "fallback": "NO_TEACHER_CONTROLS" }
+ *       // optional: the function is not imported by the source but reached through
+ *       // an object of the component's scope that may not be there yet, as
+ *       // `teacherKit ? teacherKit.createX({…}) : NO_TEACHER_CONTROLS`. The object's
+ *       // module must export it (the tool does not edit that module), and the
+ *       // statements may not call a hook.
  * }
  *
  * The statements' text, with the comments above each, is moved unchanged (but
@@ -292,6 +298,9 @@ export const planExtraction = (spec, read) => {
 
   const callAt = !spec.callAt || spec.callAt === 'first' ? moved[0] : spec.callAt === 'last' ? moved[moved.length - 1] : select(spec.callAt)[0];
   if (!movedSet.has(callAt)) problems.push('callAt must be one of the moved statements');
+  // A factory handed out by an object that may not be there yet is called behind
+  // a check, so it cannot hold a hook: React needs the same hooks every render.
+  if (spec.from) for (const statement of moved) if (/\buse[A-Z]\w*\(/.test(source.slice(statement.textStart, statement.textEnd))) problems.push(`line ${statement.startLine}: calls a hook, and ${spec.hook} would be called only when ${spec.from.object} is there`);
 
   // Module scope of the source: imports, and anything else declared at the top level.
   const imports = new Map();
@@ -394,11 +403,14 @@ export const planExtraction = (spec, read) => {
   };
   const body = moved.map(movedText).join('').replace(/^\n+/, '');
   const header = spec.header ? `/*\n${spec.header.trim().split('\n').map((line) => (line ? ` * ${line}` : ' *')).join('\n')}\n */\n` : '';
-  const parameters = inputList.length ? wrapList('{ ', inputList, ' }', '') : '';
-  const returns = outputList.length ? `  return ${wrapList('{ ', outputList, ' }', '  ')};\n` : '';
+  // By position, the seam leaves no property names in the bundle (see "from" above).
+  const [openIn, closeIn, openOut, closeOut] = spec.from?.positional ? ['', '', '[', ']'] : ['{ ', ' }', '{ ', ' }'];
+  const parameters = inputList.length ? wrapList(openIn, inputList, closeIn, '') : '';
+  const returns = outputList.length ? `  return ${wrapList(openOut, outputList, closeOut, '  ')};\n` : '';
   const moduleText = `${header}${importLines.join('\n')}${importLines.length ? '\n\n' : ''}export function ${spec.hook}(${parameters}) {\n${body}${returns}}\n`;
 
-  const call = `${outputList.length ? `const ${wrapList('{ ', outputList, ' }', '  ')} = ` : ''}${spec.hook}(${inputList.length ? wrapList('{ ', inputList, ' }', '  ') : ''});`;
+  const invocation = `${spec.from ? `${spec.from.object}.` : ''}${spec.hook}(${inputList.length ? wrapList(openIn, inputList, closeIn, '  ') : ''})`;
+  const call = `${outputList.length ? `const ${wrapList(openOut, outputList, closeOut, '  ')} = ` : ''}${spec.from ? `${spec.from.object} ? ${invocation} : ${spec.from.fallback}` : invocation};`;
 
   // Rewrite the source: cut each moved statement, put the call where callAt was.
   let rewritten = '';
@@ -415,7 +427,7 @@ export const planExtraction = (spec, read) => {
   rewritten += source.slice(at);
   rewritten = rewritten.replace(/\n{3,}/g, (match, offset) => (offset > component.body.start ? '\n\n' : match));
 
-  return { sourcePath, rewritten, moduleText, reAimed, inputList, outputList, usedImports: [...usedImports], problems, moved, callAt, hookImport: { name: spec.hook, from: `./${posix.relative(sourceDirectory, spec.file)}` } };
+  return { sourcePath, rewritten, moduleText, reAimed, inputList, outputList, usedImports: [...usedImports], problems, moved, callAt, hookImport: spec.from ? null : { name: spec.hook, from: `./${posix.relative(sourceDirectory, spec.file)}` } };
 };
 
 /** Add the hook's import and drop every import specifier the source no longer uses. */

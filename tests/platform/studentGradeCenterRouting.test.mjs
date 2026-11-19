@@ -14,6 +14,7 @@ import {
 } from '../../src/platform/student/browserHistory.js';
 import { assertCapability, region } from './helpers/sourceContract.mjs';
 import { importsComponent } from './helpers/componentImport.mjs';
+import { teacherControlsSource } from './helpers/appScreens.mjs';
 
 const app = fs.readFileSync(new URL('../../src/App.jsx', import.meta.url), 'utf8');
 const lazyScreens = fs.readFileSync(new URL('../../src/app/lazyScreens.js', import.meta.url), 'utf8');
@@ -229,16 +230,25 @@ test('the result screen reads the Grade Center entry rather than recomputing a g
 test('App imports every student grade module it calls', () => {
   // A free identifier in App.jsx is a runtime ReferenceError that lint, the
   // build and every other test in this suite would miss.
-  for (const [identifier, from] of [
+  for (const [identifier, from, controls] of [
     ['buildStudentGradeCenter', 'platform/student/studentGradeCenterModel.js'],
     ['findGradeCenterEntry', 'platform/student/studentGradeCenterModel.js'],
     ['normalizeGradingPeriodSettings', 'platform/student/gradingPeriods.js'],
-    ['gradingPeriodAssignmentPatch', 'platform/student/gradingPeriods.js'],
+    // Since the App split the bulk move that calls it is
+    // createAssignmentLibraryControls' (the teacher kit): imported where it is called.
+    ['gradingPeriodAssignmentPatch', 'platform/student/gradingPeriods.js', 'createAssignmentLibraryControls'],
     ['GRADING_PERIOD_SETTINGS_DOC', 'platform/student/gradingPeriods.js'],
     ['StudentGradeCenter', 'components/student/StudentGradeCenter.jsx'],
     ['StudentAssignmentResult', 'components/student/StudentAssignmentResult.jsx'],
   ]) {
     const escapedFrom = from.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    if (controls) {
+      const owner = teacherControlsSource(controls);
+      assert.match(owner, new RegExp(`^import \\{[^}]*\\b${identifier}\\b[^}]*\\} from '\\.\\.\\/\\.\\.\\/\\.\\.\\/${escapedFrom}';$`, 'm'), `${identifier} must be imported from ${from} by ${controls}`);
+      assert.match(owner.replace(/^import [^;]*;$/gm, ''), new RegExp(`${identifier}\\(`), `${identifier} must actually be used`);
+      assert.doesNotMatch(app, new RegExp(`\\b${identifier}\\b`), `${identifier} is called in App.jsx, which no longer imports it`);
+      continue;
+    }
     const staticImport = new RegExp(`${identifier}[\\s\\S]{0,400}?from '\\.\\/${escapedFrom}'`);
     // Lazily: declared in app/lazyScreens.js (the App split; a student screen
     // since PF01, `studentScreen`, with its own boundary) and imported from

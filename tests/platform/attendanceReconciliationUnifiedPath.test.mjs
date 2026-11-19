@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import { executableSource as executableSourceOf } from './helpers/sourceContract.mjs';
 import { functionsBackendSource } from './helpers/functionsBackendSource.mjs';
+import { appSurfaceSource, teacherControlsSource } from './helpers/appScreens.mjs';
 
 /*
  * ONE RECONCILIATION TRIGGER, NOT TWO.
@@ -19,6 +20,16 @@ const appSource = fs.readFileSync(new URL('../../src/App.jsx', import.meta.url),
 // The two surfaces are mounted by the teacher's screen, its own module since
 // G2. App hands it the one handler by name.
 const teacherWorkspace = fs.readFileSync(new URL('../../src/app/teacher/TeacherWorkspace.jsx', import.meta.url), 'utf8');
+// Since the App split the one handler and the reconciliation it runs are
+// createAttendanceExtensionControls', which App calls through the teacher kit
+// (the helper holds that seam) for the handler it hands the teacher's screen.
+const attendanceControls = () => teacherControlsSource('createAttendanceExtensionControls');
+const between = (source, startNeedle, endNeedle) => {
+  const start = source.indexOf(startNeedle);
+  const end = source.indexOf(endNeedle, start + 1);
+  assert.ok(start >= 0 && end > start, `could not find ${startNeedle} … ${endNeedle}`);
+  return source.slice(start, end);
+};
 
 test('both attendance surfaces are wired to the same App.jsx handler', () => {
   assert.match(teacherWorkspace, /onRecordStudentSupportEvent=\{handleRecordStudentSupportEvent\}/);
@@ -33,31 +44,24 @@ test('both attendance surfaces are wired to the same App.jsx handler', () => {
 });
 
 test('the shared handler recognizes both attendance event kinds and reconciles extensions for both', () => {
-  assert.match(appSource, /const ATTENDANCE_EVENT_KINDS = \[LIVE_ATTENDANCE_EVENT_KIND, ATTENDANCE_HISTORY_EVENT_KIND\];/);
-  assert.match(appSource, /const isAttendanceEvent = ATTENDANCE_EVENT_KINDS\.includes\(event\?\.kind\);/);
-  const handler = appSource.slice(
-    appSource.indexOf('const handleRecordStudentSupportEvent'),
-    appSource.indexOf('// Teachers stream presence'),
-  );
+  const controls = attendanceControls();
+  assert.match(controls, /const ATTENDANCE_EVENT_KINDS = \[LIVE_ATTENDANCE_EVENT_KIND, ATTENDANCE_HISTORY_EVENT_KIND\];/);
+  assert.match(controls, /const isAttendanceEvent = ATTENDANCE_EVENT_KINDS\.includes\(event\?\.kind\);/);
+  // (The last handler of the factory: it runs to the factory's return.)
+  const handler = between(controls, 'const handleRecordStudentSupportEvent', '\n  return [');
   assert.match(handler, /if \(isAttendanceEvent\) \{/);
   assert.match(handler, /reviewCount = await reconcileAttendanceExtensions\(event, record\);/);
 });
 
 test('reconciliation reads indexed class/date attendance history instead of the capped support feed', () => {
-  const region = appSource.slice(
-    appSource.indexOf('const reconcileAttendanceExtensions'),
-    appSource.indexOf('const [attendanceReviewBusyKey'),
-  );
+  const region = between(attendanceControls(), 'const reconcileAttendanceExtensions', 'const handleKeepAttendanceExtension');
   assert.match(region, /fetchAttendanceForClassDateRange\(\{/);
   assert.match(region, /supportEvents: attendanceHistory/);
   assert.doesNotMatch(region, /supportEvents: \[\.\.\.studentSupportEvents, record\]/);
 });
 
 test('a saved attendance record reports and persists a retry audit when reconciliation fails', () => {
-  const region = appSource.slice(
-    appSource.indexOf('const handleRecordStudentSupportEvent'),
-    appSource.indexOf('// Teachers stream presence'),
-  );
+  const region = between(attendanceControls(), 'const handleRecordStudentSupportEvent', '\n  return [');
   assert.match(region, /ATTENDANCE_EXTENSION_RECONCILIATION_PENDING/);
   assert.match(region, /retryable: true/);
   assert.match(region, /Attendance saved; extension update pending/);
@@ -65,17 +69,22 @@ test('a saved attendance record reports and persists a retry audit when reconcil
 });
 
 test('there is exactly one function that calls reconcileAssignmentExtensionsForCorrection', () => {
-  const occurrences = appSource.match(/reconcileAssignmentExtensionsForCorrection\(/g) || [];
+  // Counted across App and every module its code moved into: the one call
+  // is createAttendanceExtensionControls' since the App split.
+  const occurrences = appSurfaceSource().match(/reconcileAssignmentExtensionsForCorrection\(/g) || [];
+  assert.match(between(attendanceControls(), 'const reconcileAttendanceExtensions', 'const handleKeepAttendanceExtension'), /reconcileAssignmentExtensionsForCorrection\(/);
   assert.equal(occurrences.length, 1);
 });
 
 test('a per-student extension is written only through the audited callable, never a direct client update', () => {
-  assert.match(appSource, /applyStudentAttendanceExtension\(\{/);
-  assert.match(appSource, /import \{ applyStudentAttendanceExtension \} from '\.\/platform\/attendance\/extensionClient\.js';/);
+  const controls = attendanceControls();
+  assert.match(controls, /applyStudentAttendanceExtension\(\{/);
+  assert.match(controls, /import \{ applyStudentAttendanceExtension \} from '\.\.\/\.\.\/\.\.\/platform\/attendance\/extensionClient\.js';/);
   // Never `updateDoc(doc(db, 'assignments', ...), patch)` — that would both
   // replace the whole studentOverrides map from a possibly-stale snapshot
   // AND be rejected by firestore.rules, which blocks this field entirely
   // from a direct client write.
+  // (Refused in every module App's code moved into by appSplitForbiddenPatterns.test.mjs.)
   assert.doesNotMatch(appSource, /updateDoc\(doc\(db, 'assignments', assignment\.id\), patch\)/);
 });
 

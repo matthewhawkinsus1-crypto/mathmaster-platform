@@ -18,13 +18,16 @@ import { execFileSync } from 'node:child_process';
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import test from 'node:test';
+import { teacherControlPaths, teacherControlsSource } from './helpers/appScreens.mjs';
 
 const root = fileURLToPath(new URL('../..', import.meta.url));
 const oxlint = `${root}node_modules/.bin/oxlint`;
 const teacherComponents = readdirSync(`${root}src/components/teacher`)
   .filter((name) => /\.jsx?$/.test(name))
   .map((name) => `src/components/teacher/${name}`);
-const FILES = ['src/App.jsx', 'src/TeacherHome.jsx', 'src/ClassesWorkspace.jsx', 'src/TeacherSidebar.jsx', ...teacherComponents];
+// Since the App split the teacher's handlers App used to hold are the control
+// factories under src/app/teacher/controls: the names they call must resolve too.
+const FILES = ['src/App.jsx', ...Object.values(teacherControlPaths()), 'src/TeacherHome.jsx', 'src/ClassesWorkspace.jsx', 'src/TeacherSidebar.jsx', ...teacherComponents];
 
 const BROWSER_GLOBALS = new Set([
   'window', 'document', 'console', 'navigator', 'location', 'history', 'localStorage', 'sessionStorage',
@@ -54,7 +57,12 @@ test('the attendance correction review builder resolves where App.jsx calls it: 
   // The specific regression, asserted without the linter. The attendance
   // helpers are teacher-only, so App no longer imports them (they would ride
   // in every student's first load); every call must take them from the kit.
-  const app = readFileSync(`${root}src/App.jsx`, 'utf8');
+  // Since the App split both handlers are in createAttendanceExtensionControls, which App
+  // calls through the teacher kit and hands requireTeacherKit to by name (teacherControlsSource
+  // checks that seam). Counted across App and the factory, so a call cannot hide in either.
+  const controls = teacherControlsSource('createAttendanceExtensionControls');
+  assert.match(controls, /export function createAttendanceExtensionControls\([^)]*[(,\s]requireTeacherKit[,\s)]/);
+  const app = `${readFileSync(`${root}src/App.jsx`, 'utf8')}\n${controls}`;
   const calls = app.match(/\bbuildAttendanceCorrectionReviewEvent\(/g) || [];
   const fromKit = app.match(/requireTeacherKit\(\)\.buildAttendanceCorrectionReviewEvent\(/g) || [];
   assert.equal(calls.length, 2, 'both "Keep current extension" and "Apply shorter extension" build the review event');

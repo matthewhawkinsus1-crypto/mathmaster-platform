@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import { functionsBackendSource } from './helpers/functionsBackendSource.mjs';
+import { teacherControlsSource } from './helpers/appScreens.mjs';
 
 const read = (path) => fs.readFileSync(path, 'utf8');
 
@@ -97,7 +98,15 @@ test('browser exposes teacher repair controls for missing Classroom assignments'
   assert.match(manager, /repairClassroomAssignmentPublications/);
   assert.match(manager, /Check \/ repost missing assignment/);
   assert.match(manager, /without changing the MathMaster assignment or student work/);
-  assert.match(app, /handleRepairClassroomAssignmentPost/);
+  // Since the App split the handler is createClassroomPublishingControls',
+  // which App calls through the teacher kit (the helper holds that seam) and
+  // hands to the teacher's screen by name.
+  const publishing = teacherControlsSource('createClassroomPublishingControls');
+  const repairStart = publishing.indexOf('const handleRepairClassroomAssignmentPost = async');
+  assert.notEqual(repairStart, -1, 'the factory declares the repair handler');
+  const repair = publishing.slice(repairStart);
+  assert.match(app, /\n {8}handleRepairClassroomAssignmentPost=\{handleRepairClassroomAssignmentPost\}\n/);
   assert.match(app, /Repair \/ Repost Classroom/);
-  assert.match(app, /Existing MathMaster work was preserved/);
+  assert.match(repair, /repairClassroomAssignmentPublications\(\{/);
+  assert.match(repair, /Existing MathMaster work was preserved/);
 });

@@ -273,7 +273,9 @@ test('opening a scratchpad reads the right store and marks it used', () => {
 });
 
 test('saving stores the open question\'s scratchpad through the budget, in the right store', () => {
-  const saveHandler = region(app, 'const handleSaveScratchpad = async', 'const openTeacherScratchpad', 'handleSaveScratchpad');
+  // Since the App split what follows the save in App is its call of
+  // createTeacherScratchpadControls, which holds openTeacherScratchpad.
+  const saveHandler = region(app, 'const handleSaveScratchpad = async', 'const [openTeacherScratchpad]', 'handleSaveScratchpad');
   // The id saved is the question on screen — the one the store exempts.
   assert.match(saveHandler, /const scratchpadId = getScratchpadDocumentId\(\s*activeAssignmentId,\s*currentQuestionIndex,\s*\);/);
   const preview = region(saveHandler, 'if (isTeacherPreview) {\n      setPreviewScratchpads', 'return;', 'preview save');

@@ -64,5 +64,68 @@ export const appHookSource = (hookName) => {
   return read(path);
 };
 
-/** App.jsx, the teacher workspace and every hook App calls: where a forbidden pattern is refused. */
-export const appSurfaceSource = () => [APP_PATH, TEACHER_WORKSPACE_PATH, ...new Set(Object.values(appHookPaths()))].map(read).join('\n');
+/*
+ * A TEACHER'S CONTROLS (the App split, slice 3).
+ *
+ * The handlers behind the teacher's screen hold no state and run no effects,
+ * so they did not become hooks: each group is a factory under
+ * src/app/teacher/controls that the teacher kit exports, and App calls
+ *
+ *   const [a, b] = teacherKit ? teacherKit.createXControls(x, y) : NO_TEACHER_CONTROLS;
+ *
+ * once the kit has loaded. That keeps them out of a student's first load. The
+ * seam is by position, which leaves no property names in either chunk, so
+ * position is what is checked here: App's arguments must be the factory's
+ * parameters, name for name and in order, and the names App takes from the
+ * result must be the names the factory returns, in order.
+ *
+ *   teacherControlsSource('createDolClassControls')   that factory's module,
+ *                                                     after checking the seam
+ */
+const TEACHER_KIT_PATH = 'src/app/teacher/teacherKit.js';
+const CONTROL_EXPORT = /^export \{ (create\w+) \} from '\.\/(controls\/[^']+)';$/gm;
+const nameList = (text) => text.split(',').map((entry) => entry.trim()).filter(Boolean);
+
+/** { factoryName: repo path } for every control factory the teacher kit exports. */
+export const teacherControlPaths = () => Object.fromEntries(
+  [...read(TEACHER_KIT_PATH).matchAll(CONTROL_EXPORT)].map(([, name, path]) => [name, `src/app/teacher/${path}`]),
+);
+
+/** The seam of one control factory: what App passes and takes, and what the factory declares and returns. */
+export const teacherControlsSeam = (factoryName) => {
+  const path = teacherControlPaths()[factoryName];
+  if (!path) throw new Error(`The teacher kit does not export ${factoryName} from ./controls: App could not reach it.`);
+  const app = read(APP_PATH);
+  const calls = [...app.matchAll(new RegExp(`const \\[([^\\]]*)\\] = teacherKit \\? teacherKit\\.${factoryName}\\(([^)]*)\\) : NO_TEACHER_CONTROLS;`, 'g'))];
+  const mentions = app.match(new RegExp(`\\b${factoryName}\\b`, 'g')) || [];
+  if (calls.length !== 1 || mentions.length !== 1) {
+    throw new Error(`App.jsx must call teacherKit.${factoryName} exactly once, behind the kit check (found ${calls.length} such calls among ${mentions.length} mentions).`);
+  }
+  const source = read(path);
+  const declared = new RegExp(`^export function ${factoryName}\\(([^)]*)\\) \\{$`, 'm').exec(source);
+  const returned = /\n {2}return \[([^\]]*)\];\n\}\n$/.exec(source);
+  if (!declared || !returned) throw new Error(`${path} must declare ${factoryName}(…) and end by returning one array of its handlers.`);
+  return { path, source, passed: nameList(calls[0][2]), taken: nameList(calls[0][1]), parameters: nameList(declared[1]), returned: nameList(returned[1]) };
+};
+
+/** What is wrong with a control factory's seam, or null: by position, the names must match in order. */
+export const teacherControlsSeamProblem = (factoryName, seam) => {
+  const same = (left, right) => left.length === right.length && left.every((name, index) => name === right[index]);
+  if (!same(seam.passed, seam.parameters)) return `App.jsx passes ${factoryName}(${seam.passed.join(', ')}) but ${seam.path} declares (${seam.parameters.join(', ')}): the seam is by position, so the names must match in order.`;
+  if (!same(seam.taken, seam.returned)) return `App.jsx takes [${seam.taken.join(', ')}] from ${factoryName} but ${seam.path} returns [${seam.returned.join(', ')}]: the seam is by position, so the names must match in order.`;
+  return null;
+};
+
+/** The module of a control factory App calls through the teacher kit. Throws when the seam does not line up. */
+export const teacherControlsSource = (factoryName) => {
+  const seam = teacherControlsSeam(factoryName);
+  const problem = teacherControlsSeamProblem(factoryName, seam);
+  if (problem) throw new Error(problem);
+  return seam.source;
+};
+
+/** Every module App's own code moved into: the hooks it calls and the teacher's control factories. */
+export const appModulePaths = () => [...new Set([...Object.values(appHookPaths()), ...Object.values(teacherControlPaths())])];
+
+/** App.jsx, the teacher workspace and every module App's code moved into: where a forbidden pattern is refused. */
+export const appSurfaceSource = () => [APP_PATH, TEACHER_WORKSPACE_PATH, ...appModulePaths()].map(read).join('\n');

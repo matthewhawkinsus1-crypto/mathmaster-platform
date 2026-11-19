@@ -35,7 +35,7 @@ import { dolExtraTimeForClass } from '../../src/platform/teacher/dolExtraTimeRos
 import { normalizeStudentProfile } from '../../src/studentSupport.js';
 import { normalizeTeacherRosterSummary } from '../../src/platform/teacher/teacherRosterSummary.js';
 import { executableSource, region } from './helpers/sourceContract.mjs';
-import { appHookSource, appSurfaceSource } from './helpers/appScreens.mjs';
+import { appHookSource, appSurfaceSource, teacherControlsSeam, teacherControlsSource } from './helpers/appScreens.mjs';
 
 const require = createRequire(import.meta.url);
 const secureExamNavigation = require('../../functions/lib/secureExamNavigation.js');
@@ -297,8 +297,10 @@ test('"Close now" spares extra time at every edge, and the teacher\'s control sa
   assert.equal(working.classEndsAt.getTime(), at(9, 20).getTime());
 
   // "Close now" asks first, and says that a student on extra time keeps it.
-  const app = executableSource(readFileSync(new URL('../../src/App.jsx', import.meta.url), 'utf8'));
-  const closeBranch = region(app, "if (action === 'close') {", "} else if (action === 'extend') {", 'the DOL close confirmation');
+  // Since the App split the DOL control handler is createDolClassControls'
+  // (the teacher kit), which App calls with confirmAction and requireTeacherKit.
+  const dolControls = executableSource(teacherControlsSource('createDolClassControls'));
+  const closeBranch = region(region(dolControls, 'const handleDolControlForClass = async (', '\n  return [', 'the DOL control handler'), "if (action === 'close') {", "} else if (action === 'extend') {", 'the DOL close confirmation');
   assert.match(closeBranch, /title: `Close the DOL now for \$\{classLabel\}\?`/);
   assert.match(closeBranch, /message: `[^`]*A student on extra time keeps their own remaining time\.[^`]*`/);
   assert.match(closeBranch, /build = \(\) => requireTeacherKit\(\)\.buildDolClose\(/);
@@ -603,7 +605,15 @@ test('on-device Recovery, the finalize hint and the teacher roster take timing f
   // The teacher's rows carry the stored field.
   assert.match(app, /profile: normalizeStudentProfile\(studentDoc\.data\(\)\?\.profile \|\| studentDoc\.data\(\)\), timingProfile: studentDoc\.data\(\)\?\.profile \|\| null \}/);
   // A saved profile refreshes both teacher rosters' timing field.
-  assert.equal((app.match(/\{ \.\.\.entry, profile: nextProfile, timingProfile \}/g) || []).length, 2);
+  // Since the App split the save is handleSupportProfileSaved in
+  // createClassSettingsControls (the teacher kit), which App hands both setters.
+  const classSettings = teacherControlsSeam('createClassSettingsControls');
+  const profileSaved = region(executableSource(teacherControlsSource('createClassSettingsControls')), 'const handleSupportProfileSaved = ', '\n  };', 'the saved-profile handler');
+  for (const setter of ['setAllStudents', 'setTeacherRosterSummaries']) {
+    assert.ok(classSettings.parameters.includes(setter), setter);
+    assert.match(profileSaved, new RegExp(`${setter}\\(\\(current\\) => current\\.map\\(\\(entry\\) => entry\\.id === studentId \\? \\{ \\.\\.\\.entry, profile: nextProfile, timingProfile \\} : entry\\)\\);`), setter);
+  }
+  assert.equal((`${app}\n${profileSaved}`.match(/\{ \.\.\.entry, profile: nextProfile, timingProfile \}/g) || []).length, 2);
   assert.equal(normalizeTeacherRosterSummary({ studentId: 'S1', profile: LEGACY_EXTRA_TIME }).timingProfile, LEGACY_EXTRA_TIME);
   assert.equal(normalizeTeacherRosterSummary({ studentId: 'S1' }).timingProfile, null);
 });
