@@ -183,8 +183,13 @@ const CROWDED = '.mathmaster-question-container.mode-portrait .portrait-action-b
 const NARROW = { media: '(max-width: 600px)' };
 
 test('a work bar of five tools or more is one row of icons on a phone, each still named', () => {
-  assert.equal(declared(phoneRules, CROWDED, 'flex-wrap', NARROW)?.value, 'nowrap', 'one row');
-  assert.equal(declared(phoneRules, `${CROWDED} > .mathmaster-work-bar-tool`, 'min-width', NARROW)?.value, '44px', 'each target 44px wide');
+  // At the text size a phone has by default: below 19em (a large text size) the row wraps instead, each tool as wide
+  // as what it shows (phoneActionBarReflow.test.mjs), in a query of its own inside this one.
+  const atDefault = (selector, property) => rulesFor(phoneRules, selector, NARROW)
+    .filter((rule) => !rule.atRules.some((atRule) => atRule.includes('19em')) && property in rule.declarations)
+    .at(-1)?.declarations[property].value;
+  assert.equal(atDefault(CROWDED, 'flex-wrap'), 'nowrap', 'one row');
+  assert.equal(atDefault(`${CROWDED} > .mathmaster-work-bar-tool`, 'min-width'), '44px', 'each target 44px wide');
   const label = `${CROWDED} .mathmaster-action-label`;
   // Hidden to the eye only: still in the accessibility tree as the tool's name.
   assert.equal(declared(phoneRules, label, 'position', NARROW)?.value, 'absolute');
@@ -204,16 +209,19 @@ test('the crowded-bar rule leaves a bar with Submit or Next, and a bar of four, 
   assert.ok(crowded.length >= 5, `the crowded-bar rules are found (${crowded.length})`);
   for (const rule of crowded) {
     for (const selector of rule.selectors) {
-      // With Submit the tools narrow to 36px so it keeps its words; a 44px floor here would take that back.
+      // With Submit the tools narrow toward 28px so it keeps its words; a 44px floor here would take that back.
       assert.match(selector, /:not\(\[data-has-primary="true"\]\)/, `${selector} is for a bar with no Submit`);
       assert.match(selector, /^\.mathmaster-question-container\.mode-portrait /, `${selector} is for the upright phone`);
       assert.match(selector, /:has\(> \.mathmaster-work-bar-tool:nth-child\(5\)\)/, `${selector} counts the tools: five or more, never four (four keep their words and fit one row)`);
     }
     assert.ok(rule.atRules.some((atRule) => atRule.includes('(max-width: 600px)')), 'only on a phone-width screen');
   }
-  // A bar with Submit still has the tools giving way to it: 36px, in the portrait query itself
-  // (the 32px a 320px phone gets is in a query nested inside it).
+  // A bar with Submit still has the tools giving way to it, in the portrait query itself: each comes into the row at
+  // its 28px basis or what it shows, whichever is wider, and widens to 44px only where the row has room
+  // (phoneActionBarReflow.test.mjs).
   const withSubmit = '.mathmaster-question-container.mode-portrait .portrait-action-bar[data-has-primary="true"] > .mathmaster-work-bar-tool';
   const own = rulesFor(phoneRules, withSubmit).find((rule) => rule.atRules.length === 1 && 'min-width' in rule.declarations);
-  assert.equal(own?.declarations['min-width'].value, '36px');
+  assert.equal(own?.declarations['min-width'].value, 'min-content');
+  assert.equal(own?.declarations.flex.value, '1000 0 28px');
+  assert.equal(own?.declarations['max-width'].value, '44px');
 });

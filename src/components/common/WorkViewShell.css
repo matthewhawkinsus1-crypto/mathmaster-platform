@@ -897,6 +897,24 @@ html[data-work-view-open="true"] .mathmaster-question-container .mathmaster-desk
 }
 
 /*
+ * A LABEL WIDER THAN ITS ROW OR RAIL TAKES MORE LINES, AND ITS BUTTON THEIR HEIGHT (WCAG 1.4.10).
+ *
+ * At 200% text "Submit — uses 1 of 3 tries" is 375px on one line. On a 320 to 375px phone held upright the row of
+ * controls is 304 to 359px, and the words ran 17 to 72px past their button, "tries" cut off at the screen's edge. On a
+ * phone on its side a button in the rail is 155px: "Scratchpad" ran 18px past it, and a rail holding more than it
+ * shows pressed every button to 44px, so a label of two or three lines was drawn over the buttons under it. A button
+ * is never wider than its row or rail, its words wrap inside it, a word longer than it breaks where it must, and in
+ * the rail it keeps the height its lines need: the rail scrolls, as it does for an eighth action (PH08). A label that
+ * fits keeps its one line, at any size.
+ */
+[data-open="true"] .mathmaster-work-view-actions > button {
+  max-width: 100%;
+  overflow-wrap: anywhere;
+}
+[data-open="true"][data-controls="bottom"] .mathmaster-work-view-actions > button { white-space: normal; }
+[data-open="true"][data-controls="side"] .mathmaster-work-view-actions > button { flex-shrink: 0; }
+
+/*
  * PHONE WORK VIEW: THE MATH GETS THE WIDTH, NOT THE NESTING.
  *
  * A systems question nests the Work View surface, the tool shell, a panel and

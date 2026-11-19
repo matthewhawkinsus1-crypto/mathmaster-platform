@@ -408,35 +408,51 @@
      primary action present the tools show their icons only — each keeps its
      name as its accessible label — and Submit / Next takes the rest of the
      row: 61px. The icons are the ones the full labels already carried, so the
-     student has seen them paired with the words on every other question. */
+     student has seen them paired with the words on every other question.
+
+     ONE ROW WHERE THE CONTROLS FIT, MORE WHERE THEY DO NOT (WCAG 1.4.10).
+     A row that could not wrap ran off the screen once its tools could narrow no
+     further: at 200% text on a 320px phone Submit ended 25px past the right edge
+     and the bar scrolled sideways to show it. Each control now comes into the
+     row at the narrowest it may be (below) and the row breaks only where those
+     do not all fit: at 100% text the six tools a bar can carry and Submit fit
+     one row on any phone from 320px. A row of tools on its own is centred. */
   .mathmaster-question-container.mode-portrait .portrait-action-bar[data-has-primary="true"] {
-    flex-wrap: nowrap;
+    flex-wrap: wrap;
+    justify-content: center;
     gap: 4px;
   }
 
   /* THE TOOLS GIVE WAY, NOT THE PRIMARY ACTION. Six icon tools (Undo, Reset,
      Scratchpad, Calculator, Hint, Read aloud) at a fixed 44px left Submit 68px
      at 390 and 24px at 344: it read "Sub…" (release-candidate QA m8). The
-     tools are 44px wide where there is room and narrow to 36px where there is
-     not; every one stays 44px tall, the tap height the phone audit holds. */
+     tools are 44px wide where there is room and narrow where there is not;
+     every one stays 44px tall, the tap height the phone audit holds.
+
+     ...BUT NEVER NARROWER THAN WHAT THEY SHOW. They narrowed to a fixed 36px
+     (32px below 340px) whatever they held: "Start over" under its arrow is
+     47px at 100% text and ran 6px into Undo and Scratchpad on a 320px phone,
+     and at 200% Undo's word, Start over's and the 💡 and 🔊 ran 8 to 31px past
+     their buttons, over the tools beside them. A tool comes into the row at
+     28px (above the 24px target, WCAG 2.5.8) or what it shows, whichever is
+     wider, and takes the room there is up to 44px before Submit grows. */
   .mathmaster-question-container.mode-portrait .portrait-action-bar[data-has-primary="true"] > .mathmaster-work-bar-tool {
-    flex: 0 1 44px;
-    min-width: 36px;
+    flex: 1000 0 28px;
+    min-width: min-content;
+    max-width: 44px;
     padding-left: 4px !important;
     padding-right: 4px !important;
   }
 
-  /* Below 340px (a 320px phone) six tools at 36px plus Submit overflowed the
-     bar by ~12px and it scrolled sideways (review of #463): there the tools
-     narrow to 32px and the row's gaps to 3px. Still 44px tall; 32px wide is
-     above the 24px minimum target (WCAG 2.5.8). */
+  /* Below 340px (a 320px phone) the row's gaps are 3px and the tools' sides
+     2px (review of #463), so six tools and Submit share one row at 100%
+     text. */
   @media (max-width: 339.98px) {
     .mathmaster-question-container.mode-portrait .portrait-action-bar[data-has-primary="true"] {
       gap: 3px;
     }
 
     .mathmaster-question-container.mode-portrait .portrait-action-bar[data-has-primary="true"] > .mathmaster-work-bar-tool {
-      min-width: 32px;
       padding-left: 2px !important;
       padding-right: 2px !important;
     }
@@ -582,6 +598,75 @@
       clip: auto;
       font-size: calc(10 * var(--mm-px));
       line-height: 1;
+    }
+
+    /* ...BUT AT A LARGE TEXT SIZE THE ROW WRAPS, AND NO TOOL IS NARROWER THAN
+       WHAT IT SHOWS. Six tools at 44px were one row of a 320px phone at 200%
+       text while Undo's word and Start over's ran 4 and 23px past their
+       buttons. Below 19em, as every bar does there (below). */
+    @media (max-width: 19em) {
+      .mathmaster-question-container.mode-portrait .portrait-action-bar:not([data-has-primary="true"]):has(> .mathmaster-work-bar-tool:nth-child(5)) {
+        flex-wrap: wrap;
+      }
+
+      .mathmaster-question-container.mode-portrait .portrait-action-bar:not([data-has-primary="true"]):has(> .mathmaster-work-bar-tool:nth-child(5)) > .mathmaster-work-bar-tool {
+        min-width: min-content;
+      }
+    }
+  }
+
+  /* AT A LARGE TEXT SIZE THE BAR TAKES THE ROWS ITS CONTROLS NEED.
+     At 200% text the six tools and Submit are 472px across, wider than any
+     phone held upright, and the bar was one row whatever it held: on a 320 to
+     375px phone Submit ran past the screen and the bar scrolled sideways, and on
+     every phone Undo's and Start over's words ran into the tools beside them;
+     a bar of tools alone (a tool question, whose own Check is in its work)
+     squeezed them into 44px. Below 19em (an em in a query is the browser's own
+     text size: every phone at 150% and 200%, the 320 to 380px phones at 125%,
+     no phone 320px or wider at 100%; the line below which App.css lets the page
+     scroll and keeps the question a whole screen) every bar wraps instead: its
+     tools at their own width or 28px, up to 44px where there is room, Submit
+     or Next taking what is left of its row, and a row of tools on its own
+     centred. The order is the bar's own, and so is Tab's. Its rows are kept
+     short, for the question's work is under them: 2px above and below a tool
+     and Submit (still 44px tall), 4px above and below the bar. Submit says
+     "Submit" over "1 of 3" where it shares a row, as before, and both on one
+     line where its row is its own. At 320x568 with 200% text the bar is two
+     rows, 113px (it was one row of 91px holding 354px of controls in 318px),
+     and the question keeps 118px of the screen for its work, more than the
+     fifth the room check asks. */
+  @media (max-width: 19em) {
+    .mathmaster-question-container.mode-portrait .portrait-action-bar,
+    .mathmaster-question-container.mode-portrait .portrait-action-bar[data-has-primary="true"] {
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 4px;
+      padding-top: 4px;
+      padding-bottom: max(4px, env(safe-area-inset-bottom));
+    }
+
+    .mathmaster-question-container.mode-portrait .portrait-action-bar > .mathmaster-work-bar-tool,
+    .mathmaster-question-container.mode-portrait .portrait-action-bar[data-has-primary="true"] > .mathmaster-work-bar-tool {
+      flex: 1000 0 28px;
+      min-width: min-content;
+      max-width: 44px;
+      padding-top: 2px !important;
+      padding-bottom: 2px !important;
+    }
+
+    .mathmaster-question-container.mode-portrait .portrait-action-bar[data-has-primary="true"] > .mathmaster-bar-submit,
+    .mathmaster-question-container.mode-portrait .portrait-action-bar[data-has-primary="true"] > .mathmaster-bar-continue {
+      width: min-content;
+      min-width: min-content;
+      padding-top: 2px !important;
+      padding-bottom: 2px !important;
+    }
+
+    .mathmaster-question-container.mode-portrait .portrait-action-bar[data-has-primary="true"] > .mathmaster-bar-submit.has-try-cost {
+      flex-direction: row;
+      flex-wrap: wrap;
+      align-content: center;
+      column-gap: 0.4em;
     }
   }
 
@@ -754,6 +839,21 @@
   .mathmaster-question-container.mode-landscape .landscape-action-bar > * {
     width: 100%;
     margin-top: 0 !important;
+  }
+
+  /* A WORD WIDER THAN THE COLUMN BREAKS INSIDE ITS BUTTON (WCAG 1.4.10).
+     The column is 149px at 667x375 and 168px at 740x360. At 200% text
+     "Scratchpad" (175px) and "Calculator" ran 7 to 26px past their buttons,
+     and Submit's "uses 1 of 3 tries" (165px), kept to one line under
+     "Submit", 7 to 16px: the bar scrolled sideways. The cost wraps between
+     its words, and a word longer than its button breaks where it must; at
+     100% and 150% every word fits on its line as before. */
+  .mathmaster-question-container.mode-landscape .landscape-action-bar > button {
+    overflow-wrap: anywhere;
+  }
+
+  .mathmaster-question-container.mode-landscape .landscape-action-bar .mathmaster-submit-cost {
+    white-space: normal;
   }
 
   .mathmaster-question-container.mode-landscape .algebra-rail {

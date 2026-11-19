@@ -16,15 +16,22 @@
 //             its visible words begin its accessible name ("Next →" is the
 //             visible part of "Next question →"; the name is the whole label).
 //   ONE ROW   on a phone every control sits on one row (PQ R-1), the bar does
-//             not overflow sideways, and every control is 44px tall; the
-//             tools stay at least 36px wide.
+//             not overflow sideways, and every control is 44px tall; each tool
+//             is at least the 28px it comes into the row at (wider where the
+//             word under its icon needs it), and no control's words run past
+//             its own box (the words under Undo and Start over ran 6px into
+//             the tools beside them on a 320px phone).
 //   FONT      buttons do not inherit the page font: Chromium gives them the
 //             platform's control font (Arial here, Liberation Sans on headless
 //             Linux — the same metrics as Arial/Arimo on a Chromebook; Roboto
 //             on Android, SF on iOS). The rendered face is reported, and the
 //             phone checks are run again with DejaVu Sans Bold forced onto the
 //             bar — wider than Arial, Roboto and SF — so the fit is not an
-//             accident of a narrow headless font.
+//             accident of a narrow headless font. In that face six tools with
+//             their words inside them and "Submit" are 309px at 320px and 323px
+//             at 344px, wider than the row (the one row it had there drew Start
+//             over's 57px word in a 32px button): the tools keep one row, and
+//             the primary takes a row of its own under them, whole.
 // Exits non-zero on any failure.
 const { chromium } = await import(process.env.PLAYWRIGHT_MODULE || '/opt/node22/lib/node_modules/playwright/index.mjs');
 const ORIGIN = process.env.AUDIT_ORIGIN || 'http://localhost:5199';
@@ -40,9 +47,9 @@ const check = (ok, label, detail = '') => {
 };
 
 const DEVICES = [
-  // The narrowest phone a student may have (review of #463): the tools narrow
-  // to 32px there and nothing scrolls sideways.
-  { id: 'phone-320', phone: true, minTool: 31.5, options: { viewport: { width: 320, height: 640 }, isMobile: true, hasTouch: true, deviceScaleFactor: 2 } },
+  // The narrowest phone a student may have (review of #463): nothing scrolls
+  // sideways there either.
+  { id: 'phone-320', phone: true, options: { viewport: { width: 320, height: 640 }, isMobile: true, hasTouch: true, deviceScaleFactor: 2 } },
   { id: 'foldable-344', phone: true, options: { viewport: { width: 344, height: 882 }, isMobile: true, hasTouch: true, deviceScaleFactor: 2 } },
   { id: 'phone-390', phone: true, options: { viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true, deviceScaleFactor: 2 } },
   { id: 'chromebook-1366', phone: false, options: { viewport: { width: 1366, height: 768 } } },
@@ -55,6 +62,9 @@ const STATES = [
   { id: 'section', selector: 'button.mathmaster-bar-continue', name: 'Continue to Unit 2 Review →', phoneText: 'Continue →', tools: 5 },
 ];
 const STRESS_FONT = '.portrait-action-bar button { font-family: "DejaVu Sans", sans-serif !important; }';
+// The width a tool comes into the phone's row at (MathToolMobileLayout.css): a
+// target WCAG 2.5.8 counts, and the floor a 320px phone may narrow it to.
+const TOOL_FLOOR = 28;
 const run = Date.now();
 
 const measure = (page, selector) => page.evaluate((primarySelector) => {
@@ -69,9 +79,28 @@ const measure = (page, selector) => page.evaluate((primarySelector) => {
     if (display === 'none') return '';
     return display === 'block' ? ` ${visibleText(node)} ` : visibleText(node);
   }).join('');
+  // How far a button's drawn words (and icons drawn as text) reach past its own
+  // box; a word kept for a screen reader, clipped to a pixel, is not drawn.
+  const wordsPast = (button, rect) => {
+    let past = 0;
+    const walker = document.createTreeWalker(button, NodeFilter.SHOW_TEXT);
+    for (let text = walker.nextNode(); text; text = walker.nextNode()) {
+      let drawn = Boolean(text.textContent.trim());
+      for (let node = text.parentElement; drawn && node && node !== button.parentElement; node = node.parentElement) {
+        const style = getComputedStyle(node);
+        const box = node.getBoundingClientRect();
+        if (style.display === 'none' || style.visibility === 'hidden' || (style.clip && style.clip !== 'auto') || (style.position === 'absolute' && box.width <= 1 && box.height <= 1)) drawn = false;
+      }
+      if (!drawn) continue;
+      const range = document.createRange();
+      range.selectNodeContents(text);
+      for (const ink of range.getClientRects()) if (ink.width) past = Math.max(past, ink.right - rect.right, rect.left - ink.left);
+    }
+    return past;
+  };
   const controls = bar ? [...bar.querySelectorAll(':scope > button')].map((button) => {
     const rect = button.getBoundingClientRect();
-    return { name: button.getAttribute('aria-label') || button.textContent.trim(), top: Math.round(rect.top), width: rect.width, height: rect.height, tool: button.classList.contains('mathmaster-work-bar-tool') };
+    return { name: button.getAttribute('aria-label') || button.textContent.trim(), top: Math.round(rect.top), width: rect.width, height: rect.height, wordsPast: wordsPast(button, rect), tool: button.classList.contains('mathmaster-work-bar-tool') };
   }) : [];
   return {
     portrait: Boolean(bar?.classList.contains('portrait-action-bar')),
@@ -132,13 +161,21 @@ for (const device of DEVICES) {
         const tools = facts.controls.filter((control) => control.tool);
         check(tools.length === state.tools, `${scene}: every tool is in the bar`, tools.map((tool) => tool.name).join(', '));
         const tops = new Set(facts.controls.map((control) => control.top));
-        check(tops.size === 1, `${scene}: one row of controls (R-1)`, facts.controls.map((control) => `${control.name}@${control.top}`).join(' '));
+        const rows = facts.controls.map((control) => `${control.name}@${control.top}`).join(' ');
+        if (!stress) check(tops.size === 1, `${scene}: one row of controls (R-1)`, rows);
+        else {
+          // The widest face: the tools on one row, the primary beside them or on a row of its own under them.
+          const toolTops = new Set(tools.map((tool) => tool.top));
+          const primaryTop = facts.controls.find((control) => !control.tool)?.top;
+          check(toolTops.size === 1 && primaryTop >= [...toolTops][0] && tops.size <= 2, `${scene}: the tools on one row, the primary beside them or on a row of its own under them`, rows);
+        }
         check(facts.barScroll[0] <= facts.barScroll[1], `${scene}: the bar does not overflow sideways`, `${facts.barScroll[0]} <= ${facts.barScroll[1]}`);
         const short = facts.controls.filter((control) => control.height < 44);
         check(short.length === 0, `${scene}: every control is at least 44px tall`, short.map((control) => `${control.name} ${control.height}`).join(', '));
-        const floor = device.minTool ?? 35.5;
-        const narrow = tools.filter((tool) => tool.width < floor);
-        check(narrow.length === 0, `${scene}: every tool is at least ${Math.round(floor)}px wide`, tools.map((tool) => `${tool.name} ${tool.width.toFixed(1)}`).join(', '));
+        const narrow = tools.filter((tool) => tool.width < TOOL_FLOOR);
+        check(narrow.length === 0, `${scene}: every tool is at least ${TOOL_FLOOR}px wide`, tools.map((tool) => `${tool.name} ${tool.width.toFixed(1)}`).join(', '));
+        const spilling = facts.controls.filter((control) => control.wordsPast > 1);
+        check(spilling.length === 0, `${scene}: no control's words run past its own box`, spilling.map((control) => `${control.name} ${control.wordsPast.toFixed(1)}px`).join(', '));
       } else {
         check(!facts.portrait, `${scene}: the desktop bar is not the phone bar`);
         check(facts.text === (state.desktopText || state.name), `${scene}: the desktop shows the whole label`, `"${facts.text}"`);
