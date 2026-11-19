@@ -17,8 +17,9 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 
 import { FakeFirestore, topLevelFunction } from './helpers/serverCallableHarness.mjs';
+import { functionsBackendSource } from './helpers/functionsBackendSource.mjs';
 
-const SERVER = readFileSync(new URL('../../functions/index.js', import.meta.url), 'utf8');
+const SERVER = functionsBackendSource();
 const constant = (name) => {
   const match = SERVER.match(new RegExp(`^const ${name} = "([^"]+)";`, 'm'));
   assert.ok(match, `functions/index.js no longer defines const ${name}`);

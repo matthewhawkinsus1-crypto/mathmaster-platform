@@ -29,13 +29,14 @@ import {
   freezeWeeklyPathGoalProposal,
   openWeeklySlotSession,
 } from '../../functions/shared/weeklyPathSlotAuthority.mjs';
+import { functionsBackendSource } from './helpers/functionsBackendSource.mjs';
 
 const require = createRequire(import.meta.url);
 const mathPath = require('../../functions/lib/mathPath.js');
 const pathContentRelease = require('../../functions/lib/pathContentRelease.js');
 const pathSessionLock = require('../../functions/lib/pathSessionLock.js');
 
-const SERVER = readFileSync(new URL('../../functions/index.js', import.meta.url), 'utf8');
+const SERVER = functionsBackendSource();
 
 // ---------------------------------------------------------------------------
 // The rule itself.

@@ -5,10 +5,11 @@ import { createRequire } from 'node:module';
 
 import { SECURE_STAGES, TEST_CYCLE_STAGE, stageIsSecure } from '../../functions/shared/testCycleStages.mjs';
 import { assertCapability, componentSource, executableSource, region } from './helpers/sourceContract.mjs';
+import { functionsBackendSource, topLevelDeclaration } from './helpers/functionsBackendSource.mjs';
 
 const require_ = createRequire(import.meta.url);
 const secureExam = require_('../../functions/lib/secureExam.js');
-const functionsIndex = readFileSync(new URL('../../functions/index.js', import.meta.url), 'utf8');
+const functionsIndex = functionsBackendSource();
 const card = componentSource('src/components/student/TestCycleCard.jsx');
 const corrections = componentSource('src/components/student/TestCycleCorrections.jsx');
 const container = componentSource('src/components/assessment/SecureExamContainer.jsx');
@@ -103,27 +104,17 @@ test('a course test is a plain exam session, so integrity and proctor actions ap
   assert.doesNotMatch(executableSource(integrity), /examType|courseTest/);
   assert.match(integrity, /locked_integrity/);
 
-  const proctor = region(
-    functionsIndex,
-    'exports.proctorExamAction = onCall(',
-    '// --- Test Cycle',
-    'proctor action',
-  );
+  const proctor = topLevelDeclaration(functionsIndex, 'exports.proctorExamAction');
   for (const action of ['unlock', 'lock', 'extendTime', 'forceSubmit', 'releaseFeedback']) {
     assert.match(proctor, new RegExp(`"${action}"`), `${action} must remain a proctor action for every session`);
   }
 });
 
 test('releasing a course test does the ordinary release first, then the cycle work', () => {
-  const proctor = region(
-    functionsIndex,
-    'exports.proctorExamAction = onCall(',
-    '// --- Test Cycle',
-    'proctor action',
-  );
+  const proctor = topLevelDeclaration(functionsIndex, 'exports.proctorExamAction');
   assert.match(proctor, /applyTestCycleFeedbackRelease/);
   // A simulation has no courseTest block, and the helper returns immediately.
-  const helper = region(functionsIndex, 'async function applyTestCycleFeedbackRelease(', 'async function syncTestCycleSessionState', 'release helper');
+  const helper = topLevelDeclaration(functionsIndex, 'function applyTestCycleFeedbackRelease');
   assert.match(helper, /if \(!courseTest\?\.assignmentId\) return null;/);
 });
 

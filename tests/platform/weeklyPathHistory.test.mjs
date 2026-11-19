@@ -24,6 +24,7 @@ import { completionFromPathSession, weeklyCompletionWindow } from '../../functio
 import { gradeWeeklyGoal } from '../../functions/shared/weeklyPathGrade.mjs';
 import { dueAtFor } from '../../src/platform/path/weeklyPathGoal.js';
 import { executableSource, region } from './helpers/sourceContract.mjs';
+import { functionsBackendSource } from './helpers/functionsBackendSource.mjs';
 
 const require = createRequire(import.meta.url);
 const { loadWeeklyPathHistory, FALLBACK_SESSION_LIMIT } = require('../../functions/lib/weeklyPathHistory.js');
@@ -339,7 +340,7 @@ test('no goal in twelve weeks reads no sessions; a missing index falls back to t
 // ------------------------------------------------------------------ wiring
 
 test('the callable is student-only and passes nothing from the request into the reads', () => {
-  const source = executableSource(read('functions/index.js'));
+  const source = executableSource(functionsBackendSource());
   const callable = region(source, 'exports.getMyWeeklyPathHistory', 'exports.getMyWeeklyPathCompletions', 'weekly history callable');
   assert.match(callable, /const \{ studentId \} = requireStudent\(request\);/);
   assert.match(callable, /const \{ loadWeeklyPathHistory \} = require\("\.\/lib\/weeklyPathHistory"\);/);

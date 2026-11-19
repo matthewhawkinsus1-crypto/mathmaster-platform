@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { assignmentIsForStudent, getSectionAccessState } from '../../src/assignmentLifecycle.js';
 import { mappedCourseIdsForAssignment, shouldAutoPublishClassroomPackage } from '../../src/platform/classroom/automaticClassroomPublishing.js';
 import { readFile } from 'node:fs/promises';
+import { functionsBackendSource } from './helpers/functionsBackendSource.mjs';
 
 const assignment = {
   schemaVersion: 5,
@@ -44,7 +45,7 @@ test('Google Classroom mapping uses classId before a shared period label', () =>
 });
 
 test('server onboarding and Live Challenge boundaries are class-ID first', async () => {
-  const functionsSource = await readFile(new URL('../../functions/index.js', import.meta.url), 'utf8');
+  const functionsSource = functionsBackendSource();
   const challengeUi = await readFile(new URL('../../src/components/liveChallenge/LiveChallengeTeacher.jsx', import.meta.url), 'utf8');
   assert.match(functionsSource, /issueClassJoinCode[\s\S]*where\(\"classId\", \"==\", classId\)/);
   assert.match(functionsSource, /loadChallengeRoster\(db, teacherEmail, \{ classId, classPeriod \}\)/);

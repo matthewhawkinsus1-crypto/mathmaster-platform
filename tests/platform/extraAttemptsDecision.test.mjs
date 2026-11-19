@@ -73,8 +73,8 @@ test('only My Math Path code asks a plan for the extra try', () => {
   // toolSupportMatrix.js says which tools it reaches. Nothing that counts a
   // classroom assignment's attempts is on this list.
   const expected = [
-    'functions/index.js',
     'functions/lib/mathPath.js',
+    'functions/mathPathFunctions.js',
     'functions/shared/supportEntitlements.mjs',
     'src/platform/supports/toolSupportMatrix.js',
   ];

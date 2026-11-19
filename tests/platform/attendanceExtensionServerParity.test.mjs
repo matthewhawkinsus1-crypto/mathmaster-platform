@@ -28,6 +28,7 @@ import { assignmentCreditLifecycle, evaluatePracticePassEligibility } from '../.
 import { executableSource, region } from './helpers/sourceContract.mjs';
 import { studentClassroomDeadlines } from '../../functions/shared/classroomStudentDeadlines.mjs';
 import { createRequire } from 'node:module';
+import { functionsBackendSource } from './helpers/functionsBackendSource.mjs';
 
 const runtime = createRequire(import.meta.url)('../../functions/lib/classroomGradeRuntime.js');
 
@@ -205,7 +206,7 @@ test('Google Classroom grade passback resolves stage against the per-student fin
   // (its stage helper cannot be imported here; the emulator suite
   // tests/integration/studentAssignmentOverrides.test.mjs runs it): its own
   // cutoff comes from the lib reader above, with the student's profile.
-  const source = executableSource(fs.readFileSync(new URL('../../functions/index.js', import.meta.url), 'utf8'));
+  const source = executableSource(functionsBackendSource());
   const stageHelper = region(source, 'function resolveClassroomGradeStage(', 'if (progress.complete)', 'resolveClassroomGradeStage');
   assert.match(stageHelper, /const lateDueAt = studentLateDueAt\(assignment, studentFinalCutoff\);/);
   assert.match(stageHelper, /if \(reason === "final-deadline" && !\(lateDueAt && now < lateDueAt\.getTime\(\)\)\) return "final-deadline";/);

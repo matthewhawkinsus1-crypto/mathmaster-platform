@@ -36,6 +36,7 @@ import {
 import { studentWithAssignmentWork } from './helpers/assignmentWork.mjs';
 import { plannerClosure, plannerVendorDrift, syncFunctionsWeeklyPlanner } from '../../scripts/sync-functions-weekly-planner.mjs';
 import { executableSource, region } from './helpers/sourceContract.mjs';
+import { functionsBackendSource } from './helpers/functionsBackendSource.mjs';
 
 const require = createRequire(import.meta.url);
 const { loadWeeklyFreezeInputs } = require('../../functions/lib/weeklyPathFreezeInputs.js');
@@ -408,7 +409,7 @@ test('the planner travels with the functions bundle and never forks', async () =
 });
 
 test('resolveWeeklyPathGoalSnapshot hands the proposal to the server\'s facts, and plans only a short one', () => {
-  const index = executableSource(read('functions/index.js'));
+  const index = executableSource(functionsBackendSource());
   const callable = region(index, 'exports.resolveWeeklyPathGoalSnapshot = onCall(', '\n});', 'the freeze callable');
   assert.match(callable, /await loadWeeklyFreezeInputs\(\{[^}]*\bgoal: request\.data\?\.goal \|\| \{\}/);
   const inputs = executableSource(read('functions/lib/weeklyPathFreezeInputs.js'));

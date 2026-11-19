@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
+import { functionsBackendSource } from './helpers/functionsBackendSource.mjs';
 
 const read = (path) => fs.readFileSync(new URL(`../../${path}`, import.meta.url), 'utf8');
 
@@ -22,7 +23,7 @@ test('teacher roster and gradebook use the shared last-name sorter', () => {
 });
 
 test('server creation is atomic and stores structured names', () => {
-  const source = read('functions/index.js');
+  const source = functionsBackendSource();
   assert.match(source, /MathMaster structured student names \/ class-centric account creation v1/);
   assert.match(source, /firstName: firstName \|\| null/);
   assert.match(source, /lastName: lastName \|\| null/);
@@ -33,7 +34,7 @@ test('server creation is atomic and stores structured names', () => {
 
 test('new student accounts require a numeric district SIS id before sign-in setup', () => {
   const ui = read('src/SignInAccess.jsx');
-  const server = read('functions/index.js');
+  const server = functionsBackendSource();
   assert.match(ui, /District\/SIS Student ID/);
   assert.match(ui, /inputMode="numeric"/);
   assert.match(ui, /replace\(\/\\D\/g, ''\)/);
@@ -42,7 +43,7 @@ test('new student accounts require a numeric district SIS id before sign-in setu
 });
 
 test('first-time student sign-in and Google linking cannot create an arbitrary roster identity', () => {
-  const server = read('functions/index.js');
+  const server = functionsBackendSource();
   assert.match(server, /That student ID is not on the MathMaster roster yet/);
   assert.match(server, /before first sign-in/);
   assert.match(server, /before linking Google/);

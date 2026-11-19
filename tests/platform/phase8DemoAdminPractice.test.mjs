@@ -4,12 +4,13 @@ import { readFileSync } from 'node:fs';
 import { createDemoSeed } from '../../src/demo/demoExperienceData.js';
 import { getAssignmentLifecycle } from '../../src/assignmentLifecycle.js';
 import { buildQuestionDraftKey } from '../../src/questionDraftStorage.js';
+import { functionsBackendSource, topLevelDeclaration } from './helpers/functionsBackendSource.mjs';
 
 const appSource = readFileSync(new URL('../../src/App.jsx', import.meta.url), 'utf8');
 const demoSource = readFileSync(new URL('../../src/components/demo/DemoExperience.jsx', import.meta.url), 'utf8');
 const adminUiSource = readFileSync(new URL('../../src/SignInAccess.jsx', import.meta.url), 'utf8');
 const authServiceSource = readFileSync(new URL('../../src/auth/authService.js', import.meta.url), 'utf8');
-const functionsSource = readFileSync(new URL('../../functions/index.js', import.meta.url), 'utf8');
+const functionsSource = functionsBackendSource();
 const modelingServiceSource = readFileSync(new URL('../../src/services/modelingLabService.js', import.meta.url), 'utf8');
 
 test('demo assignments are live question JSON and seeded scores are backed by right/wrong responses', () => {
@@ -93,10 +94,7 @@ test('root Administration remains discoverable to the protected email and server
   // Keep the legacy assignStudentToTeacher callable protected as well so old
   // clients cannot bypass root authorization.
   for (const exportName of ['createStudentAccount', 'assignStudentToTeacher', 'setStudentClass', 'setTeacherAccess', 'permanentlyDeleteStudent']) {
-    const start = functionsSource.indexOf(`exports.${exportName}`);
-    assert.ok(start >= 0, `${exportName} must exist`);
-    const next = functionsSource.indexOf('\nexports.', start + 1);
-    const block = functionsSource.slice(start, next >= 0 ? next : start + 7000);
+    const block = topLevelDeclaration(functionsSource, `exports.${exportName}`);
     assert.match(block, /requireRootAdmin\(request\)/, `${exportName} must require root authorization`);
   }
 });

@@ -4,6 +4,7 @@ import { createRequire } from 'node:module';
 import test from 'node:test';
 
 import { executableSource, region } from './helpers/sourceContract.mjs';
+import { functionsBackendSource } from './helpers/functionsBackendSource.mjs';
 
 const require = createRequire(import.meta.url);
 const compiler = require('../../functions/lib/pathContentCompiler.js');
@@ -338,7 +339,7 @@ test('already-compiled content compiles to itself', () => {
 // The legacy seed importer is on the same boundary. It used to hand Firestore
 // whatever a best-effort sanitizer produced and find out at commit time.
 test('the legacy Path seed importer compiles strictly and reports the property path', () => {
-  const source = fs.readFileSync(new URL('../../functions/index.js', import.meta.url), 'utf8');
+  const source = functionsBackendSource();
   const importer = region(source, 'async function processPathSeedImport', 'const rejectionSummary', 'seed import validation');
 
   assert.match(importer, /compilePathRecordForStorage\(\{ \.\.\.item, id, active: item\.active !== false \}\)/);

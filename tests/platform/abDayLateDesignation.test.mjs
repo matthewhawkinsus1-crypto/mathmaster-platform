@@ -26,6 +26,7 @@ import {
 } from '../../functions/shared/classSchedule.mjs';
 import { lateDayTypeNotice, setScheduleDayTypeOverride } from '../../src/assignmentLifecycle.js';
 import { executableSource, region } from './helpers/sourceContract.mjs';
+import { functionsBackendSource } from './helpers/functionsBackendSource.mjs';
 
 const read = (relative) => readFileSync(new URL(`../../${relative}`, import.meta.url), 'utf8');
 
@@ -154,6 +155,6 @@ test('the save stamps changed dates with the server\'s clock, the picker shows t
   const picker = region(settings, 'Use {dayType} Day Today', '</section>', 'the A/B day picker');
   assert.match(picker, /\{lateNotice && \(\s*<p role="status" data-late-day-type=""[^>]*>\s*\{lateNotice\}\s*<\/p>\s*\)\}/);
 
-  const index = executableSource(read('functions/index.js'));
+  const index = executableSource(functionsBackendSource());
   assert.match(index, /window\.reason === "dayTypeSetAfterEnd"\s*\? `\$\{shared\.schedule\.formatSchoolDate\(window\.dateKey, timeZone\)\} \(its A\/B day was set after this class had met: choose a new day\)`/);
 });

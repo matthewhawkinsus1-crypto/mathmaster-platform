@@ -35,6 +35,7 @@ import {
   recoveryUpgradeAlert,
   studentRecordsSentence,
 } from '../../src/platform/recovery/recoveryUpgradeCopy.js';
+import { functionsBackendSource } from './helpers/functionsBackendSource.mjs';
 
 /* ---------------------------------------------------------------------------
  * The words.
@@ -169,7 +170,7 @@ test('Prepare Recovery shows the server\'s dry run and approves exactly that pla
   const auth = readFileSync(new URL('../../src/auth/authService.js', import.meta.url), 'utf8');
   assert.match(auth, /previewRecoveryContentUpgrade: \(payload\) =>\s*callable\('previewRecoveryContentUpgrade'\)\(payload\)/);
   assert.match(auth, /commitRecoveryContentUpgrade: \(payload\) =>\s*callable\('commitRecoveryContentUpgrade'\)\(payload\)/);
-  const index = readFileSync(new URL('../../functions/index.js', import.meta.url), 'utf8');
+  const index = functionsBackendSource();
   assert.match(index, /^exports\.previewRecoveryContentUpgrade = onCall\(/m);
   assert.match(index, /^exports\.commitRecoveryContentUpgrade = onCall\(/m);
 });

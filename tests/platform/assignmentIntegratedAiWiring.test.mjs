@@ -2,9 +2,10 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import { assignmentIntakeSource } from './helpers/intakeSource.mjs';
+import { functionsBackendSource, topLevelDeclaration } from './helpers/functionsBackendSource.mjs';
 
 const config = fs.readFileSync('functions/lib/config.js', 'utf8');
-const functionsIndex = fs.readFileSync('functions/index.js', 'utf8');
+const functionsIndex = functionsBackendSource();
 const functionsEntry = fs.readFileSync('functions/entry.js', 'utf8');
 const provider = fs.readFileSync('functions/lib/assignmentAi.js', 'utf8');
 const geminiProvider = fs.readFileSync('functions/lib/geminiAssignmentAi.js', 'utf8');
@@ -97,8 +98,7 @@ test('Gemini provider uses the Google REST boundary and never needs a browser SD
 test('every AI failure is logged and audited, and infrastructure failures refund the daily allowance', () => {
   // The previous implementation returned early for AssignmentAiError and never
   // reached its own logger call, so no provider failure was recorded anywhere.
-  const start = functionsIndex.indexOf('function translateAssignmentAiError');
-  const block = functionsIndex.slice(start, start + 1400);
+  const block = topLevelDeclaration(functionsIndex, 'function translateAssignmentAiError');
   const classified = block.indexOf('classified: true');
   const returned = block.indexOf('return new HttpsError');
   assert.ok(classified >= 0 && returned > classified, 'classified failures must be logged before returning');
@@ -109,9 +109,7 @@ test('every AI failure is logged and audited, and infrastructure failures refund
 });
 
 test('administrator self-test reports the provider cause without teacher or student content', () => {
-  const start = functionsIndex.indexOf('exports.assignmentAiSelfTest');
-  assert.ok(start >= 0);
-  const block = functionsIndex.slice(start, start + 2600);
+  const block = topLevelDeclaration(functionsIndex, 'exports.assignmentAiSelfTest');
   assert.match(block, /requireRootAdmin\(request\)/);
   assert.match(block, /probeAssignmentAiProvider/);
   assert.match(block, /stage: "secret"/);

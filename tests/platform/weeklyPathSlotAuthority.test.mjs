@@ -34,13 +34,14 @@ import { teksSkillId } from '../../functions/shared/pathSkillGraph.mjs';
 import { dueAtFor, weekKeyFor } from '../../src/platform/path/weeklyPathGoal.js';
 import { executableSource, region } from './helpers/sourceContract.mjs';
 import { topLevelFunction } from './helpers/serverCallableHarness.mjs';
+import { functionsBackendSource } from './helpers/functionsBackendSource.mjs';
 
 const require = createRequire(import.meta.url);
 const mathPath = require('../../functions/lib/mathPath.js');
 
 // The callable's own framework rule, cut out of functions/index.js as written.
 const serverFrameworkRule = (() => {
-  const source = readFileSync(new URL('../../functions/index.js', import.meta.url), 'utf8');
+  const source = functionsBackendSource();
   const declaration = source.match(/^const PATH_ASSESSMENT_FRAMEWORKS = [^\n]+;$/m);
   assert.ok(declaration, 'functions/index.js no longer declares PATH_ASSESSMENT_FRAMEWORKS on one line; update this test');
   return new Function(`"use strict";\n${declaration[0]}\n${topLevelFunction('normalizePathAssessmentFramework')}\nreturn { frameworks: PATH_ASSESSMENT_FRAMEWORKS, normalize: normalizePathAssessmentFramework };`)();
@@ -376,7 +377,7 @@ test('the server freezes only the week that is current by its own clock', () => 
 });
 
 test('resolveWeeklyPathGoalSnapshot freezes with the server clock', () => {
-  const index = executableSource(readFileSync(new URL('../../functions/index.js', import.meta.url), 'utf8'));
+  const index = executableSource(functionsBackendSource());
   const wrapper = region(index, 'async function sanitizeWeeklyPathGoalProposal(', '\n}\n', 'the server freeze');
   assert.match(wrapper, /slotAuthority\.freezeWeeklyPathGoalProposal\(goal, \{[^}]*\bnow: Date\.now\(\),/);
   const callable = region(index, 'exports.resolveWeeklyPathGoalSnapshot = onCall(', '\n});', 'the freeze callable');
@@ -442,6 +443,6 @@ test('a week is frozen only under the key its class\'s week starts on', () => {
   const inputs = readFileSync(new URL('../../functions/lib/weeklyPathFreezeInputs.js', import.meta.url), 'utf8');
   assert.match(inputs, /const weekStartsOn = Number\.isFinite\(Number\(config\?\.weekStartsOn\)\)/);
   assert.match(inputs, /plannedSessions,\n\s*weekStartsOn,/);
-  const index = readFileSync(new URL('../../functions/index.js', import.meta.url), 'utf8');
+  const index = functionsBackendSource();
   assert.match(index, /slotAuthority\.freezeWeeklyPathGoalProposal\(goal, \{[\s\S]{0,400}\.\.\.freezeInputs,/);
 });

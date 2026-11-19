@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
+import { functionsBackendSource } from './helpers/functionsBackendSource.mjs';
 
 const read = (rel) => readFileSync(new URL(rel, import.meta.url), 'utf8');
 const teacher = read('../../src/components/liveChallenge/LiveChallengeTeacher.jsx');
@@ -9,7 +10,7 @@ const dryRun = read('../../src/components/liveChallenge/ChallengeDryRun.jsx');
 const student = read('../../src/components/liveChallenge/LiveChallengeStudent.jsx');
 const service = read('../../src/platform/liveChallenge/liveChallengeService.js');
 const rules = read('../../firestore.rules');
-const functionsIndex = read('../../functions/index.js');
+const functionsIndex = functionsBackendSource();
 
 /* ---------- a feature nobody can open is not shipped ---------- */
 

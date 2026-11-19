@@ -3,8 +3,9 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { getTexasStandardsForCourse } from '../../functions/shared/texasStandards.mjs';
 import { getWheelTeksForCourse, courseIdForTeks } from '../../src/platform/mastery/strandConfig.js';
+import { functionsBackendSource } from './helpers/functionsBackendSource.mjs';
 
-const functionsSource = readFileSync(new URL('../../functions/index.js', import.meta.url), 'utf8');
+const functionsSource = functionsBackendSource();
 const coverageService = readFileSync(new URL('../../src/platform/path/pathCoverageService.js', import.meta.url), 'utf8');
 const auditSource = readFileSync(new URL('../../src/components/teacher/PathCoverageAudit.jsx', import.meta.url), 'utf8');
 const appSource = readFileSync(new URL('../../src/App.jsx', import.meta.url), 'utf8');

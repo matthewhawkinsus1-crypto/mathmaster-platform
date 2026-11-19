@@ -43,6 +43,7 @@ import {
 } from '../../src/platform/performance/durableActionOutbox.js';
 import { normalizeQuestionRecord, recordQuestionAttempt } from '../../functions/shared/attemptPolicy.mjs';
 import { region } from './helpers/sourceContract.mjs';
+import { functionsBackendSource } from './helpers/functionsBackendSource.mjs';
 
 const appSource = readFileSync(new URL('../../src/App.jsx', import.meta.url), 'utf8');
 const draftStorageSource = readFileSync(new URL('../../src/questionDraftStorage.js', import.meta.url), 'utf8');
@@ -629,7 +630,7 @@ test('the deadline finalizer writes the projections an attempt updates, not just
 });
 
 test('the finalization transaction persists every projection it derived', () => {
-  const functionsSource = readFileSync(new URL('../../functions/index.js', import.meta.url), 'utf8');
+  const functionsSource = functionsBackendSource();
   const start = functionsSource.indexOf('async function finalizeOneResponseCheckpoint');
   const block = functionsSource.slice(start, functionsSource.indexOf('exports.finalizeStudentResponseCheckpoints'));
   // The question record: its summary on this path and its detail beside it (functions/lib/gradeDetailStore.js).

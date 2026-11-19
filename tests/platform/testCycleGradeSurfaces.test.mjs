@@ -6,8 +6,9 @@ import { buildStudentGradeCenter } from '../../src/platform/student/studentGrade
 import { buildStudentAssignmentsCenter } from '../../src/platform/student/studentAssignmentsCenterModel.js';
 import { buildTestCycleGradeState } from '../../functions/shared/testCycleGrade.mjs';
 import { assertCapability, componentSource, executableSource, region } from './helpers/sourceContract.mjs';
+import { functionsBackendSource } from './helpers/functionsBackendSource.mjs';
 
-const functionsIndex = readFileSync(new URL('../../functions/index.js', import.meta.url), 'utf8');
+const functionsIndex = functionsBackendSource();
 const gradeCenter = componentSource('src/components/student/StudentGradeCenter.jsx');
 const resultScreen = componentSource('src/components/student/StudentAssignmentResult.jsx');
 const assignmentsCenter = componentSource('src/components/student/StudentAssignmentsCenter.jsx');

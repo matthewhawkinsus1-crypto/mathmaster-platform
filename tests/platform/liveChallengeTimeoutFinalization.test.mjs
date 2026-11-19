@@ -3,11 +3,12 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { SUBMISSION_ARRIVAL_GRACE_MS } from '../../functions/shared/liveChallengeParity.mjs';
 import { buildRoundTimer, timerAcceptsArrival, timerFromRoom } from '../../functions/shared/liveChallengeTimer.mjs';
+import { functionsBackendSource, topLevelDeclaration } from './helpers/functionsBackendSource.mjs';
 
 const read = (path) => readFileSync(new URL(path, import.meta.url), 'utf8');
 const student = read('../../src/components/liveChallenge/LiveChallengeStudent.jsx');
 const engine = read('../../src/QuestionEngine.jsx');
-const server = read('../../functions/index.js');
+const server = functionsBackendSource();
 
 test('QuestionEngine publishes the same canonical raw payload used by secure manual Submit', () => {
   const start = engine.indexOf('// Secure callers sometimes need');
@@ -36,13 +37,16 @@ test('deadline finalization shares the manual secure submit path and has a synch
 });
 
 test('auto-finalized work gets deadline timing while retaining the bounded arrival policy', () => {
-  const submitStart = server.indexOf('exports.submitLiveChallengeResponse');
-  const submit = server.slice(submitStart, server.indexOf('// Phase 5D', submitStart));
+  const submit = topLevelDeclaration(server, 'exports.submitLiveChallengeResponse');
   assert.match(submit, /const activeRoundMs = (?:Math\.round\()?challenge\.normalizeRoundSeconds\([\s\S]*activeRoundSeconds/);
   assert.match(submit, /autoFinalizedAtRoundEnd === true[\s\S]*\? activeRoundMs/);
   // Arrival is judged inside the transaction by the room's own timer…
   assert.match(submit, /const latestTimer = roundTimer\.timerFromRoom\(latestRoom\);/);
-  assert.match(submit, /const arrival = roundTimer\.timerAcceptsArrival\(latestTimer, requestArrivedAt\);\s*if \(!arrival\.accepted\) throw/);
+  // (Each student's own timer: the room's, stretched by their extended time.
+  // This used to be matched in the Graph Feature Rush submit that followed
+  // this callable in the file, which takes the room's timer as it is.)
+  assert.match(submit, /const arrival = roundTimer\.timerAcceptsArrival\(\s*engine\.accommodations\.personalRoundTimer\(latestTimer, [^;]*requestArrivedAt,?\s*\);\s*if \(!arrival\.accepted\) throw/);
+  assert.match(topLevelDeclaration(server, 'exports.submitGraphFeatureRushAttempts'), /const arrival = roundTimer\.timerAcceptsArrival\(latestTimer, requestArrivedAt\);\s*if \(!arrival\.accepted\) throw/);
   // …which keeps the parity module's bounded transport grace, and no more.
   const timer = buildRoundTimer({ nowMs: 100_000, syncLeadMs: 0, durationMs: 30_000 });
   assert.equal(timerAcceptsArrival(timer, 130_000 + SUBMISSION_ARRIVAL_GRACE_MS).accepted, true);

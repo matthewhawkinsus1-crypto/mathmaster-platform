@@ -3,8 +3,9 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 
 import { executableSource } from './helpers/sourceContract.mjs';
+import { functionsBackendSource } from './helpers/functionsBackendSource.mjs';
 
-const functionsIndex = fs.readFileSync('functions/index.js', 'utf8');
+const functionsIndex = functionsBackendSource();
 const panel = fs.readFileSync('src/components/teacher/WeeklyPathGradePanel.jsx', 'utf8');
 const control = fs.readFileSync('src/components/teacher/WeeklyPathAutoPublish.jsx', 'utf8');
 const deploy = fs.readFileSync('scripts/deploy-assignment-v5-followup.sh', 'utf8');

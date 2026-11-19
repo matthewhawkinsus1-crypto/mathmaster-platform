@@ -25,6 +25,7 @@ import { teksSkillId } from '../../src/platform/path/skillGraph.js';
 import { statusForSkill } from '../../src/platform/path/pathMap.js';
 import { loadStudentMasteryState } from '../../src/platform/mastery/studentMasteryState.js';
 import { executableSource, region } from './helpers/sourceContract.mjs';
+import { functionsBackendSource, topLevelDeclaration } from './helpers/functionsBackendSource.mjs';
 
 const read = (path) => readFileSync(new URL(`../../${path}`, import.meta.url), 'utf8');
 
@@ -43,8 +44,8 @@ test('the rule: every Mastered condition is required', () => {
 });
 
 test('the server trigger classifies with the shared rule, not its own thresholds', () => {
-  const source = executableSource(read('functions/index.js'));
-  const trigger = region(source, 'exports.updateMyMathPathMasteryFromEvidence', 'ASSIGNMENT_AI_USAGE_COLLECTION', 'mastery trigger');
+  const source = executableSource(functionsBackendSource());
+  const trigger = topLevelDeclaration(source, 'exports.updateMyMathPathMasteryFromEvidence');
   // The trigger scores through the shared scorer, which classifies with the
   // shared rule (functions/shared/masteryScoring.mjs).
   assert.match(trigger, /await import\("\.\/shared\/masteryScoring\.mjs"\)/);

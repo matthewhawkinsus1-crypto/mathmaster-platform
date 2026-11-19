@@ -26,8 +26,9 @@ import {
 import { CHECKPOINT_STATUS } from '../../functions/shared/responseCheckpointSchema.mjs';
 import { buildResponseCheckpointAction } from '../../src/platform/performance/responseCheckpoint.js';
 import { normalizeQuestionRecord } from '../../functions/shared/attemptPolicy.mjs';
+import { functionsBackendSource, topLevelDeclaration } from './helpers/functionsBackendSource.mjs';
 
-const functionsSource = readFileSync(new URL('../../functions/index.js', import.meta.url), 'utf8');
+const functionsSource = functionsBackendSource();
 const appSource = readFileSync(new URL('../../src/App.jsx', import.meta.url), 'utf8');
 const engineSource = readFileSync(new URL('../../src/QuestionEngine.jsx', import.meta.url), 'utf8');
 const workspaceStoreSource = readFileSync(new URL('../../src/platform/persistence/workspaceDraftStore.js', import.meta.url), 'utf8');
@@ -782,13 +783,8 @@ test('a checkpoint with no provable close holds, and leaves the due query while 
 });
 
 test('a manual section close expedites only that assignment, class and section', () => {
-  const start = functionsSource.indexOf('exports.expediteCheckpointsOnSectionClose');
-  // Bound to the trigger itself. Ending the slice at the next unrelated
-  // declaration made this assertion fail the moment anything was inserted
-  // between them, which says nothing about what the trigger writes.
-  const block = functionsSource.slice(start, functionsSource.indexOf('\nconst closedSectionKeys', start) === -1
-    ? functionsSource.indexOf('\n/* ===', start)
-    : functionsSource.indexOf('\n/* ===', start));
+  // Bound to the trigger itself: the statement that defines it.
+  const block = topLevelDeclaration(functionsSource, 'exports.expediteCheckpointsOnSectionClose');
   assert.match(block, /where\("assignmentId", "==", assignmentId\)/);
   assert.match(block, /where\("classId", "==", entry\.classId\)/);
   assert.match(block, /where\("activityRole", "==", entry\.activityRole\)/);

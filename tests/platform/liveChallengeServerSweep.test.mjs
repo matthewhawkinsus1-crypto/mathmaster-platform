@@ -30,6 +30,7 @@ import {
 } from '../../functions/shared/liveChallengeServerSweep.mjs';
 import { ROUND_CLOSE_AFTER_DEADLINE_MS, hostEndedNote } from '../../src/platform/liveChallenge/challengeShellModel.js';
 import { SUBMISSION_ARRIVAL_GRACE_MS } from '../../functions/shared/liveChallengeParity.mjs';
+import { functionsBackendSource } from './helpers/functionsBackendSource.mjs';
 
 const NOW = Date.UTC(2026, 9, 16, 15, 0, 0);
 const open = (endsAtMs, extra = {}) => ({ status: 'running', roundState: 'open', currentRound: 2, roundVersion: 3, endsAt: endsAtMs, ...extra });
@@ -301,7 +302,7 @@ test("the host's heartbeat is written at most once a minute and ages out after t
 
 /* ---------- wiring: the scheduler goes through the console's own commands ---------- */
 
-const index = readFileSync(new URL('../../functions/index.js', import.meta.url), 'utf8');
+const index = functionsBackendSource();
 
 test("the scheduled sweep is private, runs every minute, and uses the console's own close and finish", () => {
   const scheduler = region(index, 'exports.closeOverdueLiveChallengeRounds = onSchedule({', '\n});', 'the scheduler');

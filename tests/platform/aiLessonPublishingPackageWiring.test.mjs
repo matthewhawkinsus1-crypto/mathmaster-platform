@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import { compileAuthoringIntentV5 } from '../../src/platform/contract/authoringIntentV5.js';
+import { functionsBackendSource } from './helpers/functionsBackendSource.mjs';
 
 const read = (path) => fs.readFileSync(path, 'utf8');
 
@@ -66,7 +67,7 @@ test('Classroom manager automatically generates, uploads and publishes the V5 no
 });
 
 test('server stores generated PDF in Firebase Storage and saves its reusable link', () => {
-  const src = read('functions/index.js');
+  const src = functionsBackendSource();
   assert.match(src, /getStorage/);
   assert.match(src, /exports\.storeLessonNotesPdf = onCall/);
   assert.match(src, /classroomResources\/\$\{teacherUid\}/);

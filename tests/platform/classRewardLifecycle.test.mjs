@@ -2,13 +2,14 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { region, executableSource } from './helpers/sourceContract.mjs';
+import { functionsBackendSource } from './helpers/functionsBackendSource.mjs';
 
 // Class reward requests across the student lifecycle. The behaviour is
 // exercised against the emulator in tests/integration/classRewardsLifecycle.test.mjs;
 // these contracts pin the wiring that suite cannot reach (functions/index.js
 // is not loaded by the emulator suites).
 
-const functionsSource = readFileSync(new URL('../../functions/index.js', import.meta.url), 'utf8');
+const functionsSource = functionsBackendSource();
 const storeSource = readFileSync(new URL('../../functions/lib/classRewardStore.js', import.meta.url), 'utf8');
 
 test('a teacher handover re-points the student\'s class reward requests with the wallet', () => {

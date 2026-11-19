@@ -21,6 +21,7 @@ import { readFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 
 import { region } from './sourceContract.mjs';
+import { functionsBackendSource } from './functionsBackendSource.mjs';
 
 const require = createRequire(import.meta.url);
 export const authLib = require('../../../functions/lib/auth.js');
@@ -317,7 +318,7 @@ export class HttpsError extends Error {
   }
 }
 
-const SERVER = readFileSync(new URL('../../../functions/index.js', import.meta.url), 'utf8');
+const SERVER = functionsBackendSource();
 const constant = (name) => {
   const match = SERVER.match(new RegExp(`^const ${name} = "([^"]+)";`, 'm'));
   assert.ok(match, `functions/index.js no longer defines const ${name}; update serverCallableHarness.mjs`);

@@ -2,11 +2,12 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
 import { readFileSync } from 'node:fs';
+import { functionsBackendSource } from './helpers/functionsBackendSource.mjs';
 
 const require = createRequire(import.meta.url);
 const auth = require('../../functions/lib/auth.js');
 const admin = require('../../functions/lib/admin.js');
-const functionsSource = readFileSync(new URL('../../functions/index.js', import.meta.url), 'utf8');
+const functionsSource = functionsBackendSource();
 const firestoreRules = readFileSync(new URL('../../firestore.rules', import.meta.url), 'utf8');
 const rolePolicy = await import('../../functions/shared/rolePolicy.mjs');
 

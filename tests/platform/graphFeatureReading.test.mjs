@@ -20,9 +20,10 @@ import {
 } from '../../functions/shared/graphFeatureReading.mjs';
 import { publicSolutionDocument, roundSolutionRecord } from '../../functions/shared/liveChallengeSolutionReveal.mjs';
 import { PROJECTOR_GUIDE_STEPS, PROJECTOR_SOLUTION_STEPS, READING_GUIDE_TITLE, SOLUTION_TITLE, projectorStepLimit, projectorSteps, solutionTitle } from '../../src/platform/liveChallenge/challengeSolutionModel.js';
+import { functionsBackendSource } from './helpers/functionsBackendSource.mjs';
 
 const read = (relative) => readFileSync(new URL(`../../${relative}`, import.meta.url), 'utf8');
-const index = read('functions/index.js');
+const index = functionsBackendSource();
 const ALL_FEATURES = ['xIntercept', 'yIntercept', 'vertex', 'maximum', 'minimum'];
 const DNE = /Does Not Exist/;
 const DNE_LINE = /^If the graph has no .+, choose Does Not Exist\.$/;

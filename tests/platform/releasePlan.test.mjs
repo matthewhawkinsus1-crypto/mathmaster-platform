@@ -32,6 +32,7 @@ import {
 import { executeReleasePlan } from '../../scripts/lib/releaseExecutor.mjs';
 import { listDeployableFunctions } from '../../scripts/lib/functionsInventory.mjs';
 import {
+  STATEMENT_LEVEL_MODULES,
   buildFunctionsImportGraph,
   fsSource,
   mapSource,
@@ -39,6 +40,7 @@ import {
 } from '../../scripts/lib/functionsImportGraph.mjs';
 import { buildDeployProvenance, provenanceLabels, sanitizeLabelValue } from '../../scripts/write-functions-provenance.mjs';
 import { region } from './helpers/sourceContract.mjs';
+import { functionsBackendSource } from './helpers/functionsBackendSource.mjs';
 
 const HEAD = 'c0ffee00c0ffee00c0ffee00c0ffee00c0ffee00';
 const OTHER = 'decade00decade00decade00decade00decade00';
@@ -484,7 +486,7 @@ test('the inventory is the real entry point, including the functions index.js do
   const { entry, functions } = listDeployableFunctions();
   const names = functions.map((fn) => fn.name);
   assert.equal(entry, JSON.parse(readFileSync(new URL('../../functions/package.json', import.meta.url), 'utf8')).main);
-  const grepped = new Set((readFileSync(new URL('../../functions/index.js', import.meta.url), 'utf8').match(/^exports\.[A-Za-z0-9_]+/gm) || []).map((line) => line.slice(8)));
+  const grepped = new Set((functionsBackendSource().match(/^exports\.[A-Za-z0-9_]+/gm) || []).map((line) => line.slice(8)));
   for (const name of grepped) assert.ok(names.includes(name), `${name} is exported by index.js but not deployable`);
   for (const name of ['syncSectionGradeToClassroom', 'reconcileClassroomSectionGrades', 'getLiveChallengeExperience', 'authorHonorsAssignmentWithGemini']) {
     assert.ok(names.includes(name), `${name} is defined outside index.js and must be deployed too`);
@@ -1027,19 +1029,160 @@ test('a change to one leaf grader deploys the functions that bundle it', () => {
   selection.functions.forEach((name) => assert.match(selection.reasons[name], /^imports shared\/serverGrading\/gradingResult\.mjs via /, name));
 });
 
-test('a change inside one export of the real index.js deploys that export, and the platform entry follows index.js through base', () => {
+test('a change inside one export of a real domain module deploys that export, and the platform entry follows index.js through base', () => {
   const graph = real();
-  const file = 'functions/index.js';
-  const text = readFileSync(new URL('../../functions/index.js', import.meta.url), 'utf8');
   const inventory = realInventory();
-  // The real file, with one export's value wrapped: `exports.X = (0, value)`.
-  const wrap = (name) => {
+  // index.js merges its domain modules into its exports, so each is read
+  // statement by statement. The module that defines `exports.NAME`:
+  const moduleOf = (name) => graph.entryFiles().find((file) => /Functions\.js$/.test(file) && graph.entryAnalysis(file).byKey.has(`exports.${name}`));
+  // That module, with the export's value wrapped: `exports.X = (0, value)`.
+  const reached = (name) => {
+    const file = moduleOf(name);
+    assert.ok(file, `a domain module defines ${name}`);
+    const text = readFileSync(new URL(`../../${file}`, import.meta.url), 'utf8');
     const { start, end } = graph.entryAnalysis(file).byKey.get(`exports.${name}`).node.expression.right;
-    return `${text.slice(0, start)}(0, ${text.slice(start, end)})${text.slice(end)}`;
+    const before = `${text.slice(0, start)}(0, ${text.slice(start, end)})${text.slice(end)}`;
+    const selection = selectFunctionsForChange({ graph, inventory, changes: [{ file, before, after: text }] });
+    assert.deepEqual(selection.all, []);
+    return selection;
   };
-  const reached = (name) => selectFunctionsForChange({ graph, inventory, changes: [{ file, before: wrap(name), after: text }] });
   assert.deepEqual(reached('queueClassroomGradeCheckpoints').functions, ['queueClassroomGradeCheckpoints']);
+  // platformEntry.js's publishAssignmentToClassrooms wraps the one a domain
+  // module defines, which it reads from index.js as `base.publish...`.
   const wrapped = reached('publishAssignmentToClassrooms');
   assert.deepEqual(wrapped.functions, ['publishAssignmentToClassrooms']);
-  assert.match(wrapped.reasons.publishAssignmentToClassrooms, /^uses exports\.publishAssignmentToClassrooms in index\.js, which changed, via legacyPublishAssignmentToClassrooms in platformEntry\.js/);
+  assert.match(wrapped.reasons.publishAssignmentToClassrooms, /^uses exports\.publishAssignmentToClassrooms in \w+Functions\.js, which changed, via legacyPublishAssignmentToClassrooms in platformEntry\.js/);
+});
+
+/* ---------------------------------------------------------------------------
+ * index.js split into domain modules (2026-11): the plan stays per function.
+ * ------------------------------------------------------------------------- */
+
+const splitFixture = {
+  'firebase.json': JSON.stringify({ functions: [{ source: 'functions', codebase: 'default' }] }),
+  'functions/package.json': JSON.stringify({ main: 'index.js', type: 'commonjs' }),
+  'functions/index.js': [
+    "const { setGlobalOptions } = require('firebase-functions/v2');",
+    "setGlobalOptions({ memory: '512MiB' });",
+    'Object.assign(',
+    '  exports,',
+    "  require('./gradingFunctions'),",
+    "  require('./pathFunctions'),",
+    ');',
+  ].join('\n'),
+  'functions/gradingFunctions.js': [
+    "const { onCall } = require('firebase-functions/v2/https');",
+    "const { rosterFor, LIMITS } = require('./functionsCommon');",
+    'const PAGE = 20;',
+    'exports.submit = onCall((request) => rosterFor(request).slice(0, PAGE));',
+    'exports.grade = onCall((request) => Math.min(request.data.score, LIMITS.max));',
+  ].join('\n'),
+  'functions/pathFunctions.js': [
+    "const { onCall } = require('firebase-functions/v2/https');",
+    "const { pathFor } = require('./functionsCommon');",
+    'exports.nextQuestion = onCall((request) => pathFor(request));',
+    "exports.quiet = onCall(() => 'quiet');",
+  ].join('\n'),
+  'functions/functionsCommon.js': [
+    "const roster = require('./lib/roster.js');",
+    'let pathModule = null;',
+    "function pathRules() { if (!pathModule) pathModule = require('./lib/path.js'); return pathModule; }",
+    'function rosterFor(request) { return roster.list(request); }',
+    'const LIMITS = Object.freeze({ max: 100 });',
+    'function pathFor(request) { return pathRules().next(request); }',
+    'module.exports = {',
+    '  rosterFor,',
+    '  LIMITS,',
+    '  pathFor,',
+    '};',
+  ].join('\n'),
+  'functions/lib/roster.js': 'exports.list = () => [];',
+  'functions/lib/path.js': 'exports.next = () => 1;',
+};
+const splitChange = (edits, { statementLevelModules } = {}) => {
+  const before = mapSource(splitFixture);
+  const after = mapSource({ ...splitFixture, ...edits });
+  const graph = buildFunctionsImportGraph({ source: after, ...(statementLevelModules ? { statementLevelModules } : {}) });
+  return selectFunctionsForChange({
+    graph,
+    changes: Object.keys(edits).map((file) => ({ file, before: before.read(file), after: after.read(file) })),
+  });
+};
+const splitEdit = (file, from, to) => {
+  assert.ok(splitFixture[file].includes(from), `${file} has ${from}`);
+  return { [file]: splitFixture[file].replace(from, to) };
+};
+
+test('a domain module index.js loads is read by statement: a change reaches the exports that use it', () => {
+  const sure = (edits) => {
+    const selection = splitChange(edits);
+    assert.deepEqual(selection.all, []);
+    return selection;
+  };
+  // One export's own code, in the module that defines it.
+  const own = sure(splitEdit('functions/gradingFunctions.js', 'request.data.score', 'request.data.points'));
+  assert.deepEqual(own.functions, ['grade']);
+  assert.equal(own.reasons.grade, 'its own code in gradingFunctions.js changed');
+  // A constant of the module: the export that uses it, not its neighbour.
+  assert.deepEqual(sure(splitEdit('functions/gradingFunctions.js', 'const PAGE = 20;', 'const PAGE = 25;')).functions, ['submit']);
+  // A new export in a domain module ships, and nothing else does.
+  const added = sure({ 'functions/pathFunctions.js': `${splitFixture['functions/pathFunctions.js']}\nexports.fresh = onCall(() => 'new');` });
+  assert.deepEqual(added.functions, ['fresh']);
+});
+
+test('the common helpers are read by statement: a helper reaches the functions that use that helper', () => {
+  const sure = (edits) => {
+    const selection = splitChange(edits);
+    assert.deepEqual(selection.all, []);
+    return selection;
+  };
+  const common = 'functions/functionsCommon.js';
+  // A helper one domain uses.
+  const roster = sure(splitEdit(common, 'roster.list(request)', 'roster.list(request, 1)'));
+  assert.deepEqual(roster.functions, ['submit']);
+  assert.match(roster.reasons.submit, /^uses rosterFor\(\) in functionsCommon\.js, which changed/);
+  // A constant read through a member (`LIMITS.max`) is that constant, not the whole file.
+  assert.deepEqual(sure(splitEdit(common, 'max: 100', 'max: 110')).functions, ['grade']);
+  // A helper of a helper, and the lazy loader it calls.
+  assert.deepEqual(sure(splitEdit(common, 'pathRules().next(request)', 'pathRules().next(request, 1)')).functions, ['nextQuestion']);
+  assert.deepEqual(sure(splitEdit(common, "require('./lib/path.js')", "require('./lib/path.js', 1)")).functions, ['nextQuestion']);
+  // A file only one helper loads reaches that helper's functions.
+  assert.deepEqual(sure({ 'functions/lib/roster.js': 'exports.list = () => [1];' }).functions, ['submit']);
+  assert.deepEqual(sure({ 'functions/lib/path.js': 'exports.next = () => 2;' }).functions, ['nextQuestion']);
+  // Read as one node instead, any helper reaches every function that takes any helper.
+  const whole = splitChange(splitEdit(common, 'roster.list(request)', 'roster.list(request, 1)'), { statementLevelModules: [] });
+  assert.deepEqual(whole.all, []);
+  assert.deepEqual(whole.functions, ['grade', 'nextQuestion', 'submit']);
+});
+
+test('a statement of the common helpers that acts at load reaches every function', () => {
+  const common = 'functions/functionsCommon.js';
+  const acted = splitChange({ [common]: `${splitFixture[common]}\nrequire('./lib/roster.js').list();` });
+  assert.equal(acted.all.length, 1);
+  assert.match(acted.all[0], /a top-level statement of functionsCommon\.js changed \(line 12\), and every function runs it/);
+  assert.deepEqual(acted.functions, []);
+});
+
+test('the real common helpers are read by statement', () => {
+  const graph = real();
+  const inventory = realInventory();
+  const [file] = STATEMENT_LEVEL_MODULES;
+  assert.ok(graph.isEntry(file), `${file} is read statement by statement`);
+  const text = readFileSync(new URL(`../../${file}`, import.meta.url), 'utf8');
+  const analysis = graph.entryAnalysis(file);
+  assert.deepEqual(analysis.globals, [], 'its top-level code only declares');
+  // Each exported helper: wrap its body's first statement in a block, and the
+  // plan is the functions that use that helper. Across all of them, no helper
+  // reaches every function, and most reach a small part of the fleet.
+  const helpers = analysis.statements.filter((record) => record.node.type === 'FunctionDeclaration');
+  assert.ok(helpers.length > 20, 'the real file was read');
+  const sizes = helpers.map((record) => {
+    const at = record.node.body.start + 1;
+    const selection = selectFunctionsForChange({ graph, inventory, changes: [{ file, before: `${text.slice(0, at)} void 0; ${text.slice(at)}`, after: text }] });
+    assert.deepEqual(selection.all, [], record.key);
+    return selection.functions.length;
+  });
+  assert.ok(Math.max(...sizes) < inventory.length, 'no helper is every function\'s');
+  const small = sizes.filter((size) => size <= inventory.length / 4).length;
+  assert.ok(small >= sizes.length / 2, `${small} of ${sizes.length} helpers reach at most a quarter of the functions`);
 });

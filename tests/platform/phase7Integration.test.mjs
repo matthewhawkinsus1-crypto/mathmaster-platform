@@ -15,6 +15,7 @@ import { buildDeterministicHonorsExtension } from '../../src/platform/rigor/hono
 import { createDemoSeed, DEMO_STORAGE_KEY } from '../../src/demo/demoExperienceData.js';
 import { assignmentLibrarySource } from './helpers/splitComponentSource.mjs';
 import { appAndTeacherWorkspaceSource } from './helpers/appScreens.mjs';
+import { functionsBackendSource } from './helpers/functionsBackendSource.mjs';
 
 const require = createRequire(import.meta.url);
 const serverRigor = require('../../functions/lib/rigorPolicy.js');
@@ -24,7 +25,7 @@ const teacherWorkspaceSource = readFileSync(new URL('../../src/app/teacher/Teach
 const sidebarSource = readFileSync(new URL('../../src/TeacherSidebar.jsx', import.meta.url), 'utf8');
 const adminUiSource = readFileSync(new URL('../../src/SignInAccess.jsx', import.meta.url), 'utf8');
 const librarySource = assignmentLibrarySource();
-const functionsSource = readFileSync(new URL('../../functions/index.js', import.meta.url), 'utf8');
+const functionsSource = functionsBackendSource();
 const firestoreRules = readFileSync(new URL('../../firestore.rules', import.meta.url), 'utf8');
 
 test('course rigor is class-level and defaults safely to Standard', () => {

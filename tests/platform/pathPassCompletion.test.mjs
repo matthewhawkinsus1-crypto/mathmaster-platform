@@ -8,6 +8,7 @@ import {
   normalizeCoursePathPassProgress,
   summarizeCoursePathPasses,
 } from '../../src/platform/path/pathPassPresentation.js';
+import { functionsBackendSource } from './helpers/functionsBackendSource.mjs';
 
 test('first completed course Path pass is visibly distinct from mastery', () => {
   const view = describeCoursePathPass({ passesCompleted: 1 }, { mastered: false });
@@ -75,7 +76,7 @@ test('student Path map receives server-owned pass progress and renders completio
 });
 
 test('server records course pass level and asks later passes for harder work', () => {
-  const source = readFileSync('functions/index.js', 'utf8');
+  const source = functionsBackendSource();
   assert.match(source, /const COURSE_PATH_MAX_LEVEL = 3/);
   assert.match(source, /exports\.getMyMathPathSkillProgress/);
   assert.match(source, /coursePassLevel: assessmentFramework \|\| sessionKind === "retentionProbe" \? null : coursePassLevel/);
@@ -84,7 +85,7 @@ test('server records course pass level and asks later passes for harder work', (
 });
 
 test('one broken higher-level family no longer strands the entire skill', () => {
-  const source = readFileSync('functions/index.js', 'utf8');
+  const source = functionsBackendSource();
   assert.match(source, /while \(remainingCandidates\.length\)/);
   assert.match(source, /Skipping Path family after runtime preparation failure/);
   assert.match(source, /all-candidate-preparations-failed/);

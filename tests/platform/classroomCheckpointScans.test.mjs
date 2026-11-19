@@ -26,6 +26,7 @@ import { fileURLToPath } from 'node:url';
 
 import { checkpointSchedulerFirestore } from './helpers/checkpointSchedulerFirestore.mjs';
 import { region } from './helpers/sourceContract.mjs';
+import { functionsBackendSource } from './helpers/functionsBackendSource.mjs';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
 const requireFromFunctions = createRequire(path.join(root, 'functions/index.js'));
@@ -229,7 +230,7 @@ test('each scheduler keeps exactly the publications its old in-code filter kept'
 // 488 links did on Nov 11, 2026. A writer that left it out would make the
 // scheduler skip that publication's checkpoints without a sign.
 test('every writer of a Classroom publication stores gradePassbackEnabled as a boolean', () => {
-  const index = read('functions/index.js');
+  const index = functionsBackendSource();
   const publish = region(index, 'async function publishOneCourse({', 'const claim = await claimPublication(linkRef, baseRecord);', 'publishOneCourse');
   assert.match(publish, /const baseRecord = \{[^}]*\bgradePassbackEnabled: gradePassbackEnabled !== false,/);
   // The claim writes that record before finishPublication can mark it published.

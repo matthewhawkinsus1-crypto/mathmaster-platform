@@ -41,11 +41,12 @@ import { buildSupportProjection } from '../../functions/shared/supportProfileMod
 import { describeTeacherRow, teacherActionsForRow } from '../../src/platform/teacher/testCycleTeacherRows.js';
 import { fewerItemsFormModel } from '../../src/platform/teacher/testCycleTeacherTools.js';
 import { componentSource, executableSource, region } from './helpers/sourceContract.mjs';
+import { functionsBackendSource } from './helpers/functionsBackendSource.mjs';
 
 const require_ = createRequire(import.meta.url);
 const secureExam = require_('../../functions/lib/secureExam.js');
 const testCycleLib = require_('../../functions/lib/testCycle.js');
-const functionsIndex = readFileSync(new URL('../../functions/index.js', import.meta.url), 'utf8');
+const functionsIndex = functionsBackendSource();
 const read = (path) => readFileSync(new URL(`../../${path}`, import.meta.url), 'utf8');
 
 /* --- fixture: an 8-question Test over three skills ----------------------------- */

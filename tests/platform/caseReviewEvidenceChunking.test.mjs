@@ -21,6 +21,7 @@ import {
   validateCaseEvidenceRequest,
 } from '../../functions/shared/caseReviewEvidence.mjs';
 import { executableSource, region } from './helpers/sourceContract.mjs';
+import { functionsBackendSource } from './helpers/functionsBackendSource.mjs';
 
 const FIRESTORE_IN_LIMIT = 30;
 const ids = (count) => Array.from({ length: count }, (_, index) => `assignment-${String(index).padStart(3, '0')}`);
@@ -57,7 +58,7 @@ test('a request is refused above the limit the chunking was sized for, counting 
 
 test('the callable runs every `in` query per chunk, never over the whole request', () => {
   const callable = region(
-    executableSource(readFileSync(new URL('../../functions/index.js', import.meta.url), 'utf8')),
+    executableSource(functionsBackendSource()),
     'exports.loadStudentCaseEvidence',
     'exports.overrideStudentResponseGrade',
     'loadStudentCaseEvidence',
@@ -93,7 +94,7 @@ test('a chunk cut off at its share of a cap is truncation even when the total is
 
 test('the callable reports Recovery records cut short per chunk, from the same share it queries with', () => {
   const callable = region(
-    executableSource(readFileSync(new URL('../../functions/index.js', import.meta.url), 'utf8')),
+    executableSource(functionsBackendSource()),
     'exports.loadStudentCaseEvidence',
     'exports.overrideStudentResponseGrade',
     'loadStudentCaseEvidence',

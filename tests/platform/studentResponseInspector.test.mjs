@@ -29,6 +29,7 @@ import {
   browserCallableServiceIds,
   firebaseFunctionTargets,
 } from '../../scripts/response-inspector-deploy-surface.mjs';
+import { functionsBackendSource, topLevelDeclaration } from './helpers/functionsBackendSource.mjs';
 
 const { weightedQuestionTotals } = questionWeights;
 
@@ -480,7 +481,7 @@ test('response inspection evidence id is deterministic by assignment and questio
 });
 
 test('server writes and reads response inspection evidence outside the client-writable attempt record', () => {
-  const source = fs.readFileSync(new URL('../../functions/index.js', import.meta.url), 'utf8');
+  const source = functionsBackendSource();
   assert.match(source, /RESPONSE_INSPECTION_EVIDENCE_COLLECTION = "responseInspectionEvidence"/);
   assert.match(source, /built\.gradingEvidenceDocumentId/);
   assert.match(source, /finalization\.gradingEvidenceDocumentId/);
@@ -497,20 +498,15 @@ test('server writes and reads response inspection evidence outside the client-wr
 });
 
 test('generic response correction refuses Secure Test Cycle assignments', () => {
-  const source = fs.readFileSync(new URL('../../functions/index.js', import.meta.url), 'utf8');
-  const start = source.indexOf('exports.inspectStudentResponse');
-  const end = source.indexOf('function releaseSignalReason', start);
-  const region = source.slice(start, end);
+  const source = functionsBackendSource();
+  const region = topLevelDeclaration(source, 'exports.inspectStudentResponse');
   assert.match(region, /assessmentPolicy\?\.mode[\s\S]*testCycle/);
   assert.match(region, /dedicated assessment correction workflow/);
 });
 
 test('override endpoint uses protected projection and does not append mastery evidence', () => {
-  const source = fs.readFileSync(new URL('../../functions/index.js', import.meta.url), 'utf8');
-  const start = source.indexOf('exports.overrideStudentResponseGrade');
-  const end = source.indexOf('function releaseSignalReason', start);
-  assert.ok(start >= 0 && end > start);
-  const region = source.slice(start, end);
+  const source = functionsBackendSource();
+  const region = topLevelDeclaration(source, 'exports.overrideStudentResponseGrade');
   assert.match(region, /teacherGradeOverridesByAssignment/);
   assert.match(region, /gradeOverrideAudits/);
   assert.match(region, /correctedDolProjection/);
@@ -521,7 +517,7 @@ test('override endpoint uses protected projection and does not append mastery ev
 });
 
 test('later DOL ingestion and deadline finalization preserve authoritative teacher overrides', () => {
-  const source = fs.readFileSync(new URL('../../functions/index.js', import.meta.url), 'utf8');
+  const source = functionsBackendSource();
   const ingestionStart = source.indexOf('async function ingestOneSubmission');
   const ingestionEnd = source.indexOf('exports.ingestStudentSubmissions', ingestionStart);
   const ingestionRegion = source.slice(ingestionStart, ingestionEnd);
@@ -536,7 +532,7 @@ test('later DOL ingestion and deadline finalization preserve authoritative teach
 });
 
 test('Classroom passback wakes on authoritative override changes and applies them by question index', () => {
-  const source = fs.readFileSync(new URL('../../functions/index.js', import.meta.url), 'utf8');
+  const source = functionsBackendSource();
   const start = source.indexOf('exports.syncGradeToClassroom');
   const end = source.indexOf('exports.queueReleasedAssessmentGrades', start);
   assert.ok(start >= 0 && end > start);

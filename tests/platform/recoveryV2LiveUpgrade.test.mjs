@@ -35,6 +35,7 @@ import { serverRecoveryKeyCheck } from '../../functions/shared/recoveryCertifica
 import { flattenAssignmentQuestions } from '../../functions/shared/recoveryContentPlan.mjs';
 import { recoverySourceSignature } from '../../functions/shared/recoveryContent.mjs';
 import { ALGEBRA1_TRANSFORMATIONS_RECOVERY_V2 as MIGRATION, matchPreparedRecoveryMigration } from '../../functions/shared/recoveryMigrations.mjs';
+import { functionsBackendSource } from './helpers/functionsBackendSource.mjs';
 
 const LESSON = compileTeacherImport(readFileSync(new URL(`../../${MIGRATION.lessonFile}`, import.meta.url), 'utf8')).model;
 const TITLE = LESSON.assignmentV5.assignment.title;
@@ -378,7 +379,7 @@ test('the operator script refuses to write without a project, the approver, and 
  * ------------------------------------------------------------------------- */
 
 test('the commit callable re-plans inside its transaction, refuses a moved plan, and writes only recoveryContent and the audit event', () => {
-  const index = readFileSync(new URL('../../functions/index.js', import.meta.url), 'utf8');
+  const index = functionsBackendSource();
   const commit = index.slice(index.indexOf('exports.commitRecoveryContentUpgrade = onCall('), index.indexOf('/*\n * AUTHORITATIVE TEACHER QUESTION REPAIR.'));
   const previewCallable = index.slice(index.indexOf('exports.previewRecoveryContentUpgrade = onCall('), index.indexOf('exports.commitRecoveryContentUpgrade = onCall('));
   assert.ok(commit.length > 500 && previewCallable.length > 300, 'both callables found');

@@ -3,6 +3,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import test from 'node:test';
 import { fileURLToPath } from 'node:url';
+import { functionsBackendSource } from './helpers/functionsBackendSource.mjs';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const root = path.resolve(here, '../..');
@@ -33,7 +34,7 @@ test('Weekly Path teacher view reads secure completed sessions and shows a weekl
   const app = read('src/App.jsx');
   const store = read('src/platform/path/pathStore.js');
   const controls = read('src/components/teacher/WeeklyPathControls.jsx');
-  const functions = read('functions/index.js');
+  const functions = functionsBackendSource();
 
   assert.match(app, /fetchTeacherWeeklyPathCompletions/);
   // The Weekly Path panel is mounted by the teacher's screen, its own module since G2.

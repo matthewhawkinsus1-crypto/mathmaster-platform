@@ -59,6 +59,7 @@ import {
   safeStudentIdKey,
 } from '../../scripts/student-identity-repair.mjs';
 import { region } from './helpers/sourceContract.mjs';
+import { functionsBackendSource } from './helpers/functionsBackendSource.mjs';
 
 const require = createRequire(import.meta.url);
 const authLib = require('../../functions/lib/auth.js');
@@ -192,7 +193,7 @@ class FakeFirestore {
 // are cut out the same way, so authorization runs exactly as deployed.
 // ---------------------------------------------------------------------------
 
-const SERVER = read('functions/index.js');
+const SERVER = functionsBackendSource();
 const CLASS_COLLECTION = SERVER.match(/^const CLASS_COLLECTION = "([^"]+)";/m)?.[1];
 class HttpsError extends Error {
   constructor(code, message) {

@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import { readWorkflow, runsOnPullRequest } from './helpers/ciWorkflows.mjs';
+import { functionsBackendSource } from './helpers/functionsBackendSource.mjs';
 
 const CURRENT_RELEASE = 'tsia2-v2.1-authentic-language';
 
@@ -207,7 +208,7 @@ test('TSIA2 release marker is not written when stale-state mutation fails', asyn
 });
 
 test('built-in Path seed refresh retires stale TSIA2 runtime state only after bank and coverage refresh succeed', () => {
-  const source = fs.readFileSync(new URL('../../functions/index.js', import.meta.url), 'utf8');
+  const source = functionsBackendSource();
   assert.match(source, /\.\/shared\/pathBankRelease\.mjs/);
   const removeIndex = source.indexOf('removeSupersededBuiltInPathSeedRecords(db, taggedItems)');
   const coverageIndex = source.indexOf('rebuildStoredPathCoverage(db)', removeIndex);

@@ -3,8 +3,9 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 
 import { deriveRoundTallies, planSecondChanceRounds } from '../../functions/shared/liveChallenge.mjs';
+import { functionsBackendSource, topLevelDeclaration } from './helpers/functionsBackendSource.mjs';
 
-const code = readFileSync(new URL('../../functions/index.js', import.meta.url), 'utf8')
+const code = functionsBackendSource()
   .replace(/\/\*[\s\S]*?\*\//g, '')
   .split('\n')
   .map((line) => line.replace(/\/\/.*$/, ''))
@@ -15,8 +16,7 @@ const player = (answeredRounds, missedRounds = []) => ({ answeredRounds, missedR
 /* ---------- the hot document is gone ---------- */
 
 test('no submission writes a room-level tally', () => {
-  const submit = code.slice(code.indexOf('exports.submitLiveChallengeResponse'));
-  const body = submit.slice(0, submit.indexOf('exports.', 30));
+  const body = topLevelDeclaration(code, 'exports.submitLiveChallengeResponse');
   // One document taking a write per student per round is the shape this change
   // removed. A counter reappearing here brings the hot spot back.
   assert.doesNotMatch(body, /roundAnswers:\s*\{\s*\[String\(submittedRound\)\]/);
@@ -24,8 +24,7 @@ test('no submission writes a room-level tally', () => {
 });
 
 test('a new room is not created with counters nothing maintains', () => {
-  const create = code.slice(code.indexOf('exports.createLiveChallenge'));
-  const body = create.slice(0, create.indexOf('exports.', 30));
+  const body = topLevelDeclaration(code, 'exports.createLiveChallenge');
   assert.doesNotMatch(body, /roundMisses:\s*\{\},/);
   assert.doesNotMatch(body, /roundAnswers:\s*\{\},/);
 });
