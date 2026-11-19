@@ -27,6 +27,7 @@ import {
   supersessionCardSummary,
   withoutSupersessionLink,
 } from './platform/assignments/questionSupersession.js';
+import { placeQuestionCopy } from './platform/assignments/questionCopyPlacement.js';
 import { buildAssignmentV5PreflightModel } from './platform/preflight/assignmentV5PreflightModel.js';
 import { preflightClassSizeFor } from './platform/preflight/questionPreflightFindings.js';
 import useQuestionPreflightFindings from './components/teacher/useQuestionPreflightFindings.js';
@@ -295,10 +296,13 @@ export default function AssignmentQuestionEditor({ assignment, hasLiveProtection
       questionId: newQuestionId(),
       teacherExcluded: false,
     };
-    setQuestions((current) => {
-      if (hasLiveProtection) return [...current, duplicate];
-      return [...current.slice(0, index + 1), duplicate, ...current.slice(index + 1)];
-    });
+    // Shown where Save stores it, so the cards, Pre-Flight's findings and the
+    // saved order agree: after its source, or once students have records,
+    // after every stored question, in a section of its own role if it needs
+    // one, so that no stored index moves (questionCopyPlacement.js).
+    const placed = placeQuestionCopy({ questions, index, copy: duplicate, assignment, appendedSections, protectHistory: hasLiveProtection });
+    setQuestions(placed.questions);
+    setAppendedSections(placed.appendedSections);
   };
 
   const moveQuestion = (index, direction) => {

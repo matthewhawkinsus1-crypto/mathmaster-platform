@@ -25,6 +25,9 @@
 //           away once Pre-Flight has run again; Save is never refused for them
 //   FITS    nothing pushes the page sideways or is cut, at 1440×900, 390×844,
 //           200% text, 320 px wide, and 320 px at 200% text
+//   NUMBERS on an assignment with student records, a Duplicate is the last
+//           card, every card's findings name its own number, and Save stores
+//           the cards' order with no stored question moved
 //
 // and on a large assignment (82 questions) it measures what a keystroke in a
 // grade weight costs, and the one Pre-Flight run after the teacher pauses, at
@@ -59,6 +62,8 @@ const {
 } = await import(`${repo}/tests/platform/helpers/editorPreflightFixtures.mjs`);
 const { editorPreflightFindings, preflightFindingsCountText } = await import(`${repo}/src/platform/preflight/questionPreflightFindings.js`);
 const { getStoredAssignmentQuestions } = await import(`${repo}/src/platform/contract/storedAssignmentV5.js`);
+const { rebuildV5SectionsFromQuestions } = await import(`${repo}/src/platform/contract/assignmentSchemaV5.js`);
+const { withAppendedQuestionSections } = await import(`${repo}/src/platform/rigor/honorsExtensionSwap.js`);
 
 const FIXTURES = { flagged: editorPreflightAssignment(), large: largeEditorAssignment() };
 const flaggedQuestions = getStoredAssignmentQuestions(FIXTURES.flagged);
@@ -85,7 +90,7 @@ const launchOptions = { args: ['--no-sandbox'] };
 if (process.env.CHROMIUM_PATH) launchOptions.executablePath = process.env.CHROMIUM_PATH;
 const browser = await chromium.launch(launchOptions);
 
-const openEditor = async (screen, scenario) => {
+const openEditor = async (screen, scenario, query = '') => {
   const context = await browser.newContext({
     viewport: { width: screen.width, height: screen.height },
     isMobile: Boolean(screen.mobile),
@@ -104,7 +109,7 @@ const openEditor = async (screen, scenario) => {
   };
   await cdp.send('Page.enable');
   await textScale();
-  await page.goto(`${PAGE}?scenario=${scenario}`);
+  await page.goto(`${PAGE}?scenario=${scenario}${query}`);
   await textScale();
   await page.locator('[data-preflight-findings-state="current"]').waitFor({ state: 'attached', timeout: 60000 });
   return { context, page, cdp, errors };
@@ -349,6 +354,48 @@ const measureCost = async (cpuSlowdown) => {
   return observed;
 };
 
+/* ------------------------------------ a copy on a live assignment */
+
+// Duplicate on an assignment with student records: the copy is the last card,
+// every card's findings name that card's number, and Save hands over the
+// questions in the order the cards show, which is the order they are stored
+// in, every stored question at its own index.
+const duplicateOnLiveAssignment = async () => {
+  const screen = { id: 'live-duplicate', width: 1440, height: 900 };
+  const { context, page, errors } = await openEditor(screen, 'flagged', '&live=1');
+  const observed = { screen: screen.id };
+  try {
+    await card(page, 2).getByRole('button', { name: 'Duplicate', exact: true }).click();
+    await page.locator('[data-preflight-findings-state="checking"]').waitFor({ state: 'attached', timeout: 5000 }).catch(() => {});
+    await settled(page);
+    observed.cards = await page.locator('[data-question-card]').count();
+    if (observed.cards !== flaggedQuestions.length + 1) fail(screen.id, 'NUMBERS', `${observed.cards} cards after Duplicate`);
+    const off = await page.evaluate(() => [...document.querySelectorAll('[data-question-card]')].flatMap((cardNode) => {
+      const number = Number(cardNode.getAttribute('data-question-card'));
+      return [...cardNode.querySelectorAll('[data-preflight-findings] li')]
+        .map((item) => item.textContent.replace(/^(?:Warning|Note): /, ''))
+        .filter((text) => /^Question \d+\b/.test(text) && Number(text.match(/^Question (\d+)/)[1]) !== number)
+        .map((text) => `card ${number}: ${text.slice(0, 60)}`);
+    }));
+    observed.findingsOffTheirCard = off.length;
+    off.slice(0, 3).forEach((detail) => fail(screen.id, 'NUMBERS', `a finding names another question than its card: ${detail}`));
+    await page.getByRole('button', { name: 'Save Assignment Questions', exact: true }).click();
+    await page.waitForFunction(() => window.__SAVES__?.length === 1, null, { timeout: 8000 });
+    const [saved] = await page.evaluate(() => window.__SAVES__);
+    const stored = getStoredAssignmentQuestions({ ...FIXTURES.flagged, sections: rebuildV5SectionsFromQuestions(withAppendedQuestionSections(FIXTURES.flagged, saved.appendedSections), saved.questions) });
+    const ids = (list) => list.map((question) => question.questionId).join();
+    observed.copyStoredAs = stored.findIndex((question) => question.questionId === saved.questions.at(-1).questionId) + 1;
+    if (ids(stored) !== ids(saved.questions)) fail(screen.id, 'NUMBERS', `Save stores another order than the cards show (the copy as Question ${observed.copyStoredAs})`);
+    const moved = flaggedQuestions.filter((question, index) => stored[index]?.questionId !== question.questionId).length;
+    if (moved) fail(screen.id, 'NUMBERS', `${moved} stored questions move to another index`);
+  } catch (error) {
+    fail(screen.id, 'RUN', `could not be carried out: ${String(error?.message || error).split('\n')[0]}`);
+  }
+  errors.forEach((message) => fail(screen.id, 'ERROR', message));
+  await context.close();
+  return observed;
+};
+
 /* ------------------------------------------------ the dialog's opener */
 
 // src/ui/disabledOpener.js: a control that lost focus because it was disabled
@@ -396,6 +443,7 @@ try {
     measurements.push(await measureCost(1));
     measurements.push(await measureCost(4));
   }
+  if (wanted('live-duplicate')) measurements.push(await duplicateOnLiveAssignment());
   if (wanted('dialog-opener')) measurements.push(await disabledOpenerLetGo());
 } finally {
   await browser.close();
