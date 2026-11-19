@@ -14,6 +14,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { executableSource, region } from './helpers/sourceContract.mjs';
+import { appHookSource } from './helpers/appScreens.mjs';
 import { parseCss, declared, rulesFor } from './helpers/cssRules.mjs';
 import { atRuleHolds, compareSpecificity, specificity, winning } from './helpers/cssCascade.mjs';
 import { jobsOf, readWorkflow, runsOnPullRequest, stepsOf } from './helpers/ciWorkflows.mjs';
@@ -247,14 +248,15 @@ test('at a large text size a phone\'s question keeps a whole screen in Focus vie
   const frame = rulesFor(app, '.mathmaster-assignment-screen', { media: '(max-width: 768px) and (orientation: portrait)' }).find((rule) => rule.declarations.height);
   assert.deepEqual(frame?.declarations.height, { value: FRAME_HEIGHT, important: true });
   assert.ok(compareSpecificity(specificity(screen), specificity('.mathmaster-assignment-screen')) > 0);
-  // A question opens on its screen: App.jsx brings the stage into view as a question opens (block: 'start'), and the
-  // stage lands right under the identity bar, the 8px the bar's scroll padding adds taken back, not 142px down (the
-  // desktop's sticky navigator's margin), where the bottom of the question was under the screen's foot.
+  // A question opens on its screen: App's question reveal (useQuestionReveal, which App calls) brings the stage into
+  // view as a question opens (block: 'start'), and the stage lands right under the identity bar, the 8px the bar's
+  // scroll padding adds taken back, not 142px down (the desktop's sticky navigator's margin), where the bottom of the
+  // question was under the screen's foot.
   const stage = '.mathmaster-assignment-screen .mathmaster-assignment-shell .mathmaster-question-stage';
   assert.equal(declared(app, stage, 'scroll-margin-top', { media: LARGE_UPRIGHT })?.value, '-8px');
   assert.equal(declared(app, '.mathmaster-question-stage', 'scroll-margin-top', { media: null })?.value, '142px');
   assert.match(read('src/components/student/StudentIdentityBar.css'), /:where\(html:has\(\.mm-identity-bar\)\) \{\n  scroll-padding-top: calc\(var\(--mm-student-identity-stack-offset, 0px\) \+ 8px\);/);
-  const reveal = region(executableSource(read('src/App.jsx')), 'const reveal = (behavior) => {', '\n    };', 'the reveal as a question opens');
+  const reveal = region(executableSource(appHookSource('useQuestionReveal')), 'const reveal = (behavior) => {', '\n    };', 'the reveal as a question opens');
   assert.match(reveal, /else stage\?\.scrollIntoView\?\.\(\{ behavior, block: 'start' \}\);/);
   // Under the task, what it has (the one-try line and its hint offer, the tries, the grade weight) is a quarter of
   // the screen at most, as the task card above it is, and scrolls in place past that.
