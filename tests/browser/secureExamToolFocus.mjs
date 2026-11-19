@@ -171,7 +171,17 @@ const openTool = async (page, tool) => {
   await page.waitForTimeout(400);
 };
 
+// In the page: whether the stop that has focus is hidden under an open tool in
+// the frame drawn next. A Tab can scroll the page; what the student sees is
+// that frame, so the check runs in its animation-frame callback, after the
+// scroll's own handlers and before it is drawn: a drawer that followed the
+// toolbar a frame late is caught there, and nothing that is never drawn is.
+const hiddenInNextFrame = () => new Promise((resolve) => {
+  window.requestAnimationFrame(() => resolve(window.__mmHiddenUnderTool()));
+});
+
 const walk = async (page, key) => {
+  await page.evaluate(`window.__mmHiddenUnderTool = ${hiddenUnderTool}`);
   await page.evaluate(() => {
     window.__mmToolWalk = new Set();
     window.__mmToolWalkListener ||= (event) => window.__mmToolWalk?.add(event.target);
@@ -182,13 +192,11 @@ const walk = async (page, key) => {
   const kinds = { test: 0, tool: 0 };
   for (let press = 1; press <= PRESSES; press += 1) {
     await page.keyboard.press(key);
+    const under = await page.evaluate(hiddenInNextFrame);
     const where = await page.evaluate(whereFocusIs);
     if (where.kind === 'test' || where.kind === 'tool') kinds[where.kind] += 1;
     else strays.push(`${key} ${press}: ${where.kind}`);
-    if (where.kind === 'test') {
-      const under = await page.evaluate(hiddenUnderTool);
-      if (under) hidden.add(under);
-    }
+    if (where.kind === 'test' && under) hidden.add(under);
   }
   // The drawer controls the walk never focused (focusin saw each one it did).
   const missed = await page.evaluate(drawerControls, true);
@@ -311,7 +319,25 @@ const walkTools = async (page, device, tools) => {
   await entryChecks(page, label);
   const controls = await page.evaluate(drawerControls);
   for (const [key, direction] of [['Tab', 'forward'], ['Shift+Tab', 'back']]) {
+    // On a phone the walk starts with the toolbar part-way under the name bar,
+    // as a page the student scrolled leaves it: a Tab onto a toolbar control
+    // then scrolls the page, and the sheet must follow in that same frame (in
+    // CI it was a frame late, and the toolbar's buttons were under the sheet).
+    if (device.isMobile) {
+      await page.evaluate(() => {
+        const room = document.createElement('div');
+        room.dataset.mmScrollRoom = '';
+        room.style.height = '900px';
+        document.body.append(room);
+        window.scrollBy({ top: 125, behavior: 'instant' });
+      });
+      await page.waitForTimeout(250);
+    }
     const { strays, missed, kinds, hidden } = await walk(page, key);
+    if (device.isMobile) {
+      await page.evaluate(() => document.querySelector('[data-mm-scroll-room]')?.remove());
+      await page.waitForTimeout(150);
+    }
     check(strays.length === 0, `${label}: ${PRESSES} × ${key} stay in the test and its open tools`, `${strays.length} left it: ${strays.slice(0, 6).join('; ')}`);
     check(hidden.length === 0, `${label}: going ${direction}, no stop in the test is hidden under the open tool (WCAG 2.4.11)`, hidden.slice(0, 8).join('; '));
     check(missed.length === 0 && kinds.tool > 0, `${label}: every control in the drawer is reached going ${direction} (${controls.length})`, `${kinds.tool} stops in the drawer, ${missed.length} control(s) never reached: ${missed.slice(0, 8).join('; ')}`);

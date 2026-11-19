@@ -363,6 +363,8 @@ export const SecureExamContainer = ({
   // it is out of reach until the sheet closes (see TABBABLE).
   const narrow = useNarrowScreen();
   const toolSheetOpen = narrow && (referenceSheetOpen || graphingCalculatorOpen);
+  const toolSheetOpenRef = useRef(toolSheetOpen);
+  toolSheetOpenRef.current = toolSheetOpen;
   const pauseRef = useRef(null);
   const lastFocusRef = useRef(null);
   const busyRef = useRef(false);
@@ -401,28 +403,35 @@ export const SecureExamContainer = ({
   // the toolbar has scrolled away a drawer still stops under the student's
   // name bar, which stays pinned over every student screen so a teacher can
   // see whose work it is (StudentIdentityBar.css).
+  //
+  // Measured in the scroll's own handler, which runs before the frame is
+  // drawn, and written straight onto each open drawer as well: a frame or two
+  // late, a Tab that scrolled the toolbar back into view found it still under
+  // the drawer (CI, secureExamToolFocus.mjs). The drawers' own copy of the
+  // value catches up after. The toolbar also moves when something above it
+  // changes size (the name bar's second row, a navigation that opens).
   useEffect(() => {
     const toolbar = rootRef.current?.querySelector('[data-secure-exam-header]');
     const surface = surfaceRef.current;
     if (!toolbar || !surface) return undefined;
-    let frame = 0;
     const measure = () => {
-      frame = 0;
       const offset = `${Math.ceil(Math.max(0, identityStackOffset(window), toolbar.getBoundingClientRect().bottom))}px`;
       if (surface.style.getPropertyValue('--mm-exam-toolbar-offset') === offset) return;
       surface.style.setProperty('--mm-exam-toolbar-offset', offset);
+      document.querySelectorAll(EXAM_TOOL_PANEL_SELECTOR).forEach((panel) => panel.style.setProperty('--mm-exam-toolbar-offset', offset));
       window.dispatchEvent(new CustomEvent(EXAM_TOOLBAR_MOVED_EVENT));
     };
-    const schedule = () => { if (!frame) frame = window.requestAnimationFrame(measure); };
     measure();
-    window.addEventListener('scroll', schedule, { capture: true, passive: true });
-    window.addEventListener('resize', schedule);
-    const observer = typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(schedule);
+    window.addEventListener('scroll', measure, { capture: true, passive: true });
+    window.addEventListener('resize', measure);
+    const observer = typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(measure);
     observer?.observe(toolbar);
+    observer?.observe(document.body);
+    const nameBar = document.querySelector('.mm-identity-bar');
+    if (nameBar) observer?.observe(nameBar);
     return () => {
-      if (frame) window.cancelAnimationFrame(frame);
-      window.removeEventListener('scroll', schedule, { capture: true });
-      window.removeEventListener('resize', schedule);
+      window.removeEventListener('scroll', measure, { capture: true });
+      window.removeEventListener('resize', measure);
       observer?.disconnect();
     };
   }, [session?.examSessionId, session?.status]);
@@ -431,8 +440,11 @@ export const SecureExamContainer = ({
   // the screen first, under the name bar (the page's scroll padding): the
   // sheet keeps nearly the room it had, and the timer and the tool buttons
   // stay in sight above it.
+  // The question list and a phone's sheet never share the screen: a sheet
+  // that opens closes the list (and the list closes the sheet: openNavigator).
   useEffect(() => {
     if (!toolSheetOpen) return;
+    setNavigatorOpen(false);
     rootRef.current?.querySelector('[data-secure-exam-header]')?.scrollIntoView?.({ block: 'start', inline: 'nearest', behavior: 'instant' });
   }, [toolSheetOpen]);
 
@@ -860,6 +872,12 @@ export const SecureExamContainer = ({
   const openNavigator = useCallback(() => {
     // The list shows saved states, so the answer being typed is saved first.
     if (pendingDraftRef.current) runAutosave();
+    // On a phone the list takes the screen a tool's sheet holds: the sheet
+    // closes first, and focus stays with the list's toggle, not the tool's
+    // button. Under the sheet the list was out of sight and still in reach.
+    if (toolSheetOpenRef.current && typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent(EXAM_TOOL_CLOSE_EVENT, { detail: { returnFocus: false } }));
+    }
     setNavigatorOpen(true);
   }, [runAutosave]);
 
@@ -1125,11 +1143,21 @@ export const SecureExamContainer = ({
     </>
   ) : null;
 
+  // Only a tool this item still offers holds the test out of reach. An open
+  // state left by a tool that is gone (its panel unmounted on an item with no
+  // tools) once kept the question inert on a phone with nothing on the screen
+  // to close: no answer, no Next, no Submit.
+  const sheetOverTest = toolSheetOpen && Boolean(
+    (referenceSheetOpen && tools.referenceSheet) || (graphingCalculatorOpen && tools.graphingCalculator && !pause),
+  );
+
   // Beside a phone's sheet only the toolbar is in reach: Escape there closes
   // the sheet too (see TABBABLE). Escape inside a tool closes it there, and
-  // goes no further.
-  const closeToolSheetOnEscape = toolSheetOpen ? (event) => {
+  // goes no further; Escape in a dialog is the dialog's (the pause screen
+  // keeps its own off, and the sheet behind it stays as the student left it).
+  const closeToolSheetOnEscape = sheetOverTest ? (event) => {
     if (event.key !== 'Escape' || event.defaultPrevented) return;
+    if (event.target?.closest?.('[role="dialog"], [role="alertdialog"]') && !event.target.closest(EXAM_TOOL_PANEL_SELECTOR)) return;
     event.preventDefault();
     window.dispatchEvent(new CustomEvent(EXAM_TOOL_CLOSE_EVENT));
   } : undefined;
@@ -1179,7 +1207,7 @@ export const SecureExamContainer = ({
       {notice && <div role="status" data-secure-notice="" style={bannerStyle('info')}>{notice}</div>}
       {clock?.timeUp && <div role="status" data-secure-module-time-up={clock.number} style={bannerStyle('info')}>{moduleTimeUpNotice(clock.number)}</div>}
       {error && <div role="alert" style={bannerStyle('error')}>{error}</div>}
-      <div ref={columnRef} data-secure-question-column="" inert={toolSheetOpen || undefined} style={{ paddingLeft: room.paddingLeft, paddingRight: room.paddingRight }}>
+      <div ref={columnRef} data-secure-question-column="" inert={sheetOverTest || undefined} style={{ paddingLeft: room.paddingLeft, paddingRight: room.paddingRight }}>
       {reviewing ? (
         <SecureExamSubmitReview
           mode={view.kind === 'moduleEnd' ? 'moduleEnd' : 'submit'}

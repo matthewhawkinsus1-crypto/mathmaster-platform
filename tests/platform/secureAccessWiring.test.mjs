@@ -221,8 +221,9 @@ test('the toolbar carries the tools the exam policy grants, and the question is 
   // Room for the drawers: the hook measures the column it pads.
   assert.match(container, /const room = useExamToolRoom\(columnRef, \{ referenceSheetOpen, graphingCalculatorOpen \}\);/);
   // On a phone a tool is a sheet over the question, which is out of reach
-  // while it is open (secureExamToolFocus.mjs walks it).
-  assert.match(container, /<div ref=\{columnRef\} data-secure-question-column="" inert=\{toolSheetOpen \|\| undefined\} style=\{\{ paddingLeft: room\.paddingLeft, paddingRight: room\.paddingRight \}\}>/);
+  // while it is open (secureExamToolFocus.mjs walks it), and only while the
+  // item still offers that tool (secureExamToolDrawersFollowToolbar.test.mjs).
+  assert.match(container, /<div ref=\{columnRef\} data-secure-question-column="" inert=\{sheetOverTest \|\| undefined\} style=\{\{ paddingLeft: room\.paddingLeft, paddingRight: room\.paddingRight \}\}>/);
   assert.match(container, /const toolSheetOpen = narrow && \(referenceSheetOpen \|\| graphingCalculatorOpen\);/);
 });
 
