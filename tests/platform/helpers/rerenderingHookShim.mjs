@@ -94,8 +94,9 @@ export const flushSync = (callback) => callback();
  * Render `Component` with `props` and keep it: `output` is what its latest
  * render returned, `renders` how many renders it has had. A state update from
  * a handler or an effect renders it again; effects run after each render.
- * `unmount()` runs each effect's cleanup, in hook order, as React does when
- * the component leaves the page.
+ * `update(props)` renders it again with new props, as its parent drawing it
+ * anew does. `unmount()` runs each effect's cleanup, in hook order, as React
+ * does when the component leaves the page.
  */
 export const mount = (Component, props) => {
   const owner = { slots: [], cursor: 0, pending: [], dirty: false, rendering: false, renders: 0, output: null, props };
@@ -124,6 +125,10 @@ export const mount = (Component, props) => {
   return {
     get output() { return owner.output; },
     get renders() { return owner.renders; },
+    update: (nextProps) => {
+      owner.props = nextProps;
+      owner.render();
+    },
     unmount: () => {
       owner.slots.forEach((record) => {
         if (typeof record?.cleanup !== 'function') return;

@@ -15,6 +15,8 @@ import { getStoredAssignmentQuestions } from '../../src/platform/contract/stored
 
 const fixtures = window.__QUESTION_EDITOR_FIXTURES__ || {};
 const scenario = new URLSearchParams(window.location.search).get('scenario') || 'flagged';
+// `live=1`: the assignment has student records (Duplicate appends, Throw Out Safely retires).
+const live = new URLSearchParams(window.location.search).get('live') === '1';
 const assignment = fixtures[scenario];
 const ROSTERS = Object.freeze({ 'period-3': 28 });
 window.__SAVES__ = [];
@@ -34,7 +36,7 @@ function Harness() {
   return open ? (
     <AssignmentQuestionEditor
       assignment={assignment}
-      hasLiveProtection={false}
+      hasLiveProtection={live}
       fullAuditAuthorized={false}
       studentActivityStatus="unavailable"
       rosterSizesByClassId={ROSTERS}

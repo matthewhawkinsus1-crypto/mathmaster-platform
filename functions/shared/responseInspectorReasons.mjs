@@ -88,14 +88,44 @@ const safely = (read, fallback) => {
  * THE ANSWER KEY, AS A FINGERPRINT.
  *
  * Stored with the grading evidence (never the key itself: the evidence keeps
- * no answer key) and compared with the current question's. Only the fields a
- * grader reads as the key are in it, so editing a prompt, a hint or a label
- * never reads as a key change. One fingerprint per part, so the reason can say
- * WHICH box changed.
+ * no answer key) and compared with the current question's. Only what decides
+ * whether an answer is right is in it, so editing a prompt, a hint or a label,
+ * or how a box is answered, never reads as a key change. One fingerprint per
+ * part, so the reason can say WHICH box changed.
+ *
+ * VERSIONED, because it is stored. Version 1 (evidence stored before the
+ * version existed carries none) hashed every property of a box but a short
+ * presentation list, so a choice's options and their order, each option's
+ * rationale and the box's input and tool profiles counted as its key: a Safe
+ * Live Repair (a typed box turned into choices, the key unchanged) read as a
+ * key change. Version 2 hashes a box's accepted answers and the rules the
+ * grader compares them by. Only a box's projection changed; every other
+ * surface's key hashes the same in both. A stored fingerprint is compared with
+ * the current question's under its own version (findAnswerKeyChange).
  * ------------------------------------------------------------------------- */
 
-// A box's own keys that only present it: never part of how it is marked.
-const FIELD_PRESENTATION_KEYS = new Set([
+export const ANSWER_KEY_FINGERPRINT_VERSION = 2;
+const FINGERPRINT_VERSIONS = new Set([1, 2]);
+
+/*
+ * A box's key: the answers it accepts and the rules its author set for
+ * comparing them, which is everything gradeMultiAnswerResponse and
+ * matchesFieldAnswer (answerUtils.mjs) decide a verdict or a part's credit
+ * from, apart from how the answer is entered and what the question's words
+ * imply. The entry (a typed box or choices, the options and their order, its
+ * input mode, input and tool profiles, answer format and notation) also
+ * steers how a typed answer is read (a choice is the option picked; a number
+ * box refuses a calculation), and a prompt that names no form lets a line box
+ * take any form (lineFormPolicy.mjs); when either changes a verdict, the
+ * replay of the stored answer shows it. The box's weight, label, hints and
+ * each choice's rationale decide no verdict.
+ */
+const FIELD_VERDICT_RULES = Object.freeze([
+  'gradingMode', 'equivalence', 'lineForm', 'answerForm', 'numericTolerance', 'numberRules',
+  'allowArithmetic', 'partialCredit',
+]);
+// Version 1: a box's own keys that only present it (the rest was hashed).
+const V1_FIELD_PRESENTATION_KEYS = new Set([
   'label', 'prompt', 'placeholder', 'instructions', 'responseHint', 'hint', 'hints', 'helpText', 'help',
   'description', 'ariaLabel', 'prefix', 'suffix', 'unit', 'width', 'size', 'feedback', 'explanation',
   'rationale', 'misconception', 'misconceptions', 'example', 'keypad', 'keyboard', 'order', 'display', 'tooltip',
@@ -112,13 +142,22 @@ const STEP_ALGEBRA_SURFACES = new Set(['stepAlgebra', 'algebra', 'literalWorkspa
 const pick = (source, keys) => Object.fromEntries(keys
   .filter((key) => source?.[key] !== undefined)
   .map((key) => [key, source[key]]));
-const fieldKeyProjection = (field) => Object.fromEntries(Object.entries(isObject(field) ? field : {})
-  .filter(([key, value]) => !FIELD_PRESENTATION_KEYS.has(key) && value !== undefined));
+const fieldKeyProjection = (field) => {
+  const box = isObject(field) ? field : {};
+  return {
+    // The same answers in any order are the same key.
+    accepts: answerCandidatesForField(box).map((value) => stableStringify(value)).sort(),
+    ...pick(box, FIELD_VERDICT_RULES),
+  };
+};
+const v1FieldKeyProjection = (field) => Object.fromEntries(Object.entries(isObject(field) ? field : {})
+  .filter(([key, value]) => !V1_FIELD_PRESENTATION_KEYS.has(key) && value !== undefined));
 const promptKeyProjection = (prompt) => pick(isObject(prompt) ? prompt : {}, ['acceptedExpressions', 'acceptedAnswers', 'acceptedExpression']);
 
-const keyParts = (question, surface) => {
+const keyParts = (question, surface, version) => {
   if (surface === 'multiAnswer') {
-    return Object.fromEntries(multiAnswerFields(question).map((field) => [String(field.id), fieldKeyProjection(field)]));
+    const project = version === 1 ? v1FieldKeyProjection : fieldKeyProjection;
+    return Object.fromEntries(multiAnswerFields(question).map((field) => [String(field.id), project(field)]));
   }
   if (surface === 'literal') return { literal: list(question.acceptedAnswers) };
   if (surface === 'table') {
@@ -145,25 +184,35 @@ const keyParts = (question, surface) => {
 const hashOf = (value) => generateStableUUID(stableStringify(value));
 
 /**
- * The key a question grades against, fingerprinted: `{ surface, whole, parts }`,
- * or null for a surface whose key is not a named set of fields (a graph, a
- * tool, a generated instance not delivered here).
+ * The key a question grades against, fingerprinted: `{ version, surface,
+ * whole, parts }`, or null for a surface whose key is not a named set of
+ * fields (a graph, a tool, a generated instance not delivered here).
+ * `version` 1 is only ever asked for to read evidence stored with it.
  *
  * `parts` is a list of `{ id, hash }`, never a record keyed by box id: an
  * author names the boxes, and Firestore refuses some names as field names
  * (`__x__` is reserved), which would refuse the whole evidence document.
  */
-export const answerKeyFingerprint = (question) => safely(() => {
-  if (!isObject(question)) return null;
+export const answerKeyFingerprint = (question, { version = ANSWER_KEY_FINGERPRINT_VERSION } = {}) => safely(() => {
+  if (!isObject(question) || !FINGERPRINT_VERSIONS.has(version)) return null;
   const surface = resolveGradingSurfaceId(question);
-  const parts = surface ? keyParts(question, surface) : null;
+  const parts = surface ? keyParts(question, surface, version) : null;
   if (!parts) return null;
   return {
+    version,
     surface,
     whole: hashOf({ surface, parts }),
     parts: Object.entries(parts).map(([id, value]) => ({ id, hash: hashOf(value) })),
   };
 }, null);
+
+// The version a stored fingerprint was made with: none written is version 1;
+// anything else this code does not know is null, and is not compared.
+const fingerprintVersion = (fingerprint) => {
+  const version = fingerprint?.version;
+  if (version === undefined || version === null) return 1;
+  return FINGERPRINT_VERSIONS.has(version) ? version : null;
+};
 
 // A fingerprint's part hashes by id (a list; tolerant of anything else).
 const partHashes = (fingerprint) => new Map(list(fingerprint?.parts)
@@ -518,15 +567,19 @@ const labelFor = (question, id) => {
 /**
  * Has the question's key changed since the attempt was graded?
  *
- *   { known, changed, details: [{ kind, ... }] }
+ *   { known, changed, unsettled, details: [{ kind, ... }] }
  *
  * `known` is false when nothing comparable was stored (and nothing is claimed).
+ * `unsettled` is true when a stored version-1 fingerprint shows that a box
+ * changed but cannot say whether its key did: nothing is claimed for it, and
+ * the reasons that read today's key are not given (diagnoseResponse).
  * `currentTrace` is today's trace of the same snapshot (multi-answer only).
  */
 export const findAnswerKeyChange = ({ evidence = null, question = null, currentFingerprint = null, currentTrace = null } = {}) => {
   const details = [];
   let known = false;
-  if (!isObject(evidence) || !isObject(question)) return { known, changed: false, details };
+  let unsettled = false;
+  if (!isObject(evidence) || !isObject(question)) return { known, changed: false, unsettled, details };
 
   const gradedId = text(evidence.questionId).trim();
   const currentId = text(question.questionId).trim();
@@ -535,22 +588,36 @@ export const findAnswerKeyChange = ({ evidence = null, question = null, currentF
     if (gradedId !== currentId) details.push({ kind: 'question-replaced', graded: gradedId, current: currentId });
   }
 
-  const graded = isObject(evidence.answerKeyFingerprint) ? evidence.answerKeyFingerprint : null;
-  if (graded?.whole && currentFingerprint?.whole && graded.surface === currentFingerprint.surface) {
+  // Like with like: today's question is fingerprinted as the stored key was.
+  const stored = isObject(evidence.answerKeyFingerprint) ? evidence.answerKeyFingerprint : null;
+  const version = stored ? fingerprintVersion(stored) : null;
+  const graded = version === null ? null : stored;
+  const current = !graded ? null
+    : fingerprintVersion(currentFingerprint) === version ? currentFingerprint
+      : answerKeyFingerprint(question, { version });
+  if (graded?.whole && current?.whole && graded.surface === current.surface) {
     known = true;
-    if (graded.whole !== currentFingerprint.whole) {
+    if (graded.whole !== current.whole) {
       const before = partHashes(graded);
-      const now = partHashes(currentFingerprint);
+      const now = partHashes(current);
       const ids = [...new Set([...before.keys(), ...now.keys()])]
         .filter((id) => id !== '__blanks' && before.get(id) !== now.get(id));
-      details.push({
-        kind: 'key',
-        parts: ids.map((id) => ({
-          id,
-          label: labelFor(question, id),
-          change: !before.has(id) ? 'added' : !now.has(id) ? 'removed' : 'changed',
-        })),
-      });
+      // A box version 1 hashed differently may have changed only how it is
+      // answered or what its choices say. Only a box added or removed is
+      // certain; for the others nothing is claimed.
+      const uncertain = version === 1 && graded.surface === 'multiAnswer';
+      const certain = uncertain ? ids.filter((id) => !before.has(id) || !now.has(id)) : ids;
+      unsettled = certain.length < ids.length;
+      if (!unsettled || certain.length) {
+        details.push({
+          kind: 'key',
+          parts: certain.map((id) => ({
+            id,
+            label: labelFor(question, id),
+            change: !before.has(id) ? 'added' : !now.has(id) ? 'removed' : 'changed',
+          })),
+        });
+      }
     }
   }
 
@@ -563,11 +630,12 @@ export const findAnswerKeyChange = ({ evidence = null, question = null, currentF
 
   // Evidence stored before the fingerprint: a box added or removed since, or
   // one now compared another way, still shows the key is not the one graded.
+  // A box a version-1 fingerprint cannot settle is still compared that way.
   const surface = resolveGradingSurfaceId(question);
-  if (!graded && surface === 'multiAnswer') {
+  if ((!graded || unsettled) && surface === 'multiAnswer') {
     const gradedIds = list(evidence.automaticResult?.parts).filter((part) => part?.graded !== false).map((part) => String(part?.id ?? ''));
     const currentIds = multiAnswerFields(question).map((field) => String(field.id));
-    if (gradedIds.length && currentIds.length) {
+    if (!graded && gradedIds.length && currentIds.length) {
       known = true;
       const added = currentIds.filter((id) => !gradedIds.includes(id));
       const removed = gradedIds.filter((id) => !currentIds.includes(id));
@@ -591,7 +659,8 @@ export const findAnswerKeyChange = ({ evidence = null, question = null, currentF
       }
     });
   }
-  return { known, changed: details.length > 0, details };
+  // A change found another way settles it.
+  return { known, changed: details.length > 0, unsettled: unsettled && details.length === 0, details };
 };
 
 /* ---------------------------------------------------------------------------

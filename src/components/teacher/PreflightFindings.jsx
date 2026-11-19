@@ -7,12 +7,16 @@ import { preflightFindingsCountText } from '../../platform/preflight/questionPre
  * The Question Editor draws this under each question Pre-Flight has something
  * to say about (and once above the questions for what names none), from
  * questionPreflightFindings.js, through the store useQuestionPreflightFindings
- * keeps: each region subscribes to its own question's findings. A labelled region; a heading with the count;
- * a list a screen reader moves through item by item, each item saying in
- * words whether it is a warning or a note, in full. Warnings are open from
- * the start; notes alone wait behind Show, so a lesson whose every question
- * has a note stays quiet. Nothing here takes focus, announces itself or
- * stops a save, and it changes only when the findings do.
+ * keeps: each region subscribes to its own question's findings. A heading
+ * with the count that names the question, which a screen reader reaches as a
+ * heading; not a landmark (a named region for each question put 82 in the
+ * landmark list of an 82-question assignment, beside the editor's one, its
+ * Repair Center). A list a screen reader moves through item by item, each
+ * item saying in words whether it is a warning or a note, in full. Warnings
+ * are open from the start, and a warning that comes later opens the list
+ * again; notes alone wait behind Show, so a lesson whose every question has a
+ * note stays quiet. Nothing here takes focus, announces itself or stops a
+ * save, and it changes only when the findings do.
  */
 const regionStyle = {
   marginTop: 12,
@@ -48,17 +52,25 @@ function PreflightFindings({ findings, subject }) {
   const warnings = Array.isArray(findings?.warnings) ? findings.warnings : [];
   const notes = Array.isArray(findings?.notes) ? findings.notes : [];
   const [open, setOpen] = useState(warnings.length > 0);
+  // Whenever the warnings grow, the list opens: a warning that comes with an
+  // edit, on a question whose notes were waiting behind Show, is shown as a
+  // warning drawn with its region is. A Hide holds while their number does not
+  // grow. Adjusted while drawing, so the list never shows closed first.
+  const [warningCount, setWarningCount] = useState(warnings.length);
+  if (warnings.length !== warningCount) {
+    setWarningCount(warnings.length);
+    if (warnings.length > warningCount) setOpen(true);
+  }
   if (!warnings.length && !notes.length) return null;
-  const headingId = `${id}-heading`;
   const listId = `${id}-list`;
   return (
-    <section aria-labelledby={headingId} data-preflight-findings={subject} style={regionStyle}>
+    <div data-preflight-findings={subject} style={regionStyle}>
       <div style={headerStyle}>
         {/* Read as "Pre-Flight for Question 23: 1 warning, 2 notes", drawn as
             "Pre-Flight: 1 warning, 2 notes". The colon read is inside the
             hidden words: after a box drawn out of the flow, a colon of its own
             is read with a space before it. */}
-        <h3 id={headingId} style={headingStyle}>
+        <h3 style={headingStyle}>
           Pre-Flight<span className="mm-visually-hidden"> for {subject}:</span><span aria-hidden="true">:</span> {preflightFindingsCountText({ warnings, notes })}
         </h3>
         <button
@@ -85,7 +97,7 @@ function PreflightFindings({ findings, subject }) {
           </li>
         ))}
       </ul>
-    </section>
+    </div>
   );
 }
 

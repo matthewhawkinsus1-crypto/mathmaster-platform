@@ -458,6 +458,8 @@ export const CI_AREAS = {
     'src/components/common/WorkViewShell.css',
     'src/components/student/MobileViewportContainer.jsx',
     'src/components/student/MathToolMobileLayout.css',
+    // Submit's own layout in the action bar the opener sweep's room check holds to the screen.
+    'src/components/student/SubmitCost.css',
     'src/platform/workView/**',
     'src/platform/graph/graphScaleService.js',
     'src/QuestionEngine.jsx',

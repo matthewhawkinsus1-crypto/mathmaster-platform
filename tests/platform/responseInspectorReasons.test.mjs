@@ -339,7 +339,8 @@ test('a prompt, a label or a hint edited since grading is not a key change', () 
   const edited = multiAnswer(R_SQUARED.map((field) => ({ ...field, label: `${field.label} (decimal)`, hint: 'Square r.' })), { prompt: 'For r = −0.70, find r² and the percentage it is.' });
   const model = inspect({ question: edited, gradedQuestion: graded, response: fieldsResponse({ r2: '0.49', percent: '49' }) });
   assert.deepEqual(codes(model), ['correct']);
-  assert.deepEqual(findAnswerKeyChange({ evidence: { answerKeyFingerprint: answerKeyFingerprint(graded), questionId: 'q-reasons' }, question: edited, currentFingerprint: answerKeyFingerprint(edited) }), { known: true, changed: false, details: [] });
+  // `unsettled` (a version-1 fingerprint that cannot say whether a box's key changed) is false: this one is current.
+  assert.deepEqual(findAnswerKeyChange({ evidence: { answerKeyFingerprint: answerKeyFingerprint(graded), questionId: 'q-reasons' }, question: edited, currentFingerprint: answerKeyFingerprint(edited) }), { known: true, changed: false, unsettled: false, details: [] });
 });
 
 test('nothing is claimed about the key when nothing comparable was stored', () => {
@@ -348,7 +349,7 @@ test('nothing is claimed about the key when nothing comparable was stored', () =
   const graphResponse = { kind: 'tool', schemaVersion: 1, type: 'graphing', toolId: 'graphing', mode: null, contractVersion: 1, value: '{"slope":"2","intercept":"-3"}', fields: [] };
   const model = inspect({ question: { ...question, m: 5 }, gradedQuestion: question, response: graphResponse, evidenceOverrides: { questionId: undefined } });
   assert.equal(reason(model, 'answer-key-changed'), null);
-  assert.deepEqual(findAnswerKeyChange({ evidence: {}, question }), { known: false, changed: false, details: [] });
+  assert.deepEqual(findAnswerKeyChange({ evidence: {}, question }), { known: false, changed: false, unsettled: false, details: [] });
 });
 
 /* ==========================================================================

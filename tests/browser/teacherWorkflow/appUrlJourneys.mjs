@@ -39,6 +39,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { watchUnimplementedCallables } from './journeyChecks.mjs';
+import { settle } from './journeyWaits.mjs';
 import { newSchoolContext } from './schoolClock.mjs';
 
 const { chromium } = await import(process.env.PLAYWRIGHT_MODULE || '/opt/node22/lib/node_modules/playwright/index.mjs');
@@ -419,9 +420,16 @@ const runExcusedJourney = async (viewport) => {
   // U10 — an excused lesson's address opens its result page, never graded work.
   await page.goto(`${ORIGIN}/?reset=1&controls=retired&as=student&studentId=${EXCUSED_STUDENT}`, { timeout: 180_000 });
   await ready(page, /Welcome, /);
+  const excusedNotice = () => page.locator('[data-result-notice="excused"]').innerText().catch(() => '');
   for (const probe of [`/assignments/${TODAY}/classwork/1`, `/assignments/${TODAY}`]) {
     await page.goto(`${ORIGIN}${probe}?controls=retired&as=student&studentId=${EXCUSED_STUDENT}`);
-    await page.waitForTimeout(4000);
+    // The app loads, then moves the address on to the lesson's result page,
+    // which says why. Waited for, not a fixed 4 s: under load the address had
+    // not moved yet (journeyWaits.mjs). Up to 30 s, the time the notice's own
+    // read below already allows the result page: this is a page load and the
+    // app starting, not a screen's update, and with the browser's CPU slowed
+    // 4x it took 4–13 s, more than the 10 s the other waits have.
+    await settle(async () => pathOf(page) === `/assignments/${TODAY}/results` && /You are excused from this/.test(await excusedNotice()), 30_000);
     expect(`U10 ${tag}`, pathOf(page) === `/assignments/${TODAY}/results`, `${probe} for an excused student went to ${pathOf(page)}`);
     expect(`U10 ${tag}`, !QUESTION.test(await bodyText(page)), `${probe} opened a question for an excused student`);
     // Said on the result page itself since student pass 3 (NAV-10), not in a toast.
