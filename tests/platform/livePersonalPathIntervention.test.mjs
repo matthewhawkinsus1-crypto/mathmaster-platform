@@ -7,7 +7,7 @@ import { getSkillGraph } from '../../src/platform/path/skillGraph.js';
 import { functionsBackendSource } from './helpers/functionsBackendSource.mjs';
 
 import { region } from './helpers/sourceContract.mjs';
-import { appHookSource } from './helpers/appScreens.mjs';
+import { appHookSource, teacherControlsSource } from './helpers/appScreens.mjs';
 
 const read = (path) => readFileSync(new URL(`../../${path}`, import.meta.url), 'utf8');
 
@@ -19,9 +19,13 @@ test('Live Class exposes a one-student current-TEKS Path recommendation, not a c
   assert.match(live, /onRecommendPersonalPath/);
   assert.match(live, /pathInterventionBusyStudentId === row\.id/);
   assert.match(app, /currentTeksCode = getQuestionPrimaryTeksCodes/);
-  assert.match(app, /setStudentPathIntervention\(\{/);
-  assert.match(app, /durationHours: 48/);
-  assert.match(app, /personal My Math Path priority for 48 hours/);
+  // Since the App split the recommendation is handlePersonalPathRecommendation
+  // in createPathPacingControls, which App calls through the teacher kit.
+  const recommend = region(teacherControlsSource('createPathPacingControls'), 'const handlePersonalPathRecommendation = async (', '\n  return [', 'the personal Path recommendation');
+  assert.match(recommend, /setStudentPathIntervention\(\{/);
+  // Bound to the write itself: the support note below names the hours too.
+  assert.match(recommend, /setStudentPathIntervention\(\{[^}]*\bdurationHours: 48,/);
+  assert.match(recommend, /personal My Math Path priority for 48 hours/);
 });
 
 test('student Path reads the personal intervention after class-wide overrides so only that learner changes', () => {

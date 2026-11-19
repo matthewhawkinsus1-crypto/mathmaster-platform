@@ -19,8 +19,15 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
+import { register } from 'node:module';
 import { chainTo, firstLoadGraph, repo } from './helpers/firstLoadGraph.mjs';
 import { executableSource, region } from './helpers/sourceContract.mjs';
+import { appModulePaths, teacherControlPaths, teacherControlsSeam, teacherControlsSource } from './helpers/appScreens.mjs';
+
+// Since the App split the kit also exports a teacher's control factories,
+// which import src/firebase.js as App.jsx did: node imports the kit through
+// helpers/teacherKitIsolation.mjs (no Firebase project is opened).
+register('./helpers/teacherKitIsolation.mjs', import.meta.url);
 
 const read = (file) => readFileSync(path.join(repo, file), 'utf8');
 const app = read('src/App.jsx');
@@ -93,7 +100,18 @@ test('the event kinds and the rapid-correct summary are the same from their own 
   assert.equal(signals.SUPPORT_EVENT_STAGE, kinds.SUPPORT_EVENT_STAGE);
   assert.equal(signals.summarizeRapidCorrectness, rapid.summarizeRapidCorrectness);
   assert.equal(signals.rapidCorrectThresholdSeconds, rapid.rapidCorrectThresholdSeconds);
-  assert.match(app, /^import \{ SUPPORT_EVENT_KIND, SUPPORT_EVENT_STAGE \} from '\.\/platform\/teacher\/supportEventKinds\.js';$/m);
+  // Since the App split the code that names an event kind is in a teacher's
+  // controls (createPathPacingControls, createAttendanceExtensionControls):
+  // every module of App's that names one still takes it from the small module.
+  const kindReaders = ['src/App.jsx', ...appModulePaths()].filter((file) => /\bSUPPORT_EVENT_(?:KIND|STAGE)\b/.test(executableSource(read(file))));
+  for (const factory of ['createPathPacingControls', 'createAttendanceExtensionControls']) {
+    assert.ok(kindReaders.includes(teacherControlPaths()[factory]), `${factory} no longer names an event kind`);
+    assert.match(teacherControlsSource(factory), /^import \{ SUPPORT_EVENT_KIND, SUPPORT_EVENT_STAGE \} from '\.\.\/\.\.\/\.\.\/platform\/teacher\/supportEventKinds\.js';$/m);
+  }
+  for (const file of kindReaders) {
+    assert.match(read(file), /^import \{ SUPPORT_EVENT_KIND, SUPPORT_EVENT_STAGE \} from '(?:\.\/|(?:\.\.\/)+)platform\/teacher\/supportEventKinds\.js';$/m, file);
+    assert.doesNotMatch(executableSource(read(file)), /studentSupportSignals/, file);
+  }
   assert.match(app, /^import \{ summarizeRapidCorrectness \} from '\.\/platform\/teacher\/rapidCorrectness\.js';$/m);
 });
 
@@ -112,15 +130,19 @@ test('the teacher kit loads once, is handed out at once after that, and exports 
   // Every kit member App uses is called through the kit, never as a bare name
   // (App.jsx is .jsx: no test imports it, and a call with no import is a
   // ReferenceError that passes every other check).
-  const used = [...appCode.matchAll(/(?:teacherKit\.|requireTeacherKit\(\)\.)(\w+)\(/g)].map((match) => match[1]);
+  // Since the App split a teacher's controls (src/app/teacher/controls) call
+  // the kit too, with the teacherKit / requireTeacherKit App hands them: App's
+  // uses are counted across App and those modules.
+  const callerCode = [appCode, ...appModulePaths().map((file) => executableSource(read(file)))].join('\n');
+  const used = [...callerCode.matchAll(/(?:teacherKit\.|requireTeacherKit\(\)\.)(\w+)\(/g)].map((match) => match[1]);
   // Every destructuring of the kit, not only the first: from requireTeacherKit(),
   // or from teacherKit after a handler has checked it loaded.
-  const destructured = [...appCode.matchAll(/const \{ ([\w, ]+) \} = (?:requireTeacherKit\(\)|teacherKit);/g)].flatMap((match) => match[1].split(', '));
+  const destructured = [...callerCode.matchAll(/const \{ ([\w, ]+) \} = (?:requireTeacherKit\(\)|teacherKit);/g)].flatMap((match) => match[1].split(', '));
   const members = [...new Set([...used, ...destructured])].sort();
   assert.deepEqual(members, Object.keys(kit).sort(), 'App uses exactly the kit\'s members, through the kit');
   for (const name of members) {
     assert.equal(typeof kit[name], 'function', `${name} is a function of the kit`);
-    assert.doesNotMatch(appCode, new RegExp(`^import [^;]*\\b${name}\\b[^;]*;$`, 'm'), `App imports ${name} statically again`);
+    assert.doesNotMatch(callerCode, new RegExp(`^import [^;]*\\b${name}\\b[^;]*;$`, 'm'), `App imports ${name} statically again`);
   }
 });
 
@@ -163,8 +185,12 @@ test('the needs-attention queue and the Action Center wait for the kit, and rebu
   assert.match(returns, /if \(!teacherKit \|\| teacherWorkspaceMode !== 'teacher' \|\| teacherTab !== 'actionCenter'\) return \[\];/);
   assert.match(returns, /teacherKit\.resolveReturnCheckIns\(\{/);
   assert.match(returns, /\}, \[teacherKit, /, 'the memo depends on the kit');
-  assert.match(appCode, /requireTeacherKit\(\)\.reconcileAssignmentExtensionsForCorrection\(\{/);
-  assert.match(appCode, /requireTeacherKit\(\)\.buildStudentExtensionPatch\(\{/);
+  // Since the App split the correction is createAttendanceExtensionControls',
+  // which App hands requireTeacherKit.
+  const attendance = executableSource(teacherControlsSource('createAttendanceExtensionControls'));
+  assert.ok(teacherControlsSeam('createAttendanceExtensionControls').parameters.includes('requireTeacherKit'));
+  assert.match(attendance, /requireTeacherKit\(\)\.reconcileAssignmentExtensionsForCorrection\(\{/);
+  assert.match(attendance, /requireTeacherKit\(\)\.buildStudentExtensionPatch\(\{/);
 });
 
 test('the authoring states and the exam-practice rule are the same values from their new homes', async () => {

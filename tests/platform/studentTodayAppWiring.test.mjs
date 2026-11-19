@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { executableSource, region } from './helpers/sourceContract.mjs';
 import { importsComponent } from './helpers/componentImport.mjs';
+import { teacherControlsSource } from './helpers/appScreens.mjs';
 
 /*
  * App.jsx WIRING FOR THE ONE "TODAY" RULE.
@@ -33,7 +34,13 @@ test('the dashboard model receives the student, their Recovery states and the te
   assert.match(call, /studentId:\s*user\.id/);
   assert.match(call, /recoveryStateByAssignment:\s*recoveryStatesFromSummaries\(studentRecoverySummariesNow\(\)\)/);
   assert.match(call, /\bgetSectionAccessState,/);
-  assert.match(app, /import\s*\{[^}]*\bgetSectionAccessState\b/);
+  // Since the App split the only caller of the plain function is a teacher's
+  // section control (createWarmupSectionControls), and it left App's imports
+  // with it. What App hands the dashboard is its own binding of that name,
+  // made from sectionAccessForStudent, which App imports.
+  assert.match(app, /const getSectionAccessState = useMemo\(\s*\(\) => sectionAccessForStudent\(/);
+  assert.match(app, /import\s*\{[^}]*\bsectionAccessForStudent\b[^}]*\} from '\.\/assignmentLifecycle';/);
+  assert.match(teacherControlsSource('createWarmupSectionControls'), /import\s*\{[^}]*\bgetSectionAccessState as getSectionAccessStateForAnyone\b[^}]*\} from '\.\.\/\.\.\/\.\.\/assignmentLifecycle';/);
   // "Finished" counts a family slot on the question it dealt, from what this
   // page knows: the same counting Start hands questionIsTerminal (P-7).
   assert.match(region(app, 'buildStudentDashboardModel({', '\n    });', 'the dashboard model call'), /\n\s*terminalCounting: terminalCountingFor,\n/);

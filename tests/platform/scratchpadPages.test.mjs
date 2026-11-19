@@ -11,6 +11,8 @@ import {
   scratchpadPageDocId,
 } from '../../src/platform/student/scratchpadPages.js';
 
+import { teacherControlsSeam, teacherControlsSource } from './helpers/appScreens.mjs';
+
 const codeOf = (path) => readFileSync(path, 'utf8')
   .replace(/\/\*[\s\S]*?\*\//g, ' ')
   .replace(/(^|[^:])\/\/[^\n]*/g, '$1');
@@ -200,7 +202,13 @@ test('every scratchpad control clears the Chromebook touch minimum', () => {
 
 test('the teacher sees every page, not the first third of an answer', () => {
   const source = codeOf('src/App.jsx');
-  const opener = source.slice(source.indexOf('const openTeacherScratchpad'));
+  // Since the App split the opener is createTeacherScratchpadControls' (the
+  // teacher kit), which App hands the every-page reader loadScratchpadRecord.
+  const controls = teacherControlsSource('createTeacherScratchpadControls');
+  assert.ok(teacherControlsSeam('createTeacherScratchpadControls').parameters.includes('loadScratchpadRecord'));
+  const openerAt = controls.indexOf('const openTeacherScratchpad = async (');
+  assert.notEqual(openerAt, -1, 'the opener');
+  const opener = controls.slice(openerAt);
   assert.match(opener.slice(0, 1200), /loadScratchpadRecord/);
   assert.match(source, /teacherScratchpadDialog\.pages/);
   assert.match(source, /Page \{index \+ 1\} of \{all\.length\}/);

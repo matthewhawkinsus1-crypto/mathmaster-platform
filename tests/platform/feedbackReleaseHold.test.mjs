@@ -7,6 +7,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
+import { register } from 'node:module';
 import {
   describeFeedbackRelease,
   releaseHoldReport,
@@ -16,6 +17,12 @@ import {
 import { readReleaseControls } from '../../src/app/teacher/feedbackReleaseControls.js';
 import { buildSupportProjection } from '../../functions/shared/supportProfileModel.mjs';
 import { executableSource, region } from './helpers/sourceContract.mjs';
+import { appSurfaceSource, teacherControlsSeam, teacherControlsSource } from './helpers/appScreens.mjs';
+
+// Since the App split the kit also exports a teacher's control factories,
+// which import src/firebase.js as App.jsx did: node imports the kit through
+// helpers/teacherKitIsolation.mjs (no Firebase project is opened).
+register('./helpers/teacherKitIsolation.mjs', import.meta.url);
 
 const NOW = Date.parse('2026-10-10T15:00:00Z');
 const hours = (n) => new Date(NOW + n * 3600_000).toISOString();
@@ -156,7 +163,16 @@ test('App asks before releasing, with the still-working list, from what the teac
   assert.equal(kit.releaseHoldReport, releaseHoldReport);
   assert.equal(kit.readReleaseControls, readReleaseControls);
   assert.doesNotMatch(app, /from '\.\/app\/teacher\/feedbackRelease(?:Hold|Controls)\.js'/);
-  const handler = region(executableSource(app), 'const handleReleaseAssignmentFeedback = async (assignment) => {', 'setFeedbackReleaseBusyId(assignment.id);', 'release handler');
+  // Since the App split the release handler is createDolClassControls' (the
+  // teacher kit), which App hands confirmAction, requireTeacherKit and the
+  // students and classes it names. It takes the three from the kit as before:
+  // nothing of App's imports them, wherever it sits.
+  assert.doesNotMatch(appSurfaceSource(), /from '(?:\.\/|(?:\.\.\/)+)(?:app\/teacher\/)?feedbackRelease(?:Hold|Controls)\.js'/);
+  const dolControls = teacherControlsSource('createDolClassControls');
+  for (const input of ['confirmAction', 'requireTeacherKit', 'allStudents', 'classes', 'setFeedbackReleaseBusyId']) {
+    assert.ok(teacherControlsSeam('createDolClassControls').parameters.includes(input), input);
+  }
+  const handler = region(executableSource(dolControls), 'const handleReleaseAssignmentFeedback = async (assignment) => {', 'setFeedbackReleaseBusyId(assignment.id);', 'release handler');
   assert.match(handler, /const \{ describeFeedbackRelease, readReleaseControls, releaseHoldReport \} = requireTeacherKit\(\);[\s\S]*const privateRecords = await readReleaseControls\(\{/);
   assert.match(handler, /releaseHoldReport\(\{ assignment, privateRecords, students: allStudents, classes, nowValue: Date\.now\(\) \}\)/);
   assert.match(handler, /confirmAction\(\{\s*title: release\.title,\s*message: release\.message,\s*confirmLabel: release\.confirmLabel,\s*\}\)/);
