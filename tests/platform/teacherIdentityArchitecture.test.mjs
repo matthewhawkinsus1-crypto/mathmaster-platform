@@ -37,7 +37,7 @@ import {
 } from '../../src/platform/studentName.js';
 import { normalizeTeacherRosterSummary } from '../../src/platform/teacher/teacherRosterSummary.js';
 import { executableSource, region } from './helpers/sourceContract.mjs';
-import { appHookSource, appModulePaths, teacherControlPaths, teacherControlsSource } from './helpers/appScreens.mjs';
+import { appHookPaths, appHookSource, appModulePaths, positionalHookNames, positionalHookSource, teacherControlPaths, teacherControlsSource } from './helpers/appScreens.mjs';
 import { functionsBackendSource } from './helpers/functionsBackendSource.mjs';
 
 const ROOT = fileURLToPath(new URL('../../', import.meta.url));
@@ -185,11 +185,13 @@ const FULL_RECORD_HELPER_CALL = /\b(?:fetchStudentGradeRecord|fetchStudentMaster
 const MODULE_ANCHOR = /^(?:export\s+)?(?:default\s+)?(?:async\s+)?function\s+([\w$]+)|^(?:export\s+)?(?:const|let)\s+([\w$]+)\s*=/gm;
 const APP_BODY_ANCHOR = /^ {2}(?:const\s+([\w$]+)\s*=|useEffect\(\(\)\s*=>\s*\{\s*\n\s*([^\n]+))/gm;
 const TEACHER_CONTROL_PATHS = new Set(Object.values(teacherControlPaths()));
+const POSITIONAL_HOOK_PATHS = new Set(positionalHookNames().map((name) => appHookPaths()[name]));
 const anchorOf = (source, index, path) => {
   // The teacher workspace's body members are anchored like App's: G2 moved
   // App's teacher-only handlers into it verbatim. So are the body members of a
-  // teacher control factory (the App split moved App's handlers there verbatim).
-  const patterns = path === 'src/App.jsx' || path === 'src/app/teacher/TeacherWorkspace.jsx' || TEACHER_CONTROL_PATHS.has(path) ? [MODULE_ANCHOR, APP_BODY_ANCHOR] : [MODULE_ANCHOR];
+  // teacher control factory (the App split moved App's handlers there verbatim),
+  // and of a hook App calls by position (its effects and memos, moved verbatim).
+  const patterns = path === 'src/App.jsx' || path === 'src/app/teacher/TeacherWorkspace.jsx' || TEACHER_CONTROL_PATHS.has(path) || POSITIONAL_HOOK_PATHS.has(path) ? [MODULE_ANCHOR, APP_BODY_ANCHOR] : [MODULE_ANCHOR];
   let best = null;
   patterns.forEach((pattern) => {
     for (const match of source.matchAll(pattern)) {
@@ -231,7 +233,10 @@ const KNOWN_GRADES_DOCUMENT_ACCESS = {
     flushAssignmentActivity: 1,
     // …and the receipt listener on their own document, which since the App
     // split is in app/student/useStudentGradeDocument.js (below).
-    // The profile drawer: ONE student, when a teacher opens them.
+  },
+  // The profile drawer: ONE student, when a teacher opens them. Moved from
+  // App.jsx with the hook App calls (useTeacherAnalytics, the App split).
+  'src/app/teacher/useTeacherAnalytics.js': {
     "useEffect: if (user?.role !== 'teacher' || !profileDrawerStudentId) {": 1,
   },
   // Assignment Hub "who has finished?": one class, on request. Moved from
@@ -278,6 +283,8 @@ test('Test F: no screen reads or listens to grades documents to learn a name —
   assert.deepEqual(census(GRADES_REFERENCE), KNOWN_GRADES_DOCUMENT_ACCESS, guidance);
   // The inventoried listener runs only while App calls the hook that holds it.
   appHookSource('useStudentGradeDocument');
+  // The inventoried drawer read happens only while App calls the hook that holds it.
+  positionalHookSource('useTeacherAnalytics');
   // The inventoried hub read exists only while App calls the factory that holds it.
   teacherControlsSource('createGradebookNavigation');
   assert.deepEqual(census(FULL_RECORD_HELPER_CALL), KNOWN_FULL_RECORD_HELPER_CALLS, guidance);
@@ -340,22 +347,29 @@ test('Test F: a corrected name reaches every screen through one roster callable 
 // Test G — listener stability.
 // ===========================================================================
 
-/** The App.jsx effect around `anchor` (a RegExp): its body and its dependency list. */
-const effectAround = (anchor, label) => {
-  const match = anchor.exec(APP);
+/**
+ * The effect around `anchor` (a RegExp): its body and its dependency list.
+ * In App.jsx, or in the hook that owns the effect since the App split.
+ */
+const effectAround = (anchor, label, source = APP) => {
+  const match = anchor.exec(source);
   assert.ok(match, `could not find ${label}`);
-  const start = APP.lastIndexOf('useEffect(', match.index);
-  const deps = /\n {2}\}, \[([\s\S]*?)\]\);/.exec(APP.slice(match.index));
+  const start = source.lastIndexOf('useEffect(', match.index);
+  const deps = /\n {2}\}, \[([\s\S]*?)\]\);/.exec(source.slice(match.index));
   assert.ok(start !== -1 && deps, `could not find the effect and dependency list of ${label}`);
   return {
-    body: APP.slice(start, match.index + deps.index),
+    body: source.slice(start, match.index + deps.index),
     deps: deps[1].split(',').map((dep) => dep.trim()).filter(Boolean),
   };
 };
 
 test('Test G: the full-data grades listener does not resubscribe on assignment edits or identity changes', () => {
-  assert.equal((APP.match(/onSnapshot\(\s*studentGradeSourceForViewer\(/g) || []).length, 1, 'one full-data listener');
-  const { body, deps } = effectAround(/onSnapshot\(\s*studentGradeSourceForViewer\(/, 'the full-data grades listener');
+  // The listener is useTeacherRosterData's since the App split: still one,
+  // counted across App and every module its code moved into.
+  const fullDataListeners = ['src/App.jsx', ...appModulePaths()]
+    .flatMap((path) => code(path).match(/onSnapshot\(\s*studentGradeSourceForViewer\(/g) || []);
+  assert.equal(fullDataListeners.length, 1, 'one full-data listener');
+  const { body, deps } = effectAround(/onSnapshot\(\s*studentGradeSourceForViewer\(/, 'the full-data grades listener', executableSource(positionalHookSource('useTeacherRosterData')));
   // What the listener is allowed to depend on: who the teacher is, which tab
   // is open, and the compact roster it falls back to.
   const allowed = new Set([
@@ -392,7 +406,8 @@ test('Test G: the identity index is a memo of the compact roster alone', () => {
   ], 'a new writer of the compact roster rebuilds the identity index on every call');
 
   // Per-student presence listeners do not resubscribe when a name changes.
-  const presence = effectAround(/onSnapshot\(\s*doc\(db, 'presence', studentId\)/, 'the presence listeners');
+  // (The presence effect is useTeacherPresence since the App split.)
+  const presence = effectAround(/onSnapshot\(\s*doc\(db, 'presence', studentId\)/, 'the presence listeners', executableSource(positionalHookSource('useTeacherPresence')));
   assert.ok(presence.deps.length > 0);
   presence.deps.forEach((dep) => assert.doesNotMatch(dep, /Identity|RosterSummaries/, `presence listeners must not depend on ${dep}`));
 });

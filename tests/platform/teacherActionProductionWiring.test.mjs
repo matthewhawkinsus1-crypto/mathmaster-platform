@@ -2,19 +2,26 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { projectTestCycleTeacherActions } from '../../src/platform/teacher/testCycleActionProjection.js';
+import { positionalHookSeam, positionalHookSource } from './helpers/appScreens.mjs';
 
 const app = readFileSync(new URL('../../src/App.jsx', import.meta.url), 'utf8');
 // The Action Center, the sidebar and the parent-contact screen are mounted by
 // the teacher's screen, its own module since G2; App computes what they show.
 const teacherWorkspace = readFileSync(new URL('../../src/app/teacher/TeacherWorkspace.jsx', import.meta.url), 'utf8');
+// What the Action Center reads is computed by useTeacherActionCenterData since
+// the App split; App calls it and takes the scope, the items and the count.
+const actionCenterData = positionalHookSource('useTeacherActionCenterData');
+const actionCenterResults = positionalHookSeam('useTeacherActionCenterData').taken;
 
 test('production Action Center receives shared authoritative grade-transfer and Test Cycle projections', () => {
   assert.match(teacherWorkspace, /gradeTransferUnits=\{actionGradeScope\.units\}/);
   assert.match(teacherWorkspace, /retestRecoveryActions=\{retestRecoveryActions\}/);
   assert.match(app, /\n {8}actionGradeScope=\{actionGradeScope\}\n/);
   assert.match(app, /\n {8}retestRecoveryActions=\{retestRecoveryActions\}\n/);
-  assert.match(app, /loadTeacherGradeTransferState/);
-  assert.match(app, /listTeacherTestCycleRecords[\s\S]*projectTestCycleTeacherActions/);
+  assert.ok(actionCenterResults.includes('actionGradeScope'), 'App takes the grade-transfer scope from the hook');
+  // The call, not the import beside it.
+  assert.match(actionCenterData, /loadTeacherGradeTransferState\(/);
+  assert.match(actionCenterData, /listTeacherTestCycleRecords[\s\S]*projectTestCycleTeacherActions/);
 });
 
 test('canonical Test Cycle rows surface only teacher-action and completed history states', () => {
@@ -42,7 +49,8 @@ test('sidebar badge keeps only the last projected count after Action Center rele
   assert.match(app, /\n {8}teacherActionOpenCount=\{teacherActionOpenCount\}\n/);
   // The count comes from the teacher kit (app/teacher/teacherKit.js); the
   // teacher's screen renders only once it is here.
-  assert.match(app, /const currentTeacherActionOpenCount = teacherKit \? teacherKit\.openTeacherActionCount\(teacherActionItems\) : 0;/);
-  assert.match(app, /setTeacherActionOpenCountCache\(currentTeacherActionOpenCount\)/);
-  assert.match(app, /const teacherActionOpenCount = teacherTab === 'actionCenter'/);
+  assert.ok(actionCenterResults.includes('teacherActionOpenCount'), 'App takes the open count from the hook');
+  assert.match(actionCenterData, /const currentTeacherActionOpenCount = teacherKit \? teacherKit\.openTeacherActionCount\(teacherActionItems\) : 0;/);
+  assert.match(actionCenterData, /setTeacherActionOpenCountCache\(currentTeacherActionOpenCount\)/);
+  assert.match(actionCenterData, /const teacherActionOpenCount = teacherTab === 'actionCenter'/);
 });

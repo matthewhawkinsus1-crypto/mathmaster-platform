@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import { functionsBackendSource } from './helpers/functionsBackendSource.mjs';
+import { positionalHookSource } from './helpers/appScreens.mjs';
 
 const read = (path) => fs.readFileSync(new URL(`../../${path}`, import.meta.url), 'utf8');
 
@@ -17,7 +18,11 @@ test('teacher roster and gradebook use the shared last-name sorter', () => {
   const app = read('src/App.jsx');
   const roster = read('src/components/teacher/StudentsRoster.jsx');
   assert.match(app, /sort\(compareStudentsByName\)/);
-  assert.match(app, /formatStudentName\(student\)/);
+  // The gradebook's roster is a memo of useTeacherLearningPaths since the App
+  // split: named and sorted there.
+  const gradebookRoster = positionalHookSource('useTeacherLearningPaths');
+  assert.match(gradebookRoster, /sort\(compareStudentsByName\)/);
+  assert.match(gradebookRoster, /formatStudentName\(student\)/);
   assert.match(roster, /useState\('name'\)/);
   assert.match(roster, /compareStudentsByName/);
 });
