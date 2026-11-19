@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import { region } from './helpers/sourceContract.mjs';
-import { positionalHookSeam, positionalHookSource } from './helpers/appScreens.mjs';
+import { appFactorySource, positionalHookSeam, positionalHookSource } from './helpers/appScreens.mjs';
 
 /*
  * Classroom Live, Phase 2 (Live Teaching / Teacher Exemplar) is wired across
@@ -15,12 +15,18 @@ import { positionalHookSeam, positionalHookSource } from './helpers/appScreens.m
 const app = fs.readFileSync('src/App.jsx', 'utf8');
 const monitor = fs.readFileSync('src/components/teacher/LiveClassMonitor.jsx', 'utf8');
 const teacherHome = fs.readFileSync('src/TeacherHome.jsx', 'utf8');
+// Since the App split, createTeacherPreviewNavigation owns teachAssignmentLive
+// and resumeLiveTeaching; App builds them once (appFactorySource holds the
+// seam, name for name).
+const teacherPreviewNavigation = () => appFactorySource('createTeacherPreviewNavigation');
+const RESUME_END = '\n  return [startTeacherPreview, teachAssignmentLive, resumeLiveTeaching];';
 
 test('teaching a lesson reuses the existing student-preview runtime, not a second renderer', () => {
-  const start = app.indexOf('const teachAssignmentLive = ');
-  const end = app.indexOf('const resumeLiveTeaching = ', start);
+  const navigation = teacherPreviewNavigation();
+  const start = navigation.indexOf('const teachAssignmentLive = ');
+  const end = navigation.indexOf('const resumeLiveTeaching = ', start);
   assert.ok(start >= 0 && end > start, 'teachAssignmentLive must exist above resumeLiveTeaching');
-  const body = app.slice(start, end);
+  const body = navigation.slice(start, end);
 
   // Reuses the exact preview entry point instead of building a parallel one.
   // (with the lesson runtime asked for explicitly, since "View as Student"
@@ -31,7 +37,7 @@ test('teaching a lesson reuses the existing student-preview runtime, not a secon
 });
 
 test('Walkthrough launch gives resume lookup only a tiny budget and falls back to a fresh local preview', () => {
-  const teach = region(app, 'const teachAssignmentLive = ', 'const resumeLiveTeaching = ', 'teachAssignmentLive');
+  const teach = region(teacherPreviewNavigation(), 'const teachAssignmentLive = ', 'const resumeLiveTeaching = ', 'teachAssignmentLive');
   assert.match(teach, /Promise\.race\(\[/);
   assert.match(teach, /window\.setTimeout\(\(\) => resolve\(null\), 180\)/);
   assert.match(teach, /catch \(error\) \{[\s\S]*starting fresh/);
@@ -39,7 +45,7 @@ test('Walkthrough launch gives resume lookup only a tiny budget and falls back t
 });
 
 test('Restart Fresh bypasses resume lookup and explicitly requests a clean session', () => {
-  const teach = region(app, 'const teachAssignmentLive = ', 'const resumeLiveTeaching = ', 'teachAssignmentLive');
+  const teach = region(teacherPreviewNavigation(), 'const teachAssignmentLive = ', 'const resumeLiveTeaching = ', 'teachAssignmentLive');
   assert.match(teach, /if \(forceRestart\) \{\s*startFresh\(\);\s*return;/);
   // The restart also names the class the panel is showing (so App files the
   // session under that class); what matters here is forceRestart: true.
@@ -47,7 +53,7 @@ test('Restart Fresh bypasses resume lookup and explicitly requests a clean sessi
 });
 
 test('resuming teaching re-enters the runtime WITHOUT resetting the tracker, scratchpads, or preview session', () => {
-  const region_ = region(app, 'const resumeLiveTeaching = ', 'const endLiveTeaching = ', 'resumeLiveTeaching');
+  const region_ = region(teacherPreviewNavigation(), 'const resumeLiveTeaching = ', RESUME_END, 'resumeLiveTeaching');
   assert.doesNotMatch(region_, /setPreviewTracker/, 'Resume must not reset the exemplar tracker — that would look like a fresh start');
   assert.doesNotMatch(region_, /setPreviewScratchpads/);
   assert.doesNotMatch(region_, /setPreviewSessionId/);
@@ -101,9 +107,15 @@ test('the "Restart Preview Fresh" header control defers to the Live Teaching bar
 
 test('App.jsx wires the Live Teaching session, actions, and pace helper through imports', () => {
   const sessionImport = region(app, "import {\n  updateWalkthroughTimer,", "} from './platform/teacher/liveTeachingSession.js';", 'Live Teaching imports');
-  for (const capability of ['endLiveTeachingSession', 'startLiveTeachingSession']) {
+  for (const capability of ['endLiveTeachingSession']) {
     assert.match(sessionImport, new RegExp(`\\b${capability}\\b`));
   }
+  // Since the App split, createTeacherPreviewNavigation owns teachAssignmentLive,
+  // which starts the session, so that module is the one that imports the helper.
+  assert.match(
+    teacherPreviewNavigation(),
+    /^import \{[^}]*\bstartLiveTeachingSession\b[^}]*\} from '\.\.\/\.\.\/platform\/teacher\/liveTeachingSession\.js';$/m,
+  );
   // Since the App split, useLiveTeachingPreviewSync owns the effect that
   // advances the session, so that module is the one that imports the helper.
   assert.match(

@@ -23,7 +23,7 @@ import { splitGrade } from '../../src/platform/teacher/gradeEvidence.js';
 import { buildSupportProjection } from '../../functions/shared/supportProfileModel.mjs';
 import { normalizeStudentProfile } from '../../src/studentSupport.js';
 import { region, executableSource } from './helpers/sourceContract.mjs';
-import { appHookSource } from './helpers/appScreens.mjs';
+import { appFactorySeam, appFactorySource, appHookSource } from './helpers/appScreens.mjs';
 
 const NOW = Date.parse('2026-10-26T15:00:00Z');
 const inHours = (hours) => new Date(NOW + hours * 3600e3).toISOString();
@@ -144,7 +144,11 @@ test('App asks one closure, which reads only a real student\'s own profile', () 
 });
 
 test('every student-runtime site reads the closure', () => {
-  const start = executableSource(region(app, 'const startAssignment = (assignmentId, requestedQuestionIndex = 0, options = {}) => {', 'const startTeacherPreview = (', 'startAssignment'));
+  // Since the App split, createStudentNavigation owns startAssignment; App
+  // builds it once and hands it the closure (appFactorySource holds App's
+  // arguments to the factory's parameters, name for name).
+  const start = executableSource(region(appFactorySource('createStudentNavigation'), 'const startAssignment = (assignmentId, requestedQuestionIndex = 0, options = {}) => {', '\n  const openStudentDashboardMode = (mode) => {', 'startAssignment'));
+  assert.ok(appFactorySeam('createStudentNavigation').parameters.includes('studentRequiredFor'), 'App hands createStudentNavigation the closure');
   assert.match(start, /new Set\(studentRequiredFor\(assignmentData, \{ hasPracticePass \}\)\.indices\)/);
   assert.match(start, /\.filter\(\(index\) => !studentRequired \|\| studentRequired\.has\(index\)\)/);
 
@@ -184,6 +188,9 @@ test('Home, Grades and Recovery receive the student\'s own profile; Teacher Prev
   assert.equal((code.match(/supportProfile: user\.profile \|\| null,/g) || []).length, 2, 'dashboard and Grade Center');
   const display = executableSource(region(app, 'const gradeDisplayTracker = useMemo(', '\n  );', 'grade display'));
   assert.match(display, /user\?\.role === 'student' \? user\.profile \|\| null : null,/);
-  const preview = executableSource(region(app, 'const startTeacherPreview = (', 'const resumeLiveTeaching = () => {', 'teacher preview'));
+  // Since the App split, createTeacherPreviewNavigation owns the teacher's
+  // entry points; App builds them once and hands the factory neither.
+  const preview = executableSource(region(appFactorySource('createTeacherPreviewNavigation'), 'const startTeacherPreview = (', 'const resumeLiveTeaching = () => {', 'teacher preview'));
   assert.doesNotMatch(preview, /studentRequiredFor|supportProfile/);
+  assert.doesNotMatch(appFactorySeam('createTeacherPreviewNavigation').parameters.join(' '), /studentRequiredFor|supportProfile/);
 });
