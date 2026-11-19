@@ -570,7 +570,7 @@ test('the sweep fails a phone question left without room for its work at a large
   assert.match(room, /if \(room && room\.seen < least\) problems\.push\(/, 'too little of the screen for the work fails');
   assert.match(room, /const least = Math\.round\(size\.height \* WORK_ROOM_SHARE\);/);
   assert.match(room, /else if \(!target\.reached\) problems\.push\(/, 'a target that cannot be reached fails');
-  assert.match(room, /else if \(zoomRow != null && view\.view < PLANE_MIN \+ zoomRow\) problems\.push\(/, 'a Work View too short for a plane at its floor and its zoom row fails');
+  assert.match(room, /else if \(zoomRow != null && !size\.side && view\.view < PLANE_MIN \+ zoomRow\) problems\.push\(/, 'a Work View too short for a plane at its floor and its zoom row fails, held upright');
   assert.match(room, /if \(folded && room\?\.pageScrolls\) problems\.push\(/, 'at 100% text a page that scrolls fails');
   assert.ok(PLANE_MIN === 160);
   // Reached as a finger reaches it: a box that clips is never scrolled, only one that scrolls, and the page.
@@ -595,6 +595,64 @@ test('the sweep fails a phone question left without room for its work at a large
   assert.match(read('tests/browser/teacherWorkflow/fixture.js'), /\['matrices', 'dividing', 'radicals', 'runtime', 'room'\]\.includes\(questionSet\) && compiledSections/);
 });
 
+test('the sweep fails an action bar that does not fit the screen, at every size it reads, 100% included, and on a phone on its side', async () => {
+  // At 200% text on a 320 to 375px phone Submit ran up to 25px past the screen and the bar scrolled sideways; on every
+  // phone the words under Undo and Start over ran into the tools beside them (6px at 100% on a 320px phone), and in
+  // Work View "Submit — uses 1 of 3 tries" ran 72px past its button.
+  const { ACTION_BARS, TARGET_MIN, ROOM_SIDE_SIZES, barProblems } = await import('../browser/workViewOpenerCover.mjs');
+  // Every bar a question shows: its own on an upright phone, on its side and on a laptop, and Work View's while open.
+  for (const bar of ['.portrait-action-bar', '.landscape-action-bar', '.mathmaster-desktop-action-bar', '.mathmaster-work-view-host[data-open="true"] .mathmaster-work-view-actions']) {
+    assert.ok(ACTION_BARS.split(',').some((selector) => selector.trim().endsWith(bar)), bar);
+  }
+  assert.equal(TARGET_MIN, 24, 'WCAG 2.5.8');
+  // Two phones on their side at 200% text, read for their bars alone.
+  assert.deepEqual(ROOM_SIDE_SIZES.map((size) => size.id), ['667x375@200%', '740x360@200%']);
+  assert.ok(ROOM_SIDE_SIZES.every((size) => size.phone && size.side && size.width > size.height && size.textScale === 2));
+  // What fails, on a reading: a bar that fits says nothing; each way of not fitting is said.
+  const control = (fields = {}) => ({ name: 'Submit', left: 200, right: 300, width: 100, height: 44, wordsPast: 0, ...fields });
+  const bar = (fields = {}, controls = [control()]) => ({ name: 'action bar', screen: 320, left: 1, right: 319, width: 318, content: 318, controls, ...fields });
+  assert.deepEqual(barProblems([bar()], 'typed'), []);
+  assert.deepEqual(barProblems([bar({}, [control({ wordsPast: 1 })])], 'typed'), [], 'a pixel of ink past the box is rounding');
+  const said = (reading) => barProblems([reading], 'typed').join(' | ');
+  assert.match(said(bar({ right: 345 })), /^typed: the action bar runs 25px past the screen$/);
+  assert.match(said(bar({ content: 354 })), /^typed: the action bar holds 354px in 318px and scrolls sideways$/);
+  assert.match(said(bar({}, [control({ left: 221, right: 345 })])), /^typed: "Submit" in the action bar runs past the screen \(221 to 345 of 320px\)$/);
+  assert.match(said(bar({}, [control({ left: -3 })])), /runs past the screen/, 'off the left edge too');
+  assert.match(said(bar({}, [control({ wordsPast: 31 })])), /^typed: the words of "Submit" in the action bar run 31px past its own box$/);
+  assert.match(said(bar({}, [control({ width: 22 })])), /^typed: "Submit" in the action bar is 22x44, under 24x24$/);
+  assert.match(said(bar({}, [control({ height: 20 })])), /under 24x24/);
+  const sweep = read('tests/browser/workViewOpenerCover.mjs');
+  // The reader: the bar scrolled back to its start, its controls' boxes, and the words each draws (a name kept for a
+  // screen reader, clipped to a pixel, is not drawn).
+  const reader = region(sweep, 'const READ_BARS = (selector) => {', '\n};\n', 'the bar reader');
+  assert.match(reader, /bar\.scrollLeft = 0;/);
+  assert.match(reader, /\(style\.clip && style\.clip !== 'auto'\) \|\| \(style\.position === 'absolute' && box\.width <= 1 && box\.height <= 1\)\) return false;/);
+  assert.match(reader, /wordsPast = Math\.max\(wordsPast, ink\.right - rect\.right, rect\.left - ink\.left, ink\.bottom - rect\.bottom, rect\.top - ink\.top\);/);
+  assert.match(reader, /screen, left: round\(box\.left\), right: round\(box\.right\), width: bar\.clientWidth, content: bar\.scrollWidth,/);
+  // Read in each state before the reach (which scrolls a box that scrolls sideways, as the bar did), and judged at
+  // every size before the 100% control skips the room; and again in Work View. On its side, the bars alone.
+  const room = region(sweep, 'const runRoom = async', '\n};\n', 'the room check');
+  const order = ['const bars = await page.evaluate(READ_BARS, ACTION_BARS);', 'reach[name] = await page.evaluate(READ_REACH, selector);', 'problems.push(...barProblems(bars, where));', 'if (size.side) continue;', 'if (!large) {'];
+  order.reduce((at, line) => {
+    const next = room.indexOf(line, at);
+    assert.ok(next > at, `${line} comes after what precedes it`);
+    return next;
+  }, -1);
+  assert.match(room, /const viewBars = await page\.evaluate\(READ_BARS, ACTION_BARS\);[\s\S]*?problems\.push\(\.\.\.barProblems\(viewBars, `\$\{scene\.kind\}, work view`\)\);/);
+  assert.match(room, /if \(!bars\.length\) problems\.push\(/, 'no bar to read fails');
+  // ...and it settles: once the question has, every bar and control keeps one size and place for 1.5s, read every
+  // frame, in Focus view and in Work View; a change, or a watch that read too few frames to say, fails.
+  const { BAR_WATCH_MS } = await import('../browser/workViewOpenerCover.mjs');
+  assert.equal(BAR_WATCH_MS, 1500);
+  const watcher = region(sweep, 'const WATCH_BARS = ({ selector, ms }) => new Promise((resolve) => {', '\n});\n', 'the bar watch');
+  assert.match(watcher, /return `\$\{Math\.round\(rect\.width\)\}x\$\{Math\.round\(rect\.height\)\}@\$\{Math\.round\(rect\.left - box\.left\)\},\$\{Math\.round\(rect\.top - box\.top\)\}`;/);
+  assert.match(watcher, /if \(now !== last\) \{ changes \+= 1; last = now; \}/);
+  assert.match(watcher, /if \(performance\.now\(\) - started < ms\) requestAnimationFrame\(tick\);/);
+  assert.match(room, /if \(folded\) \{\s*const watch = await page\.evaluate\(WATCH_BARS, \{ selector: ACTION_BARS, ms: BAR_WATCH_MS \}\);[\s\S]*?if \(watch\.changes \|\| watch\.frames < 10\) problems\.push\(/);
+  assert.match(room, /const viewWatch = await page\.evaluate\(WATCH_BARS, \{ selector: ACTION_BARS, ms: BAR_WATCH_MS \}\);\s*if \(viewWatch\.changes \|\| viewWatch\.frames < 10\) problems\.push\(/);
+  assert.match(sweep, /for \(const size of sized\(\[\.\.\.ROOM_SIZES, \.\.\.ROOM_SIDE_SIZES\]\)\) tasks\.push\(\(\) => runRoom\(browser, origins, size\)\);/);
+});
+
 test('a pull request that changes the sweep, what it reads or what draws it runs the opener sweep', () => {
   const job = jobsOf(readWorkflow('work-view-browser-matrix.yml'))['work-view-opener-cover'];
   assert.ok(job, 'the job is in the Work View workflow');
@@ -615,6 +673,7 @@ test('a pull request that changes the sweep, what it reads or what draws it runs
     'src/platform/workflow/WorkflowRunner.jsx', 'src/platform/workflow/stepRoom.js', 'src/platform/workflow/useStepRoom.js',
     'src/platform/workflow/WorkflowFocusMode.css', 'src/platform/supports/hints/hintPanelReveal.js', 'src/platform/supports/hints/HintPanel.jsx',
     'tests/browser/teacherWorkflow/textRoomLesson.js', 'src/components/student/MathToolMobileLayout.css',
+    'src/components/student/SubmitCost.css',
   ]) {
     assert.ok(runsOnPullRequest('work-view-browser-matrix.yml', file), `a change to ${file} runs the opener sweep`);
   }
