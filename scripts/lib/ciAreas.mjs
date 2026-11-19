@@ -390,6 +390,13 @@ export const CI_AREAS = {
     'tests/browser/reviewMyWork*',
     // The accommodation review's QA journey, run after its emulator test.
     'tests/browser/accommodationReviewQa*',
+    // The Question Editor's own checks, and the assignments they build in node.
+    'tests/browser/questionEditor*',
+    'tests/platform/helpers/editorPreflightFixtures.mjs',
+    'tests/platform/helpers/honorsExtensionFixtures.mjs',
+    // The lesson the Pre-Flight check edits, and the import that compiles it.
+    'teacher-import-jsons/algebra1-module3/T2_L2_Solving_Systems_by_Substitution.json',
+    'scripts/check-teacher-import.mjs',
     'tests/browser/support/touchEmulation*',
     // How readAloudTranslate, studentUxPlatform and the matrices lesson on a phone read the Work View opener's cover.
     'tests/browser/support/openerCover*',

@@ -26,7 +26,8 @@ export function useStudentWeeklyPathProgress({ user, setStudentWeeklyPathProgres
 
     const honors = String(user?.profile?.courseLevel || '').toLowerCase() === 'honors';
     const settings = normalizeWeeklyGoalConfig(studentWeeklyGoalConfig || {}, { honors });
-    const currentWeekKey = weekKeyFor(now, settings.weekStartsOn || 1);
+    // settings.weekStartsOn is the class's own day (weekStartsOnFor): 0 is Sunday.
+    const currentWeekKey = weekKeyFor(now, settings.weekStartsOn);
     // Nothing until the week is known: an answer the page holds lands in this
     // same render, else this says "Check your Math Path" until one comes.
     setStudentWeeklyPathProgress(null);

@@ -2567,8 +2567,14 @@
 
 /* --- PRINT: a class list a teacher carries ---------------------------------
  * Rosters and gradebooks do get printed, and the navigation rail, drawers and
- * modals are noise on paper. */
+ * modals are noise on paper. A secure test in progress prints nothing: its
+ * questions stay in MathMaster (the owner, 2026-11-19). Every other page
+ * prints as it shows. */
 @media print {
+  body:has([data-secure-exam-surface]) * {
+    visibility: hidden !important;
+  }
+
   .mm-dashboard-nav,
   .mm-dashboard-shell > div > header {
     display: none !important;

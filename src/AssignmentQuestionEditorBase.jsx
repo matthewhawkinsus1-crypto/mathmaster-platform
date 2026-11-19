@@ -32,6 +32,7 @@ import { buildAssignmentV5PreflightModel } from './platform/preflight/assignment
 import { preflightClassSizeFor } from './platform/preflight/questionPreflightFindings.js';
 import useQuestionPreflightFindings from './components/teacher/useQuestionPreflightFindings.js';
 import { PreflightFindingsState, QuestionPreflightFindings } from './components/teacher/PreflightFindings.jsx';
+import { keepRevealedWhileFindingsLand } from './components/teacher/keepRevealedWhileFindingsLand.js';
 import { analyzeResponseEntryRepair } from './platform/assignment/liveQuestionCorrection.js';
 import { parseSafeLiveRepairPack, prepareSafeLiveRepairPack } from './platform/assignment/liveRepairPack.js';
 import { normalizeQuestionWeight, questionWeightShares } from './platform/grading/questionWeights.js';
@@ -108,6 +109,7 @@ export default function AssignmentQuestionEditor({ assignment, hasLiveProtection
   // A refused Include, shown on the card where the teacher pressed it.
   const [inclusionNotice, setInclusionNotice] = useState(null);
   const inclusionAlertRef = useRef(null);
+  const scrollAreaRef = useRef(null);
   const cardRefs = useRef(new Map());
   // Which questions are versions of one another (supersession links), once per edit.
   const lineages = useMemo(() => resolveQuestionLineages(questions), [questions]);
@@ -248,10 +250,19 @@ export default function AssignmentQuestionEditor({ assignment, hasLiveProtection
   };
 
   // A refused Include is explained in full where it was pressed: on a phone
-  // the explanation would otherwise start under the dialog's footer.
+  // the explanation would otherwise start under the dialog's footer. Pre-Flight's
+  // findings can land after the press and lengthen every card above it, so it is
+  // brought back into view once they are drawn, until the teacher scrolls, taps,
+  // clicks or types (components/teacher/keepRevealedWhileFindingsLand.js).
   useEffect(() => {
-    if (inclusionNotice) inclusionAlertRef.current?.scrollIntoView?.({ block: 'nearest', behavior: scrollMotion() });
-  }, [inclusionNotice]);
+    if (!inclusionNotice) return undefined;
+    return keepRevealedWhileFindingsLand({
+      target: () => inclusionAlertRef.current,
+      area: scrollAreaRef.current,
+      store: preflightStore,
+      motion: scrollMotion(),
+    });
+  }, [inclusionNotice, preflightStore]);
 
   // Bring another card into view (the active version of a replaced question,
   // or the question a replacement replaced) and move focus to it.
@@ -646,7 +657,7 @@ export default function AssignmentQuestionEditor({ assignment, hasLiveProtection
           <div><h2 style={{ margin: 0 }}>Assignment Question Editor</h2><p style={{ margin: '5px 0 0', color: 'var(--mm-text-muted)' }}>{hasLiveProtection ? 'This assignment is live or has student history. Existing question IDs and indexes are protected. Safe live response-entry repairs are allowed; real rewrites are still blocked.' : 'No student records exist. Questions may be removed and reordered permanently.'}</p></div>
           <button type="button" onClick={onClose} style={{ padding: '9px 13px', borderRadius: '8px', border: '1px solid var(--mm-border)', background: 'var(--mm-surface)', fontWeight: 800 }}>Close</button>
         </header>
-        <div style={{ padding: '20px 24px', overflowY: 'auto' }}>
+        <div ref={scrollAreaRef} style={{ padding: '20px 24px', overflowY: 'auto' }}>
           <label style={{ display: 'block', fontWeight: 800, marginBottom: '18px' }}>Assignment title
             <input value={title} onChange={(event) => setTitle(event.target.value)} style={{ display: 'block', width: '100%', boxSizing: 'border-box', padding: '11px', marginTop: '7px', border: '1px solid var(--mm-border)', borderRadius: '8px', fontSize: 'calc(17 * var(--mm-px))' }} />
           </label>

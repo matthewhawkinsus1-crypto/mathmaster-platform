@@ -16,7 +16,8 @@
  *
  * What still links before App.css, in the place it had:
  *   supportEvidencePrint.css  the support evidence report's print rules, which
- *                             reach every page (that file says why they stay);
+ *                             hold only while the report is open (that file says
+ *                             why the sheet stays here);
  *   MobileInteractionFoundation.css  the phone layout rules App's own
  *                             assignment screens use.
  *

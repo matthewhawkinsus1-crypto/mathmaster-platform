@@ -34,7 +34,10 @@ const classroomCheckpointScan = require("./lib/classroomCheckpointScan");
 const classroomLinkOwnership = require("./lib/classroomLinkOwnership");
 // The grade passback monitor's rows: a teacher's own, read by their own posts.
 const classroomGradeSyncRows = require("./lib/classroomGradeSyncRows");
-const { classroomReceiptNeedsWriting, deferredClassCheckpoint, extendedTimeReturnHeldUntil } = require("./lib/classroomGradeRuntime");
+// The release rule (whether Classroom shows the student a grade, and whether
+// it is returned) is the lib's: one rule for this whole-assignment trigger and
+// the section trigger (tests/platform/classroomReleasePolicyOneRule.test.mjs).
+const { classroomGradeReleasePolicy, classroomReceiptNeedsWriting, deferredClassCheckpoint } = require("./lib/classroomGradeRuntime");
 // What wakes the two grade triggers: a tracker that moved beyond time on task.
 const { trackerChangedBeyondTimeOnTask } = require("./lib/classroomTrackerChange");
 const {
@@ -267,33 +270,6 @@ function resolveClassroomGradeStage({ assignment, progress, releaseSignal, nowVa
     return progressCheckpointStage(progress, { late: true });
   }
   return progressCheckpointStage(progress);
-}
-
-function classroomGradeReleasePolicy({ stage, assignment, nowValue = Date.now(), studentDueAt = null, studentFinalCutoff = null }) {
-  const now = Number(nowValue) || Date.now();
-  const dueAt = studentDueDate(assignment, studentDueAt);
-  const explicitlyStudentVisible = [
-    "due-checkpoint",
-    "final-complete",
-    "final-deadline",
-    "assessment-release",
-  ].includes(stage);
-  // A partial grade after the due date is returned — unless the student is
-  // still on their own extended time: then it is a draft until their own close
-  // (NV02, the owner 2026-10-23; the lib's extendedTimeReturnHeldUntil).
-  const partialAfterDue = String(stage || "").startsWith("late-progress")
-    || (stage === "manual-retry" && Boolean(dueAt && now >= dueAt.getTime()));
-  const heldUntilMs = !explicitlyStudentVisible && partialAfterDue
-    ? extendedTimeReturnHeldUntil({ assignment, nowValue: now, studentFinalCutoff })
-    : null;
-  const studentVisible = explicitlyStudentVisible || (partialAfterDue && heldUntilMs === null);
-
-  return {
-    studentVisible,
-    assignToStudent: studentVisible,
-    shouldReturn: studentVisible,
-    ...(heldUntilMs !== null ? { heldUntilMs } : {}),
-  };
 }
 
 /**
@@ -3433,7 +3409,10 @@ exports.syncGradeToClassroom = onDocumentWritten(
          * pays for it is a real student's posted grade, and a refusal that
          * writes an audit row is recoverable where an overwrite is not.
          */
-        if (isTestCycleAssignment && priorAudit.status === "synced" && !assignmentGradeOverride) {
+        // Classroom holds the grade when the row is "synced", and when only its
+        // return was refused ("graded-not-returned"), which a Test Cycle grade
+        // can be since it is returned (the lib's release rule).
+        if (isTestCycleAssignment && ["synced", CLASSROOM_GRADED_NOT_RETURNED].includes(priorAudit.status) && !assignmentGradeOverride) {
           // eslint-disable-next-line no-await-in-loop
           const passback = (await testCycleLib.shared()).grade.testCycleClassroomPassback({
             recordedGrade: grade,

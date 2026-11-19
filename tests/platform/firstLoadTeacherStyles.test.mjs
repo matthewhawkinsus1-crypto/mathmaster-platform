@@ -12,8 +12,8 @@
 // those classes and wins by weight, so the two sheets load with the teacher's
 // workspace (src/app/teacher/TeacherWorkspace.jsx), after App.css, and a
 // teacher sees what they saw whichever order the sheets come in. The report's
-// print rules reach every page, so they stay before App.css in a sheet of
-// their own (supportEvidencePrint.css): printing is what it was.
+// print rules stay before App.css in a sheet of their own
+// (supportEvidencePrint.css), and hold only while the report is open.
 //
 // The walk is tests/platform/initialBundleBoundary.test.mjs's (static imports
 // from main.jsx, then App.jsx: tests/platform/helpers/firstLoadGraph.mjs); the
@@ -59,7 +59,7 @@ test('the workspace links both, so they come before every teacher screen inside 
 test('the report\'s print rules moved, whole, to the sheet every page links', () => {
   const print = parseCss(read(PRINT_SHEET));
   assert.ok(print.length > 0 && print.every((rule) => rule.atRules.includes('@media print')), 'the print sheet holds print rules only');
-  assert.ok(print.some((rule) => rule.selectors.includes('body *') && rule.declarations.visibility?.value === 'hidden'), 'it is the rule that hides the rest of a printed page');
+  assert.ok(print.some((rule) => rule.selectors.includes('body:has(.se-report) *') && rule.declarations.visibility?.value === 'hidden'), 'it hides the rest of a printed page while the report is open');
   assert.ok(parseCss(read(SUPPORT_SHEET)).every((rule) => !rule.atRules.some((atRule) => /print/.test(atRule))), 'supportEvidence.css keeps no print rule of its own');
 });
 

@@ -5,7 +5,11 @@
  * Works out what changed since the build that is live, deploys only what that
  * requires, in a safe order, with the Cloud Functions in small paced groups,
  * proves the functions now serve this commit, and writes a report that says
- * what shipped, what did not, how to finish it, and how to roll back.
+ * what shipped, what did not, how to finish it, and how to roll back. The
+ * report is written before the first step and again after every step, so a run
+ * cut off part-way (a closed terminal, a lost Cloud Shell) still leaves what it
+ * did and the command that finishes it (`resumeCommand`). Run it inside tmux
+ * or screen all the same.
  *
  *   node scripts/release-firebase.mjs                     # plan only (default)
  *   node scripts/release-firebase.mjs --execute           # deploy the plan
@@ -57,13 +61,14 @@
  */
 
 import { spawn, spawnSync } from 'node:child_process';
-import { mkdirSync, writeFileSync } from 'node:fs';
+import { mkdirSync, renameSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import readline from 'node:readline/promises';
 import { fileURLToPath } from 'node:url';
 import {
   BUILD_INFO_FUNCTION,
   DEFAULT_FUNCTIONS_REGION,
+  ONE_WAY_CHANGES,
   RELEASE_TARGETS,
   TARGET_ALIASES,
   VERIFY_FUNCTIONS,
@@ -74,8 +79,11 @@ import {
   describeStep,
   firebaseFunctionsSettingsChanged,
   functionSelectionLines,
+  normalizeGitSha,
   releaseScope,
+  resumeCommandFor,
   retryCommandFor,
+  rollbackSteps,
   summarizeFunctionLabels,
 } from './lib/releasePlan.mjs';
 import { executeReleasePlan } from './lib/releaseExecutor.mjs';
@@ -346,8 +354,10 @@ if (steps.some((step) => step.target === VERIFY_FUNCTIONS)) {
   console.log(`  ${BUILD_INFO_FUNCTION} ships in the last group before the checks; the verify step then requires it to report ${head} before anything after it deploys.`);
 }
 const shipsFirst = steps.filter((step) => step.deployFirst).flatMap((step) => step.group);
+const shipsEarly = steps.filter((step) => step.early).flatMap((step) => step.group);
 const shipsAfterChecks = steps.filter((step) => step.afterChecks).flatMap((step) => step.group);
 if (shipsFirst.length) console.log(`  First, each alone: ${shipsFirst.join(', ')}.`);
+if (shipsEarly.length) console.log(`  Then, before the functions that write what they read: ${shipsEarly.join(', ')}. If one does not deploy, no later function group does.`);
 if (shipsAfterChecks.length) console.log(`  After both checks, each alone, and only if every other function shipped and both passed: ${shipsAfterChecks.join(', ')}.`);
 
 if (!EXECUTE) {
@@ -402,7 +412,64 @@ const runner = (step) => new Promise((resolve) => {
   });
 });
 
+// The commit the functions served before this release, for the rollback step:
+// it can differ from Hosting's (the base), and only one this checkout has can be
+// checked against the changes a rollback cannot undo.
+const commitExists = (rev) => spawnSync('git', ['cat-file', '-e', `${rev}^{commit}`], { cwd: repoRoot }).status === 0;
+const isAncestor = (ancestor, of) => spawnSync('git', ['merge-base', '--is-ancestor', ancestor, of], { cwd: repoRoot }).status === 0;
+const functionsBefore = plannedFunctions.length ? await callBuildInfo({ region: BUILD_INFO_REGION }) : null;
+const functionsBase = (() => {
+  const answered = functionsBefore?.reachable && functionsBefore.status >= 200 && functionsBefore.status < 300;
+  const sha = normalizeGitSha(answered ? functionsBefore.body?.result?.gitSha : null);
+  return sha && commitExists(sha) ? sha : null;
+})();
+const rollbackFrom = functionsBase || base;
+const crossed = ONE_WAY_CHANGES.filter((change) => commitExists(change.commit)
+  && isAncestor(change.commit, 'HEAD') && !isAncestor(change.commit, rollbackFrom));
+const rollback = rollbackSteps({
+  project: PROJECT,
+  base,
+  liveBuild,
+  functionsBase,
+  plannedFunctions,
+  inventoryCount: inventory.length,
+  crossed,
+});
+
 const startedAt = new Date();
+const reportDir = path.join(repoRoot, 'release-reports');
+mkdirSync(reportDir, { recursive: true });
+const reportPath = path.join(reportDir, `release-${startedAt.toISOString().replace(/[:.]/g, '-')}-${head}.json`);
+const baseReport = () => ({
+  project: PROJECT,
+  startedAt: startedAt.toISOString(),
+  base,
+  head,
+  headSha: headFull,
+  liveBuildBefore: liveBuild || null,
+  functionsBefore: functionsBase,
+  targets: [...new Set(steps.map((step) => step.target).filter((target) => target !== VERIFY_FUNCTIONS))],
+  reasons,
+  // How the default-codebase functions were chosen: named | only | graph, and
+  // for the graph each one's reason, or why it chose all of them.
+  functions: functionsMode ? {
+    mode: functionsMode,
+    planned: plannedFunctions,
+    ...(selection ? { all: selection.all, reasons: selection.reasons, notes: selection.notes } : {}),
+  } : null,
+  rollback,
+});
+// Written whole and renamed into place, so a run cut off mid-write leaves the last complete report.
+const writeReport = (report) => {
+  try {
+    writeFileSync(`${reportPath}.tmp`, `${JSON.stringify(report, null, 2)}\n`);
+    renameSync(`${reportPath}.tmp`, reportPath);
+  } catch (error) {
+    console.log(`\n[release] could not write ${path.relative(repoRoot, reportPath)}: ${error.message}`);
+  }
+};
+console.log(`\nReport, kept up to date as the release runs: ${path.relative(repoRoot, reportPath)}`);
+
 const outcome = await executeReleasePlan({
   steps,
   runner,
@@ -427,6 +494,20 @@ const outcome = await executeReleasePlan({
   maxAttempts: MAX_ATTEMPTS,
   pauseSecondsBetweenGroups: PAUSE_SECONDS,
   continueAfterFunctionFailure: flag('continue-after-function-failure'),
+  onProgress: (state) => writeReport({
+    ...baseReport(),
+    inProgress: true,
+    ok: null,
+    updatedAt: new Date().toISOString(),
+    results: state.results,
+    failedFunctions: state.failedFunctions,
+    heldFunctions: state.heldFunctions,
+    verification: state.verification,
+    access: state.access,
+    remaining: state.remaining.map((step) => step.label),
+    // If this run is cut off: what finishes it (scripts/lib/releasePlan.mjs#resumeCommandFor).
+    resumeCommand: resumeCommandFor(state),
+  }),
 });
 
 const retryCommand = retryCommandFor(outcome);
@@ -447,22 +528,9 @@ const liveSite = (() => {
 })();
 
 const report = {
-  project: PROJECT,
-  startedAt: startedAt.toISOString(),
+  ...baseReport(),
+  inProgress: false,
   finishedAt: new Date().toISOString(),
-  base,
-  head,
-  headSha: headFull,
-  liveBuildBefore: liveBuild || null,
-  targets: [...new Set(steps.map((step) => step.target).filter((target) => target !== VERIFY_FUNCTIONS))],
-  reasons,
-  // How the default-codebase functions were chosen: named | only | graph, and
-  // for the graph each one's reason, or why it chose all of them.
-  functions: functionsMode ? {
-    mode: functionsMode,
-    planned: plannedFunctions,
-    ...(selection ? { all: selection.all, reasons: selection.reasons, notes: selection.notes } : {}),
-  } : null,
   ok: outcome.ok,
   results: outcome.results,
   failedFunctions: outcome.failedFunctions,
@@ -477,18 +545,8 @@ const report = {
   failedStep: outcome.failedStep,
   stoppedBeforeTargets: outcome.stoppedBeforeTargets,
   retryCommand,
-  rollback: {
-    hosting: liveBuild?.gitSha
-      ? `Firebase console → Hosting → Release history → roll back to the release built from ${liveBuild.gitSha}; or \`git checkout ${liveBuild.gitSha} && npm run deploy:hosting\` (set MATHMASTER_DEPLOY_ALLOW_BEHIND_MAIN=1).`
-      : 'Firebase console → Hosting → Release history → roll back to the previous release.',
-    functions: `Redeploy the previous code: \`git checkout ${base} && node scripts/release-firebase.mjs --execute --only functions --since ${base}~1\` (or --functions ${plannedFunctions.length && plannedFunctions.length < inventory.length ? `${plannedFunctions.join(',')}, the ones this release deployed` : '<names> for the affected ones'}).`,
-    rules: `\`git checkout ${base} -- firestore.rules && npx firebase deploy --only firestore:rules --project ${PROJECT}\`, then restore the file.`,
-  },
 };
-const reportDir = path.join(repoRoot, 'release-reports');
-mkdirSync(reportDir, { recursive: true });
-const reportPath = path.join(reportDir, `release-${startedAt.toISOString().replace(/[:.]/g, '-')}-${head}.json`);
-writeFileSync(reportPath, `${JSON.stringify(report, null, 2)}\n`);
+writeReport(report);
 
 console.log('\n============================================');
 console.log(outcome.ok ? `Release complete: ${report.targets.join(', ')}.` : 'Release INCOMPLETE.');

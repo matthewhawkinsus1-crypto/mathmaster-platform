@@ -34,7 +34,7 @@ import {
   certAnswerFromPrompt, certAssignment, certFamilies,
 } from '../fixtures/testCycleCertificationFixture.mjs';
 import {
-  createCourseWorkCalls, db, fns, patchGradeCalls, readCorrectionPlan, readGradeDoc,
+  classroomCalls, createCourseWorkCalls, db, fns, patchGradeCalls, readCorrectionPlan, readGradeDoc,
   readRecord, readRetestPlan, readSession, refusal, repo, resetClassroomCalls, runClassroomSync,
   sitSecureExam, studentRequest, teacherRequest,
   OTHER_TEACHER_EMAIL, TEACHER_EMAIL, admin,
@@ -76,6 +76,9 @@ const removeOwnSchedule = async (period) => {
   const { FieldPath, FieldValue } = admin.firestore;
   await scheduleRef().update(...own.flatMap((dateKey) => [new FieldPath('modifiedSchedules', dateKey, 'periods', period), FieldValue.delete()]));
 };
+
+/** The Classroom returns the passback trigger asked for, on one coursework item. */
+const returnsOf = (courseWorkId) => classroomCalls.filter((entry) => entry.call === 'returnSubmission' && entry.courseWorkId === courseWorkId);
 
 /** The record's stage, as the student card would resolve it. */
 const cardFor = (studentId) => fns.getStudentTestCycle.run(
@@ -560,6 +563,19 @@ test('F29: releasing the Test posts 52 to the one existing coursework item', asy
   assert.equal(audit[0].status, 'synced');
   assert.equal(audit[0].grade, CERT_TEST_SCORE);
   assert.equal(audit[0].stage, 'testcycle-test');
+
+  // A released Test grade is the student's: assigned to them and returned,
+  // not left as a teacher's draft (the release rule both triggers share,
+  // functions/lib/classroomGradeRuntime.js classroomGradeReleasePolicy).
+  assert.equal(patches[0].assignToStudent, true, 'assigned to the student, not a teacher\'s draft');
+  assert.equal(returnsOf(COURSEWORK_ID).length, 1, 'returned to the student');
+  assert.deepEqual([audit[0].studentVisible, audit[0].returnedToStudent], [true, true]);
+  const receipt = (await readGradeDoc(STUDENT_A)).classroomSyncStatusByAssignment?.[CERT_ASSIGNMENT_ID];
+  assert.deepEqual(
+    [receipt?.stage, receipt?.grade, receipt?.studentVisible, receipt?.returnedToStudent],
+    ['testcycle-test', CERT_TEST_SCORE, true, true],
+    'the student\'s receipt says Classroom shows them the grade',
+  );
   state.gradeAfterTestRelease = await readGradeDoc(STUDENT_A);
 });
 
@@ -701,6 +717,17 @@ test('F30+F31: the Retest updates that exact coursework item to 70, and creates 
   assert.equal(audit[0].grade, CERT_RECORDED_AFTER_RETEST);
   assert.equal(audit[0].stage, 'testcycle-retest');
   assert.equal(audit[0].courseworkId, COURSEWORK_ID);
+
+  // The released Retest grade is assigned and returned too, on the same item.
+  assert.equal(patches[0].assignToStudent, true, 'assigned to the student, not a teacher\'s draft');
+  assert.equal(returnsOf(COURSEWORK_ID).length, 1, 'returned to the student');
+  assert.deepEqual([audit[0].studentVisible, audit[0].returnedToStudent], [true, true]);
+  const receipt = (await readGradeDoc(STUDENT_A)).classroomSyncStatusByAssignment?.[CERT_ASSIGNMENT_ID];
+  assert.deepEqual(
+    [receipt?.stage, receipt?.grade, receipt?.studentVisible, receipt?.returnedToStudent],
+    ['testcycle-retest', CERT_RECORDED_AFTER_RETEST, true, true],
+    'the student\'s receipt says Classroom shows them the Retest grade',
+  );
 });
 
 /* ======================================================================== */

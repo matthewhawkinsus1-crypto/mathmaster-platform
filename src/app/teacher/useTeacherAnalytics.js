@@ -17,7 +17,7 @@ import { buildStudentLearningProfile } from '../../platform/profile/studentLearn
 import { adaptLegacyMasteryToPhase5 } from '../../platform/profile/legacyMasteryAdapter.js';
 import { overridesForClassContext, storedPacingForClassContext, storedWeeklyGoalForClassContext } from '../../platform/path/pathStore.js';
 import { buildWeeklyPathPlan } from '../../platform/path/weeklyPathPlan.js';
-import { buildTeacherWeeklyView, dueAtFor, weekKeyFor, weeklyPlanClassInputs } from '../../platform/path/weeklyPathGoal.js';
+import { buildTeacherWeeklyView, dueAtFor, weekKeyFor, weekStartsOnFor, weeklyPlanClassInputs } from '../../platform/path/weeklyPathGoal.js';
 import { resolveStudentCourseContext, studentsInClass, unplaceableStudents } from '../../../functions/shared/classModel.mjs';
 
 export function useTeacherAnalytics(
@@ -76,7 +76,7 @@ export function useTeacherAnalytics(
     const config = storedWeeklyGoalForClassContext(weeklyGoalsByClass, {
       classId: activeClass.classId, classPeriod: record?.period || '',
     }) || {};
-    return weekKeyFor(now, config.weekStartsOn || 1);
+    return weekKeyFor(now, weekStartsOnFor(config));
   }, [classesById, activeClass.classId, weeklyGoalsByClass, Math.floor(now / 3_600_000)]);
 
   const weeklyPathWeekComplete = useMemo(() => {
@@ -85,7 +85,7 @@ export function useTeacherAnalytics(
       classId: activeClass.classId, classPeriod: record?.period || '',
     }) || {};
     return now > dueAtFor(now, {
-      weekStartsOn: config.weekStartsOn || 1,
+      weekStartsOn: weekStartsOnFor(config),
       dueDayOfWeek: config.dueDayOfWeek ?? 0,
     });
   }, [classesById, activeClass.classId, weeklyGoalsByClass, Math.floor(now / 3_600_000)]);

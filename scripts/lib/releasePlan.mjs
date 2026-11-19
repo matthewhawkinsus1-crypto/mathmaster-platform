@@ -43,6 +43,7 @@
  * still cannot reach is treated like a function that did not deploy.
  */
 
+import { DEPLOY_OVERRIDE_ENV } from './deployProvenance.mjs';
 import { VENDORED_PATHS } from '../sync-path-admin-runtime.mjs';
 import { plannerClosure } from '../sync-functions-weekly-planner.mjs';
 
@@ -89,6 +90,23 @@ export const BUILD_INFO_FUNCTION = 'platformBuildInfo';
  */
 export const DEPLOY_FIRST_FUNCTIONS = Object.freeze(['calibrateLiveChallengeClock']);
 export const DEPLOY_LAST_FUNCTIONS = Object.freeze(['closeOverdueLiveChallengeRounds']);
+
+/**
+ * Functions that read what other functions in the same release write, so they
+ * go live before those writers do (the readiness review of 2026-11-19,
+ * docs/reviews/2026-11-release-readiness.md, B1 and F3):
+ *   - the two Classroom grade triggers. The ingestion functions move a
+ *     student's records into the grades split, and a trigger on older code
+ *     reads each move as a change; the section trigger sent every synced
+ *     column to Classroom again (#572).
+ *   - the Response Inspector. Since #567 the ingestion functions store
+ *     version-2 key fingerprints, which an older Inspector reads as a changed
+ *     key.
+ * They ship together, right after DEPLOY_FIRST_FUNCTIONS. If one of them does
+ * not deploy, no later function group ships (scripts/lib/releaseExecutor.mjs):
+ * the release stops there, and its report says how to finish.
+ */
+export const DEPLOY_EARLY_FUNCTIONS = Object.freeze(['syncGradeToClassroom', 'syncSectionGradeToClassroom', 'inspectStudentResponse']);
 
 /**
  * Where a function without an explicit region is deployed: the Firebase CLI's
@@ -320,13 +338,20 @@ export const buildReleasePlan = ({
       const unique = [...new Set(requested.filter((name) => name !== BUILD_INFO_FUNCTION))];
       const first = unique.filter((name) => DEPLOY_FIRST_FUNCTIONS.includes(name));
       const last = unique.filter((name) => DEPLOY_LAST_FUNCTIONS.includes(name));
+      const early = unique.filter((name) => DEPLOY_EARLY_FUNCTIONS.includes(name) && !first.includes(name) && !last.includes(name));
+      const rest = unique.filter((name) => !first.includes(name) && !early.includes(name) && !last.includes(name));
       // platformBuildInfo last before the checks, so the verify step asks the
       // function this release deployed most recently.
-      const names = [...first, ...unique.filter((name) => !first.includes(name) && !last.includes(name)), BUILD_INFO_FUNCTION];
-      const groups = [...first.map((name) => [name]), ...chunk(names.slice(first.length), groupSize)];
+      const names = [...first, ...early, ...rest, BUILD_INFO_FUNCTION];
+      const earlyGroups = chunk(early, groupSize);
+      const groups = [...first.map((name) => [name]), ...earlyGroups, ...chunk([...rest, BUILD_INFO_FUNCTION], groupSize)];
       const total = groups.length + last.length;
       groups.forEach((group, index) => steps.push({
-        target, group, label: `functions group ${index + 1}/${total}`, ...(index < first.length ? { deployFirst: true } : {}),
+        target,
+        group,
+        label: `functions group ${index + 1}/${total}`,
+        ...(index < first.length ? { deployFirst: true } : {}),
+        ...(index >= first.length && index < first.length + earlyGroups.length ? { early: true } : {}),
       }));
       steps.push({
         target: VERIFY_FUNCTIONS,
@@ -527,6 +552,93 @@ export const retryCommandFor = ({ failedFunctions = [], heldFunctions = [], veri
   if (!first) return null;
   const held = [...new Set(stoppedBeforeTargets || [])].map(aliasFor);
   return first + (held.length ? ` && node scripts/release-firebase.mjs --execute --only ${held.join(',')}` : '');
+};
+
+/**
+ * The command that finishes a release cut off part-way (a closed terminal, a
+ * lost Cloud Shell), written into the report after every step: the functions
+ * that did not deploy or were held, every function and target not yet reached
+ * (the step that was running included), in the plan's own order. One command,
+ * so that order holds: indexes before functions, functions before path-admin,
+ * rules and Hosting (releaseScope). Running the release's whole command again
+ * is also safe; this one skips the groups that already shipped.
+ */
+export const resumeCommandFor = ({ remaining = [], failedFunctions = [], heldFunctions = [] } = {}) => {
+  const steps = remaining || [];
+  const names = [...new Set([
+    ...(failedFunctions || []).map((entry) => entry.name),
+    ...(heldFunctions || []),
+    ...steps.filter((step) => step.target === RELEASE_TARGETS.FUNCTIONS).flatMap((step) => step.group || []),
+  ])];
+  // Cut off at the checks: redeploying platformBuildInfo runs them again.
+  if (!names.length && steps.some((step) => step.target === VERIFY_FUNCTIONS || step.target === ACCESS_FUNCTIONS)) {
+    names.push(BUILD_INFO_FUNCTION);
+  }
+  const targets = [...new Set(steps.map((step) => step.target))]
+    .filter((target) => target !== RELEASE_TARGETS.FUNCTIONS && target !== VERIFY_FUNCTIONS && target !== ACCESS_FUNCTIONS)
+    .map(aliasFor);
+  if (!names.length && !targets.length) return null;
+  return ['node scripts/release-firebase.mjs --execute',
+    ...(names.length ? [`--functions ${names.join(',')}`] : []),
+    ...(targets.length ? [`--only ${targets.join(',')}`] : []),
+  ].join(' ');
+};
+
+/*
+ * CHANGES A ROLLBACK CANNOT UNDO.
+ *
+ * A release whose functions ran a commit older than one of these, and whose
+ * HEAD contains it, crosses it: once the change has run in production, rolling
+ * the functions back past it is not available, and the report says so rather
+ * than print a command that would break what the change wrote.
+ */
+export const ONE_WAY_CHANGES = Object.freeze([
+  Object.freeze({
+    commit: '97d61e261a986dd8a235000446e2e70ff3502097',
+    name: 'the grades split (#561)',
+    detail: 'From the first submission after it ships, a student\'s records are stored split: the summary on the grades document and the detail in responseDetail. Functions older than the split do not read the detail, so a rolled-back ingestion compares new answers with nothing and replays no steps. Roll forward instead.',
+  }),
+]);
+
+const shortSha = (sha) => String(sha || '').slice(0, 12);
+
+/**
+ * The rollback steps a release report prints, each one runnable as written or
+ * marked not available (the readiness review's F1).
+ *
+ * `functionsBase` is the commit platformBuildInfo served before the release,
+ * which can differ from Hosting's (`base`); `crossed` lists the ONE_WAY_CHANGES
+ * between it and HEAD. A checkout of an older commit is behind main, so its
+ * own provenance check asks for MATHMASTER_DEPLOY_ALLOW_BEHIND_MAIN=1, and it
+ * runs that commit's release script: --functions is paired with --only
+ * functions, because a script older than #572 adds every other target the
+ * diff needs to --functions.
+ */
+export const rollbackSteps = ({
+  project,
+  base,
+  liveBuild = null,
+  functionsBase = null,
+  plannedFunctions = [],
+  inventoryCount = 0,
+  crossed = [],
+} = {}) => {
+  const allowBehind = `${DEPLOY_OVERRIDE_ENV.behindMain}=1`;
+  const functionsAt = functionsBase || base;
+  const partial = plannedFunctions.length > 0 && plannedFunctions.length < inventoryCount;
+  const functionsStep = `\`git checkout ${functionsAt}\` (${functionsBase ? 'the commit platformBuildInfo served before this release' : `Hosting's commit; platformBuildInfo did not answer before the release, so check \`--whats-live\`'s labels first`}), then \`${allowBehind} node scripts/release-firebase.mjs --execute --only functions\`: every default-codebase function as that commit has it.${partial ? ` Or name the ${plannedFunctions.length} this release deployed, leaving out any it added: \`--functions <names> --only functions\`.` : ''}`;
+  return {
+    hosting: liveBuild?.gitSha
+      ? `Firebase console → Hosting → Release history → roll back to the release built from ${liveBuild.gitSha}; or \`git checkout ${liveBuild.gitSha} && ${allowBehind} npm run deploy:hosting\`.`
+      : 'Firebase console → Hosting → Release history → roll back to the previous release.',
+    functions: crossed.length
+      ? `Not available to ${shortSha(functionsAt)}: this release crosses ${crossed.map((change) => change.name).join(' and ')}. ${crossed.map((change) => change.detail).join(' ')}`
+      : functionsStep,
+    rules: `Only together with Hosting: a client newer than the rules can need what they allow. \`git checkout ${base} -- firestore.rules && npx firebase deploy --only firestore:rules --project ${project}\`, then \`git checkout HEAD -- firestore.rules\`, and roll Hosting back too.`,
+    pathAdmin: `\`git checkout ${base}\`, then \`${allowBehind} node scripts/release-firebase.mjs --execute --only path-admin\`.`,
+    indexes: 'Not needed: an index or exemption the old code does not use costs nothing, and removing one brings back the failure it fixed.',
+    addedFunctions: `A function this release added keeps running after a functions rollback. If it must stop: \`npx firebase functions:delete <name> --project ${project}\`.`,
+  };
 };
 
 /**

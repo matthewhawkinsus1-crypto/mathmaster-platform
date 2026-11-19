@@ -542,6 +542,13 @@ until the one function that is really broken is named, and the rest still
 ship. Then it asks `platformBuildInfo` which commit is live and refuses to go
 on unless it is yours (see "Which commit is live"). It finishes with the exact
 command to retry what is left, and writes a report under `release-reports/`.
+The report is written before the first step and after every step: if Cloud
+Shell closes part-way, its `resumeCommand` finishes the release (running the
+whole command again is also safe). Run it inside `tmux` all the same, so a
+closed tab does not stop it. The two Classroom grade triggers and the Response
+Inspector ship right after the Live Challenge heartbeat, before the functions
+that write what they read; if one of them does not deploy, the later groups
+wait, and the report says how to finish.
 `--functions name1,name2` deploys only those (plus `platformBuildInfo`).
 Without `--only` or `--functions`, the plan deploys only the functions whose code the
 release changed: it follows each function's imports, lazy loads included

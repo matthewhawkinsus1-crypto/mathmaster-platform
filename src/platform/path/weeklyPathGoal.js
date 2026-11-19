@@ -98,6 +98,17 @@ export const FRAMEWORK = Object.freeze({
 
 
 const clamp = (value, low, high) => Math.max(low, Math.min(high, value));
+
+/**
+ * The day a class's week starts, 0 = Sunday, read as the server reads it when
+ * a student's goal is frozen (functions/lib/weeklyPathFreezeInputs.js): the
+ * stored day, rounded and kept to 0..6, or Monday when none is stored. Every
+ * screen asks this. Four used `config.weekStartsOn || 1`, which turned a
+ * stored Sunday into Monday: the goal was frozen under the Sunday week, and
+ * the student's card and the teacher's completions looked in the Monday one.
+ */
+export const weekStartsOnFor = (config) => (Number.isFinite(Number(config?.weekStartsOn))
+  ? clamp(Math.round(Number(config.weekStartsOn)), 0, 6) : 1);
 const list = (value) => (Array.isArray(value) ? value : []);
 const oneOf = (value, allowed, fallback) => (
   Object.values(allowed).includes(value) ? value : fallback
@@ -138,8 +149,7 @@ export const normalizeWeeklyGoalConfig = (config = {}, { honors = false } = {}) 
     // and ends at midnight Sunday night, so a student has the whole weekend.
     dueDayOfWeek: Number.isFinite(Number(config?.dueDayOfWeek))
       ? clamp(Math.round(Number(config.dueDayOfWeek)), 0, 6) : 0,
-    weekStartsOn: Number.isFinite(Number(config?.weekStartsOn))
-      ? clamp(Math.round(Number(config.weekStartsOn)), 0, 6) : 1,
+    weekStartsOn: weekStartsOnFor(config),
     interventionMode: Boolean(config?.interventionMode),
     grading: normalizeGradingPolicy(config?.grading),
   };

@@ -17,7 +17,7 @@ import {
   storedWeeklyGoalForClassContext,
 } from '../../platform/path/pathStore.js';
 import { buildWeeklyPathPlan } from '../../platform/path/weeklyPathPlan.js';
-import { buildWeeklyGoal, weekKeyFor, weeklyPlanClassInputs } from '../../platform/path/weeklyPathGoal.js';
+import { buildWeeklyGoal, weekKeyFor, weekStartsOnFor, weeklyPlanClassInputs } from '../../platform/path/weeklyPathGoal.js';
 import { resolveStudentCourseContext, studentsInClass } from '../../../functions/shared/classModel.mjs';
 
 export function useTeacherLearningPaths(
@@ -149,7 +149,7 @@ export function useTeacherLearningPaths(
       activeClassId: activeClass.classId,
       classes,
       weeklyGoalsByClass,
-      path: { completions: fetchTeacherWeeklyPathCompletions, weeklyGoalFor: storedWeeklyGoalForClassContext, weekKeyFor },
+      path: { completions: fetchTeacherWeeklyPathCompletions, weeklyGoalFor: storedWeeklyGoalForClassContext, weekKeyFor, weekStartsOnFor },
       set: {
         completions: setWeeklyPathCompletionsByStudent,
         goals: setWeeklyPathGoalSnapshotsByStudent,

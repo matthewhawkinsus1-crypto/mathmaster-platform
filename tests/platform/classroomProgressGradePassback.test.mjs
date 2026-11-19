@@ -148,12 +148,17 @@ test('Google progress checkpoints stay draft-only until MathMaster intentionally
 
 test('due, completed, final, assessment-release and late grades are returned to the student', () => {
   const src = functionsBackendSource();
-  assert.match(src, /function classroomGradeReleasePolicy/);
-  assert.match(src, /"due-checkpoint"/);
-  assert.match(src, /"final-complete"/);
-  assert.match(src, /"final-deadline"/);
-  assert.match(src, /"assessment-release"/);
-  assert.match(src, /startsWith\("late-progress"\)/);
+  // One rule for both triggers: the whole-assignment trigger takes the lib's
+  // (classroomReleasePolicyOneRule.test.mjs).
+  assert.match(src, /const \{[^}]*\bclassroomGradeReleasePolicy\b[^}]*\} = require\("\.\/lib\/classroomGradeRuntime"\);/);
+  const { classroomGradeReleasePolicy } = require('../../functions/lib/classroomGradeRuntime.js');
+  for (const stage of ['due-checkpoint', 'final-complete', 'final-deadline', 'assessment-release', 'late-progress-50']) {
+    const policy = classroomGradeReleasePolicy({ stage, assignment: {}, nowValue: Date.now() });
+    assert.deepEqual([policy.assignToStudent, policy.shouldReturn], [true, true], `${stage} is assigned and returned`);
+  }
+  // Progress before the due date stays a teacher's draft.
+  const draft = classroomGradeReleasePolicy({ stage: 'progress-50', assignment: {}, nowValue: Date.now() });
+  assert.deepEqual([draft.assignToStudent, draft.shouldReturn], [false, false]);
   assert.match(src, /returnSubmission/);
   assert.match(src, /submissionState = "RETURNED"/);
 });

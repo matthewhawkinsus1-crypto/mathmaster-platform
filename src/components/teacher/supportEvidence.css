@@ -96,5 +96,5 @@
 .se-report__facts dd { margin: 0; color: var(--mm-text-strong); }
 .se-report__note { font-size: calc(12 * var(--mm-px)); color: var(--mm-text-muted); line-height: 1.45; }
 
-/* The report's print rules are in supportEvidencePrint.css: they reach every
-   page, so they load with every page (that file says why). */
+/* The report's print rules are in supportEvidencePrint.css, which every page
+   links; they hold only while the report is open (that file says why). */

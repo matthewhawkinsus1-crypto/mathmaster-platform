@@ -10,6 +10,11 @@ name: Student and Teacher Journeys
 #                          DOL fire drill, moving classwork, exports)
 #   support evidence       tests/browser/teacherWorkflow/supportEvidenceJourneys.mjs
 #   case review            tests/browser/teacherWorkflow/caseReviewJourneys.mjs
+#   question editor        tests/browser/questionEditorPreflight.mjs and
+#                          tests/browser/questionEditorSupersession.mjs (their
+#                          own job: Pre-Flight's findings on the card a teacher
+#                          edits; a replaced question shown, refused in full
+#                          view, restored and saved, on three devices)
 #   response inspector     tests/browser/teacherWorkflow/responseInspectorJourneys.mjs
 #                          (in the case review's job: opened from the gradebook
 #                          on each kind of question and from Live View, read
@@ -314,6 +319,34 @@ jobs:
         env:
           PLAYWRIGHT_MODULE: playwright
         run: node tests/browser/teacherWorkflow/warmupReopenJourneys.mjs
+
+  # The Question Editor's own browser checks: what Pre-Flight says where a
+  # teacher edits each question, and a replaced question that cannot be
+  # restored by accident, on a phone, an iPad and a Chromebook. No workflow ran
+  # either before 2026-11-19, and the second had gone red on a phone unseen:
+  # Pre-Flight's findings, landing after Include was pressed, pushed the
+  # refusal back under the dialog's footer.
+  question-editor:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v6
+      - uses: ./.github/actions/setup
+        with: { browser: "true" }
+      - name: Start the teacher harness
+        run: |
+          npx vite --config tests/browser/teacherWorkflow/vite.config.mjs >/tmp/teacher-harness.log 2>&1 &
+          for i in {1..120}; do curl -fsS http://127.0.0.1:5188/tests/browser/teacherWorkflow/index.html >/dev/null && exit 0; sleep 1; done
+          cat /tmp/teacher-harness.log; exit 1
+      - name: Pre-Flight where a teacher edits each question
+        env:
+          PLAYWRIGHT_MODULE: playwright
+        run: node tests/browser/questionEditorPreflight.mjs
+      - name: A replaced question, on a phone, an iPad and a Chromebook
+        if: ${{ !cancelled() }}
+        env:
+          PLAYWRIGHT_MODULE: playwright
+        run: node tests/browser/questionEditorSupersession.mjs
 
   # The throttled and endurance runs, nightly and on demand, each on a runner
   # of its own. In the teacher job they ran past its 40-minute limit every
