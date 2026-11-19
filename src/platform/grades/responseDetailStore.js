@@ -108,22 +108,33 @@ export const trackerFullyJoined = (tracker) => !tracker || typeof tracker !== 'o
  * it. A transaction checks every document it read and did not write again
  * when it commits, and a detail document's check costs a rules lookup (its
  * rule reads the student's grades document); 20 are allowed in one
- * transaction. A summary and its detail are always written together, so a
- * detail that does not match the summary just read was written after it, and
- * the commit would be refused anyway: this rejects with Firestore's own
- * `aborted`, which runs the transaction again (up to five times).
+ * transaction.
+ *
+ * Each summary stored apart must meet the detail entry carrying its own
+ * detailRef. A summary and its detail are always written together, with a
+ * fresh detailRef, so one that does not was written after the summary was
+ * read, and the commit would be refused anyway: this rejects with Firestore's
+ * own `aborted`, which runs the transaction again (up to five times). The
+ * match is by detailRef, not by which fields arrived: a record split with
+ * nothing to move has a detail that holds nothing. The assignment's records
+ * come back whole, as the correction writes them (writeTrackerWhole).
  */
 export const joinTrackerOutsideTransaction = async (db, studentId, gradeData, assignmentId) => {
-  if (!gradeData || !assignmentsWithSplitRecords(gradeData, [assignmentId]).length) return gradeData;
-  const snapshot = await getDoc(responseDetailDoc(db, studentId, assignmentId));
-  const joined = withResponseDetail(gradeData, { [String(assignmentId)]: snapshot.exists() ? snapshot.data() : null });
-  if (!trackerFullyJoined(joined?.gradesByAssignment?.[String(assignmentId)])) {
+  const key = String(assignmentId);
+  if (!gradeData || !assignmentsWithSplitRecords(gradeData, [key]).length) return gradeData;
+  const snapshot = await getDoc(responseDetailDoc(db, studentId, key));
+  const detail = snapshot.exists() ? snapshot.data() : null;
+  const questions = detail?.questions && typeof detail.questions === 'object' ? detail.questions : {};
+  const matched = Object.entries(gradeData.gradesByAssignment[key])
+    .every(([questionKey, record]) => !isSplitSummary(record) || questions[questionKey]?.detailRef === record.detailRef);
+  if (!matched) {
     throw new FirestoreError(
       'aborted',
-      `The saved work for student ${studentId} on assignment ${assignmentId} changed while this correction was being prepared, or has not finished loading. Nothing was changed.`,
+      `The saved work for student ${studentId} on assignment ${key} changed while this correction was being prepared, or has not finished loading. Nothing was changed.`,
     );
   }
-  return joined;
+  const joined = withResponseDetail(gradeData, { [key]: detail });
+  return { ...joined, gradesByAssignment: { ...joined.gradesByAssignment, [key]: trackerWhole(joined.gradesByAssignment[key]) } };
 };
 
 export class UnjoinedTrackerError extends Error {

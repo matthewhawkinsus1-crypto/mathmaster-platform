@@ -304,8 +304,11 @@ test('a teacher\'s live correction, one transaction over a class, writes every r
   const start = browser.indexOf('export const joinTrackerOutsideTransaction');
   assert.ok(start > 0);
   const join = browser.slice(start, browser.indexOf('\n};\n', start));
-  assert.match(join, /const snapshot = await getDoc\(responseDetailDoc\(db, studentId, assignmentId\)\);/);
+  assert.match(join, /const snapshot = await getDoc\(responseDetailDoc\(db, studentId, key\)\);/);
+  // Matched by detailRef: a record split with nothing to move has a detail that holds nothing.
+  assert.match(join, /questions\[questionKey\]\?\.detailRef === record\.detailRef/);
   assert.match(join, /throw new FirestoreError\(\n {6}'aborted',/);
+  assert.match(join, /\[key\]: trackerWhole\(joined\.gradesByAssignment\[key\]\)/, 'its records come back whole, as the correction writes them');
   assert.doesNotMatch(browser, /transaction\.get\(/);
 
   const workspace = source('src/app/teacher/TeacherWorkspace.jsx');

@@ -167,6 +167,28 @@ test('with each detail read in the transaction, the class is refused too, though
   await assertSucceeds(correct(CLASS.slice(0, 5), writeTrackerWhole, { join: joinInside }));
 });
 
+test('a record split with nothing in its detail is corrected, not taken for work still loading', async () => {
+  // The split as #561 shipped split every record, one with no detail field too:
+  // its detail entry carries the summary's detailRef and nothing else.
+  await seedClass();
+  const [first] = CLASS;
+  await env.withSecurityRulesDisabled(async (context) => {
+    const db = context.firestore();
+    await setDoc(doc(db, `grades/${first}`), {
+      classId: 'class-a', assignedTeacherEmail: TEACHER, status: 'active',
+      gradesByAssignment: { a1: { 0: { status: 'attempted', attemptCount: 1, partialCredit: 50, detailRef: 'ref-bare' } } },
+    });
+    await setDoc(doc(db, `grades/${first}/responseDetail/a1`), { studentId: first, assignmentId: 'a1', questions: { 0: { detailRef: 'ref-bare' } } });
+  });
+  await assertSucceeds(correct(CLASS, writeTrackerWhole));
+  await env.withSecurityRulesDisabled(async (context) => {
+    const record = (await getDoc(doc(context.firestore(), `grades/${first}`))).data().gradesByAssignment.a1[0];
+    assert.equal(record.status, 'correct');
+    assert.equal(Object.prototype.hasOwnProperty.call(record, 'detailRef'), false);
+    assert.deepEqual(record.liveCorrectionHistory, [{ correctedAt: 't1' }]);
+  });
+});
+
 test('work a student saves while the correction is prepared: it runs again, and corrects the newer work', async () => {
   await seedClass();
   const [first] = CLASS;
