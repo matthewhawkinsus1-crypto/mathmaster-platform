@@ -109,6 +109,47 @@ test('a Next, the activity flush and a completion reconcile read nothing and sen
   }
 });
 
+/* --- a record that only moved into the split --------------------------------- */
+
+test('a move into the split reads nothing and sends nothing, in either trigger; a changed summary still wakes them', async () => {
+  const { splitTracker, DETAIL_FIELDS } = await import('../../functions/shared/gradeEntryStorage.mjs');
+  const { DETAIL_FIELDS: triggerDetailFields } = requireFromFunctions('./lib/classroomTrackerChange.js');
+  assert.deepEqual([...triggerDetailFields], [...DETAIL_FIELDS], 'the trigger reads the storage contract\'s own detail list');
+
+  // Records stored whole, as every record was before the split.
+  const whole = (record, detail) => ({ ...record, lastResponseKey: 'x=2', questionDetails: { readable: 'x = 2' }, supportUsage: { hintUsed: false }, ...detail });
+  const grades = {
+    gradesByAssignment: {
+      A1: {
+        0: whole(answered('correct', { timeSpent: 40 }), { partGrades: { a: { status: 'correct' } } }),
+        1: whole(answered('attempted', { partialCredit: 0, bestPartialCredit: 0, timeSpent: 20 }), {
+          stepGrades: [{ variantIndex: 0, equationBefore: '2x+1=5', equationAfter: '2x=4', accepted: true, productive: true, earned: 1, possible: 1, expectedTotalPoints: 4 }],
+        }),
+      },
+    },
+  };
+  const moved = (data) => ({ ...data, gradesByAssignment: { A1: splitTracker(data.gradesByAssignment.A1).summaries } });
+  assert.equal(moved(grades).gradesByAssignment.A1[1].stepCredit, 25, 'the summary carries what its steps earned');
+  assert.equal(trackerChangedBeyondTimeOnTask(grades.gradesByAssignment.A1, moved(grades).gradesByAssignment.A1), false);
+  for (const trigger of BOTH) {
+    // eslint-disable-next-line no-await-in-loop
+    const { db, google } = await runOnce({ grades, change: moved, triggers: [trigger] });
+    assert.deepEqual(db.reads, [], `${trigger}: nothing read`);
+    assert.deepEqual(google.calls, [], `${trigger}: nothing sent`);
+    assert.deepEqual(db.writes, [], `${trigger}: nothing written`);
+  }
+
+  // Anything else about a summary is still a change.
+  const summaries = moved(grades).gradesByAssignment.A1;
+  const before = grades.gradesByAssignment.A1;
+  assert.equal(trackerChangedBeyondTimeOnTask(before, { ...summaries, 1: { ...summaries[1], status: 'correct' } }), true, 'a new status');
+  assert.equal(trackerChangedBeyondTimeOnTask(before, { ...summaries, 1: { ...summaries[1], totalAttempts: 2 } }), true, 'a new attempt');
+  assert.equal(trackerChangedBeyondTimeOnTask(before, { ...summaries, 0: { ...summaries[0], partGrades: { a: { status: 'incorrect' } } } }), true, 'detail written on the summary by older code');
+  assert.equal(trackerChangedBeyondTimeOnTask(summaries, splitTracker(before).summaries), true, 'a rewrite of a record already split (a new detailRef)');
+  const { detailRef: _ref, ...noRef } = summaries[0];
+  assert.equal(trackerChangedBeyondTimeOnTask(before, { ...summaries, 0: noRef }), true, 'detail dropped with no detailRef is a reset, not a move');
+});
+
 const WAKES = [
   ['an answer', BOTH, (grades) => ({ ...grades, gradesByAssignment: { A1: { ...grades.gradesByAssignment.A1, 1: answered('correct', { timeSpent: 25, lastSubmissionId: 'sub-2' }) } } })],
   ['a record a Next creates', BOTH, (grades) => ({ ...grades, gradesByAssignment: { A1: { ...grades.gradesByAssignment.A1, 2: { status: 'unattempted', attemptCount: 0, totalAttempts: 0, variantIndex: 0, timeSpent: 30 } } } })],
