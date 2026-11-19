@@ -3578,6 +3578,9 @@ exports.applyWorkspaceDraftRecovery = onCall({ timeoutSeconds: 540 }, async (req
     throw new HttpsError("failed-precondition", "The preview is stale. Run draft recovery preview again.");
   }
 
+  // Platform switches for server grading (settings/serverGrading), read once:
+  // a recovered response is ingested as any submission is.
+  const serverGradingSettings = (await db.collection("settings").doc("serverGrading").get()).data() || {};
   const applied = [];
   for (const proposal of proposals) {
     try {
@@ -3587,6 +3590,7 @@ exports.applyWorkspaceDraftRecovery = onCall({ timeoutSeconds: 540 }, async (req
         studentId: proposal.studentId,
         envelope: { ...proposal.envelope, studentId: proposal.studentId },
         now: Date.now(),
+        serverGradingSettings,
       });
       applied.push({ ...receipt, studentId: proposal.studentId, draftKey: proposal.draftKey });
     } catch (error) {

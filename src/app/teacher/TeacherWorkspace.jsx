@@ -25,7 +25,7 @@ import '../shell/leadingStyles.js';
 import '../../components/teacher/supportEvidence.css';
 import '../../components/teacher/teacherWorkspace.css';
 import { addDoc, collection, deleteField, doc, runTransaction, updateDoc, writeBatch } from 'firebase/firestore';
-import { joinTrackerInTransaction, readSplitSwitch, writeTrackerSplit } from '../../platform/grades/responseDetailStore.js';
+import { joinTrackerOutsideTransaction, writeTrackerWhole } from '../../platform/grades/responseDetailStore.js';
 import { db } from '../../firebase';
 import { classDolFieldPatch } from '../../platform/assessment/dolAttemptGrantClient.js';
 import { updateAssignmentClassroomPublications } from '../../classroomApi';
@@ -1292,9 +1292,6 @@ export default function TeacherWorkspace({
         );
       }
 
-      // Split as the functions do (settings/serverGrading.splitGradeRecords).
-      const splitAll = needsStudentGradeMigration ? await readSplitSwitch(db) : false;
-
       await runTransaction(db, async (transaction) => {
         const liveAssignmentSnapshot = await transaction.get(assignmentRef);
         if (!liveAssignmentSnapshot.exists()) {
@@ -1361,11 +1358,13 @@ export default function TeacherWorkspace({
           ? await Promise.all(audienceStudents.map(async (student) => {
             const studentRef = doc(db, 'grades', student.id);
             const snapshot = await transaction.get(studentRef);
-            // The records whole, read in this transaction: a correction
-            // re-grades parts and responses, stored beside the grades document
-            // (gradeEntryStorage.mjs).
+            // The records whole: a correction re-grades parts and responses,
+            // stored beside the grades document (gradeEntryStorage.mjs). The
+            // grades document is read in this transaction, its detail beside
+            // it: a detail read in it would cost the commit a rules lookup per
+            // student (responseDetailStore.js joinTrackerOutsideTransaction).
             const joined = snapshot.exists()
-              ? await joinTrackerInTransaction(transaction, db, student.id, snapshot.data() || {}, assignmentId)
+              ? await joinTrackerOutsideTransaction(db, student.id, snapshot.data() || {}, assignmentId)
               : null;
             return { student, studentRef, snapshot, joined };
           }))
@@ -1401,9 +1400,11 @@ export default function TeacherWorkspace({
             });
           }
           if (nextTracker !== assignmentTracker || (Array.isArray(liveRepairs) && liveRepairs.length > 0)) {
-            // This assignment's tracker only, split: summaries on the grades
-            // document, its detail document replaced to match.
-            writeTrackerSplit({ db, writer: transaction, studentId: student.id, assignmentId, tracker: nextTracker, splitAll });
+            // This assignment's tracker only, every record whole on the grades
+            // document: a detail write per student would cost this one
+            // transaction a rules lookup each, past the 20 it is allowed
+            // (responseDetailStore.js writeTrackerWhole).
+            writeTrackerWhole({ db, writer: transaction, studentId: student.id, assignmentId, tracker: nextTracker });
           }
           if (weightChanges.length > 0) {
             studentPatch.classroomReleaseSignals = {

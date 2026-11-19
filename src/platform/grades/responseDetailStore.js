@@ -12,16 +12,22 @@
  * the screens are unchanged. Firestore rules let exactly who may read a grades
  * document read its responseDetail.
  *
- * A browser that WRITES records (a teacher's live-question correction, the
- * current-grader repair) writes them as the functions do (writeTrackerSplit):
- * split with settings/serverGrading.splitGradeRecords on (readSplitSwitch);
- * until then whole, except a record already stored split
- * (gradeEntryStorage.mjs recordForStorage). It writes only from a tracker
- * whose records were all joined: writing a summary that never met its detail
- * would orphan the detail, so that is refused.
+ * A browser that WRITES records writes only from a tracker whose records were
+ * all joined: writing a summary that never met its detail would orphan the
+ * detail, so that is refused.
+ *   - The current-grader repair, one student per batch, writes them as the
+ *     functions do (writeTrackerSplit): split with
+ *     settings/serverGrading.splitGradeRecords on (readSplitSwitch); until
+ *     then whole, except a record already stored split (gradeEntryStorage.mjs
+ *     recordForStorage).
+ *   - A teacher's live-question correction, one transaction over the class,
+ *     writes every record whole (writeTrackerWhole): Firestore rules allow 20
+ *     document lookups in one transaction, and each student's detail write
+ *     costs one.
  */
 import {
   FieldPath,
+  FirestoreError,
   collection,
   doc,
   getDoc,
@@ -37,6 +43,7 @@ import {
   isSplitSummary,
   splitSwitchOn,
   trackerForStorage,
+  trackerWhole,
 } from '../../../functions/shared/gradeEntryStorage.mjs';
 
 export { RESPONSE_DETAIL_COLLECTION };
@@ -87,19 +94,37 @@ export const subscribeResponseDetailRoster = (db, studentIds, onChange, onError 
   return () => unsubscribes.forEach((unsubscribe) => unsubscribe());
 };
 
-/** Read one assignment's detail in a client transaction and join it (reads before writes). */
-export const joinTrackerInTransaction = async (transaction, db, studentId, gradeData, assignmentId) => {
-  if (!gradeData || !assignmentsWithSplitRecords(gradeData, [assignmentId]).length) return gradeData;
-  const snapshot = await transaction.get(responseDetailDoc(db, studentId, assignmentId));
-  return withResponseDetail(gradeData, { [String(assignmentId)]: snapshot.exists() ? snapshot.data() : null });
-};
-
 /** A record that names a stored detail but was never joined to it (no detail field present). */
 const unjoined = (record) => isSplitSummary(record) && !DETAIL_FIELDS.some((field) => Object.prototype.hasOwnProperty.call(record, field));
 
 /** Whether every record of a tracker is whole (joined, or stored inline). */
 export const trackerFullyJoined = (tracker) => !tracker || typeof tracker !== 'object'
   || Object.values(tracker).every((record) => !unjoined(record));
+
+/**
+ * One assignment's tracker joined for a transaction that writes a class (a
+ * teacher's live correction): `gradeData` is the grades document as the
+ * transaction read it, and its detail is read beside the transaction, not in
+ * it. A transaction checks every document it read and did not write again
+ * when it commits, and a detail document's check costs a rules lookup (its
+ * rule reads the student's grades document); 20 are allowed in one
+ * transaction. A summary and its detail are always written together, so a
+ * detail that does not match the summary just read was written after it, and
+ * the commit would be refused anyway: this rejects with Firestore's own
+ * `aborted`, which runs the transaction again (up to five times).
+ */
+export const joinTrackerOutsideTransaction = async (db, studentId, gradeData, assignmentId) => {
+  if (!gradeData || !assignmentsWithSplitRecords(gradeData, [assignmentId]).length) return gradeData;
+  const snapshot = await getDoc(responseDetailDoc(db, studentId, assignmentId));
+  const joined = withResponseDetail(gradeData, { [String(assignmentId)]: snapshot.exists() ? snapshot.data() : null });
+  if (!trackerFullyJoined(joined?.gradesByAssignment?.[String(assignmentId)])) {
+    throw new FirestoreError(
+      'aborted',
+      `The saved work for student ${studentId} on assignment ${assignmentId} changed while this correction was being prepared, or has not finished loading. Nothing was changed.`,
+    );
+  }
+  return joined;
+};
 
 export class UnjoinedTrackerError extends Error {
   constructor(studentId, assignmentId) {
@@ -142,6 +167,25 @@ export const writeTrackerSplit = ({ db, writer, studentId, assignmentId, tracker
     });
   }
   return summaries;
+};
+
+/**
+ * Write one assignment's whole tracker on `writer` with every record whole on
+ * the grades document, and nothing in responseDetail: for a transaction that
+ * writes a class (a teacher's live correction). Firestore rules allow 20
+ * document lookups in one transaction, and each student's detail write costs
+ * one (its rule reads that student's grades document), so detail for a class
+ * past 20 would refuse the whole correction. A record written whole carries
+ * no detailRef, so a detail stored before is never joined to it again; the
+ * functions move it out once more after the student's next submission, with
+ * the switch on or the document near its cap. Refuses a tracker that is not
+ * whole. Returns the records written (for the caller's own state).
+ */
+export const writeTrackerWhole = ({ db, writer, studentId, assignmentId, tracker }) => {
+  if (!trackerFullyJoined(tracker)) throw new UnjoinedTrackerError(studentId, assignmentId);
+  const records = trackerWhole(tracker);
+  writer.update(doc(db, 'grades', String(studentId)), new FieldPath('gradesByAssignment', String(assignmentId)), records);
+  return records;
 };
 
 

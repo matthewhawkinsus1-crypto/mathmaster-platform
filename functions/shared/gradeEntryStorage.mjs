@@ -266,10 +266,12 @@ export const splitIsFaithful = (record, { summary, detail }, extraChecks = []) =
  *     only the functions measure): the record is split, so their grades keep
  *     saving.
  *
- * With the switch off a record is split only when a reader built before the
- * split grades its summary exactly as the whole record (splitIsFaithful).
- * Otherwise it is written whole. A record written whole carries no detailRef
- * or stepCredit, so no stored detail is ever joined to it.
+ * Even then a record is split only when it has a detail field to move, and a
+ * reader built before the split grades its summary exactly as the whole
+ * record (splitIsFaithful), the switch on or off: a tab left open across the
+ * switch still reads the summary alone. Otherwise it is written whole. A
+ * record written whole carries no detailRef or stepCredit, so no stored
+ * detail is ever joined to it.
  */
 export const SPLIT_SWITCH_FIELD = 'splitGradeRecords';
 
@@ -277,18 +279,28 @@ export const SPLIT_SWITCH_FIELD = 'splitGradeRecords';
 export const splitSwitchOn = (settings) => isPlainObject(settings) && settings[SPLIT_SWITCH_FIELD] === true;
 
 /**
+ * A record as it is stored whole: without the split's markers, and without a
+ * field left undefined, as splitQuestionRecord drops it (Firestore refuses an
+ * undefined value). Anything that is not an object is returned as it is.
+ */
+export const wholeRecord = (record) => (isPlainObject(record)
+  ? Object.fromEntries(Object.entries(withoutMarkers(record)).filter(([, value]) => value !== undefined))
+  : record);
+
+/**
  * How one record is stored: { summary, detail }, where `detail` is null for a
  * record written whole. `extraChecks` are the caller's own grading views, as
- * for splitIsFaithful. A field left undefined is dropped either way, as
- * splitQuestionRecord drops it: Firestore refuses an undefined value.
+ * for splitIsFaithful.
  */
 export const recordForStorage = (record, { splitAll = false, nearCap = false, extraChecks = [] } = {}) => {
   if (!isPlainObject(record)) return { summary: record, detail: null };
-  const whole = Object.fromEntries(Object.entries(withoutMarkers(record)).filter(([, value]) => value !== undefined));
+  const whole = wholeRecord(record);
+  // Nothing to move: split, it would only name a detail holding nothing, which
+  // a browser cannot tell from one that never loaded.
+  if (!hasInlineDetail(whole)) return { summary: whole, detail: null };
   if (!splitAll && !nearCap && !isSplitSummary(record)) return { summary: whole, detail: null };
   const halves = splitQuestionRecord(whole);
-  if (!splitAll && !splitIsFaithful(whole, halves, extraChecks)) return { summary: whole, detail: null };
-  return halves;
+  return splitIsFaithful(whole, halves, extraChecks) ? halves : { summary: whole, detail: null };
 };
 
 /**
@@ -307,3 +319,8 @@ export const trackerForStorage = (tracker, policy = {}) => {
   }
   return { summaries, details, hadSplit: Object.values(records).some(isSplitSummary) };
 };
+
+/** A whole tracker with every record stored whole (wholeRecord): nothing for responseDetail. */
+export const trackerWhole = (tracker) => Object.fromEntries(
+  Object.entries(isPlainObject(tracker) ? tracker : {}).map(([questionKey, record]) => [questionKey, wholeRecord(record)]),
+);

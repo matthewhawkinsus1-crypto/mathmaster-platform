@@ -5,11 +5,14 @@
 // the question's parts, steps and last response. So until the operator turns
 // the switch on, a day after Hosting ships, every writer stores a record whole,
 // as before the split, except a record already stored split and any record of a
-// student whose grades document is near Firestore's 1 MiB cap. Without the
-// switch a record is split only when a reader built before the split grades its
-// summary exactly as the whole record (gradeSplitOlderReaders.test.mjs).
+// student whose grades document is near Firestore's 1 MiB cap. Switch on or
+// off, a record is split only when it has detail to move and a reader built
+// before the split grades its summary exactly as the whole record
+// (gradeSplitOlderReaders.test.mjs).
 //
 // The same writers against the emulator: tests/integration/gradeSplitServer.test.mjs.
+// A teacher's live correction, one transaction over a class, writes every
+// record whole: tests/rules/liveCorrectionClassRules.test.mjs.
 
 import test from 'node:test';
 import assert from 'node:assert/strict';
@@ -24,6 +27,8 @@ import {
   recordForStorage,
   splitSwitchOn,
   trackerForStorage,
+  trackerWhole,
+  wholeRecord,
 } from '../../functions/shared/gradeEntryStorage.mjs';
 
 const require = createRequire(import.meta.url);
@@ -100,12 +105,33 @@ test('with the switch off a record is stored whole, as before the split, with no
   assert.equal(Object.prototype.hasOwnProperty.call(unset, 'familyDelivery'), false);
 });
 
-test('with the switch on every record is split, as the split shipped', () => {
-  for (const record of [partRecord(), stepsAheadOfCredit()]) {
-    const halves = recordForStorage(record, { splitAll: true });
-    assert.ok(isSplit(halves));
-    assert.deepEqual(withoutMarkers(mergeQuestionRecord(halves.summary, halves.detail)), record, 'joined back it is the record');
+test('with the switch on a record is split, by the same check as without it', () => {
+  const halves = recordForStorage(partRecord(), { splitAll: true });
+  assert.ok(isSplit(halves));
+  assert.deepEqual(withoutMarkers(mergeQuestionRecord(halves.summary, halves.detail)), partRecord(), 'joined back it is the record');
+  // A tab left open across the switch still reads the summary alone.
+  assert.deepEqual(recordForStorage(stepsAheadOfCredit(), { splitAll: true }), { summary: stepsAheadOfCredit(), detail: null });
+  assert.deepEqual(recordForStorage(joinedFromSplit(stepsAheadOfCredit()), { splitAll: true }), { summary: stepsAheadOfCredit(), detail: null });
+});
+
+test('a record with no detail field is never split: there is nothing to move', () => {
+  // Split, it would name a detail holding nothing, which a browser cannot tell
+  // from one that has not loaded (it refuses to write over either).
+  const bare = { status: 'attempted', attemptCount: 1, partialCredit: 50 };
+  for (const policy of [{ splitAll: true }, { nearCap: true }, {}]) {
+    assert.deepEqual(recordForStorage(bare, policy), { summary: bare, detail: null }, JSON.stringify(policy));
+    assert.deepEqual(recordForStorage({ ...bare, detailRef: 'stored-ref' }, policy), { summary: bare, detail: null });
   }
+});
+
+test('a record or tracker stored whole: no split marker, no undefined field, nothing for responseDetail', () => {
+  const { familyDelivery: _familyDelivery, ...withoutPin } = partRecord();
+  assert.deepEqual(wholeRecord({ ...joinedFromSplit(partRecord()), stepCredit: 40, familyDelivery: undefined }), withoutPin);
+  for (const legacy of ['attempted', null, 3]) assert.equal(wholeRecord(legacy), legacy);
+  assert.deepEqual(trackerWhole({ 0: joinedFromSplit(partRecord()), 1: 'attempted', 2: { ...stepsAheadOfCredit(), detailRef: 'r', stepCredit: 67 } }), {
+    0: partRecord(), 1: 'attempted', 2: stepsAheadOfCredit(),
+  });
+  assert.deepEqual(trackerWhole(undefined), {});
 });
 
 test('a record already stored split stays split, unless an older reader would grade its summary lower', () => {
@@ -140,7 +166,8 @@ test('a tracker keeps each record as the rule says, and says when its detail doc
   assert.deepEqual(allWhole, { summaries: { 0: partRecord(), 1: 'attempted' }, details: {}, hadSplit: false });
 
   const on = trackerForStorage({ 0: partRecord(), 1: stepsAheadOfCredit() }, { splitAll: true });
-  assert.deepEqual(Object.keys(on.details), ['0', '1']);
+  assert.deepEqual(Object.keys(on.details), ['0'], 'record 1 stays whole, switch or no switch');
+  assert.deepEqual(on.summaries[1], stepsAheadOfCredit());
 });
 
 test('the size counted is Firestore\'s own: its documented example is 147 bytes', () => {
@@ -219,7 +246,8 @@ test('a whole tracker: its detail document is replaced only when a record is spl
   assert.equal(wasSplit[1].options, undefined, 'replaced, not merged');
 
   const on = write({ 0: partRecord(), 1: stepsAheadOfCredit() }, { splitAll: true });
-  assert.deepEqual(Object.keys(on[1].data.questions), ['0', '1']);
+  assert.deepEqual(Object.keys(on[1].data.questions), ['0']);
+  assert.deepEqual(on[0].pairs[1][1], stepsAheadOfCredit());
 });
 
 test('every writer of a question record passes the switch, read from settings/serverGrading', () => {
@@ -236,11 +264,17 @@ test('every writer of a question record passes the switch, read from settings/se
   assert.match(grading, /splitInlineRecords\(\{ db, studentId, settings: serverGradingSettings \}\)/);
   assert.match(grading, /\(recordPolicy\.splitAll \|\| recordPolicy\.nearCap\)/, 'records are moved only when they would split');
 
-  // The scheduler and a teacher's sweep read the switch once and hand it to the finalizer.
-  assert.equal((grading.match(/const serverGradingSettings = \(await db\.collection\("settings"\)\.doc\("serverGrading"\)\.get\(\)\)\.data\(\) \|\| \{\};/g) || []).length, 3);
+  // The scheduler, a teacher's sweep, the submission queue and a teacher's
+  // draft recovery each read the switch once and hand it to every finalizer
+  // and every ingestion they run.
+  assert.equal((grading.match(/const serverGradingSettings = \(await db\.collection\("settings"\)\.doc\("serverGrading"\)\.get\(\)\)\.data\(\) \|\| \{\};/g) || []).length, 4);
   const finalizerCalls = callsOf(grading, 'await finalizeOneResponseCheckpoint');
   assert.equal(finalizerCalls.length, 2);
   finalizerCalls.forEach((call) => assert.match(call, /serverGradingSettings/));
+  const ingestionCalls = callsOf(grading, 'await ingestOneSubmission');
+  assert.equal(ingestionCalls.length, 2, 'the submission queue and a teacher\'s draft recovery');
+  ingestionCalls.forEach((call) => assert.match(call, /\bserverGradingSettings\b/));
+  assert.equal(grading.split('ingestOneSubmission(').length - 1, 3, 'its definition and those two calls: no other caller');
 
   const trackerCalls = callsOf(authoring, 'writeSplitTracker', ');');
   assert.equal(trackerCalls.length, 2, 'the content upgrade and a teacher\'s question repair');
@@ -253,4 +287,29 @@ test('every writer of a question record passes the switch, read from settings/se
   assert.match(browser, /if \(hadSplit \|\| Object\.keys\(details\)\.length\) \{/);
   assert.match(browser, /splitSwitchOn\(\(await getDoc\(doc\(db, 'settings', 'serverGrading'\)\)\)\.data\(\)\)/);
   assert.match(browser, /\} catch \{\n {4}return false;\n {2}\}/);
+  // The current-grader repair, one student per batch, reads the switch.
+  const app = source('src/App.jsx');
+  assert.match(app, /const splitAll = await readSplitSwitch\(db\);/);
+  assert.match(app, /writeTrackerSplit\(\{/);
+});
+
+test('a teacher\'s live correction, one transaction over a class, writes every record whole and reads detail beside it', () => {
+  // Firestore rules allow 20 document lookups in one transaction; a detail
+  // document costs one per student, written or read in it
+  // (tests/rules/liveCorrectionClassRules.test.mjs).
+  const browser = source('src/platform/grades/responseDetailStore.js');
+  assert.match(browser, /export const writeTrackerWhole = \(\{ db, writer, studentId, assignmentId, tracker \}\) => \{\n {2}if \(!trackerFullyJoined\(tracker\)\) throw new UnjoinedTrackerError\(studentId, assignmentId\);\n {2}const records = trackerWhole\(tracker\);\n {2}writer\.update\(doc\(db, 'grades', String\(studentId\)\), new FieldPath\('gradesByAssignment', String\(assignmentId\)\), records\);\n {2}return records;\n\};/);
+  // The detail is read with getDoc, never transaction.get, and a summary that
+  // no longer matches it runs the transaction again (Firestore's `aborted`).
+  const start = browser.indexOf('export const joinTrackerOutsideTransaction');
+  assert.ok(start > 0);
+  const join = browser.slice(start, browser.indexOf('\n};\n', start));
+  assert.match(join, /const snapshot = await getDoc\(responseDetailDoc\(db, studentId, assignmentId\)\);/);
+  assert.match(join, /throw new FirestoreError\(\n {6}'aborted',/);
+  assert.doesNotMatch(browser, /transaction\.get\(/);
+
+  const workspace = source('src/app/teacher/TeacherWorkspace.jsx');
+  assert.match(workspace, /await joinTrackerOutsideTransaction\(db, student\.id, snapshot\.data\(\) \|\| \{\}, assignmentId\)/);
+  assert.match(workspace, /writeTrackerWhole\(\{ db, writer: transaction, studentId: student\.id, assignmentId, tracker: nextTracker \}\);/);
+  assert.doesNotMatch(workspace, /writeTrackerSplit|readSplitSwitch|responseDetailDoc/);
 });

@@ -132,11 +132,13 @@ test('a record written later replaces its detail entry whole, in the same transa
 test('a whole tracker written split replaces its detail document; rows load joined', async () => {
   const studentId = `${P}s3`;
   const gradeRef = db.collection('grades').doc(studentId);
-  await gradeRef.set({ classId: `${P}c`, gradesByAssignment: { a1: { 0: stepRecord(), 1: partRecord() } } });
+  const second = { ...partRecord(), variantIndex: 2, lastResponseKey: '{"m":"3"}' };
+  await gradeRef.set({ classId: `${P}c`, gradesByAssignment: { a1: { 0: partRecord(), 1: second } } });
   await store.splitInlineRecords({ db, studentId, settings: SPLIT_ON });
 
   const [row] = await store.hydrateTrackerRows([{ studentId, ref: gradeRef, tracker: (await gradeRef.get()).data().gradesByAssignment.a1 }], 'a1', { db });
-  assert.deepEqual(strip(row.tracker[0]), stepRecord());
+  assert.deepEqual(strip(row.tracker[0]), partRecord());
+  assert.deepEqual(strip(row.tracker[1]), second);
 
   // A migration that keeps only question 0 (question 1 dropped).
   const storage = await store.gradeEntryStorage();
@@ -147,7 +149,16 @@ test('a whole tracker written split replaces its detail document; rows load join
   assert.deepEqual(Object.keys(detail.questions), ['0'], 'the detail document matches the tracker written');
   const joined = await store.hydrateGradeData({ db, gradeRef, gradeData: (await gradeRef.get()).data() });
   assert.deepEqual(Object.keys(joined.gradesByAssignment.a1), ['0']);
-  assert.deepEqual(strip(joined.gradesByAssignment.a1[0]), stepRecord());
+  assert.deepEqual(strip(joined.gradesByAssignment.a1[0]), partRecord());
+
+  // With the switch on too, a record an older reader would grade lower is written whole.
+  const again = db.batch();
+  store.writeSplitTracker(storage, again, gradeRef, 'a1', { 0: joined.gradesByAssignment.a1[0], 1: stepRecord() }, SPLIT_ALL);
+  await again.commit();
+  const stored = (await gradeRef.get()).data().gradesByAssignment.a1;
+  assert.equal(typeof stored[0].detailRef, 'string');
+  assert.deepEqual(stored[1], stepRecord(), 'whole, switch on or off: a tab open from before the split grades it from the grades document');
+  assert.deepEqual(Object.keys((await store.responseDetailRef(gradeRef, 'a1').get()).data().questions), ['0']);
 });
 
 test('a summary reset by a writer that knows nothing of the split never shows the old detail', async () => {
