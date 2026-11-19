@@ -361,6 +361,7 @@ test('a Classic round: everyone gets the same equation, and the round is done wh
   }
   const secret = (await privateRef(roomId).get()).data();
   assert.equal(secret.lineGraph.sharedLineKeys.length, 3, 'the schedule\'s lines, privately, for the same-line hold');
+  assert.equal(new Set(secret.lineGraph.sharedLineKeys).size, 3, 'each a different line: the class meets each once');
   // The next round is the next item of the shared schedule.
   await call('advanceLiveChallenge', administrator({ roomId, expectedRoundIndex: 0, expectedRoundVersion: identity.roundVersion }));
   await waitForRoundStart(roomId);
@@ -389,6 +390,10 @@ test('a student with extended time finishes their Classic line after the buzzer;
   const created = await createLine('extended', 'lineGraphClassic', { itemTypes: ['graph'] }, { roundCount: 3, roundSeconds: 20 });
   const roomId = created.roomId;
   assert.equal((await roomOf(roomId)).lineGraph.config.slopeHelper, false, 'the room has no slope helper');
+  // Each round a different line, so round 0's solution is published at its
+  // close (a line asked again later would hold it).
+  const schedule = (await privateRef(roomId).get()).data().lineGraph.sharedLineKeys;
+  assert.equal(new Set(schedule).size, schedule.length);
   await Promise.all([onTime, extra, slow].map((studentId) => call('joinLiveChallenge', student(studentId, { roomId }))));
 
   // THE PLAN, privately: 1.5× and the slope helper on the student's own record

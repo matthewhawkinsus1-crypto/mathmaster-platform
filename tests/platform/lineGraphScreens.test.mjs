@@ -387,7 +387,10 @@ test('the server: the finished flag on the public row, and a shared line capture
   assert.match(submit, /if \(raceRecorded > 0\) \{\s*transaction\.set\(roomRef\.collection\("players"\)/, 'a batch made only in extra time writes no public row');
   assert.match(submit, /\.\.\.\(raceRecorded > 0 \? \{\s*submissionReceipts: applied\.receipts,/, 'the race\'s receipts change only with race attempts');
   const planner = region(server, 'const LINE_GRAPH_PLANNER = Object.freeze({', '\n});', 'line planner');
-  assert.match(planner, /const sharedLineKeys = lineGraphSharesRounds\(config\)/);
+  // A shared game draws its seed again while two rounds would ask the same
+  // line (lineGraphSharedSchedule.test.mjs).
+  assert.match(planner, /const schedule = lineGraphSharesRounds\(config\)\s*\? lineReveal\.drawSharedLineSchedule\(/);
+  assert.match(planner, /const sharedLineKeys = schedule \? schedule\.keys : null;/);
   assert.match(planner, /privateFields: \{ lineGraph: \{ seed, config, generatorVersion, \.\.\.\(sharedLineKeys \? \{ sharedLineKeys \} : \{\}\) \} \}/);
   assert.match(planner, /roomFields: \{ lineGraph: \{ config, generatorVersion \} \}/, 'never the seed or the lines on the room');
   assert.match(region(planner, 'async openRound(', 'return {', 'open'), /engine\.lineReveal\.lineRoundSolutionRecord\(/);
