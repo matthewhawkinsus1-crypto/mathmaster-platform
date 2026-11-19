@@ -7,6 +7,7 @@ import { canonicalPresentedAssignmentGrade, canonicalPresentedSectionGrade, proj
 import { assignmentIsForStudent } from '../../src/assignmentLifecycle.js';
 import { authorizedGradeTransferClasses, gradeTransferRoster } from '../../src/platform/gradeTransfer/gradeTransferScope.js';
 import { projectGradeTransferUnits } from '../../src/platform/gradeTransfer/gradeTransferProjection.js';
+import { functionsBackendSource } from './helpers/functionsBackendSource.mjs';
 
 const assignment = { id: 'a1', title: 'Linear Correlation', lateDueAt: '2026-09-16T23:00:00Z' };
 const klass = { classId: 'c1', name: 'Algebra 1', period: 'P1' };
@@ -199,7 +200,7 @@ test('teacher override and Practice Pass share the legitimate platform grade pro
 
 test('Grade Transfer state crosses the Firestore boundary through an authenticated callable', () => {
   const store = readFileSync(new URL('../../src/platform/gradeTransfer/gradeTransferStore.js', import.meta.url), 'utf8');
-  const server = readFileSync(new URL('../../functions/index.js', import.meta.url), 'utf8');
+  const server = functionsBackendSource();
   assert.match(store, /callable\('listGradeTransferState'\)/);
   assert.doesNotMatch(store, /firebase\/firestore/);
   assert.match(server, /exports\.listGradeTransferState = onCall/);
@@ -211,7 +212,7 @@ test('Grade Transfer state crosses the Firestore boundary through an authenticat
 
 test('Grade Transfer writes and upload confirmation are server-authorized instead of client-rule dependent', () => {
   const store = readFileSync(new URL('../../src/platform/gradeTransfer/gradeTransferStore.js', import.meta.url), 'utf8');
-  const server = readFileSync(new URL('../../functions/index.js', import.meta.url), 'utf8');
+  const server = functionsBackendSource();
   assert.match(store, /callable\('persistGradeTransferSnapshot'\)/);
   assert.match(store, /callable\('confirmGradeTransferUploaded'\)/);
   assert.match(server, /exports\.persistGradeTransferSnapshot = onCall/);

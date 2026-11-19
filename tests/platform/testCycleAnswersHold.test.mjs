@@ -4,6 +4,7 @@ import { readFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 
 import { region } from './helpers/sourceContract.mjs';
+import { functionsBackendSource } from './helpers/functionsBackendSource.mjs';
 
 /*
  * A COURSE TEST'S ANSWERS: THE SAME HOLD, READ CHEAPLY (PF03).
@@ -329,7 +330,7 @@ test('each assignment and stage remembers its own student, and the memory is bou
  * card used before, with its cached roster.
  */
 test('the callables ask the re-check, and it reads what the one-student rule needs', () => {
-  const functionsIndex = readFileSync(new URL('../../functions/index.js', import.meta.url), 'utf8');
+  const functionsIndex = functionsBackendSource();
   const held = region(functionsIndex, 'async function courseAnswersHeld(', '\n}', 'courseAnswersHeld');
   const reader = region(held, 'readHolder: async (studentId) => {', 'fullCheck:', 'readHolder');
   assert.match(reader, /db\.collection\(TEST_CYCLE_ANSWER_RELEASES\)\.doc\(id\)\.get\(\),\s*db\.collection\(TEST_CYCLE_RECORDS\)\.doc\(testCycleRecordKey\(id, studentId\)\)\.get\(\),/);

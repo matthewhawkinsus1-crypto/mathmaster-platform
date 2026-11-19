@@ -7,8 +7,9 @@ import {
   buildChallengeEvidenceEvents,
   scoredRoundsForPlayer,
 } from '../../functions/shared/liveChallengeEvidence.mjs';
+import { functionsBackendSource, topLevelDeclaration } from './helpers/functionsBackendSource.mjs';
 
-const code = readFileSync(new URL('../../functions/index.js', import.meta.url), 'utf8')
+const code = functionsBackendSource()
   .replace(/\/\*[\s\S]*?\*\//g, '')
   .split('\n')
   .map((line) => line.replace(/\/\/.*$/, ''))
@@ -197,6 +198,6 @@ test('a failed evidence write cannot strand a room', () => {
 });
 
 test('answered rounds are recorded in the write that already happens', () => {
-  const submit = code.slice(code.indexOf('exports.submitLiveChallengeResponse'));
+  const submit = topLevelDeclaration(code, 'exports.submitLiveChallengeResponse');
   assert.match(submit, /answeredRounds: \[\.\.\.new Set\(\[/);
 });

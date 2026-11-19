@@ -26,12 +26,13 @@ import {
 } from '../../functions/shared/pathSessionRecap.mjs';
 import { FakeFirestore, HttpsError, topLevelFunction } from './helpers/serverCallableHarness.mjs';
 import { executableSource, region } from './helpers/sourceContract.mjs';
+import { functionsBackendSource } from './helpers/functionsBackendSource.mjs';
 
 const require = createRequire(import.meta.url);
 const recapLib = require('../../functions/lib/pathSessionRecap.js');
 const mathPath = require('../../functions/lib/mathPath.js');
 
-const SERVER = readFileSync(new URL('../../functions/index.js', import.meta.url), 'utf8');
+const SERVER = functionsBackendSource();
 
 // A field-graded multiple-choice item, authored with private choice ids.
 const authored = {

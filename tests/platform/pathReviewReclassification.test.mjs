@@ -16,6 +16,7 @@ import { reclassifyPathReviewEvidence } from '../../functions/shared/pathReviewR
 import { planStudentMasteryBackfill } from '../../scripts/lib/masteryScoringBackfill.mjs';
 import { MASTERY_STATUS } from '../../functions/shared/masteryRule.mjs';
 import { executableSource, region } from './helpers/sourceContract.mjs';
+import { functionsBackendSource } from './helpers/functionsBackendSource.mjs';
 
 const mathPath = createRequire(import.meta.url)('../../functions/lib/mathPath.js');
 const NOW = Date.parse('2026-10-12T15:00:00Z');
@@ -49,7 +50,7 @@ test('the recorded bug: every finalized Path answer read as supported', () => {
   const fixed = mathPath.pathAttemptSupport({ priorSupport: {}, attemptSupport: { solutionReview: { headline: 'Undo in reverse.' } } });
   assert.equal(fixed.used.workedExampleUsed, false);
   assert.equal(fixed.released.reviewReleased, true);
-  const submit = region(executableSource(readFileSync(new URL('../../functions/index.js', import.meta.url), 'utf8')), 'exports.submitPathResponse = onCall(', 'const independent = mathPath.mathematicalIndependence(supportUsage);', 'path support usage');
+  const submit = region(executableSource(functionsBackendSource()), 'exports.submitPathResponse = onCall(', 'const independent = mathPath.mathematicalIndependence(supportUsage);', 'path support usage');
   assert.match(submit, /mathPath\.pathAttemptSupport\(\{/, 'the server counts only support released before this attempt');
 });
 

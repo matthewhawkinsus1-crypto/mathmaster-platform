@@ -10,10 +10,11 @@ import {
   normalizeTestCycleRecord,
 } from '../../functions/shared/testCycleRecord.mjs';
 import { assertCapability, executableSource, region } from './helpers/sourceContract.mjs';
+import { functionsBackendSource } from './helpers/functionsBackendSource.mjs';
 
 const require_ = createRequire(import.meta.url);
 const { classroomGradeReleasePolicy } = require_('../../functions/lib/classroomGradeRuntime.js');
-const functionsIndex = readFileSync(new URL('../../functions/index.js', import.meta.url), 'utf8');
+const functionsIndex = functionsBackendSource();
 
 /*
  * ONE GOOGLE CLASSROOM GRADE ITEM PER TEST CYCLE.
@@ -79,7 +80,7 @@ test('a lower grade the teacher set by hand is posted: it is a decision, not a r
   assert.equal(testCycleClassroomPassback({ recordedGrade: 40, previouslyPostedGrade: 68, teacherAdjusted: 'yes' }).refusedLowering, true, 'only a real adjustment');
   // The sync reads the adjustment from the projection's own source name.
   assert.equal(GRADE_SOURCE.TEACHER_ADJUSTMENT, 'teacherAdjustment');
-  const index = executableSource(readFileSync(new URL('../../functions/index.js', import.meta.url), 'utf8'));
+  const index = executableSource(functionsBackendSource());
   assert.match(index, /testCycleClassroomPassback\(\{\s*recordedGrade: grade,\s*previouslyPostedGrade: priorAudit\.grade,\s*teacherAdjusted: testCycleProjection\?\.recordedGradeSource === "teacherAdjustment",\s*\}\)/);
   // And a cycle holding one is not deleted as if nobody had worked on it.
   const evidence = region(index, 'async function assignmentEvidenceSummary(', 'exports.getAssignmentEvidenceSummary', 'evidence');

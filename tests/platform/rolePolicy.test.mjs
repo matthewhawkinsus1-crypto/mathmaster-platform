@@ -5,6 +5,7 @@ import {
   ADMIN_ONLY_OPERATIONS, authorizeAdminOperation, authorizeRootAdmin, canReadStudent, isRootAdmin,
   isStudent, isTeacher, ownsStudentRecord,
 } from '../../functions/shared/rolePolicy.mjs';
+import { functionsBackendSource } from './helpers/functionsBackendSource.mjs';
 
 // Security is tested negatively here. Proving the administrator can act is the
 // easy half; the half that matters is proving nobody else can, including by
@@ -142,7 +143,7 @@ test('the named-operation check and the plain guard agree', () => {
 test('every root-admin callable in the server is declared administrative', async () => {
   // A new privileged callable added without listing it here would be invisible
   // to every negative test above, so the source is checked directly.
-  const source = await readFile(new URL('../../functions/index.js', import.meta.url), 'utf8');
+  const source = functionsBackendSource();
   const guarded = [...source.matchAll(/exports\.(\w+)\s*=\s*onCall\((?:\{[^}]*\},\s*)?async \(request\) => \{\s*(?:const \w+ = )?await requireRootAdmin/g)]
     .map((match) => match[1]);
 

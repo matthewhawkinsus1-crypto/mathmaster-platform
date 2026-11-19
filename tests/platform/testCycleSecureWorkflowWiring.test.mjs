@@ -25,10 +25,11 @@ import {
 import { assignmentIsForStudent } from '../../src/assignmentLifecycle.js';
 import { verifyCheckpointAuthorization } from '../../functions/shared/responseCheckpointFinalizer.mjs';
 import { RESPONSE_CHECKPOINT_SCHEMA_VERSION } from '../../functions/shared/responseCheckpointSchema.mjs';
+import { functionsBackendSource, topLevelDeclaration } from './helpers/functionsBackendSource.mjs';
 
 const repo = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
 const read = (relative) => fs.readFileSync(path.join(repo, relative), 'utf8');
-const functionsIndex = read('functions/index.js');
+const functionsIndex = functionsBackendSource();
 const app = componentSource('src/App.jsx');
 const controls = componentSource('src/components/teacher/TestCycleControls.jsx');
 const management = componentSource('src/components/teacher/TestCycleManagement.jsx');
@@ -152,7 +153,7 @@ test('every teacher Test Cycle callable asks who is calling before it reads the 
     // Nothing before that lookup reads Firestore with an id from the request.
     assert.doesNotMatch(head.slice(0, lookup), /\.doc\(|\.get\(\)/, `${name} reads nothing before the caller is known`);
   });
-  const lookup = region(functionsIndex, 'async function assignmentForTeacherCall(', '/** The bell schedule the platform already stores.', 'assignmentForTeacherCall');
+  const lookup = topLevelDeclaration(functionsIndex, 'function assignmentForTeacherCall');
   const code = executableSource(lookup);
   assert.ok(code.indexOf('await requireTeacher(request)') < code.indexOf('.get()'), 'the caller is checked before the read');
   assert.ok(code.indexOf('validDocumentId(id)') < code.indexOf('.get()'), 'and a bad id is refused before the read');
@@ -415,7 +416,7 @@ test('the teacher panel shows the times, the Review as a grade, who is assigned,
  * which classes need one, from the server's `needsNewDay` (a stranded status).
  */
 test('the windows panel names the classes that need a new Test day', () => {
-  const server = fs.readFileSync(new URL('../../functions/index.js', import.meta.url), 'utf8');
+  const server = functionsBackendSource();
   const schedule = region(server, 'async function teacherTestCycleSchedule(', 'const lateDue = shared.schedule.defaultFollowUpClose(assignment, timeZone);', 'teacherTestCycleSchedule');
   assert.match(schedule, /needsNewDay: shared\.schedule\.classNeedsNewTestDay\(/);
   const panel = region(management, 'export const TestCycleWindowsPanel = (', '{schedule.classes.length > 1 && !anytime && (', 'windows panel');
@@ -445,13 +446,13 @@ test('while a student\'s Test is ahead and its day is stranded, their card shows
   const normal = { ...schedule, test: { ...schedule.test, stranded: undefined, headline: 'Opens Mon …' }, followUp: { ...schedule.followUp, state: 'upcoming' } };
   assert.deepEqual(studentScheduleBlocks({ stage: 'test', schedule: normal }).map((block) => block.id), ['test', 'followUp']);
   // The server sends the flag the view reads.
-  const server = fs.readFileSync(new URL('../../functions/index.js', import.meta.url), 'utf8');
-  const part = region(server, 'function publicTestCycleSchedule(', 'async function resolveSecureTestBlueprint(', 'publicTestCycleSchedule');
+  const server = functionsBackendSource();
+  const part = topLevelDeclaration(server, 'function publicTestCycleSchedule');
   assert.match(part, /\.\.\.\(status\.stranded === true \? \{ stranded: true \} : \{\}\),/);
 });
 
 test('the windows panel is told each class\'s sittings, so a stranded class is flagged and worded from them', () => {
-  const server = fs.readFileSync(new URL('../../functions/index.js', import.meta.url), 'utf8');
+  const server = functionsBackendSource();
   const schedule = region(server, 'async function teacherTestCycleSchedule(', 'const lateDue = shared.schedule.defaultFollowUpClose(assignment, timeZone);', 'teacherTestCycleSchedule');
   assert.match(schedule, /needsNewDay: shared\.schedule\.classNeedsNewTestDay\(test, classSittings\.get\(classId\)\),/);
   assert.match(schedule, /describeTestWindow\(test, \{ timeZone, audience: "teacher", classSittings: classSittings\.get\(classId\) \|\| null, sitting \}\)/);

@@ -9,6 +9,7 @@ import { buildRawPathResponse, hasMeaningfulRawPathResponse } from '../../src/pl
 import { questionFromToolPayload } from '../../src/platform/path/pathToolResponses.js';
 import { needsMultiRelationWorkspace } from '../../src/algebraRelationFoundation.js';
 import mathPath from '../../functions/lib/mathPath.js';
+import { functionsBackendSource } from './helpers/functionsBackendSource.mjs';
 
 test('catalog provides at least eight explicit structural families per solver family', () => {
   assert.deepEqual(solverRaceCatalogCounts(), {
@@ -63,7 +64,7 @@ test('every catalog question passes the real secure Path issue plan', async () =
 });
 
 test('room and dry-run planning cannot bypass real secure issuance', () => {
-  const server = readFileSync(new URL('../../functions/index.js', import.meta.url), 'utf8');
+  const server = functionsBackendSource();
   const helperStart = server.indexOf('async function securelyPlanSolverRace(');
   const helperEnd = server.indexOf('\nfunction selectChallengeQuestions', helperStart);
   const helper = server.slice(helperStart, helperEnd);

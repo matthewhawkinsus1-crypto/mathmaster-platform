@@ -44,6 +44,7 @@ import { districtDol2SecureWorkedSolution } from '../../functions/shared/distric
 import { effectivePathVariants } from '../../functions/shared/pathQuestionGeneration.mjs';
 import { buildClosedQuestionReview } from '../../src/platform/supports/review/closedQuestionReview.js';
 import { executableSource, region } from './helpers/sourceContract.mjs';
+import { functionsBackendSource } from './helpers/functionsBackendSource.mjs';
 
 const require = createRequire(import.meta.url);
 const mathPath = require('../../functions/lib/mathPath.js');
@@ -176,7 +177,7 @@ test('a key the steps do not reproduce, a tool item, a keyless or unreadable ite
 /* ------------------------------------------------------------ 4. only a closed item, through that helper */
 
 test('only a closed correction\'s response carries the steps, built from the item it graded; the issued item never does', () => {
-  const source = executableSource(read('functions/index.js'));
+  const source = executableSource(functionsBackendSource());
   const submit = region(source, 'exports.submitTestCycleCorrectionResponse = onCall(', '\n});');
   // Built from the item just graded, only once it is closed, else nothing.
   assert.match(submit, /const solutionReview = applied\.questionClosed\s*\?\s*await secureExamItems\.reviewWithWorkedSteps\(support\?\.solutionReview \|\| null, openForGrading\)\s*:\s*null;/);

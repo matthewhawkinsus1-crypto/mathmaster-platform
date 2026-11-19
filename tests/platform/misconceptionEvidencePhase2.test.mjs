@@ -67,6 +67,7 @@ import { narrativeViolations } from '../../src/platform/caseReview/narrativeGuar
 import { MISCONCEPTION_FIXTURES, classifiedCodes, gradeFixture } from './helpers/misconceptionFixtures.mjs';
 import { MISCONCEPTION_FIXTURES_PHASE2 } from './helpers/misconceptionFixturesPhase2.mjs';
 import { executableSource, region } from './helpers/sourceContract.mjs';
+import { functionsBackendSource, topLevelDeclaration } from './helpers/functionsBackendSource.mjs';
 
 const byName = new Map(MISCONCEPTION_FIXTURES.map((fixture) => [fixture.name, fixture]));
 const fixture = (name) => {
@@ -513,10 +514,10 @@ test('20. Recovery: a hold for a platform failure, and the teacher\'s repair of 
   // The teacher repair callable never classifies: it grades nothing new.
   const resolution = executableSource(readFileSync(new URL('../../functions/shared/sectionRecoveryResolution.mjs', import.meta.url), 'utf8'));
   assert.doesNotMatch(resolution, /classifyMisconceptions|gradedResponseMisconceptionEvidence|misconceptionEvidence/);
-  const callable = region(executableSource(readFileSync(new URL('../../functions/index.js', import.meta.url), 'utf8')), 'exports.resolveHeldSectionRecovery', 'exports.', 'resolveHeldSectionRecovery');
+  const callable = topLevelDeclaration(executableSource(functionsBackendSource()), 'exports.resolveHeldSectionRecovery');
   assert.doesNotMatch(callable, /misconception/i);
   // The Recovery callable writes evidence only from the action's own outcome, after the record.
-  const recovery = region(executableSource(readFileSync(new URL('../../functions/index.js', import.meta.url), 'utf8')), 'exports.advanceSectionRecovery', 'exports.', 'advanceSectionRecovery');
+  const recovery = topLevelDeclaration(executableSource(functionsBackendSource()), 'exports.advanceSectionRecovery');
   assert.match(recovery, /outcome\.changed && Array\.isArray\(outcome\.misconceptionEvidence\)/);
   assert.match(recovery, /collection\(service\.MISCONCEPTION_EVIDENCE_COLLECTION\)/);
   assert.doesNotMatch(recovery, /collection\("evidenceEvents"\)/, 'never an attempt event: mastery and Path cannot move');
@@ -935,7 +936,7 @@ test('33. another student\'s evidence stays private: never projected into this c
   assert.deepEqual(Object.keys(response.misconceptionEvidence[0]).sort(), ['eventKey', 'occurredAt', 'performance', 'questionSnapshot', 'source']);
   assert.equal('studentId' in response.misconceptionEvidence[0], false);
   // Only teacher authorization reaches it: the callable is the existing case review one.
-  const callable = region(executableSource(readFileSync(new URL('../../functions/index.js', import.meta.url), 'utf8')), 'exports.loadStudentCaseEvidence', 'exports.overrideStudentResponseGrade', 'loadStudentCaseEvidence');
+  const callable = topLevelDeclaration(executableSource(functionsBackendSource()), 'exports.loadStudentCaseEvidence');
   assert.match(callable, /authorizeCaseEvidenceCaller/);
   assert.match(callable, /collection\("misconceptionEvidence"\)/);
   // The rules close the collection to every browser (proven against the emulator in tests/rules/misconceptionEvidenceRules.test.mjs).

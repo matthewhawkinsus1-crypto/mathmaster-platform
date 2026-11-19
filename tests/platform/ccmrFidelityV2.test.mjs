@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { resolveAssessmentPracticeStage, CCMR_STAGE } from '../../src/platform/ccmr/assessmentFidelity.js';
+import { functionsBackendSource } from './helpers/functionsBackendSource.mjs';
 
 const files = {
   digitalSAT: '../../seed/pathQuestionBank/digitalSAT_pathQuestionBank_seed.json',
@@ -141,7 +142,7 @@ test('CCMR progression moves from direct practice to challenge to maintenance', 
 });
 
 test('runtime contains server-owned tier progression and challenge-family selection', () => {
-  const source = readFileSync(new URL('../../functions/index.js', import.meta.url), 'utf8');
+  const source = functionsBackendSource();
   assert.match(source, /loadCcmrProgress/);
   assert.match(source, /ccmrChallengeTier >= 2/);
   assert.match(source, /ccmrFamilyRole/);

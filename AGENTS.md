@@ -115,6 +115,26 @@ or change an assertion, break the behaviour once and confirm it goes red.
   `npm run test:rules` against the emulator. A new collection needs cases there,
   and its deploy needs `firestore:rules`, not hosting alone.
 
+## Where the backend's functions are
+
+`functions/index.js` sets the global options and loads one module per domain
+beside it (`gradingFunctions.js`, `classroomFunctions.js`,
+`liveChallengeFunctions.js`, ...). `functionsCommon.js` holds the helpers two
+domains use. The code was moved from `index.js` statement for statement in
+November 2026, so a comment that says "functions/index.js" may mean one of
+these modules.
+
+- **A new function** goes in its domain's module, as `exports.NAME = ...`. A
+  helper two domains need goes in `functionsCommon.js` and its export list. A
+  domain module never loads another domain module
+  (`tests/platform/functionsDomainModules.test.mjs`).
+- **A test that reads the backend as text** reads all of it through
+  `tests/platform/helpers/functionsBackendSource.mjs`, and one function of it
+  with `topLevelDeclaration(source, 'exports.NAME')`. Do not slice from one
+  function's first line to its neighbour's: they need not stay neighbours.
+- **A change meant to move code and change no function** proves it with
+  `node scripts/functions-manifest.mjs --compare main`.
+
 ## Scaffolding must not merge
 
 One-shot `.github/workflows/*.yml` patch runners that hold `contents: write` and

@@ -30,6 +30,7 @@ import {
 import { matchRecognitions, publicRecognitions } from '../../functions/shared/liveChallengeRecognitions.mjs';
 import { executableSource, region } from './helpers/sourceContract.mjs';
 import { readFileSync } from 'node:fs';
+import { functionsBackendSource } from './helpers/functionsBackendSource.mjs';
 
 test('growth rewards pay what the push set, and a passed retest pays the ledger\'s whole 20', () => {
   assert.deepEqual({ ...GROWTH_REWARD_AMOUNTS }, {
@@ -91,7 +92,7 @@ test('turning recognitions off turns off recognition awards and the podium\'s re
 });
 
 test('the same switch is what keeps recognitions off the finished room, so the podium names none', () => {
-  const server = executableSource(readFileSync(new URL('../../functions/index.js', import.meta.url), 'utf8'));
+  const server = executableSource(functionsBackendSource());
   const finalization = region(server, 'function applyLiveChallengeMatchFinalization(', '\n}\n', 'the finalizing transaction');
   assert.match(finalization, /const recognitions = finished && engine\.rewardRules\.recognitionsEnabled\(engine\.rewardRules\.storedRewardPolicy\(privateState\.rewardPolicy \|\| null\)\)\s*\? engine\.recognitions\.publicRecognitions\(engine\.recognitions\.matchRecognitions\(matchResult\)\)\s*: \[\];/);
   // …and the room shows only what that list holds.

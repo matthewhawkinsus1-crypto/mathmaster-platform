@@ -1,12 +1,13 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
+import { functionsBackendSource } from './helpers/functionsBackendSource.mjs';
 
 const read = (path) => fs.readFileSync(path, 'utf8');
 
 test('production Classroom launches are pinned to Firebase Hosting', () => {
   const config = read('functions/lib/config.js');
-  const server = read('functions/index.js');
+  const server = functionsBackendSource();
 
   assert.match(config, /CANONICAL_STUDENT_APP_BASE_URL = "https:\/\/mathmaster-aleks\.web\.app"/);
   assert.match(config, /function readStudentAppBaseUrl\(\)/);
@@ -22,7 +23,7 @@ test('production Classroom launches are pinned to Firebase Hosting', () => {
 });
 
 test('Google OAuth returns to the same canonical Firebase Hosting app', () => {
-  const server = read('functions/index.js');
+  const server = functionsBackendSource();
   const start = server.indexOf('exports.oauthCallback = onRequest');
   const end = server.indexOf('exports.getClassroomConnectionStatus', start);
   const callback = server.slice(start, end);
@@ -32,7 +33,7 @@ test('Google OAuth returns to the same canonical Firebase Hosting app', () => {
 });
 
 test('Classroom diagnostics expose and flag a stale configured app host', () => {
-  const server = read('functions/index.js');
+  const server = functionsBackendSource();
   assert.match(server, /checks\.configuredAppBaseUrl = readPublicEnv\("APP_BASE_URL"\)/);
   assert.match(server, /checks\.canonicalAppBaseUrl = CANONICAL_STUDENT_APP_BASE_URL/);
   assert.match(server, /Student launches are being forced to/);

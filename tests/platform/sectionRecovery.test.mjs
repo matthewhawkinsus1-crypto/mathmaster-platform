@@ -57,6 +57,7 @@ import { canonicalPresentedAssignmentGrade } from '../../src/platform/grading/ca
 import { componentSource, region } from './helpers/sourceContract.mjs';
 import { importsComponent } from './helpers/componentImport.mjs';
 import { appHookSource } from './helpers/appScreens.mjs';
+import { functionsBackendSource } from './helpers/functionsBackendSource.mjs';
 
 const require = createRequire(import.meta.url);
 const { projectRecoveredGradeInputs, recoveryChangedAssignmentIds, warmupChallengeCreditSignature } = require('../../functions/lib/sectionRecoveryGrades.js');
@@ -895,7 +896,7 @@ test('the Live Challenge Warm-Up grade reaches the student Grade Center and both
     assert.match(gradeDocumentCall, new RegExp(`[{,\\s]${input}[,\\s}]`), input);
   }
   assert.match(app, /const \[warmupChallengeByAssignment, setWarmupChallengeByAssignment\] = useState\(\{\}\);/);
-  const index = await readFile(new URL('../../functions/index.js', import.meta.url), 'utf8');
+  const index = functionsBackendSource();
   const sync = region(index, 'exports.syncGradeToClassroom', 'exports.queueReleasedAssessmentGrades', 'whole-assignment passback');
   assert.match(sync, /challengeCredit: afterData\.warmupChallengeByAssignment\?\.\[assignmentId\] \|\| null,/);
   assert.match(sync, /sectionRecoveryGrades\.recoveryChangedAssignmentIds\(afterData, beforeData\)/);
@@ -966,7 +967,7 @@ test('the release deploy surface names every function this release changes, and 
   const { readFile } = await import('node:fs/promises');
   const surface = await import('../../scripts/question-family-recovery-deploy-surface.mjs');
   const names = surface.questionFamilyRecoveryFunctionNames();
-  const index = await readFile(new URL('../../functions/index.js', import.meta.url), 'utf8');
+  const index = functionsBackendSource();
   const sectionEntry = await readFile(new URL('../../functions/classroomSectionEntry.js', import.meta.url), 'utf8');
   names.forEach((name) => {
     const exported = index.includes(`exports.${name} = `)

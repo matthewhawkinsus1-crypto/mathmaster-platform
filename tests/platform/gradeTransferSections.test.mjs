@@ -10,6 +10,7 @@ import {
   transferPackagePath,
   transferSnapshotId,
 } from '../../src/platform/gradeTransfer/gradeTransferModel.js';
+import { functionsBackendSource } from './helpers/functionsBackendSource.mjs';
 
 const klass = {
   classId: 'c1',
@@ -211,7 +212,7 @@ test('mixed lesson and assessment roles fall back to one whole-assignment export
 });
 
 test('server persists and validates section identity on immutable Grade Transfer snapshots', () => {
-  const server = readFileSync(new URL('../../functions/index.js', import.meta.url), 'utf8');
+  const server = functionsBackendSource();
   assert.match(server, /const sectionKey = String\(input\.sectionKey \|\| ""\)\.trim\(\)\.toLowerCase\(\)/);
   assert.match(server, /\["warmup", "classwork", "practice", "dol"\]\.includes\(sectionKey\)/);
   assert.match(server, /sectionKey: sectionKey \|\| null/);

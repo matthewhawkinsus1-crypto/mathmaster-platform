@@ -2,8 +2,9 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import { region, executableSource } from './helpers/sourceContract.mjs';
+import { functionsBackendSource } from './helpers/functionsBackendSource.mjs';
 
-const indexSource = await readFile('functions/index.js', 'utf8');
+const indexSource = functionsBackendSource();
 
 const previewFn = region(
   indexSource,

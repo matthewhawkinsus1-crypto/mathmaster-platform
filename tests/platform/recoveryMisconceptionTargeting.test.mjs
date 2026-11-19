@@ -48,6 +48,7 @@ import {
   recoveryMisconceptionFocus,
 } from '../../functions/shared/recoveryMisconceptionTargeting.mjs';
 import { executableSource, region } from './helpers/sourceContract.mjs';
+import { functionsBackendSource } from './helpers/functionsBackendSource.mjs';
 
 const read = (relPath) => readFileSync(new URL(`../../${relPath}`, import.meta.url), 'utf8');
 
@@ -254,7 +255,7 @@ test('with no stored evidence, Practice is dealt exactly as before', () => {
 });
 
 test('the server reads the evidence and passes it in; the runner shows the server\'s deal', () => {
-  const index = executableSource(read('functions/index.js'));
+  const index = executableSource(functionsBackendSource());
   const callable = region(index, 'exports.advanceSectionRecovery = onCall', 'exports.resolveHeldSectionRecovery');
   assert.match(callable, /const misconceptionRecords = RECOVERY_ACTIONS_WITH_TARGETING\.has\(action\)\s*\?\s*await readRecoveryMisconceptionRecords\(/);
   assert.match(callable, /buildSectionRecoveryContext\(\{[\s\S]*?\n\s*misconceptionRecords,\n[\s\S]*?\}\);/);

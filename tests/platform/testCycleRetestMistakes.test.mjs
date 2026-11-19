@@ -20,6 +20,7 @@ import {
 } from '../../src/platform/teacher/retestMistakesView.js';
 import { teacherActionsForRow } from '../../src/platform/teacher/testCycleTeacherRows.js';
 import { executableSource, region } from './helpers/sourceContract.mjs';
+import { functionsBackendSource } from './helpers/functionsBackendSource.mjs';
 
 const require = createRequire(new URL('../../functions/index.js', import.meta.url));
 const testCycleLib = require('./lib/testCycle');
@@ -163,7 +164,7 @@ test('a Retest that stood in for a missed Test is told apart from a Test that wa
 
 /* --- the wiring ------------------------------------------------------------- */
 
-const server = executableSource(read('functions/index.js'));
+const server = executableSource(functionsBackendSource());
 
 test('the server reads a Retest\'s mistakes only for the teacher of record, only once it is turned in, and never fails the panel', () => {
   const helper = region(server, 'async function retestMistakesFor(', '\n}\n', 'retestMistakesFor');

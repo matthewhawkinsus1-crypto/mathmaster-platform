@@ -15,8 +15,9 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 
 import { executableSource, region } from './helpers/sourceContract.mjs';
+import { functionsBackendSource } from './helpers/functionsBackendSource.mjs';
 
-const server = executableSource(readFileSync(new URL('../../functions/index.js', import.meta.url), 'utf8'));
+const server = executableSource(functionsBackendSource());
 
 test('a fresh Test start records the class sitting after it is committed, and never for a Retest or a resume', () => {
   const start = region(server, 'exports.startSecureExamSession = onCall(', '\n});\n', 'startSecureExamSession');

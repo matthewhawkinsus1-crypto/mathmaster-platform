@@ -1,8 +1,9 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
+import { functionsBackendSource } from './helpers/functionsBackendSource.mjs';
 
-const serverSource = readFileSync(new URL('../../functions/index.js', import.meta.url), 'utf8');
+const serverSource = functionsBackendSource();
 const teacherSource = readFileSync(new URL('../../src/components/liveChallenge/LiveChallengeTeacher.jsx', import.meta.url), 'utf8');
 const executableSource = (source) => source
   .replace(/\/\*[\s\S]*?\*\//g, '')

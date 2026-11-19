@@ -4,6 +4,7 @@ import { readFileSync } from 'node:fs';
 import { region } from './helpers/sourceContract.mjs';
 import { buildWhatChanged, STUDENT_VISIBLE_REASONS, WHAT_CHANGED_KIND } from '../../src/platform/student/whatChangedModel.js';
 import { buildReviewMyWorkModel } from '../../src/platform/student/reviewMyWorkModel.js';
+import { functionsBackendSource } from './helpers/functionsBackendSource.mjs';
 
 /*
  * Defects found by the job C screen verifier, each pinned by a case that fails
@@ -51,7 +52,7 @@ test('What changed shows a teacher reason only when it is one of the fixed integ
 });
 
 test('the student-visible reasons are exactly index.js ASSIGNMENT_ZERO_REASONS', () => {
-  const index = readFileSync(new URL('../../functions/index.js', import.meta.url), 'utf8');
+  const index = functionsBackendSource();
   const block = region(index, 'const ASSIGNMENT_ZERO_REASONS = Object.freeze({', '});');
   const labels = [...block.matchAll(/:\s*"([^"]+)"/g)].map((match) => match[1]);
   assert.deepEqual([...STUDENT_VISIBLE_REASONS].sort(), labels.sort());

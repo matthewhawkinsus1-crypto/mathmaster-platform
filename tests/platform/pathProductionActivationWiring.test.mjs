@@ -1,8 +1,9 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
+import { functionsBackendSource } from './helpers/functionsBackendSource.mjs';
 
-const functionsIndex = readFileSync('functions/index.js', 'utf8');
+const functionsIndex = functionsBackendSource();
 const service = readFileSync('src/platform/path/pathCoverageService.js', 'utf8');
 const admin = readFileSync('src/components/teacher/PathCoverageAudit.jsx', 'utf8');
 

@@ -28,6 +28,7 @@ import {
 } from '../../src/platform/student/correctionReflection.js';
 import { describeCorrectionReflection } from '../../src/platform/teacher/correctionReflectionView.js';
 import { componentSource, executableSource, region } from './helpers/sourceContract.mjs';
+import { functionsBackendSource } from './helpers/functionsBackendSource.mjs';
 
 const read = (path) => readFileSync(new URL(`../../${path}`, import.meta.url), 'utf8');
 const memory = () => {
@@ -126,7 +127,7 @@ test('the teacher reads the pick in a teacher\'s words and the student\'s own se
 
 /* --- where it travels ------------------------------------------------------- */
 
-const server = executableSource(read('functions/index.js'));
+const server = executableSource(functionsBackendSource());
 
 test('the correction response carries it to the server, which keeps it beside the plan in the same write', () => {
   assert.match(executableSource(read('src/services/testCycleService.js')), /assignmentId, correctionId, questionInstanceId, responsePayload, reflection = null,/);

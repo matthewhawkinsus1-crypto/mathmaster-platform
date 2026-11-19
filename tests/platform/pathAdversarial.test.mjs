@@ -15,8 +15,9 @@ import {
 import { buildAttemptSupportPayload, buildPrivateSupport } from '../../functions/shared/pathSolutionSupport.mjs';
 import { resolveSupportEntitlements, reconcileSupportDelivery, attemptsWithEntitlements, SUPPORT } from '../../functions/shared/supportEntitlements.mjs';
 import { createTeacherPathRuntime } from '../../src/platform/simulation/teacherPathRuntime.js';
+import { functionsBackendSource } from './helpers/functionsBackendSource.mjs';
 
-const serverSource = readFileSync(new URL('../../functions/index.js', import.meta.url), 'utf8');
+const serverSource = functionsBackendSource();
 
 const TARGET = 'A.5C';
 const item = (overrides = {}) => ({

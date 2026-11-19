@@ -18,8 +18,9 @@ import { ACTIVITY_POLICIES, ACTIVITY_ROLES } from '../../src/platform/policies/a
 import { assertCapability, componentSource, region } from './helpers/sourceContract.mjs';
 import { teacherActionsForRow } from '../../src/platform/teacher/testCycleTeacherRows.js';
 import { appAndTeacherWorkspaceSource } from './helpers/appScreens.mjs';
+import { functionsBackendSource } from './helpers/functionsBackendSource.mjs';
 
-const functionsIndex = readFileSync(new URL('../../functions/index.js', import.meta.url), 'utf8');
+const functionsIndex = functionsBackendSource();
 const controls = componentSource('src/components/teacher/TestCycleControls.jsx');
 const card = componentSource('src/components/student/TestCycleCard.jsx');
 const lessonPreflight = componentSource('src/components/teacher/LessonPreflightModal.jsx');

@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
+import { functionsBackendSource } from './helpers/functionsBackendSource.mjs';
 
 const read = (p) => fs.readFileSync(p, 'utf8');
 
@@ -16,7 +17,7 @@ test('student Path accepts an injected coverage source', () => {
 });
 
 test('server mutations rebuild coverage', () => {
-  const source = read('functions/index.js');
+  const source = functionsBackendSource();
   assert.match(source, /async function rebuildStoredPathCoverage/);
   assert.match(source, /Repairing stale Path coverage/);
 });

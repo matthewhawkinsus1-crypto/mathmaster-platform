@@ -4,10 +4,11 @@ import { readFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 
 import { assertCapability, componentSource, executableSource, region } from './helpers/sourceContract.mjs';
+import { functionsBackendSource, topLevelDeclaration } from './helpers/functionsBackendSource.mjs';
 
 const require_ = createRequire(import.meta.url);
 const testCycleLib = require_('../../functions/lib/testCycle.js');
-const functionsIndex = readFileSync(new URL('../../functions/index.js', import.meta.url), 'utf8');
+const functionsIndex = functionsBackendSource();
 const rules = readFileSync(new URL('../../firestore.rules', import.meta.url), 'utf8');
 const card = componentSource('src/components/student/TestCycleCard.jsx');
 const app = readFileSync(new URL('../../src/App.jsx', import.meta.url), 'utf8');
@@ -17,12 +18,7 @@ const app = readFileSync(new URL('../../src/App.jsx', import.meta.url), 'utf8');
  */
 
 test('secure issuance reads a stored plan and calls no model', () => {
-  const issue = region(
-    functionsIndex,
-    'async function buildCourseTestExamItem(',
-    '// Immutable evidence drives the Phase 5A mastery wheel',
-    'buildCourseTestExamItem',
-  );
+  const issue = topLevelDeclaration(functionsIndex, 'function buildCourseTestExamItem');
   // It looks up the next plan entry — after every slot already ISSUED, skipped
   // or not — and instantiates the family it names.
   assert.match(issue, /nextPlanEntry\(plan, secureExamNavigation\.issuedSlotIds\(session\)\)/);

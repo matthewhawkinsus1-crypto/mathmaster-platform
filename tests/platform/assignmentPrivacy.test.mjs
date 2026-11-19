@@ -41,6 +41,7 @@ import {
 import { analyzeAssignmentCompletion } from '../../src/platform/caseReview/completionAnalysis.js';
 import { executableSource, region } from './helpers/sourceContract.mjs';
 import { appAndTeacherWorkspaceSource, appHookSource } from './helpers/appScreens.mjs';
+import { functionsBackendSource, topLevelDeclaration } from './helpers/functionsBackendSource.mjs';
 
 const require = createRequire(import.meta.url);
 const { prepareContentRelease } = require('../../functions/lib/assignmentContentVersion.js');
@@ -307,7 +308,7 @@ test('the case review reads why a deadline moved from the private grants, oldest
 // does the work, not to names anywhere in a large file (AGENTS.md).
 
 test('the extension callable writes the deadline to the student\'s private controls and the details to a private grant', () => {
-  const callable = executableSource(region(read('functions/index.js'), 'exports.applyStudentAttendanceExtension', 'function trustedResponseInspectionEvidence', 'applyStudentAttendanceExtension'));
+  const callable = executableSource(region(functionsBackendSource(), 'exports.applyStudentAttendanceExtension', 'function trustedResponseInspectionEvidence', 'applyStudentAttendanceExtension'));
   // The deadline and its stub are planned as a change to the student's private
   // record (studentAssignmentOverrides.mjs), which writes the record and —
   // only while previous-release clients still read it — the shared copy.
@@ -323,8 +324,8 @@ test('the extension callable writes the deadline to the student\'s private contr
 });
 
 test('permanent deletion and the content release apply the rule', () => {
-  const index = read('functions/index.js');
-  const deletion = executableSource(region(index, 'exports.permanentlyDeleteStudent', '// --- OAuth connect flow', 'permanentlyDeleteStudent'));
+  const index = functionsBackendSource();
+  const deletion = executableSource(topLevelDeclaration(index, 'exports.permanentlyDeleteStudent'));
   assert.match(deletion, /await removeStudentFromAssignmentDocuments\(db, studentId, receipt, deleted\)/);
   const release = executableSource(region(index, 'exports.createAssignmentContentVersion', 'transaction.set(releaseRef, release)', 'createAssignmentContentVersion'));
   assert.match(release, /stripInstanceState: stripAssignmentInstanceState/);

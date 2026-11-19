@@ -8,6 +8,7 @@ import { practicePassRedemptionId } from '../../functions/shared/classPointRewar
 import { responseInspectionEvidenceDocumentId } from '../../functions/shared/responseInspector.mjs';
 import { resolveStudentSupportDeadline } from '../../functions/shared/supportDeadline.mjs';
 import { assignmentFinalCloseAt } from '../../functions/shared/sectionDeadline.mjs';
+import { functionsBackendSource } from './helpers/functionsBackendSource.mjs';
 
 /*
  * REVIEW MY WORK, SERVER SIDE (functions/lib/reviewMyWork.js).
@@ -352,7 +353,7 @@ test('teacher-excluded questions are left out', async () => {
 
 /* --------------------------------------------------- the index.js wiring */
 
-const indexSource = readFileSync(new URL('../../functions/index.js', import.meta.url), 'utf8');
+const indexSource = functionsBackendSource();
 
 test('index.js: loadMyReviewWork is identified by requireStudent, never by the request data', () => {
   const hunk = region(indexSource, 'exports.loadMyReviewWork = onCall(', '}));');

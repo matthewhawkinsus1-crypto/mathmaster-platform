@@ -20,11 +20,12 @@ import { CORRECTION_MISS_DIAGNOSIS_TOOLS, diagnoseCorrectionMiss } from '../../f
 import { buildAttemptSupportPayload } from '../../functions/shared/pathSolutionSupport.mjs';
 import { buildMisconceptionEvidence } from '../../functions/shared/misconceptionCodes.mjs';
 import { componentSource, executableSource, region } from './helpers/sourceContract.mjs';
+import { functionsBackendSource } from './helpers/functionsBackendSource.mjs';
 
 const require = createRequire(new URL('../../functions/index.js', import.meta.url));
 const mathPath = require('./lib/mathPath');
 const secureItems = require('./lib/secureItems');
-const functionsIndex = readFileSync(new URL('../../functions/index.js', import.meta.url), 'utf8');
+const functionsIndex = functionsBackendSource();
 
 const GENERIC = /Look again at what the question is asking you to find/;
 

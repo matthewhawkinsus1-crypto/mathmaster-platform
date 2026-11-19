@@ -7,6 +7,7 @@ import { readFileSync } from 'node:fs';
 import { executableSource, region } from './helpers/sourceContract.mjs';
 import { readClassRewardDraft, writeClassRewardDraft } from '../../src/platform/rewards/classRewardDraftStore.js';
 import { clearAccountTabStorage } from '../../src/auth/accountTabStorage.js';
+import { functionsBackendSource } from './helpers/functionsBackendSource.mjs';
 
 const code = (rel) => executableSource(readFileSync(new URL(`../../${rel}`, import.meta.url), 'utf8'));
 const before = (text, first, second, message) => {
@@ -83,7 +84,7 @@ test('keyboard focus is never left on the page after a request or a resolution',
 });
 
 test('extended time never reaches the public player row, however the row is built', () => {
-  const server = code('functions/index.js');
+  const server = executableSource(functionsBackendSource());
   const join = region(server, 'exports.joinLiveChallenge = onCall', '\nexports.', 'joinLiveChallenge');
   // The public row is an inline literal, so nothing built elsewhere can carry a field into it…
   const row = region(join, 'transaction.set(publicPlayerRef, {', '}, { merge: true });', 'the public row');

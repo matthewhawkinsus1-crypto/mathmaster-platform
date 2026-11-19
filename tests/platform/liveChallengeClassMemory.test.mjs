@@ -14,6 +14,7 @@ import { CLASSIC_SETUP_CHOICES } from '../../functions/shared/liveChallengeModes
 import { SOLVER_RACE_DIFFICULTIES, SOLVER_RACE_FOCUS, planSolverRace } from '../../functions/shared/solverRace.mjs';
 import { LINE_GRAPH_GAME, defaultLineSetup, lineCreateRequest, lineSetupProblem } from '../../src/platform/liveChallenge/lineGraphSetupModel.js';
 import { executableSource, region } from './helpers/sourceContract.mjs';
+import { functionsBackendSource } from './helpers/functionsBackendSource.mjs';
 
 /*
  * CLASS MEMORY (liveChallengeClassMemory.mjs): what a finished rush game
@@ -226,7 +227,7 @@ test('a finished game leaves its class totals: accuracy, per student, the weakes
 /* -------------------------------- the wiring -------------------------------- */
 
 test('the server writes the memory as a finalization effect, from the result and the room, never over a newer one', () => {
-  const index = executableSource(read('functions/index.js'));
+  const index = executableSource(functionsBackendSource());
   assert.match(index, /const LIVE_CHALLENGE_CLASS_MEMORY = "liveChallengeClassMemory";/);
   assert.match(index, /const LIVE_CHALLENGE_EFFECT_ORDER = Object\.freeze\(\[[^\]]*"report", "classMemory",/);
   const effects = region(index, 'async function runLiveChallengeFinalizationEffects', 'async function finalizeLiveChallengeMatch', 'the effects');

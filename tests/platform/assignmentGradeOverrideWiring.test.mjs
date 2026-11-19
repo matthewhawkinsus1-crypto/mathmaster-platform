@@ -9,6 +9,7 @@ import {
 import { splitIntegrityConsequence } from '../../functions/shared/integrityOverridePrivacy.mjs';
 import { SUPPORT_EVENT_KIND, SUPPORT_EVENT_LABEL } from '../../src/platform/teacher/studentSupportSignals.js';
 import { region } from './helpers/sourceContract.mjs';
+import { functionsBackendSource, topLevelDeclaration } from './helpers/functionsBackendSource.mjs';
 
 test('assignment override helper accepts only active numeric server projection', () => {
   const student = {
@@ -44,10 +45,8 @@ test('Grade Center exposes the two explicit zero reasons and a restore path', ()
 });
 
 test('server callable owns assignment zero writes, audits them, and wakes Classroom passback', () => {
-  const functions = readFileSync(new URL('../../functions/index.js', import.meta.url), 'utf8');
-  const start = functions.indexOf('exports.overrideStudentAssignmentGrade = onCall');
-  assert.notEqual(start, -1);
-  const block = functions.slice(start, functions.indexOf('// ---------------------------------------------------------------------------\n// Class Points:', start));
+  const functions = functionsBackendSource();
+  const block = topLevelDeclaration(functions, 'exports.overrideStudentAssignmentGrade');
   assert.match(block, /requireTeacher\(request\)/);
   assert.match(block, /Only this student's teacher of record/);
   assert.match(block, /studentMatchesAssignmentAudience/);
@@ -57,7 +56,7 @@ test('server callable owns assignment zero writes, audits them, and wakes Classr
 });
 
 test('Classroom passback uses the assignment zero and bypasses test-cycle anti-lowering only for that explicit override', () => {
-  const functions = readFileSync(new URL('../../functions/index.js', import.meta.url), 'utf8');
+  const functions = functionsBackendSource();
   assert.match(functions, /const assignmentGradeOverride = activeAssignmentGradeOverride\(authoritativeOverrides\)/);
   assert.match(functions, /grade: assignmentGradeOverride\.score/);
   assert.match(functions, /isTestCycleAssignment && priorAudit\.status === "synced" && !assignmentGradeOverride/);
@@ -86,21 +85,15 @@ test('integrity controls cover section scope, confirmed roles, third reason, and
 });
 
 test('assignment and section integrity actions are accepted only for their matching scope', () => {
-  const functions = readFileSync(new URL('../../functions/index.js', import.meta.url), 'utf8');
-  const start = functions.indexOf('exports.overrideStudentAssignmentGrade = onCall');
-  const end = functions.indexOf('// ---------------------------------------------------------------------------\n// Class Points:', start);
-  assert.ok(start >= 0 && end > start);
-  const block = functions.slice(start, end);
+  const functions = functionsBackendSource();
+  const block = topLevelDeclaration(functions, 'exports.overrideStudentAssignmentGrade');
   assert.match(block, /const actionMatchesScope = scope === "section"[\s\S]*\["issueZero", "restoreSectionZero"\]\.includes\(action\)[\s\S]*\["issueZero", "restoreAutomatic"\]\.includes\(action\)/);
   assert.match(block, /if \(!actionMatchesScope\)/);
 });
 
 test('server enforces confirmed section zeros, preserves prior corrections, updates DOL, and creates parent follow-up', () => {
-  const functions = readFileSync(new URL('../../functions/index.js', import.meta.url), 'utf8');
-  const start = functions.indexOf('exports.overrideStudentAssignmentGrade = onCall');
-  const end = functions.indexOf('// ---------------------------------------------------------------------------\n// Class Points:', start);
-  assert.ok(start >= 0 && end > start);
-  const block = functions.slice(start, end);
+  const functions = functionsBackendSource();
+  const block = topLevelDeclaration(functions, 'exports.overrideStudentAssignmentGrade');
   assert.match(block, /teacherConfirmed/);
   assert.match(block, /runtimeIncludedQuestionIndicesForSection/);
   assert.match(block, /previousOverridesByQuestion/);

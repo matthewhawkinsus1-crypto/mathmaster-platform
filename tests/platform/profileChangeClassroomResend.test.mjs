@@ -32,6 +32,7 @@ import { buildSupportProjection } from '../../functions/shared/supportProfileMod
 import {
   itemReductionPolicySummary, profileItemReductionKey, resolveItemReductionPolicy, studentOmittedIndices,
 } from '../../functions/shared/reducedWorkload.mjs';
+import { functionsBackendSource } from './helpers/functionsBackendSource.mjs';
 
 const require = createRequire(import.meta.url);
 const { assignmentsWithChangedWorkload, profileChangeNeedsPush } = require('../../functions/lib/studentWorkloadIndices.js');
@@ -260,7 +261,7 @@ test('a push only a profile change asked for corrects a grade Classroom holds, a
 
 // --- Both triggers are wired -----------------------------------------------------------------
 
-const index = readFileSync(new URL('../../functions/index.js', import.meta.url), 'utf8');
+const index = functionsBackendSource();
 const sectionEntry = readFileSync(new URL('../../functions/classroomSectionEntry.js', import.meta.url), 'utf8');
 
 test('the whole-assignment trigger asks first, then lets only a changed grade through', () => {

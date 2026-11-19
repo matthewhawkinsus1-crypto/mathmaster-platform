@@ -4,6 +4,7 @@ import { createRequire } from 'node:module';
 
 import { componentSource, executableSource, region } from './helpers/sourceContract.mjs';
 import { classifySecureExamError, pauseKind } from '../../src/platform/assessment/secureExamNavigationModel.js';
+import { functionsBackendSource } from './helpers/functionsBackendSource.mjs';
 
 /*
  * A TEACHER'S PAUSE STOPS THE CLOCK (follow-up to PR #461).
@@ -121,7 +122,7 @@ test('the header clock stops at the server\'s time left and ends nothing while s
 });
 
 test('a proctor pause and an assessment pause both hold the clock on the server; the student can still see where the test stands', () => {
-  const functionsIndex = componentSource('functions/index.js');
+  const functionsIndex = functionsBackendSource();
   const proctor = region(functionsIndex, 'exports.proctorExamAction = onCall(', '\n});', 'proctor');
   assert.match(proctor, /if \(action === "lock"\) updated = \{ \.\.\.updated, status: "locked_proctor", lockReason: "Locked by proctor\.", lockedAt: now, \.\.\.secureExam\.withPauseHold\(session, "proctor", now\) \};/);
   assert.match(proctor, /if \(action === "unlock"\) updated = \{ \.\.\.updated, status: "in_progress", lockReason: null, unlockedAt: now, \.\.\.secureExam\.withoutPauseHold\(session, "proctor", now\) \};/);

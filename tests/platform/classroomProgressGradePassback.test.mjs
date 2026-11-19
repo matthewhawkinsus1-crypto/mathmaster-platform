@@ -4,6 +4,7 @@ import fs from 'node:fs';
 import { createRequire } from 'node:module';
 import { executableSource, region } from './helpers/sourceContract.mjs';
 import { appHookSource, appSurfaceSource } from './helpers/appScreens.mjs';
+import { functionsBackendSource, topLevelDeclaration } from './helpers/functionsBackendSource.mjs';
 
 const require = createRequire(import.meta.url);
 const {
@@ -31,7 +32,7 @@ test('server grade denominator excludes teacher-excluded V5 questions like the b
 });
 
 test('Classroom sync no longer waits for total assignment completion', () => {
-  const src = read('functions/index.js');
+  const src = functionsBackendSource();
   const start = src.indexOf('exports.syncGradeToClassroom = onDocumentWritten');
   const end = src.indexOf('// Quiz/Test grade writes happen', start);
   assert.ok(start >= 0 && end > start);
@@ -63,7 +64,7 @@ test('Classroom sync no longer waits for total assignment completion', () => {
 });
 
 test('progress passback uses quarter checkpoints, then due and final checkpoints', () => {
-  const src = read('functions/index.js');
+  const src = functionsBackendSource();
   assert.match(src, /Math\.ceil\(indices\.length \* 0\.25\)/);
   assert.match(src, /Math\.floor\(percentAttempted \/ 25\) \* 25/);
   assert.match(src, /"progress"/);
@@ -74,11 +75,8 @@ test('progress passback uses quarter checkpoints, then due and final checkpoints
 });
 
 test('scheduled due/final checkpoints wake only published Classroom assignments and are idempotent', () => {
-  const src = read('functions/index.js');
-  const start = src.indexOf('exports.queueClassroomGradeCheckpoints = onSchedule');
-  const end = src.indexOf('// ---------------------------------------------------------------------------\n// --- Live Challenge', start);
-  assert.ok(start >= 0 && end > start);
-  const scheduler = src.slice(start, end);
+  const src = functionsBackendSource();
+  const scheduler = topLevelDeclaration(src, 'exports.queueClassroomGradeCheckpoints');
 
   assert.match(scheduler, /schedule: "every 5 minutes"/);
   // The assignments come from the published Classroom links (every page of
@@ -98,7 +96,7 @@ test('scheduled due/final checkpoints wake only published Classroom assignments 
 });
 
 test('successful Google writes create a student-visible receipt and audit the stage', () => {
-  const src = read('functions/index.js');
+  const src = functionsBackendSource();
   const start = src.indexOf('exports.syncGradeToClassroom = onDocumentWritten');
   const end = src.indexOf('// Quiz/Test grade writes happen', start);
   const sync = src.slice(start, end);
@@ -114,7 +112,7 @@ test('successful Google writes create a student-visible receipt and audit the st
 });
 
 test('same-stage grade changes are resynced after a timed section is reopened or extended', () => {
-  const src = read('functions/index.js');
+  const src = functionsBackendSource();
   const start = src.indexOf('exports.syncGradeToClassroom = onDocumentWritten');
   const end = src.indexOf('// Quiz/Test grade writes happen', start);
   const sync = src.slice(start, end);
@@ -125,7 +123,7 @@ test('same-stage grade changes are resynced after a timed section is reopened or
 });
 
 test('Classroom point values are scaled from MathMaster percent when max points is not 100', () => {
-  const src = read('functions/index.js');
+  const src = functionsBackendSource();
   const start = src.indexOf('exports.syncGradeToClassroom = onDocumentWritten');
   const end = src.indexOf('// Quiz/Test grade writes happen', start);
   const sync = src.slice(start, end);
@@ -149,7 +147,7 @@ test('Google progress checkpoints stay draft-only until MathMaster intentionally
 });
 
 test('due, completed, final, assessment-release and late grades are returned to the student', () => {
-  const src = read('functions/index.js');
+  const src = functionsBackendSource();
   assert.match(src, /function classroomGradeReleasePolicy/);
   assert.match(src, /"due-checkpoint"/);
   assert.match(src, /"final-complete"/);
@@ -197,7 +195,7 @@ test('student UI watches confirmed Classroom receipts and labels progress versus
 });
 
 test('teacher assessment release and manual retry carry explicit passback reasons', () => {
-  const src = read('functions/index.js');
+  const src = functionsBackendSource();
   assert.match(src, /reason: "assessment-release"/);
   assert.match(src, /reason: "manual-retry"/);
 });

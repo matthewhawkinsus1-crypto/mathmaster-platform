@@ -16,6 +16,7 @@ import {
   serverDerivedMastered,
 } from '../../functions/shared/growthRewardRules.mjs';
 import { weekKeyFor } from '../../functions/shared/weeklyPathGrade.mjs';
+import { functionsBackendSource, topLevelDeclaration } from './helpers/functionsBackendSource.mjs';
 
 /*
  * The growth rewards must not be a mint for anyone who can write a record
@@ -118,10 +119,8 @@ test('the guard mirrors the trigger thresholds it re-checks (functions/index.js)
   // If the trigger's Mastered thresholds move, serverDerivedMastered must move
   // with them, or real mastery stops paying (looser trigger) or forged
   // in-between shapes pay (stricter trigger). Bound to the trigger's own body.
-  const source = readFileSync(new URL('../../functions/index.js', import.meta.url), 'utf8');
-  const start = source.indexOf('exports.updateMyMathPathMasteryFromEvidence');
-  assert.ok(start > 0, 'the mastery trigger exists');
-  const body = source.slice(start, source.indexOf('\nexports.', start + 10));
+  const source = functionsBackendSource();
+  const body = topLevelDeclaration(source, 'exports.updateMyMathPathMasteryFromEvidence');
   // The trigger classifies with the one Mastered rule (masteryRule.mjs), from
   // the same facts the guard re-checks; the guard reads that rule's numbers.
   // It scores through the shared scorer (masteryScoring.mjs), which builds

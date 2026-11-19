@@ -22,7 +22,7 @@
 // The report prints one line per standard, so "97 standards ready" can never
 // again mean "97 standards have five text boxes".
 
-import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { mkdirSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createRequire } from 'node:module';
@@ -330,11 +330,13 @@ const INTERACTION_REQUIRED = new Set([
   console.log('Wrote PATH_BANK_COVERAGE_MANIFEST.json.');
 
   // Keep the Cloud Functions loader's file list honest.
-  const loaderPath = join(root, 'functions', 'index.js');
-  const loader = readFileSync(loaderPath, 'utf8');
+  // The loader's list is in one of the modules beside functions/index.js
+  // (index.js loads one module per domain), so every one of them is read.
+  const functionsDir = join(root, 'functions');
+  const loader = readdirSync(functionsDir).filter((name) => name.endsWith('.js')).map((name) => readFileSync(join(functionsDir, name), 'utf8')).join('\n');
   [...byCourse.keys()].forEach((courseId) => {
     if (!loader.includes(COURSE_FILES[courseId])) {
-      console.log(`\n⚠ functions/index.js does not list ${COURSE_FILES[courseId]} in STARTER_SEED_FILES. Add it, or the starter import will skip it.`);
+      console.log(`\n⚠ No module in functions/ lists ${COURSE_FILES[courseId]} among the starter seed files. Add it, or the starter import will skip it.`);
       process.exitCode = 1;
     }
   });

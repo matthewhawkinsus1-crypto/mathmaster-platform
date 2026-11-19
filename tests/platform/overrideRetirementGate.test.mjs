@@ -44,6 +44,7 @@ import {
   stripReportRows,
 } from '../../src/platform/admin/studentControlsMigration.js';
 import { executableSource, region } from './helpers/sourceContract.mjs';
+import { functionsBackendSource } from './helpers/functionsBackendSource.mjs';
 
 const read = (path) => readFileSync(new URL(`../../${path}`, import.meta.url), 'utf8');
 const at = (iso) => Date.parse(iso);
@@ -252,14 +253,14 @@ test('the build declares the capability the server checks, and the server reads 
   assert.match(region(builder, "writeFileSync(manifestPath, JSON.stringify({", '}, null, 2)'), /\.\.\.cutoverManifestFields\(\),/);
   assert.equal(hostingCutoverEvidence({ checked: true, ...cutoverManifestFields() }).state, 'notDeployed', 'capability must be read from the manifest field');
   assert.equal(hostingCutoverEvidence({ checked: true, capability: cutoverManifestFields()[CLIENT_CUTOVER_CAPABILITY] }).state, 'deployed');
-  const index = read('functions/index.js');
+  const index = functionsBackendSource();
   const hosting = executableSource(region(index, 'async function liveHostingBuild()', 'const reportedBuild', 'liveHostingBuild'));
   assert.match(hosting, /mathmaster-build\.json/);
   assert.match(hosting, /capability: Number\(manifest\?\.\[gate\.CLIENT_CUTOVER_CAPABILITY\]\) \|\| 0/);
 });
 
 test('the switch: retiring is gated and re-checked in its transaction; rolling back never is; nothing about who acted goes on the flag', () => {
-  const index = executableSource(read('functions/index.js'));
+  const index = executableSource(functionsBackendSource());
   const callable = region(index, 'exports.setAssignmentOverrideStorage = onCall(', 'exports.absorbSharedStudentControls', 'setAssignmentOverrideStorage');
   const retire = region(callable, 'if (action === "retire") {', 'if (action === "mirror") {', 'retire');
   assert.match(retire, /const refusal = gate\.retirementRefusal\(\{[\s\S]*confirmation: data\.confirmation,[\s\S]*attestFullSchoolDay: data\.attestFullSchoolDay === true/);
@@ -278,7 +279,7 @@ test('the switch: retiring is gated and re-checked in its transaction; rolling b
 });
 
 test('23. the strip and the restore are separate, typed actions; a strip needs its own finished dry run', () => {
-  const index = executableSource(read('functions/index.js'));
+  const index = executableSource(functionsBackendSource());
   const migrate = region(index, 'exports.migrateStudentAssignmentOverrides = onCall(', 'try {', 'migrateStudentAssignmentOverrides');
   assert.match(migrate, /!dryRun && mode === "strip" && String\(request\.data\?\.confirm \|\| ""\) !== gate\.STRIP_CONFIRMATION/);
   assert.match(migrate, /!dryRun && mode === "restore" && String\(request\.data\?\.confirm \|\| ""\) !== gate\.RESTORE_CONFIRMATION/);
