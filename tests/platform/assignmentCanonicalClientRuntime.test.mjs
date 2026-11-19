@@ -4,6 +4,8 @@ import { existsSync, readFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 
 import { getStoredAssignmentQuestions } from '../../src/platform/contract/storedAssignmentV5.js';
+import { region } from './helpers/sourceContract.mjs';
+import { appHookSource, appSurfaceSource } from './helpers/appScreens.mjs';
 
 const require = createRequire(import.meta.url);
 const serverRuntime = require('../../functions/lib/assignmentRuntime.js');
@@ -53,11 +55,18 @@ test('App reads canonical assignments directly instead of hydrating a flat quest
 
 test('live Firestore snapshots stay canonical section records', () => {
   const appSource = readFileSync(new URL('../../src/App.jsx', import.meta.url), 'utf8');
+  // Since the App split the collection listener is useAssignmentListeners',
+  // which App calls with the ref the records are kept in and their publisher.
+  const listeners = appHookSource('useAssignmentListeners');
+  const call = region(appSource, 'useAssignmentListeners({', '});', "App's call of the assignment listeners");
+  assert.match(call, /[{,\s]teacherSharedAssignmentsRef[,\s}]/);
+  assert.match(call, /[{,\s]publishTeacherAssignments[,\s}]/);
   assert.match(
-    appSource,
+    listeners,
     /snapshot\.docs\.map\(\(assignmentDoc\) => \(\{[\s\S]{0,160}assignmentDoc\.data\(\)[\s\S]{0,40}\}\)\)/,
   );
-  assert.doesNotMatch(appSource, /snapshot\.docs\.map\(\(assignmentDoc\) => hydrate/);
+  // Refused in App, the teacher workspace and every hook App calls.
+  assert.doesNotMatch(appSurfaceSource(), /snapshot\.docs\.map\(\(assignmentDoc\) => hydrate/);
 });
 
 test('server-side derived question view still follows canonical V5 sections', () => {

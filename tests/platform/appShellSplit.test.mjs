@@ -12,7 +12,8 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync, readdirSync } from 'node:fs';
 import { executableSource } from './helpers/sourceContract.mjs';
-import { appHookSource } from './helpers/appScreens.mjs';
+import { posix } from 'node:path';
+import { appHookPaths, appHookSource } from './helpers/appScreens.mjs';
 
 const read = (path) => readFileSync(new URL(`../../${path}`, import.meta.url), 'utf8');
 const app = read('src/App.jsx');
@@ -50,12 +51,26 @@ test('every moved helper, scope table and lazy screen is imported by App and dec
     // Since G2 the teacher's screen (src/app/teacher/TeacherWorkspace.jsx)
     // takes what only it uses; between them, App and it import exactly what
     // the module exports.
-    const imported = [...new Set([...importedFrom(module), ...importedFrom(module.replace('./app/', '../'), teacherWorkspace)])];
+    // Since the App split a name only moved code used went with that code
+    // into its hook (DISPLAYED_CHECKPOINT_OUTCOMES: useDolCheckpointReceipts),
+    // so the hooks App calls count too, each by its own relative path.
+    const hooks = Object.entries(appHookPaths()).map(([hookName, hookPath]) => {
+      const relative = posix.relative(posix.dirname(hookPath), path);
+      return { hookName, source: appHookSource(hookName), module: relative.startsWith('.') ? relative : `./${relative}` };
+    });
+    const imported = [...new Set([
+      ...importedFrom(module),
+      ...importedFrom(module.replace('./app/', '../'), teacherWorkspace),
+      ...hooks.flatMap((hook) => importedFrom(hook.module, hook.source)),
+    ])];
     assert.ok(exported.length > 0, `${path} exports nothing`);
-    assert.deepEqual([...imported].sort(), [...exported].sort(), `${module}: App and the teacher workspace import exactly what the module exports`);
+    assert.deepEqual([...imported].sort(), [...exported].sort(), `${module}: App, the teacher workspace and App's hooks import exactly what the module exports`);
     for (const name of exported) {
       assert.doesNotMatch(appCode, new RegExp(`^\\s*(?:const|let|function) ${name}\\b`, 'm'), `${name} is declared in App.jsx as well`);
       assert.doesNotMatch(teacherWorkspaceCode, new RegExp(`^\\s*(?:const|let|function) ${name}\\b`, 'm'), `${name} is declared in TeacherWorkspace.jsx as well`);
+      for (const hook of hooks) {
+        assert.doesNotMatch(executableSource(hook.source), new RegExp(`^\\s*(?:const|let|function) ${name}\\b`, 'm'), `${name} is declared in ${hook.hookName} as well`);
+      }
     }
   }
 });

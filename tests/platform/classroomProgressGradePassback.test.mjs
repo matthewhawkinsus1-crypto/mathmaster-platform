@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import { createRequire } from 'node:module';
 import { executableSource, region } from './helpers/sourceContract.mjs';
+import { appHookSource, appSurfaceSource } from './helpers/appScreens.mjs';
 
 const require = createRequire(import.meta.url);
 const {
@@ -166,10 +167,21 @@ test('student UI watches confirmed Classroom receipts and labels progress versus
   assert.match(app, /classroomSyncStatusByAssignment/);
   // A teacher draft is invisible to the student in Classroom: no toast and no
   // draft/checkpoint wording anywhere a student reads.
-  assert.doesNotMatch(executableSource(app), /Progress checkpoint saved to Google Classroom|Classroom teacher draft|DUE-DATE CHECKPOINT/);
-  assert.match(app, /Updated grade released to Google Classroom/);
-  assert.match(app, /Final grade sent to Google Classroom/);
-  assert.match(app, /Due-date grade sent to Google Classroom/);
+  // Refused in App, the teacher workspace and every hook App calls.
+  assert.doesNotMatch(executableSource(appSurfaceSource()), /Progress checkpoint saved to Google Classroom|Classroom teacher draft|DUE-DATE CHECKPOINT/);
+  // Since the App split the receipt toasts are useStudentGradeDocument's, on
+  // its grade document listener; App hands it its own toast, the receipt map's
+  // setter and the record of receipts already announced.
+  const gradeDocument = appHookSource('useStudentGradeDocument');
+  const gradeDocumentCall = region(app, 'useStudentGradeDocument({', '});', "App's call of the grade document hook");
+  for (const input of ['user', 'toastSuccess', 'setClassroomSyncStatusByAssignment', 'classroomSyncNoticeRef', 'assignmentsRef']) {
+    assert.match(gradeDocumentCall, new RegExp(`[{,\\s]${input}[,\\s}]`), input);
+  }
+  const receipts = region(gradeDocument, "doc(db, 'grades', user.id),", "(error) => console.error('Could not watch Google Classroom grade receipts:', error),", 'the Classroom receipt listener');
+  assert.match(receipts, /const next = snapshot\.data\(\)\?\.classroomSyncStatusByAssignment \|\| \{\};/);
+  assert.match(receipts, /toastSuccess\(\s*'Updated grade released to Google Classroom'/);
+  assert.match(receipts, /toastSuccess\(\s*'Final grade sent to Google Classroom'/);
+  assert.match(receipts, /toastSuccess\(\s*'Due-date grade sent to Google Classroom'/);
   assert.match(app, /Google Classroom shows/);
   assert.match(app, /classroomReceiptGrade != null && classroomReceiptStudentVisible && \(/);
   // Home is the student's quick view: it labels the live number plainly

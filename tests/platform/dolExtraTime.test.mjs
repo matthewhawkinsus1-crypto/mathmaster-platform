@@ -35,6 +35,7 @@ import { dolExtraTimeForClass } from '../../src/platform/teacher/dolExtraTimeRos
 import { normalizeStudentProfile } from '../../src/studentSupport.js';
 import { normalizeTeacherRosterSummary } from '../../src/platform/teacher/teacherRosterSummary.js';
 import { executableSource, region } from './helpers/sourceContract.mjs';
+import { appHookSource, appSurfaceSource } from './helpers/appScreens.mjs';
 
 const require = createRequire(import.meta.url);
 const secureExamNavigation = require('../../functions/lib/secureExamNavigation.js');
@@ -503,12 +504,29 @@ test('device and server take the timing profile from the same field: the grade d
   const signIn = region(app, "role: 'student',", '});', 'the student sign-in user');
   assert.match(signIn, /timingProfile: studentData\.profile \|\| null,/);
   assert.match(app, /studentViewerRef\.current = \{ studentId, profile: studentProfile, timingProfile: studentData\.profile \|\| null \};/);
-  assert.match(app, /studentViewerRef\.current = \{ studentId: user\.id, profile: user\.profile \|\| null, timingProfile: user\.timingProfile \|\| null \};/);
-  assert.match(app, /const liveTimingProfile = snapshot\.data\(\)\?\.profile \|\| null;/);
+  // Since the App split, useAssignmentListeners re-projects on a change of the
+  // user (App hands it the viewer ref the projection reads, and the publisher),
+  // and useStudentGradeDocument's listener follows the live field into the
+  // user App holds (through App's setUser).
+  const listeners = executableSource(appHookSource('useAssignmentListeners'));
+  const listenersCall = region(app, 'useAssignmentListeners({', '});', "App's call of the assignment listeners");
+  for (const input of ['user', 'studentViewerRef', 'publishStudentAssignments', 'studentAssignmentControls', 'teacherClassControls']) {
+    assert.match(listenersCall, new RegExp(`[{,\\s]${input}[,\\s}]`), input);
+  }
+  assert.match(listeners, /studentViewerRef\.current = \{ studentId: user\.id, profile: user\.profile \|\| null, timingProfile: user\.timingProfile \|\| null \};/);
+  const gradeDocument = executableSource(appHookSource('useStudentGradeDocument'));
+  const gradeDocumentCall = region(app, 'useStudentGradeDocument({', '});', "App's call of the grade document hook");
+  for (const input of ['user', 'setUser']) {
+    assert.match(gradeDocumentCall, new RegExp(`[{,\\s]${input}[,\\s}]`), input);
+  }
+  assert.match(gradeDocument, /const liveTimingProfile = snapshot\.data\(\)\?\.profile \|\| null;/);
+  // Every projection, in App or in a hook App calls: all three are still App's.
+  const surface = executableSource(appSurfaceSource());
+  assert.equal((surface.match(/projectStudentAssignments\(\{[^}]*\}\)/g) || []).length, 3);
   const projections = app.match(/projectStudentAssignments\(\{[^}]*\}\)/g) || [];
   assert.equal(projections.length, 3);
   projections.forEach((call) => assert.match(call, /timingProfile[,:]/, call));
-  assert.doesNotMatch(app, /timingProfile: [^,\n]*\|\| studentData[,\s]/, 'never the whole document');
+  assert.doesNotMatch(surface, /timingProfile: [^,\n]*\|\| studentData[,\s]/, 'never the whole document');
   // The timing profile joins the projection's inputs WITHOUT moving the
   // controls: URL arrival waits for lastPublishedRef.current[4] to be them.
   const publish = region(app, 'const publishStudentAssignments = () => {', 'setAssignments(projectStudentAssignments({', 'publishStudentAssignments');
@@ -517,9 +535,12 @@ test('device and server take the timing profile from the same field: the grade d
   assert.ok(inputs.includes('timingProfile'));
   assert.match(app, /lastPublishedRef\.current\?\.\[4\] === studentAssignmentControls/);
   // A change to the profile field alone re-projects.
-  assert.match(app, /\}, \[user\?\.role, user\?\.id, user\?\.profile, user\?\.timingProfile, studentAssignmentControls, teacherClassControls\]\);/);
-  assert.match(app, /setUser\(\(current\) => \(current && !sameTimingProfile\(current\.timingProfile, liveTimingProfile\) \? \{ \.\.\.current, timingProfile: liveTimingProfile \} : current\)\);/);
-  assert.match(app, /import \{ EMPTY_STUDENT_CONTROLS, STUDENT_CONTROLS_STATUS, projectStudentAssignments, sameTimingProfile \} from '\.\/platform\/assignments\/studentAssignmentControls\.js';/);
+  assert.match(listeners, /\}, \[user\?\.role, user\?\.id, user\?\.profile, user\?\.timingProfile, studentAssignmentControls, teacherClassControls\]\);/);
+  assert.match(gradeDocument, /setUser\(\(current\) => \(current && !sameTimingProfile\(current\.timingProfile, liveTimingProfile\) \? \{ \.\.\.current, timingProfile: liveTimingProfile \} : current\)\);/);
+  // The import went with the call: sameTimingProfile is the hook's (two
+  // folders down), the projection and the controls stay App's.
+  assert.match(app, /import \{ EMPTY_STUDENT_CONTROLS, STUDENT_CONTROLS_STATUS, projectStudentAssignments \} from '\.\/platform\/assignments\/studentAssignmentControls\.js';/);
+  assert.match(gradeDocument, /import \{ sameTimingProfile \} from '\.\.\/\.\.\/platform\/assignments\/studentAssignmentControls\.js';/);
 });
 
 test('extra time never runs past the student\'s own final cutoff, and never cuts into the class window', () => {

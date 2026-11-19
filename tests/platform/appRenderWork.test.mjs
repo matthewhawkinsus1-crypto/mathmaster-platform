@@ -266,20 +266,26 @@ test('keepSame keeps the value a state holds while the new one says the same', (
 test('App renders nothing for a snapshot, a resume, a report or a drain that changes nothing', () => {
   const code = app();
   // The grade document's listener: every map it sets is kept while it says the same.
-  const listener = region(code, "doc(db, 'grades', user.id),\n      (snapshot) => {", 'const liveProfile = ', 'the grade document listener');
+  // Since the App split the listener is useStudentGradeDocument's; App owns
+  // the maps and the tracker and hands the hook their setters.
+  const gradeDocument = executableSource(appHookSource('useStudentGradeDocument'));
+  const gradeDocumentCall = region(code, 'useStudentGradeDocument({', '});', "App's call of the grade document hook");
+  const listener = region(gradeDocument, "doc(db, 'grades', user.id),\n      (snapshot) => {", 'const liveProfile = ', 'the grade document listener');
   const maps = ['classroomSyncStatusByAssignment', 'testCycleGrades', 'teacherGradeOverridesByAssignment', 'sectionRecoveryByAssignment', 'warmupChallengeByAssignment', 'dolGradesByAssignment', 'classworkGradesByAssignment'];
   for (const map of maps) {
     const setter = `set${map[0].toUpperCase()}${map.slice(1)}(`;
     const calls = listener.split(setter).slice(1);
     assert.equal(calls.length, 1, `${map}: set once`);
     assert.match(calls[0], /^keepSame\(/, `${map}: kept while it says the same`);
+    assert.match(gradeDocumentCall, new RegExp(`[{,\\s]${setter.slice(0, -1)}[,\\s}]`), `${map}: the setter the hook keeps is App's own`);
   }
   assert.match(listener, /setClassroomSyncStatusByAssignment\(keepSame\(next\)\);/);
   // What else it sets is already kept while it says the same: the server's
   // trackers, adopted joined to their stored detail (#561) from this snapshot
   // or the detail's, whichever arrives last.
   assert.match(listener, /\n\s*adoptServerGrades\(\);\n/);
-  const adoption = region(code, 'const adoptServerGrades = () => {', '\n    };\n', 'the trackers\' adoption');
+  const adoption = region(gradeDocument, 'const adoptServerGrades = () => {', '\n    };\n', 'the trackers\' adoption');
+  assert.match(gradeDocumentCall, /[{,\s]setTracker[,\s}]/, "the tracker the hook adopts into is App's own");
   assert.match(adoption, /setTracker\(\(current\) => \{[\s\S]*adoptCanonicalAdvances\(current, serverGrades\)[\s\S]*return grades;/);
   // The place to resume: set only when it is another place.
   const resume = region(code, 'const action = {\n      assignmentId: activeAssignmentId,', '}, [user, activeView, activeAssignmentId, currentQuestionIndex, assignments, activeQuestionRole, tracker]);', 'the resume effect');

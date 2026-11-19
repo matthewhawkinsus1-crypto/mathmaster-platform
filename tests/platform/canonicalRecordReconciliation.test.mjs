@@ -36,6 +36,7 @@ import { checkpointDocumentId } from '../../functions/shared/responseCheckpointS
 import { selectRestorableDraftEntries } from '../../functions/shared/workspaceDraftSchema.mjs';
 import { CHECKPOINT_DEBOUNCE_MS } from '../../src/platform/performance/responseCheckpoint.js';
 import { executableSource, region } from './helpers/sourceContract.mjs';
+import { appHookSource } from './helpers/appScreens.mjs';
 
 const read = (path) => readFileSync(new URL(`../../${path}`, import.meta.url), 'utf8');
 
@@ -195,22 +196,33 @@ test('a deadline race: at the same count, the deadline\'s recorded attempt repla
 const app = read('src/App.jsx');
 const appCode = executableSource(app);
 const engineCode = executableSource(read('src/QuestionEngine.jsx'));
+// The student's grade document listener, in the hook App calls for it.
+const gradeDocumentCode = executableSource(appHookSource('useStudentGradeDocument'));
 
 test('App.jsx imports what it calls (a call with no import passes every other check)', () => {
   assert.match(appCode, /import \{ canonicalResponseSavedAt \} from '\.\/platform\/persistence\/canonicalResponseTime\.js';/);
-  assert.match(appCode, /import \{ adoptCanonicalAdvances \} from '\.\/platform\/persistence\/canonicalTrackerReconciliation\.js';/);
+  // Since the App split the call is useStudentGradeDocument's (two folders
+  // down), so the import it needs is that module's.
+  assert.match(gradeDocumentCode, /import \{ adoptCanonicalAdvances \} from '\.\.\/\.\.\/platform\/persistence\/canonicalTrackerReconciliation\.js';/);
+  assert.match(gradeDocumentCode, /\badoptCanonicalAdvances\(/, 'the hook that imports it is the one that calls it');
 });
 
 test('the student\'s live grade listener adopts the server\'s records ahead of the session', () => {
   // Records are stored split (functions/shared/gradeEntryStorage.mjs): the
   // adoption runs from either snapshot (the grades document or its stored
   // detail), on the trackers joined to the detail that has arrived.
-  const adopt = region(appCode, 'const adoptServerGrades = () => {', "const stopGrades = onSnapshot(", 'the adoption of server records');
+  // Since the App split the listener is useStudentGradeDocument's; the tracker
+  // it adopts into and the session's attempt baseline are App's, handed in.
+  const gradeDocumentCall = region(appCode, 'useStudentGradeDocument({', '});', "App's call of the grade document hook");
+  for (const input of ['user', 'setTracker', 'liveSessionAttemptBaselineRef']) {
+    assert.match(gradeDocumentCall, new RegExp(`[{,\\s]${input}[,\\s}]`), input);
+  }
+  const adopt = region(gradeDocumentCode, 'const adoptServerGrades = () => {', "const stopGrades = onSnapshot(", 'the adoption of server records');
   assert.match(adopt, /const serverGrades = serverTrackersForAdoption\(latestServerGrades, latestDetail\);/);
   assert.match(adopt, /setTracker\(\(current\) => \{[\s\S]*adoptCanonicalAdvances\(current, serverGrades\)[\s\S]*return grades;/);
   // Server attempts are not counted as this session's (rapid-correctness baseline).
   assert.match(adopt, /liveSessionAttemptBaselineRef\.current/);
-  const listener = region(appCode, "doc(db, 'grades', user.id),\n      (snapshot) => {", 'classroomSyncStatusByAssignment || {};', 'the student grade listener');
+  const listener = region(gradeDocumentCode, "doc(db, 'grades', user.id),\n      (snapshot) => {", 'classroomSyncStatusByAssignment || {};', 'the student grade listener');
   assert.match(listener, /latestServerGrades = snapshot\.data\(\)\?\.gradesByAssignment \|\| \{\};/);
   assert.match(listener, /\(detail\) => \{ latestDetail = detail; adoptServerGrades\(\); \}/, 'a detail that arrives after its summary is adopted then');
   assert.match(listener, /adoptServerGrades\(\);/);
