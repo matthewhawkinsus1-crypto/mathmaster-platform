@@ -32,6 +32,22 @@
  * the shared merge to that). A device keeps its own operation over the saved
  * copy's only when its operation was edited after the latest Start over and
  * the question's last submitted attempt, and no earlier than the saved copy's.
+ *
+ * A COPY THE BUILD BEFORE BEGAN (a review of this rule, PR #564). That build
+ * dated no operation. A copy it began on this device and left unsettled — the
+ * student worked before the server's copy was read, then the page reloaded
+ * into this build — holds an operation the student typed here, with no time.
+ * Judged as never edited, it yielded to the saved copy's, older or not, as a
+ * fresh copy's work does: Divide 3 typed there became the saved Divide 7.
+ * Only a fresh copy can lose this way (a settled copy is judged by the shared
+ * merge, the later copy whole, as the build before judged it), and only an
+ * edit made here can be in it: a settle or a restore ends `fieldsFresh`, and
+ * this build dates every operation it edits. So such a copy is judged as that
+ * build judged it: its operation dated by its own last save, when that save
+ * was an edit, and only when it has seen the latest Start over, since that
+ * time can be a prompt answer's after one. A fresh copy this build began, with
+ * no operation or none edited, is never judged so (a fresh Chromebook whose
+ * student answers a prompt first still gets the other Chromebook's back).
  */
 import { fieldRecordGroups, resetTimeOf } from '../../../functions/shared/workspaceDraftSchema.mjs';
 
@@ -67,6 +83,9 @@ export const stepAlgebraOperationEditedAt = (copy) => {
   return time > 0 ? time : 0;
 };
 
+// An operation held and not applied: a tile chosen, its value, or a move staged.
+const holdsOperation = (value) => Boolean(value?.armedTile || value?.pendingMove || String(value?.operand ?? '').trim());
+
 /**
  * Whether this device's operation (`own`) outlives the merge of its copy with
  * the saved one (`saved`, merged into `merged`) when both hold the same
@@ -79,10 +98,14 @@ export const stepAlgebraOperationEditedAt = (copy) => {
  *     operation time (by an older build) is bounded by its own time instead:
  *     its operation was edited then or before.
  * A tie keeps this device's: the saved copy can be its own first save, merged
- * on the server with an older operation.
+ * on the server with an older operation. A fresh copy the build before began,
+ * holding an operation and no time, is dated by its own last save (above).
  */
 export const keepsOwnStepAlgebraOperation = ({ own, saved, merged, canonicalAt = 0 }) => {
-  const mine = stepAlgebraOperationEditedAt(own);
+  const mine = stepAlgebraOperationEditedAt(own)
+    // A fresh copy the build before began here (above): its own last save.
+    || (own?.fieldsFresh === true && own.savedAtIsEdit === true && holdsOperation(own.value)
+      && resetTimeOf(own) >= resetTimeOf(merged) ? Math.max(0, Number(own.savedAt) || 0) : 0);
   if (!mine) return false;
   if (mine <= Math.max(resetTimeOf(merged), Math.max(0, Number(canonicalAt) || 0))) return false;
   const theirs = stepAlgebraOperationEditedAt(saved)
