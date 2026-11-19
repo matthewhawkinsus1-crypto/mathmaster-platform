@@ -421,6 +421,54 @@ const stepAlgebraOperationInHand = async (page, origins, state) => {
   await host.locator('[aria-label="Place add 5 on the right side"]').waitFor({ timeout: 30_000 });
   await page.evaluate(() => document.activeElement?.blur?.());
 };
+// THE NUMBER KEYPAD'S REVEAL FOLLOWS FOCUS (keypadRevealTarget). On a phone the keypad stays up while focus moves
+// on from its box to a button, and as it published its height it scrolled its box back into view two frames after
+// the box took focus: Tab from the Constraint Function Builder's last box straight on to "Show a hint" left the
+// focused button 137px down, under the keys' 5 and 2. The walk pauses between stops, so it saw this only when CI's
+// machine was slow (main, after #567). Here the boxes are Tabbed through without a pause, as a student presses Tab,
+// and "Show a hint" is read once the page has settled, as the walk reads a stop: 3 of its 5 points under something
+// is a stop under something. A check of its own, which the walk does not go over again (checkOnly).
+const keypadTabToHint = async (page, origins, state) => {
+  const questionId = 'tool-constraintFunctionBuilder';
+  await toolQuestion(questionId, '&tools=1')(page, origins, state);
+  const setting = (page.viewportSize()?.width || 0) < 500 ? 'phone' : 'chromebook';
+  const label = 'number-keypad/tab-from-last-box';
+  await page.locator(`[data-question-id="${questionId}"] input[type="number"]`).first().focus();
+  let reached = false;
+  for (let step = 0; step < 8 && !reached; step += 1) {
+    await page.keyboard.press('Tab');
+    reached = await page.evaluate(() => document.activeElement?.textContent?.trim() === 'Show a hint');
+  }
+  await page.waitForTimeout(400);
+  const reading = await page.evaluate(() => {
+    const el = document.activeElement;
+    const rect = el.getBoundingClientRect();
+    const inset = Math.min(6, rect.width / 4, rect.height / 4);
+    const points = [[rect.left + rect.width / 2, rect.top + rect.height / 2], [rect.left + inset, rect.top + inset], [rect.right - inset, rect.top + inset], [rect.left + inset, rect.bottom - inset], [rect.right - inset, rect.bottom - inset]]
+      .filter(([x, y]) => x >= 0 && y >= 0 && x < innerWidth && y < innerHeight);
+    let covered = 0;
+    let by = '';
+    for (const [x, y] of points) {
+      const hit = document.elementFromPoint(x, y);
+      if (!hit || hit === el || el.contains(hit) || hit.contains(el)) continue;
+      covered += 1;
+      by ||= `${hit.localName} "${(hit.textContent || '').trim().slice(0, 12)}"`;
+    }
+    const keypad = document.querySelector('.mathmaster-mobile-numeric-keypad')?.getBoundingClientRect();
+    return {
+      name: (el.textContent || '').trim(), top: Math.round(rect.top), bottom: Math.round(rect.bottom), sampled: points.length, covered, by,
+      keypad: keypad?.height ? `${Math.round(keypad.top)}-${Math.round(keypad.bottom)}` : 'none',
+    };
+  });
+  const problems = [
+    ...(!reached ? ['Tab from the number boxes never reached "Show a hint"'] : []),
+    ...(setting === 'phone' && reading.keypad === 'none' ? ['the number keypad was not up, so the hand-over went untested'] : []),
+    ...(reached && (reading.covered >= 3 || reading.sampled < 3) ? [`"Show a hint" (y ${reading.top} to ${reading.bottom}) is under ${reading.by || 'the screen\'s edge'}, the keypad at ${reading.keypad} (WCAG 2.4.11)`] : []),
+  ];
+  console.log(`${problems.length ? 'FAIL' : 'ok  '} keypad   ${label.padEnd(40)} ${setting.padEnd(10)} hint=${reading.top}-${reading.bottom} keypad=${reading.keypad} covered=${reading.covered}/${reading.sampled}`);
+  problems.forEach((problem) => failures.push(`${label} ${setting}: ${problem}`));
+  await page.evaluate(() => { document.activeElement?.blur?.(); });
+};
 const KEYBOARD_RULES_JUDGED = ['mm-pointer-only-control', 'mm-tab-stop-not-activatable', 'mm-unnamed-tab-stop'];
 
 // THE MATH TOOLS LAB (student-a11y-3). The teacher's bench mounts each student tool
@@ -497,6 +545,11 @@ export const FOCUS_SCREENS = [
     id: 'work-bar-tools',
     include: '.mathmaster-question-stage',
     scenes: [{ id: 'scratchpad', run: scratchpadOverQuestion }],
+  },
+  {
+    id: 'number-keypad',
+    include: '.mathmaster-question-stage',
+    scenes: [{ id: 'tab-from-last-box', run: keypadTabToHint, checkOnly: true }],
   },
 ];
 
@@ -859,6 +912,7 @@ if (CHECKS.has('obscured')) {
   for (const setting of [{ id: 'chromebook', width: 1366, height: 768 }, { id: 'phone', width: 390, height: 844, mobile: true }]) {
     await runScenes(setting, async (page, label, screen, scene) => {
       if (screen.id === 'teacher') return;
+      if (scene?.checkOnly) return;
       if (!screen.workView) {
         await walk(page, label, setting.id, [].concat(screen.include || [])[0] || null, { keyboardRules: screen.keyboardRules, mustReach: scene?.mustReach });
         return;
