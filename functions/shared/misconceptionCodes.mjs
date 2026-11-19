@@ -326,13 +326,22 @@ export const MISCONCEPTION_REGISTRY = Object.freeze([
     teks: ['A2.7B'],
   }),
   // --- Radicals and factoring: the key's value, refused for its form ---------------
+  // simplestRadicalFormEquivalence.mjs radicalFormMiss decides which radical
+  // code a miss is (2026-11-19): 'radical-not-simplest-form' only when a step
+  // of simplifying is left in the answer, in the key's notation or as a root
+  // or rational exponent where the key has neither (⁵√(32x⁵y¹⁰) for 2xy²);
+  // 'radical-decimal-not-exact' only for a calculator's number, with no
+  // letter, root or fractional power in it; 'radical-other-notation' only
+  // where the key is written with radicals or rational exponents. The key's
+  // value in a form the field does not take (a decimal exponent, w^0.5) is no
+  // code at all.
   code({
     id: 'radical-not-simplest-form',
     concept: 'radical-simplest-form',
     domain: 'nonlinear',
     label: 'Right value, radical not simplified',
     teacherMeaning: 'The answer has the key\'s value in the key\'s notation, but it is not in simplest form: a perfect power left under a root, like terms not combined, or a root in a denominator.',
-    evidenceRequired: 'multiAnswer field graded with gradingMode "simplestRadicalForm": the field was graded wrong, and the submitted expression has the key\'s value with a step of simplifying left in it: in the key\'s notation, or with a root or rational exponent where the key has neither (simplestRadicalFormEquivalence.mjs radicalFormMiss "notSimplest"). A form the field does not take, such as a decimal exponent, is not this code.',
+    evidenceRequired: 'multiAnswer field graded with gradingMode "simplestRadicalForm": the field was graded wrong, and the submitted expression has the key\'s value in the key\'s notation (simplestRadicalFormEquivalence.mjs radicalFormMiss).',
     teks: ['A2.7G'],
   }),
   code({
@@ -341,7 +350,7 @@ export const MISCONCEPTION_REGISTRY = Object.freeze([
     domain: 'nonlinear',
     label: 'Decimal approximation for an exact radical answer',
     teacherMeaning: 'A calculator\'s decimal was given where the question asks for the exact value in radical or exponent form.',
-    evidenceRequired: 'multiAnswer field graded with gradingMode "simplestRadicalForm": the field was graded wrong, the key has no decimal and no letters, and the submitted answer is a decimal number (no letter, root or fractional power in it) within 0.5% of its value.',
+    evidenceRequired: 'multiAnswer field graded with gradingMode "simplestRadicalForm": the field was graded wrong, the key has no decimal and no letters, and the submitted decimal is within 0.5% of its value.',
     teks: ['A2.7G'],
   }),
   code({
@@ -350,7 +359,7 @@ export const MISCONCEPTION_REGISTRY = Object.freeze([
     domain: 'nonlinear',
     label: 'Right value, the other notation',
     teacherMeaning: 'The answer has the key\'s value but in the other notation: radicals where the key uses rational exponents, or the other way round.',
-    evidenceRequired: 'multiAnswer field graded with gradingMode "simplestRadicalForm": the field was graded wrong, the key is written with radicals or with rational exponents, and the submitted expression has the key\'s value in the other notation.',
+    evidenceRequired: 'multiAnswer field graded with gradingMode "simplestRadicalForm": the field was graded wrong, and the submitted expression has the key\'s value in the other notation.',
     teks: ['A2.7G'],
   }),
   code({
