@@ -192,3 +192,12 @@ test('the codemod can leave handlers to an object that may not be there yet, by 
   assert.match(result.rewritten, /\n {2}const \[handler, other\] = kit \? kit\.createTickControls\(count, setCount, late\) : NO_CONTROLS;\n/);
   assert.match(plan({ hook: 'createTickControls', file: 'src/app/teacher/controls/tickControls.js', from, statements: ['late', 'handler'] }).problems.join('\n'), /calls a hook, and createTickControls would be called only when kit is there/);
 });
+
+test('the codemod can seam a hook by position, which leaves no names in the bundle', () => {
+  const result = plan({ positional: true, statements: ['tickRef', '~unusedAfter('] });
+  assert.deepEqual(result.problems, []);
+  assert.deepEqual(result.hookImport, { name: 'useTick', from: './app/student/useTick.js' }, 'a hook is still imported and called on every render');
+  assert.match(result.moduleText, /\nexport function useTick\(user, setCount\) \{\n {2}\/\/ The tick\.\n {2}const tickRef = useRef\(0\);\n/);
+  assert.match(result.moduleText, /\n {2}return \[tickRef\];\n\}\n$/);
+  assert.match(result.rewritten, /\n {2}const \[tickRef\] = useTick\(user, setCount\);\n {2}const double = count \* 2;\n/);
+});

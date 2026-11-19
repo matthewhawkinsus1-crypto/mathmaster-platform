@@ -124,6 +124,44 @@ export const teacherControlsSource = (factoryName) => {
   return seam.source;
 };
 
+/*
+ * A TEACHER'S LIVE DATA (the App split, slice 4).
+ *
+ * The listeners and derived lists a teacher's screens read do hold effects, so
+ * they are hooks App imports and calls on every render, like the student's.
+ * They are in every first load, so their seam is by position too:
+ *
+ *   const [a, b] = useTeacherX(x, y);      or      useTeacherX(x, y);
+ *
+ *   positionalHookSource('useTeacherPresence')   that hook's module, after
+ *                                                checking App calls it once and
+ *                                                the two sides line up
+ */
+/** The seam of a hook App calls by position: what App passes and takes, and what the hook declares and returns. */
+export const positionalHookSeam = (hookName) => {
+  const source = appHookSource(hookName);
+  const path = appHookPaths()[hookName];
+  const call = new RegExp(`^ {2}(?:const \\[([^\\]]*)\\] = )?${hookName}\\(([^)]*)\\);$`, 'm').exec(read(APP_PATH));
+  if (!call) throw new Error(`App.jsx must call ${hookName}(…) by position, as a statement of its own or into one array of names.`);
+  const declared = new RegExp(`^export function ${hookName}\\(([^)]*)\\) \\{$`, 'm').exec(source);
+  if (!declared) throw new Error(`${path} must declare ${hookName}(…) with its parameters by position.`);
+  const returned = /\n {2}return \[([^\]]*)\];\n\}\n$/.exec(source);
+  return { path, source, passed: nameList(call[2]), taken: nameList(call[1] || ''), parameters: nameList(declared[1]), returned: nameList(returned ? returned[1] : '') };
+};
+
+/** The module of a hook App calls by position. Throws when the seam does not line up. */
+export const positionalHookSource = (hookName) => {
+  const seam = positionalHookSeam(hookName);
+  const problem = teacherControlsSeamProblem(hookName, seam);
+  if (problem) throw new Error(problem);
+  return seam.source;
+};
+
+/** The hooks App calls by position: every hook whose module declares plain parameters rather than one object. */
+export const positionalHookNames = () => Object.entries(appHookPaths())
+  .filter(([name, path]) => new RegExp(`^export function ${name}\\(\\s*[A-Za-z_$]`, 'm').test(read(path)))
+  .map(([name]) => name);
+
 /** Every module App's own code moved into: the hooks it calls and the teacher's control factories. */
 export const appModulePaths = () => [...new Set([...Object.values(appHookPaths()), ...Object.values(teacherControlPaths())])];
 
