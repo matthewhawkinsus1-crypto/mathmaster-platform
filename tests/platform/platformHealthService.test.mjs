@@ -18,7 +18,7 @@ import test from 'node:test';
 
 import { CRASH_REPORT_LIMITS, crashBucketId, normalizeCrashBucket } from '../../functions/shared/crashReport.mjs';
 import { componentSource, executableSource, region } from './helpers/sourceContract.mjs';
-import { functionsBackendSource } from './helpers/functionsBackendSource.mjs';
+import { functionsBackendSource, topLevelDeclaration } from './helpers/functionsBackendSource.mjs';
 
 const require = createRequire(import.meta.url);
 const { createPlatformHealthService } = require('../../functions/lib/platformHealth.js');
@@ -254,9 +254,10 @@ test('deleting goes on until nothing is left, and a pass that ran out of time sa
 
 test('the callables are wired: reporting needs a sign-in only, managing needs the root administrator, and a schedule prunes', () => {
   const source = executableSource(functionsBackendSource());
-  const wiring = region(source, 'exports.reportClientCrashes', 'const MAX_CLASSROOM_COURSES_PER_BATCH', 'platform health exports');
-  assert.match(wiring, /exports\.reportClientCrashes = onCall\(\{ maxInstances: \d+ \}, \(request\) => platformHealth\(\)\.report\(request\)\)/);
-  assert.match(wiring, /exports\.managePlatformHealthReporting = onCall\(\{[^}]*\}, async \(request\) => \{\s*const actor = await requireRootAdmin\(request\);/);
-  assert.match(wiring, /exports\.prunePlatformHealth = onSchedule\(/);
-  assert.match(wiring, /platformHealth\(\)\.prune\(\)/);
+  // Each of the three is its own statement of the platform domain module.
+  assert.match(topLevelDeclaration(source, 'exports.reportClientCrashes'), /exports\.reportClientCrashes = onCall\(\{ maxInstances: \d+ \}, \(request\) => platformHealth\(\)\.report\(request\)\)/);
+  assert.match(topLevelDeclaration(source, 'exports.managePlatformHealthReporting'), /exports\.managePlatformHealthReporting = onCall\(\{[^}]*\}, async \(request\) => \{\s*const actor = await requireRootAdmin\(request\);/);
+  const prune = topLevelDeclaration(source, 'exports.prunePlatformHealth');
+  assert.match(prune, /exports\.prunePlatformHealth = onSchedule\(/);
+  assert.match(prune, /platformHealth\(\)\.prune\(\)/);
 });
