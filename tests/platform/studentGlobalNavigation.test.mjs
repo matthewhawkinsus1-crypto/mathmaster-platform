@@ -11,6 +11,7 @@ import {
 } from '../../src/platform/student/navigationModel.js';
 import { normalizeStudentRoute, studentRouteKey } from '../../src/platform/student/browserHistory.js';
 import { assertCapability, executableSource, region } from './helpers/sourceContract.mjs';
+import { appFactorySeam, appFactorySource, positionalHookSeam, positionalHookSource } from './helpers/appScreens.mjs';
 
 const read = (relative) => fs.readFileSync(new URL(relative, import.meta.url), 'utf8');
 
@@ -61,7 +62,11 @@ test('Home renders the shared navigation instead of its own four buttons', () =>
 });
 
 test('every student surface routes through one navigate handler', () => {
-  const navigate = region(app, 'const navigateStudent = ', 'const openStudentAssignmentResult', 'navigateStudent');
+  // Since the App split navigateStudent is createStudentNavigation's; App
+  // takes it from the factory's one call and hands it to every surface.
+  const navigation = appFactorySource('createStudentNavigation');
+  assert.ok(appFactorySeam('createStudentNavigation').taken.includes('navigateStudent'), 'App takes navigateStudent from the factory');
+  const navigate = region(navigation, 'const navigateStudent = ', 'const openStudentAssignmentResult', 'navigateStudent');
   for (const [destination, opener] of [
     ['ASSIGNMENTS', 'openStudentAssignmentsCenter'],
     ['GRADES', 'openStudentGradeCenter'],
@@ -78,6 +83,8 @@ test('every student surface routes through one navigate handler', () => {
   // A free identifier in App.jsx is a runtime ReferenceError that lint, the
   // build and the rest of this suite all miss.
   assert.match(app, /STUDENT_DESTINATION[\s\S]{0,200}?from '\.\/components\/student\/StudentGlobalNav\.jsx'/);
+  // The same in the module navigateStudent now reads it in.
+  assert.match(navigation, /^import \{ STUDENT_DESTINATION \} from '\.\.\/\.\.\/components\/student\/StudentGlobalNav\.jsx';$/m);
 });
 
 /* 2. MY MATH PATH'S "ASSIGNMENTS" MUST BE ASSIGNMENTS. */
@@ -151,9 +158,14 @@ test('a result remembers which list opened it, in state and in browser history',
 
   // The route memo and the popstate restore both carry it, so a Back out of
   // practice lands on a result that still knows where it came from.
-  const routeMemo = region(app, 'const studentBrowserRoute = useMemo(', 'useEffect(', 'student browser route');
+  // Since the App split both are useStudentBrowserHistory's, which App hands
+  // the result's route and its setter.
+  const history = positionalHookSource('useStudentBrowserHistory');
+  const historyInputs = positionalHookSeam('useStudentBrowserHistory').parameters;
+  assert.ok(historyInputs.includes('assignmentResultRoute') && historyInputs.includes('setAssignmentResultRoute'), 'App hands the hook the result route and its setter');
+  const routeMemo = region(history, 'const studentBrowserRoute = useMemo(', 'useEffect(', 'student browser route');
   assert.match(routeMemo, /origin: assignmentResultRoute\?\.origin \|\| 'assignments'/);
-  const restore = region(app, 'const restoreFromBrowserHistory', "window.addEventListener('popstate'", 'popstate restore');
+  const restore = region(history, 'const restoreFromBrowserHistory', "window.addEventListener('popstate'", 'popstate restore');
   assert.match(restore, /origin: route\.origin \|\| 'assignments'/);
 });
 

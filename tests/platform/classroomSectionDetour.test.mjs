@@ -9,6 +9,7 @@ import { readFileSync } from 'node:fs';
 import { describeSectionDetour, DETOUR_SECTION_LABEL } from '../../src/platform/student/sectionDetour.js';
 import { describeSectionAccess } from '../../src/platform/student/assignmentNavigator.js';
 import { executableSource, region } from './helpers/sourceContract.mjs';
+import { appFactorySource } from './helpers/appScreens.mjs';
 
 const NOW = new Date(2026, 9, 19, 13, 30).getTime();
 const at = (h, m) => new Date(2026, 9, 19, h, m);
@@ -38,16 +39,20 @@ test('NAV-22: nothing to explain when the section is open, or the student landed
 
 test('NAV-22: App passes the post\'s section to the start, and explains a detour with the same states entry used', () => {
   const app = executableSource(readFileSync(new URL('../../src/App.jsx', import.meta.url), 'utf8'));
-  assert.match(app, /import \{ DETOUR_SECTION_LABEL, describeSectionDetour \} from '\.\/platform\/student\/sectionDetour\.js';/);
+  // Since the App split startAssignment, where the detour is explained, is
+  // createStudentNavigation's, with the import it needs. The Classroom launch
+  // that calls it is still App's.
+  const navigation = executableSource(appFactorySource('createStudentNavigation'));
+  assert.match(navigation, /import \{ DETOUR_SECTION_LABEL, describeSectionDetour \} from '\.\.\/\.\.\/platform\/student\/sectionDetour\.js';/);
   const launch = region(app, 'startAssignment(target.assignmentId, target.questionIndex, {', '});', 'Classroom launch start');
   assert.match(launch, /launchedSectionKey: target\.sectionKey \|\| null/);
-  const detour = region(app, "const launchedRole = String(options?.launchedSectionKey || '')", 'if (detour) showWhenWorkspaceOpens(detour);', 'detour');
+  const detour = region(navigation, "const launchedRole = String(options?.launchedSectionKey || '')", 'if (detour) showWhenWorkspaceOpens(detour);', 'detour');
   assert.match(detour, /if \(DETOUR_SECTION_LABEL\[launchedRole\] && !roleIsActionable\(launchedRole\)\)/);
   assert.match(detour, /landingRole: stageEntries\.find\(\(entry\) => entry\.storageIndex === actionableIndex\)\?\.logicalRole/);
   assert.match(detour, /access: describeSectionAccess\(\{\s*role: launchedRole,/);
   // It runs once the landing question is known, before it is applied.
   const order = ['const actionableIndex = resolveStudentAssignmentEntry({', "const launchedRole = String(options?.launchedSectionKey || '')", 'safeQuestionIndex = actionableIndex;'];
-  const positions = order.map((needle) => app.indexOf(needle));
+  const positions = order.map((needle) => navigation.indexOf(needle));
   positions.forEach((position, index) => assert.notEqual(position, -1, order[index]));
   assert.deepEqual([...positions].sort((a, b) => a - b), positions);
 });

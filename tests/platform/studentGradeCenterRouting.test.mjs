@@ -14,7 +14,7 @@ import {
 } from '../../src/platform/student/browserHistory.js';
 import { assertCapability, region } from './helpers/sourceContract.mjs';
 import { importsComponent } from './helpers/componentImport.mjs';
-import { teacherControlsSource } from './helpers/appScreens.mjs';
+import { appFactorySeam, appFactorySource, positionalHookSource, teacherControlsSource } from './helpers/appScreens.mjs';
 
 const app = fs.readFileSync(new URL('../../src/App.jsx', import.meta.url), 'utf8');
 const lazyScreens = fs.readFileSync(new URL('../../src/app/lazyScreens.js', import.meta.url), 'utf8');
@@ -152,18 +152,24 @@ test('an assignment-result history entry round-trips its assignment and Classroo
 });
 
 test('App pushes and restores the assignment-result entry on Back and Forward', () => {
-  const routeMemo = region(app, 'const studentBrowserRoute = useMemo(', 'useEffect(', 'student browser route');
+  // Since the App split the route memo and the popstate restore are
+  // useStudentBrowserHistory's, which App calls once, by position.
+  const history = positionalHookSource('useStudentBrowserHistory');
+  const routeMemo = region(history, 'const studentBrowserRoute = useMemo(', 'useEffect(', 'student browser route');
   assert.match(routeMemo, /surface: 'assignmentResult'/);
   assert.match(routeMemo, /activeView === 'assignmentResult'/);
 
-  const restore = region(app, 'const restoreFromBrowserHistory', "window.addEventListener('popstate'", 'popstate restore');
+  const restore = region(history, 'const restoreFromBrowserHistory', "window.addEventListener('popstate'", 'popstate restore');
   assert.match(restore, /route\.surface === 'assignmentResult'/);
   assert.match(restore, /setActiveView\('assignmentResult'\)/);
   assert.match(restore, /setActiveClassroomSectionKey\(route\.sectionKey/);
 });
 
 test('the visible in-app Back control returns result-launched practice to Assignment Result', () => {
-  const start = region(app, 'const startAssignment = ', 'const openStudentGradeCenter', 'startAssignment');
+  // Since the App split startAssignment is createStudentNavigation's, which
+  // App hands the result route's setter.
+  assert.ok(appFactorySeam('createStudentNavigation').parameters.includes('setAssignmentResultRoute'), 'App hands the start the result route\'s setter');
+  const start = region(appFactorySource('createStudentNavigation'), 'const startAssignment = ', 'const openStudentGradeCenter', 'startAssignment');
   assert.match(start, /if \(!options\?\.returnToResult\) setAssignmentResultRoute\(null\)/);
 
   const leave = region(app, 'const returnsToAssignmentResult = ', '// While the Warm-Up challenge is live', 'assignment leave routing');
@@ -186,10 +192,14 @@ test('Grades is reachable from Home, and Home is reachable from Grades', () => {
   );
   assert.match(app, /onNavigate=\{navigateStudent\}/);
 
-  const navigate = region(app, 'const navigateStudent = ', 'const openStudentAssignmentResult', 'navigateStudent');
+  // Since the App split navigateStudent and the openers are
+  // createStudentNavigation's; App takes navigateStudent from its one call.
+  const navigation = appFactorySource('createStudentNavigation');
+  assert.ok(appFactorySeam('createStudentNavigation').taken.includes('navigateStudent'), 'App takes navigateStudent from the factory');
+  const navigate = region(navigation, 'const navigateStudent = ', 'const openStudentAssignmentResult', 'navigateStudent');
   assert.match(navigate, /STUDENT_DESTINATION\.GRADES.*openStudentGradeCenter/s);
 
-  const openGradeCenter = region(app, 'const openStudentDashboardMode = ', 'const navigateStudent', 'openStudentDashboardMode');
+  const openGradeCenter = region(navigation, 'const openStudentDashboardMode = ', 'const navigateStudent', 'openStudentDashboardMode');
   assert.match(openGradeCenter, /setStudentDashboardMode\(mode\)/);
   assert.match(openGradeCenter, /setActiveView\('dashboard'\)/);
 

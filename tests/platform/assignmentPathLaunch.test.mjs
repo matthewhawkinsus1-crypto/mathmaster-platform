@@ -9,6 +9,7 @@ import { readFileSync } from 'node:fs';
 
 import { pathSkillForTeks, resolveAssignmentPathLaunch } from '../../src/platform/path/assignmentPathLaunch.js';
 import { executableSource, region } from './helpers/sourceContract.mjs';
+import { appFactorySeam, appFactorySource } from './helpers/appScreens.mjs';
 
 const app = readFileSync(new URL('../../src/App.jsx', import.meta.url), 'utf8');
 
@@ -200,7 +201,12 @@ test('a Path launch from the result leaves the result route, keeping only the sk
   // openStudentDashboardMode clears the result route and every other
   // destination's leftovers, and keeps pathLaunchTeks for mathPath — which is
   // what lets My Math Path start the session on arrival.
-  const open = region(app, 'const openStudentDashboardMode = (mode) => {', '};', 'openStudentDashboardMode');
+  // Since the App split openStudentDashboardMode is createStudentNavigation's,
+  // which App hands the result route's and the skill's setters.
+  const open = region(appFactorySource('createStudentNavigation'), 'const openStudentDashboardMode = (mode) => {', '};', 'openStudentDashboardMode');
+  for (const input of ['setAssignmentResultRoute', 'setPathLaunchTeks', 'setActiveView']) {
+    assert.ok(appFactorySeam('createStudentNavigation').parameters.includes(input), `App hands the factory ${input}`);
+  }
   assert.match(open, /setAssignmentResultRoute\(null\);/);
   assert.match(open, /if \(mode !== 'mathPath'\) setPathLaunchTeks\(null\);/);
   assert.match(open, /setActiveView\('dashboard'\);/);

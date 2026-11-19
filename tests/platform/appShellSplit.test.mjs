@@ -13,7 +13,7 @@ import assert from 'node:assert/strict';
 import { readFileSync, readdirSync } from 'node:fs';
 import { executableSource } from './helpers/sourceContract.mjs';
 import { posix } from 'node:path';
-import { appHookPaths, appHookSource } from './helpers/appScreens.mjs';
+import { appFactoryPaths, appFactorySource, appHookPaths, appHookSource } from './helpers/appScreens.mjs';
 
 const read = (path) => readFileSync(new URL(`../../${path}`, import.meta.url), 'utf8');
 const app = read('src/App.jsx');
@@ -54,9 +54,20 @@ test('every moved helper, scope table and lazy screen is imported by App and dec
     // Since the App split a name only moved code used went with that code
     // into its hook (DISPLAYED_CHECKPOINT_OUTCOMES: useDolCheckpointReceipts),
     // so the hooks App calls count too, each by its own relative path.
-    const hooks = Object.entries(appHookPaths()).map(([hookName, hookPath]) => {
+    // Since slice 5 the same holds for the factories App calls (the tracker
+    // builders went with startAssignment into createStudentNavigation and
+    // with the preview into createTeacherPreviewNavigation). A factory is a
+    // module's own `export function createX(`: the helper modules' create*
+    // builders are `export const`, and are what is being counted here.
+    const factories = Object.entries(appFactoryPaths())
+      .filter(([factoryName, factoryPath]) => new RegExp(`^export function ${factoryName}\\(`, 'm').test(read(factoryPath)));
+    assert.ok(factories.length >= 2, 'App calls its navigation factories');
+    const hooks = [
+      ...Object.entries(appHookPaths()).map(([hookName, hookPath]) => [hookName, hookPath, appHookSource(hookName)]),
+      ...factories.map(([factoryName, factoryPath]) => [factoryName, factoryPath, appFactorySource(factoryName)]),
+    ].map(([hookName, hookPath, source]) => {
       const relative = posix.relative(posix.dirname(hookPath), path);
-      return { hookName, source: appHookSource(hookName), module: relative.startsWith('.') ? relative : `./${relative}` };
+      return { hookName, source, module: relative.startsWith('.') ? relative : `./${relative}` };
     });
     const imported = [...new Set([
       ...importedFrom(module),

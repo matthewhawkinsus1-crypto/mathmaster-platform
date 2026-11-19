@@ -53,6 +53,7 @@ import {
   addRecoveryHoldScenario,
 } from '../browser/teacherWorkflow/recoveryFixture.js';
 import { executableSource, region } from './helpers/sourceContract.mjs';
+import { appFactorySeam, appFactorySource, positionalHookSeam, positionalHookSource } from './helpers/appScreens.mjs';
 
 const read = (relative) => readFileSync(new URL(`../../${relative}`, import.meta.url), 'utf8');
 
@@ -161,13 +162,20 @@ test('a reload inside a Recovery reopens it; a fresh link opens the result page 
 // ------------------------------------------------------------ App's wiring
 
 const app = executableSource(read('src/App.jsx'));
+// Since the App split the student's route, its history writer and its
+// popstate restore are useStudentBrowserHistory's, and
+// openStudentAssignmentResult is createStudentNavigation's: App calls each
+// once, by position, and each read checks the two sides line up.
+const studentHistory = () => executableSource(positionalHookSource('useStudentBrowserHistory'));
 
 test('App: the open Recovery is in the route, and one opened elsewhere sits on its result page\'s entry', () => {
-  const route = region(app, 'const studentBrowserRoute = useMemo(() => {', '}, [user?.role, activeView', 'the student route');
+  const history = studentHistory();
+  assert.ok(positionalHookSeam('useStudentBrowserHistory').parameters.includes('recoverySession'), 'App hands the route the open Recovery');
+  const route = region(history, 'const studentBrowserRoute = useMemo(() => {', '}, [user?.role, activeView', 'the student route');
   assert.match(route, /const resultAssignmentId = assignmentResultRoute\?\.assignmentId \|\| activeAssignmentId \|\| '';/);
   assert.match(route, /\.\.\.\(recoverySession\?\.assignmentId === resultAssignmentId \? \{ recoverySection: recoverySession\.section \} : \{\}\),/);
-  assert.match(app, /\}, \[user\?\.role, activeView, [^\]]*recoverySession\?\.assignmentId, recoverySession\?\.section\]\);/, 'a Recovery opening or closing changes the route');
-  const writer = region(app, 'useEffect(() => {\n    if (!studentBrowserRoute) {', '}, [studentBrowserRoute, urlArrival]);', 'student writer');
+  assert.match(history, /\}, \[user\?\.role, activeView, [^\]]*recoverySession\?\.assignmentId, recoverySession\?\.section\]\);/, 'a Recovery opening or closing changes the route');
+  const writer = region(history, 'useEffect(() => {\n    if (!studentBrowserRoute) {', '}, [studentBrowserRoute, urlArrival]);', 'student writer');
   const push = region(writer, 'if (currentKey !== targetKey) {', '\n    }', 'the push');
   const page = push.indexOf('if (resultPage && studentRouteKey(resultPage) !== currentKey) writeStudentRouteState(resultPage, { url, owner: user?.uid });');
   assert.ok(page > 0, 'the result page is written under a Recovery opened from another screen, stamped with the account');
@@ -176,13 +184,17 @@ test('App: the open Recovery is in the route, and one opened elsewhere sits on i
 });
 
 test('App: Back, Forward and a reload reopen a Recovery only where its panel offers it', () => {
-  const restore = region(app, 'const restoreFromBrowserHistory = (event) => {', "window.addEventListener('popstate', restoreFromBrowserHistory)", 'student popstate');
+  const { parameters } = positionalHookSeam('useStudentBrowserHistory');
+  assert.ok(parameters.includes('setRecoverySession') && parameters.includes('historyAccountRef'), 'App hands the restore the Recovery\'s setter and the account\'s ref');
+  const restore = region(studentHistory(), 'const restoreFromBrowserHistory = (event) => {', "window.addEventListener('popstate', restoreFromBrowserHistory)", 'student popstate');
   const result = region(restore, "if (route.surface === 'assignmentResult') {", "setActiveView('assignmentResult');", 'result entry');
   assert.match(result, /setRecoverySession\(\(current\) => \{\s*if \(!route\.recoverySection\) return null;/, 'onto the page itself, the Recovery closes');
   assert.match(result, /return \{ assignmentId: route\.assignmentId, section: route\.recoverySection, mode: null \};/, 'onto a Recovery\'s entry: reopened, its mode left to the panel');
   // The foreign-account check still comes first (NV09's rule).
-  assert.ok(restore.indexOf('if (readRouteOwner(event.state) !== historyAccountRef.current) {') < restore.indexOf('setRecoverySession('));
-  const open = region(app, 'const openStudentAssignmentResult = (assignmentId, options = {}) => {', '\n  };', 'openStudentAssignmentResult');
+  const ownerCheckAt = restore.indexOf('if (readRouteOwner(event.state) !== historyAccountRef.current) {');
+  assert.ok(ownerCheckAt !== -1 && ownerCheckAt < restore.indexOf('setRecoverySession('));
+  assert.ok(appFactorySeam('createStudentNavigation').parameters.includes('setRecoverySession'), 'App hands the result\'s opener the Recovery\'s setter');
+  const open = region(executableSource(appFactorySource('createStudentNavigation')), 'const openStudentAssignmentResult = (assignmentId, options = {}) => {', '\n  };', 'openStudentAssignmentResult');
   assert.match(open, /if \(options\.recoverySection\) setRecoverySession\(\{ assignmentId: id, section: options\.recoverySection, mode: null \}\);/, 'a reload: the same');
   const check = region(app, 'useEffect(() => {\n    if (!recoverySession || recoverySession.mode || !studentRecoveryKit', '}, [recoverySession, studentRecoveryKit, recoveryAssignmentId, studentRecoverySummary, user?.uid]);', 'the restore check');
   assert.match(check, /recoverySession\.assignmentId !== recoveryAssignmentId\) return;/, 'judged on this result page\'s own panel');

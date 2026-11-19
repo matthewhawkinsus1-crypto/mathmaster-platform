@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import { region } from './helpers/sourceContract.mjs';
-import { appHookSource } from './helpers/appScreens.mjs';
+import { appFactorySeam, appFactorySource, appHookSource } from './helpers/appScreens.mjs';
 
 // The scroll-driven auto-compact rule (shouldCompactAssignmentNavigation) and
 // its unit test were removed with the module once App stopped using it (OT03).
@@ -15,7 +15,15 @@ import { appHookSource } from './helpers/appScreens.mjs';
 test('the navigator starts compact, on every size and every open path', async () => {
   const source = await readFile(new URL('../../src/App.jsx', import.meta.url), 'utf8');
   assert.match(source, /const \[assignmentNavigationCollapsed, setAssignmentNavigationCollapsed\] = useState\(true\);/);
-  const resets = [...source.matchAll(/setAssignmentNavigationCollapsed\((true|false)\);/g)].map((match) => match[1]);
+  // Since the App split the open paths are createStudentNavigation's
+  // (startAssignment) and createTeacherPreviewNavigation's (the preview, Teach
+  // Live and its resume), which App hands the setter: the resets are counted
+  // across App and both, so none is lost and none can start it expanded.
+  for (const factoryName of ['createStudentNavigation', 'createTeacherPreviewNavigation']) {
+    assert.ok(appFactorySeam(factoryName).parameters.includes('setAssignmentNavigationCollapsed'), `App hands ${factoryName} the navigator's setter`);
+  }
+  const openPaths = [source, appFactorySource('createStudentNavigation'), appFactorySource('createTeacherPreviewNavigation')].join('\n');
+  const resets = [...openPaths.matchAll(/setAssignmentNavigationCollapsed\((true|false)\);/g)].map((match) => match[1]);
   assert.ok(resets.length >= 4, `every open path resets the navigator (found ${resets.length})`);
   assert.deepEqual([...new Set(resets)], ['true'], 'no open path starts it expanded');
 });
