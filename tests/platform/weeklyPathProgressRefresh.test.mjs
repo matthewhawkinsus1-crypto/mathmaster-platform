@@ -314,8 +314,8 @@ test('the loading line is the entry\'s: on while it asks, off when it answers, n
 register('./helpers/firestoreClientIsolation.mjs', import.meta.url);
 const { followWeeklyPathProgress } = await import('../../src/app/teacher/weeklyPathProgress.js');
 const { fetchTeacherWeeklyPathCompletions, storedWeeklyGoalForClassContext } = await import('../../src/platform/path/pathStore.js');
-const { weekKeyFor } = await import('../../src/platform/path/weeklyPathGoal.js');
-const PATH_CLIENT = { completions: fetchTeacherWeeklyPathCompletions, weeklyGoalFor: storedWeeklyGoalForClassContext, weekKeyFor };
+const { weekKeyFor, weekStartsOnFor } = await import('../../src/platform/path/weeklyPathGoal.js');
+const PATH_CLIENT = { completions: fetchTeacherWeeklyPathCompletions, weeklyGoalFor: storedWeeklyGoalForClassContext, weekKeyFor, weekStartsOnFor };
 
 const CLASSES = [{ classId: 'first', period: '1' }, { classId: 'period-3', period: '3' }];
 // What App holds, as the follower sets it, and every screen it was asked to watch.
@@ -360,6 +360,11 @@ test('the kit asks for the class\'s own week, applies the answer for that class,
   const { held, watched } = follow({ teacherTab: 'home', activeClassId: 'period-3', weeklyGoalsByClass: wednesday });
   const [screen] = watched;
   assert.equal(screen.period(), weekKeyFor(Date.now(), 3), 'the class\'s week, as of the call');
+  // A class whose week starts on Sunday asks for its Sunday week: the week its
+  // students' goals are frozen under. `|| 1` used to ask for the Monday one.
+  const sunday = follow({ teacherTab: 'home', activeClassId: 'period-3', weeklyGoalsByClass: { 'period-3': { weekStartsOn: 0 } } });
+  assert.equal(sunday.watched[0].period(), weekKeyFor(Date.now(), 0));
+  assert.equal(new Date(`${sunday.watched[0].period()}T00:00:00Z`).getUTCDay(), 0, 'a Sunday');
   firestoreClient.answers.getTeacherWeeklyPathCompletions = () => ({ byStudentId: { s1: [{ id: 'x' }] }, goalsByStudentId: { s1: { goalSessions: 4 } }, truncated: false });
   const answer = await screen.fetch(screen.period());
   assert.deepEqual(firestoreClient.calls, [{ name: 'getTeacherWeeklyPathCompletions', data: { classId: 'period-3', weekKey: screen.period() } }]);
@@ -390,7 +395,7 @@ test('App keeps one refresh from the teacher kit and follows the screen through 
   const effect = region(app, "if (user?.role !== 'teacher' || teacherPreviewRuntimeActive || !weeklyPathProgress) return undefined;", '}, [user?.role, user?.uid, teacherTab, activeClass.classId, classes, weeklyGoalsByClass, teacherPreviewRuntimeActive, weeklyPathProgress, teacherKit]);', 'the weekly Path completion effect');
   assert.match(effect, /return teacherKit\.followWeeklyPathProgress\(weeklyPathProgress, \{\s*uid: user\.uid,\s*teacherTab,\s*activeClassId: activeClass\.classId,\s*classes,\s*weeklyGoalsByClass,/);
   // App's own Path client, which the kit uses and does not import (a first-load split).
-  assert.match(effect, /path: \{ completions: fetchTeacherWeeklyPathCompletions, weeklyGoalFor: storedWeeklyGoalForClassContext, weekKeyFor \},/);
+  assert.match(effect, /path: \{ completions: fetchTeacherWeeklyPathCompletions, weeklyGoalFor: storedWeeklyGoalForClassContext, weekKeyFor, weekStartsOnFor \},/);
   assert.match(effect, /completions: setWeeklyPathCompletionsByStudent,\s*goals: setWeeklyPathGoalSnapshotsByStudent,\s*truncated: setWeeklyPathTruncated,\s*loadedFor: setWeeklyPathProgressLoadedFor,\s*loading: setWeeklyPathProgressLoading,/);
   assert.doesNotMatch(readFileSync(new URL('../../src/app/teacher/weeklyPathProgress.js', import.meta.url), 'utf8'), /^import .*(pathStore|weeklyPathGoal)\.js';$/m);
   // No interval of its own: the refresh keeps the minute and the page's visibility.
