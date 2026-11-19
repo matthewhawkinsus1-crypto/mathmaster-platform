@@ -18,7 +18,7 @@
  *
  * Pure.
  */
-import { equationToLatex, isSolvedEquation, parseEquationInput } from '../algebra/algebraAstEngine.mjs';
+import { equationToLatex, isSolvedEquation, parseEquationInput, readSavedEquationProducts } from '../algebra/algebraAstEngine.mjs';
 import {
   equationMatchesOriginal,
   isSafeStudentExpression,
@@ -76,7 +76,7 @@ export const gradeEquationObjective = (question = {}, work = {}) => {
     : null;
   // The objective and variable are the QUESTION's — a forged objective in the
   // work could otherwise declare any equation finished.
-  const final = submitted ? { ...submitted, variable: pristine.variable, objective: pristine.objective } : null;
+  const final = submitted ? readSavedEquationProducts({ ...pristine, ...submitted }, pristine) : null;
   let solved = false;
   try {
     solved = Boolean(final) && isSolvedEquation(final);

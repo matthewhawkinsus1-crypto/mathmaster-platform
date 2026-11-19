@@ -15,6 +15,13 @@ import { describeStudentErrorWords } from '../student/studentErrorWords.js';
 
 export const TEACHER_ERROR_GENERIC = 'Something went wrong on our side. Try again in a moment.';
 
-export const teacherErrorSentence = (error, fallback = null) => (
-  describeStudentErrorWords(error, { fallback: fallback || TEACHER_ERROR_GENERIC }).text
-);
+export const teacherErrorSentence = (error, fallback = null) => {
+  const code = String(error?.code || '').replace(/^functions\//, '');
+  const message = String(error?.message || '').trim();
+  const offline = typeof navigator !== 'undefined' && navigator.onLine === false;
+  // A bare callable error also covers server failures such as memory limits.
+  if (!offline && code === 'internal' && (!message || /^internal$/i.test(message))) {
+    return TEACHER_ERROR_GENERIC;
+  }
+  return describeStudentErrorWords(error, { fallback: fallback || TEACHER_ERROR_GENERIC }).text;
+};

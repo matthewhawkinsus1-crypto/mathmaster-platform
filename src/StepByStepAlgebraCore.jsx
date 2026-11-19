@@ -29,6 +29,7 @@ import {
   latexToExpression,
   parseEquationInput,
   parseOperationOperand,
+  readSavedEquationProducts,
 } from './algebraAstEngine';
 import SimplifyPanel from './platform/algebra/simplify/SimplifyPanel.jsx';
 import { highlightedTermIndices, partsForTerm } from './platform/algebra/simplify/simplifyEngine.js';
@@ -134,9 +135,12 @@ const recordHoldsEquation = (record) => {
  */
 export const getInitialEquation = (question, record) => {
   const saved = record?.algebraState?.equation;
-  if (recordHoldsEquation(record)) return { equation: saved, error: null };
+  const hasSavedEquation = recordHoldsEquation(record);
   try {
     const equation = parseEquationInput(question);
+    // A saved board can hold compact products from before they were expanded
+    // on opening (Pr in I = Prt): read against the authored formula's factors.
+    if (hasSavedEquation) return { equation: readSavedEquationProducts(saved, equation), error: null };
     // parseEquationInput splits at "=" and reads neither side, so "2x + = 7"
     // reached the board, which threw the first time it drew a side. Each side
     // is read here, where a failure reaches UnreadableEquationPanel.
@@ -144,15 +148,16 @@ export const getInitialEquation = (question, record) => {
     expressionToLatex(equation.right);
     return { equation, error: null };
   } catch (error) {
+    if (hasSavedEquation) return { equation: saved, error: null };
     return { equation: null, error: error?.message || 'This equation could not be read.' };
   }
 };
 
 const isFactorOperation = (operation) => operation === 'multiply' || operation === 'divide';
 
-const operationOperandIdentity = (value) => {
+const operationOperandIdentity = (value, equation) => {
   try {
-    return parseOperationOperand(value).expression.replace(/\s+/g, '');
+    return parseOperationOperand(value, equation).expression.replace(/\s+/g, '');
   } catch {
     return String(value ?? '').replace(/\s+/g, '');
   }
@@ -502,8 +507,8 @@ export default function StepByStepAlgebra({
   // after the algebra engine changes: that can resurrect UI requirements that
   // the current engine no longer considers mathematically necessary.
   const savedDraft = useMemo(
-    () => rehydrateAlgebraDraft({ draft: rawSavedDraft, initialEquation }),
-    [rawSavedDraft, initialEquation],
+    () => rehydrateAlgebraDraft({ draft: rawSavedDraft, initialEquation, pristineEquation }),
+    [rawSavedDraft, initialEquation, pristineEquation],
   );
   const [equation, setEquation] = useState(savedDraft?.equation || initialEquation);
   const [committedHistory, setCommittedHistory] = useState([]);
@@ -2615,7 +2620,7 @@ export default function StepByStepAlgebra({
       ? placedOperationPositions[side]
       : (factorZoneHint?.side === side ? factorZoneHint.position : null);
     let parsedOperand = operand;
-    try { parsedOperand = parseOperationOperand(operand).expression; } catch { parsedOperand = latexToExpression(operand); }
+    try { parsedOperand = parseOperationOperand(operand, equation).expression; } catch { parsedOperand = latexToExpression(operand); }
     // What the student is still typing ("2x +", "(") is drawn as written:
     // the preview is drawn as they drag, so it must never throw
     // (typedMathLatex.js).
@@ -2662,7 +2667,7 @@ export default function StepByStepAlgebra({
   const operandLabel = (() => {
     if (!operand) return '';
     try {
-      return parseOperationOperand(operand).expression;
+      return parseOperationOperand(operand, equation).expression;
     } catch {
       return latexToExpression(operand);
     }
@@ -3144,7 +3149,7 @@ export default function StepByStepAlgebra({
                 // MathLive can re-emit an equivalent operand while focus/layout
                 // changes. Do not erase a side the student already placed unless
                 // the mathematical operand actually changed.
-                const operandChanged = operationOperandIdentity(value) !== operationOperandIdentity(operand);
+                const operandChanged = operationOperandIdentity(value, equation) !== operationOperandIdentity(operand, equation);
                 setOperand(value);
                 if (operandChanged && placedOperationSidesRef.current.length) {
                   placedOperationSidesRef.current = [];
