@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom';
 import MathDisplay from '../../MathDisplay.jsx';
 import { SAT_REFERENCE_SHEET } from '../../platform/assessment/satReferenceSheet.js';
 import {
-  EXAM_TOOL_DRAWERS, EXAM_TOOL_IDS, EXAM_TOOL_LAYERS, EXAM_TOOL_OPEN_EVENT, examToolYieldsTo,
+  EXAM_TOOL_CLOSE_EVENT, EXAM_TOOL_DRAWERS, EXAM_TOOL_IDS, EXAM_TOOL_LAYERS, EXAM_TOOL_OPEN_EVENT, examToolYieldsTo,
 } from '../../platform/assessment/examToolLayout.js';
 import { examToolTabEdge, useExamToolbarOffset, useNarrowScreen } from './examToolDrawerHooks.js';
 
@@ -379,6 +379,17 @@ export default function SatReferenceSheet({ label = 'Reference sheet', onOpened 
     // Back to where the student was.
     window.requestAnimationFrame?.(() => launcherRef.current?.focus?.({ preventScroll: true }));
   };
+
+  // The exam asks its open tools to close, as Close does: Escape pressed
+  // anywhere in the test while a phone's sheet is open (EXAM_TOOL_CLOSE_EVENT).
+  const closeRef = useRef(close);
+  closeRef.current = close;
+  useEffect(() => {
+    if (!open || typeof window === 'undefined') return undefined;
+    const closeAsked = () => closeRef.current();
+    window.addEventListener(EXAM_TOOL_CLOSE_EVENT, closeAsked);
+    return () => window.removeEventListener(EXAM_TOOL_CLOSE_EVENT, closeAsked);
+  }, [open]);
 
   return (
     <>

@@ -200,7 +200,7 @@ test('the toolbar carries the tools the exam policy grants, and the question is 
   assert.match(container, /^import \{ resolveSecureExamTools \} from '\.\.\/\.\.\/platform\/assessment\/secureExamTools\.js';$/m);
   assert.match(container, /^import SatReferenceSheet from '\.\/SatReferenceSheet\.jsx';$/m);
   assert.match(container, /^import GraphingCalculatorPanel from '\.\/GraphingCalculatorPanel\.jsx';$/m);
-  assert.match(container, /^import \{ useExamToolRoom \} from '\.\/examToolDrawerHooks\.js';$/m);
+  assert.match(container, /^import \{ useExamToolRoom, useNarrowScreen \} from '\.\/examToolDrawerHooks\.js';$/m);
   const tools = region(container, 'const tools = resolveSecureExamTools({', '});', 'tools');
   assert.match(tools, /examType: session\.examType \|\| examType,/);
   assert.match(tools, /sessionCalculatorMode: session\.calculatorMode \|\| null,/);
@@ -220,7 +220,10 @@ test('the toolbar carries the tools the exam policy grants, and the question is 
   assert.doesNotMatch(executableSource(header), /Reference sheet available/);
   // Room for the drawers: the hook measures the column it pads.
   assert.match(container, /const room = useExamToolRoom\(columnRef, \{ referenceSheetOpen, graphingCalculatorOpen \}\);/);
-  assert.match(container, /<div ref=\{columnRef\} data-secure-question-column="" style=\{\{ paddingLeft: room\.paddingLeft, paddingRight: room\.paddingRight \}\}>/);
+  // On a phone a tool is a sheet over the question, which is out of reach
+  // while it is open (secureExamToolFocus.mjs walks it).
+  assert.match(container, /<div ref=\{columnRef\} data-secure-question-column="" inert=\{toolSheetOpen \|\| undefined\} style=\{\{ paddingLeft: room\.paddingLeft, paddingRight: room\.paddingRight \}\}>/);
+  assert.match(container, /const toolSheetOpen = narrow && \(referenceSheetOpen \|\| graphingCalculatorOpen\);/);
 });
 
 test('opening the graphing calculator on a question is recorded on that question, as the scientific one is', () => {
