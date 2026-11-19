@@ -56,6 +56,9 @@ const PINNED = Object.freeze({
   'teacher-import-jsons/algebra1-dol1/District_DOL1_Technology_Graph_Analysis_Review.json': ['0/4/4 ready', '0/0/8 unavailable'],
   'teacher-import-jsons/algebra1-dol3/Algebra1_DOL3_Review.json': ['0/0/0 notPresent', '0/0/0 notPresent'],
   'teacher-import-jsons/algebra1-dol3/Algebra1_DOL3_Review_Honors.json': ['0/0/0 notPresent', '0/0/0 notPresent'],
+  // The DOL #4 makeups are one Practice section each, like the DOL #3 reviews.
+  'teacher-import-jsons/algebra1-dol4/Algebra1_DOL4_Makeup.json': ['0/0/0 notPresent', '0/0/0 notPresent'],
+  'teacher-import-jsons/algebra1-dol4/Algebra1_DOL4_Makeup_Honors.json': ['0/0/0 notPresent', '0/0/0 notPresent'],
   'teacher-import-jsons/algebra1-module2-topic2/L2_Vertical_and_Horizontal_Transformations_of_Linear_Functions.json': ['0/3/3 ready', '0/3/3 ready'],
   'teacher-import-jsons/algebra1-module2-topic2/L3_Slopes_of_Perpendicular_Lines_and_Horizontal_Vertical_Lines.json': ['0/3/3 ready', '0/3/3 ready'],
   'teacher-import-jsons/algebra1-module2-topic2/L3_Slopes_of_Perpendicular_Lines_and_Horizontal_Vertical_Lines_Honors.json': ['0/3/3 ready', '0/3/3 ready'],

@@ -271,14 +271,15 @@ test('it claims nothing that is not a linear equation: the whole teacher-import 
   // Algebra I Module 3 Lesson 1 (and its Honors file) brought real
   // one-variable linear equations into the corpus. Those are claimed — every
   // hand-written one — and anything claimed is a linear equation the oracle
-  // reads on its own.
+  // reads on its own. The Algebra I DOL #4 makeup (and its Honors file) adds
+  // three more, its questions 2, 6 and 11.
   const claimed = questions.filter((question) => linearEquations.matches(question));
   claimed.forEach((question) => {
     assert.equal(question.type, 'stepAlgebra', `corpus: ${question.type} ${String(question.prompt).slice(0, 80)}`);
     assert.ok(['one', 'none', 'infinite'].includes(numericOracle(question).case), `corpus: ${String(question.prompt).slice(0, 80)}`);
   });
   const handWrittenEquations = questions.filter((question) => (
-    /^m3l1h?-/.test(String(question.questionId)) && question.type === 'stepAlgebra' && !question.questionFamily
+    /^(?:m3l1h?|dol4-makeup)-/.test(String(question.questionId)) && question.type === 'stepAlgebra' && !question.questionFamily
   ));
   assert.ok(handWrittenEquations.length >= 20);
   handWrittenEquations.forEach((question) => assert.ok(claimed.includes(question), `claimed: ${question.questionId}`));
