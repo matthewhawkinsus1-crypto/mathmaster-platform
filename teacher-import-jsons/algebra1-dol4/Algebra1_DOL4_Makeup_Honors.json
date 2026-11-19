@@ -1,0 +1,1240 @@
+{
+  "schemaVersion": 5,
+  "assignment": {
+    "title": "Algebra I Honors — DOL #4 Makeup",
+    "courseId": "algebra1",
+    "folder": "Algebra I/DOL Makeups",
+    "instructionalPurpose": "practice",
+    "gradingPurpose": "practice",
+    "instructions": "This is the makeup for District DOL #4. Questions 1–13 test the same skills as the 13 questions on the DOL, in the same order, with new numbers and new situations. Show your work inside each tool. Question 14 is an Honors extension that brings the linear standards together in one situation, and questions 15 and 16 are SAT challenge questions on transformations and on linear equations. You have 3 tries on each question, and hints are there when you need them."
+  },
+  "variantPolicy": {
+    "mode": "personalized",
+    "sectionModes": {
+      "practice": "personalized"
+    },
+    "avoidRecentTemplates": true,
+    "avoidDuplicateParameters": true
+  },
+  "sections": [
+    {
+      "id": "dol4-makeup-honors-practice",
+      "role": "practice",
+      "title": "DOL #4 Makeup — Honors",
+      "recommendedMinutes": 95,
+      "feedbackMode": "immediate",
+      "hintsAllowed": true,
+      "attemptsAllowed": 3,
+      "questions": [
+        {
+          "questionId": "dol4-makeup-q01",
+          "standard": "A.3B",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A.3B",
+              "role": "primary"
+            },
+            {
+              "framework": "teks",
+              "code": "A.3C",
+              "role": "secondary"
+            }
+          ],
+          "studentActions": [
+            "proveConstantRate"
+          ],
+          "mode": "deriveEquation",
+          "requiredComparisons": 3,
+          "rows": [
+            {
+              "x": -6,
+              "y": -18
+            },
+            {
+              "x": -2,
+              "y": -8
+            },
+            {
+              "x": 4,
+              "y": 7
+            },
+            {
+              "x": 10,
+              "y": 22
+            }
+          ],
+          "dok": 2,
+          "difficultyBand": 3,
+          "questionWeight": 1,
+          "prompt": "The table shows some ordered pairs of linear function f. Use three different pairs of rows to find the rate of change of f and show that it is constant. Then find the y-intercept and write the function in slope-intercept form, y = mx + b.",
+          "hints": [
+            "For each pair of rows, Δx is the change in x and Δy is the change in y. The rate of change is Δy ÷ Δx.",
+            "The x-values do not go up by 1, so the rate of change is not just the change in y from one row to the next.",
+            "The y-intercept is the value of b. Substitute your slope and the x- and y-values from one row into y = mx + b, then solve for b."
+          ],
+          "scaffold": {
+            "prompt": "Let’s back up. The rate of change between two rows of a table is…",
+            "options": [
+              "the change in x divided by the change in y",
+              "the change in y divided by the change in x"
+            ],
+            "correct": "the change in y divided by the change in x"
+          },
+          "solutionReview": {
+            "commonError": "Using the change in y alone as the rate of change; from x = −6 to x = −2 the x-values go up by 4, so the rate is Δy ÷ Δx = 10 ÷ 4 = 5/2, and then b = −8 − (5/2)(−2) = −3."
+          }
+        },
+        {
+          "questionId": "dol4-makeup-q02",
+          "standard": "A.5A",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A.5A",
+              "role": "primary"
+            }
+          ],
+          "studentActions": [
+            "solveStepByStep"
+          ],
+          "dok": 2,
+          "difficultyBand": 3,
+          "questionWeight": 1,
+          "prompt": "What value of n makes the equation (3/5)(n − 10) = (2/5)(n − 20) true? Solve it step by step.",
+          "equation": "(3/5)(n - 10) = (2/5)(n - 20)",
+          "hints": [
+            "Both sides have a denominator of 5. Multiply both sides by 5 to clear the fractions first.",
+            "After you clear the fractions, distribute on each side.",
+            "Collect the n-terms on one side and the constants on the other, then check your value in the ORIGINAL equation."
+          ],
+          "scaffold": {
+            "prompt": "Let’s back up. Multiplying both sides of (3/5)(n − 10) = (2/5)(n − 20) by 5 gives…",
+            "options": [
+              "3(n − 10) = 2(n − 20)",
+              "3(n − 10) = 10(n − 20)"
+            ],
+            "correct": "3(n − 10) = 2(n − 20)"
+          },
+          "solutionReview": {
+            "reasoning": [
+              "Multiply both sides by 5: 3(n − 10) = 2(n − 20).",
+              "Distribute: 3n − 30 = 2n − 40.",
+              "Subtract 2n from both sides: n − 30 = −40. Add 30 to both sides: n = −10.",
+              "Check: (3/5)(−20) = −12 and (2/5)(−30) = −12, so both sides are equal."
+            ],
+            "commonError": "Distributing the fraction to only the first term in the parentheses, for example writing (3/5)(n − 10) as (3/5)n − 10."
+          }
+        },
+        {
+          "questionId": "dol4-makeup-q03",
+          "standard": "A.2A",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A.2A",
+              "role": "primary"
+            }
+          ],
+          "studentActions": [
+            "readGraph",
+            "analyzeDomain",
+            "analyzeRange"
+          ],
+          "dok": 2,
+          "difficultyBand": 3,
+          "questionWeight": 1,
+          "prompt": "A club is selling candy bars for a fundraiser. The graph shows the number of candy bars the club still has to sell, y, after x days of selling, from the first day until the candy bars are gone. Determine the reasonable domain and range for this situation. Write each one as an inequality.",
+          "function": {
+            "family": "linear",
+            "m": -30,
+            "b": 360,
+            "domain": {
+              "min": 0,
+              "max": 12,
+              "minClosed": true,
+              "maxClosed": true
+            }
+          },
+          "graph": {
+            "xMin": -1,
+            "xMax": 14,
+            "yMin": -30,
+            "yMax": 420,
+            "xAxisLabel": "Time selling",
+            "xAxisUnit": "days",
+            "yAxisLabel": "Candy bars left to sell",
+            "yAxisUnit": "candy bars",
+            "accessibleDescription": "A line segment that falls from left to right. It starts at a closed dot on the vertical axis and ends at a closed dot on the horizontal axis. The horizontal axis is time selling in days, marked every day. The vertical axis is candy bars left to sell, marked every 30 candy bars."
+          },
+          "correctDomain": "0 <= x <= 12",
+          "correctRange": "0 <= y <= 360",
+          "notation": "inequality",
+          "hints": [
+            "The domain is the set of x-values the graph covers: the days, read from the left end of the graph to the right end.",
+            "The range is the set of y-values the graph covers: the candy bars left, read from the lowest point of the graph to the highest point.",
+            "Both ends of the graph are closed dots, so both endpoint values belong in the inequality. Use ≤, not <."
+          ],
+          "solutionReview": {
+            "commonError": "Swapping the domain and the range; the range is about y, the candy bars left, so it runs from 0 to 360, not from 0 to 12."
+          }
+        },
+        {
+          "questionId": "dol4-makeup-q04",
+          "standard": "A.3C",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A.3C",
+              "role": "primary"
+            },
+            {
+              "framework": "teks",
+              "code": "A.3B",
+              "role": "secondary"
+            }
+          ],
+          "studentActions": [
+            "constructLine"
+          ],
+          "mode": "slopeIntercept",
+          "line": {
+            "m": 0.75,
+            "b": -2
+          },
+          "graphBounds": {
+            "xMin": -8,
+            "xMax": 8,
+            "yMin": -8,
+            "yMax": 8
+          },
+          "dok": 2,
+          "difficultyBand": 2,
+          "questionWeight": 1,
+          "prompt": "Graph the line that has a slope of 3/4 and a y-intercept of −2. Start at the y-intercept, then use the slope to find a second point.",
+          "hints": [
+            "The y-intercept is where the line crosses the y-axis, where x = 0. Plot that point first.",
+            "A slope of 3/4 means a rise of 3 for every run of 4 to the right.",
+            "From the y-intercept, go up 3 and right 4 to plot your second point, then draw the line through both points."
+          ],
+          "scaffold": {
+            "prompt": "Let’s back up. A slope of 3/4 tells you to move from one point on the line to the next by going…",
+            "options": [
+              "up 3 and right 4",
+              "up 4 and right 3"
+            ],
+            "correct": "up 3 and right 4"
+          },
+          "solutionReview": {
+            "commonError": "Reading 3/4 as rise 4 and run 3; the top of the slope is the rise, so from (0, −2) the line goes up 3 and right 4 to (4, 1)."
+          }
+        },
+        {
+          "questionId": "dol4-makeup-q05",
+          "standard": "A.3E",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A.3E",
+              "role": "primary"
+            },
+            {
+              "framework": "teks",
+              "code": "A.3C",
+              "role": "secondary"
+            }
+          ],
+          "studentActions": [
+            "multipleResponses"
+          ],
+          "dok": 2,
+          "difficultyBand": 2,
+          "questionWeight": 1,
+          "prompt": "The graph shows the function f(x) = x. It was transformed to create the graph of the function g(x) = f(x) + 5. Describe how the graphs of the functions f and g are related.",
+          "function": {
+            "family": "linear",
+            "m": 1,
+            "b": 0
+          },
+          "graph": {
+            "xMin": -10,
+            "xMax": 10,
+            "yMin": -10,
+            "yMax": 10,
+            "functions": [
+              {
+                "type": "line",
+                "m": 1,
+                "b": 0
+              }
+            ],
+            "equalUnits": true,
+            "accessibleDescription": "The graph of the parent function f(x) = x: a line that rises from left to right through the origin on a grid marked every unit from −10 to 10 on both axes."
+          },
+          "responses": [
+            {
+              "id": "direction",
+              "label": "Which way is the graph of g moved from the graph of f?",
+              "type": "choice",
+              "options": [
+                "Up",
+                "Down",
+                "Left",
+                "Right"
+              ],
+              "answer": "Up"
+            },
+            {
+              "id": "units",
+              "label": "How many units is it moved?",
+              "answer": "5"
+            },
+            {
+              "id": "fIntercept",
+              "label": "The y-intercept of the graph of f",
+              "answer": "0"
+            },
+            {
+              "id": "gIntercept",
+              "label": "The y-intercept of the graph of g",
+              "answer": "5"
+            },
+            {
+              "id": "compare",
+              "label": "The y-intercept of the graph of g is…",
+              "type": "choice",
+              "options": [
+                "5 units greater than the y-intercept of the graph of f",
+                "5 units less than the y-intercept of the graph of f",
+                "the same as the y-intercept of the graph of f",
+                "5 times the y-intercept of the graph of f"
+              ],
+              "answer": "5 units greater than the y-intercept of the graph of f"
+            }
+          ],
+          "hints": [
+            "The number in g(x) = f(x) + 5 is added outside f(x), so it changes the outputs, the y-values. That is a vertical move.",
+            "Adding a positive number to every output moves every point of the graph higher by that many units.",
+            "A y-intercept is where a graph crosses the y-axis. Find where the graph of f crosses it, then move that point the way the rule for g moves every point."
+          ],
+          "scaffold": {
+            "prompt": "Let’s back up. In g(x) = f(x) + 5, the 5 is added to…",
+            "options": [
+              "every output of f",
+              "every input of f"
+            ],
+            "correct": "every output of f"
+          },
+          "solutionReview": {
+            "reasoning": [
+              "The 5 is added outside f(x), so every output goes up by 5: the graph of g is the graph of f translated up 5 units.",
+              "f(x) = x crosses the y-axis at 0, so the y-intercept of f is 0.",
+              "g(0) = f(0) + 5 = 0 + 5 = 5, so the y-intercept of g is 5, which is 5 units greater than the y-intercept of f."
+            ],
+            "commonError": "Moving the graph right 5 units; a number added outside f(x) changes the y-values, so the move is vertical: up 5."
+          }
+        },
+        {
+          "questionId": "dol4-makeup-q06",
+          "standard": "A.5A",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A.5A",
+              "role": "primary"
+            }
+          ],
+          "studentActions": [
+            "solveStepByStep"
+          ],
+          "dok": 2,
+          "difficultyBand": 2,
+          "questionWeight": 1,
+          "prompt": "What is the value of w that makes the equation 4(w + 3) = 3(w − 5) true? Solve it step by step.",
+          "equation": "4(w + 3) = 3(w - 5)",
+          "hints": [
+            "Distribute on each side first: multiply the number outside the parentheses by BOTH terms inside.",
+            "Subtract 3w from both sides so the w-terms are on one side.",
+            "Undo the constant on the w side, then check your value in the ORIGINAL equation."
+          ],
+          "scaffold": {
+            "prompt": "Let’s back up. Distributing on the right side, 3(w − 5) becomes…",
+            "options": [
+              "3w − 15",
+              "3w − 5"
+            ],
+            "correct": "3w − 15"
+          },
+          "solutionReview": {
+            "reasoning": [
+              "Distribute: 4w + 12 = 3w − 15.",
+              "Subtract 3w from both sides: w + 12 = −15.",
+              "Subtract 12 from both sides: w = −27.",
+              "Check: 4(−27 + 3) = 4(−24) = −96 and 3(−27 − 5) = 3(−32) = −96."
+            ],
+            "commonError": "Adding 12 instead of subtracting it at the last step, which gives w = −3; to undo + 12, subtract 12 from both sides."
+          }
+        },
+        {
+          "questionId": "dol4-makeup-q07",
+          "standard": "A.2A",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A.2A",
+              "role": "primary"
+            }
+          ],
+          "studentActions": [
+            "multipleResponses"
+          ],
+          "dok": 2,
+          "difficultyBand": 3,
+          "questionWeight": 1,
+          "prompt": "A student is paying for a used bike. The table shows the remaining balance in dollars, y, after the student has made x equal payments. Identify the domain and the range of the function for this situation.",
+          "table": {
+            "columns": [
+              {
+                "key": "x",
+                "label": "Number of payments, x"
+              },
+              {
+                "key": "y",
+                "label": "Remaining balance, y (dollars)"
+              }
+            ],
+            "rows": [
+              {
+                "x": "0",
+                "y": "150"
+              },
+              {
+                "x": "1",
+                "y": "120"
+              },
+              {
+                "x": "2",
+                "y": "90"
+              },
+              {
+                "x": "3",
+                "y": "60"
+              },
+              {
+                "x": "4",
+                "y": "30"
+              },
+              {
+                "x": "5",
+                "y": "0"
+              }
+            ]
+          },
+          "responses": [
+            {
+              "id": "kind",
+              "label": "The number of payments can be…",
+              "type": "choice",
+              "options": [
+                "only whole numbers from 0 to 5",
+                "any real number from 0 to 5",
+                "any real number from 0 to 150",
+                "only multiples of 30 from 0 to 150"
+              ],
+              "answer": "only whole numbers from 0 to 5"
+            },
+            {
+              "id": "domain",
+              "label": "The domain, as a set",
+              "inputProfile": "set",
+              "answer": "{0, 1, 2, 3, 4, 5}"
+            },
+            {
+              "id": "range",
+              "label": "The range, as a set",
+              "inputProfile": "set",
+              "answer": "{0, 30, 60, 90, 120, 150}"
+            }
+          ],
+          "hints": [
+            "The domain is the set of x-values: the numbers of payments the student can make.",
+            "A student cannot make half a payment, so list only the whole numbers in the table's x column.",
+            "The range is the set of y-values, the balances in the table. Write each set with braces, like {1, 2, 3}."
+          ],
+          "scaffold": {
+            "prompt": "Let’s back up. The domain of this function is made of…",
+            "options": [
+              "the numbers of payments",
+              "the remaining balances"
+            ],
+            "correct": "the numbers of payments"
+          },
+          "solutionReview": {
+            "reasoning": [
+              "x counts payments, and a student makes whole payments only, so the domain is the x-values in the table.",
+              "Domain: {0, 1, 2, 3, 4, 5}.",
+              "The range is the balances that go with those payments: {0, 30, 60, 90, 120, 150}."
+            ],
+            "commonError": "Giving the balances as the domain; the domain is the inputs, the number of payments, so it is {0, 1, 2, 3, 4, 5}."
+          }
+        },
+        {
+          "questionId": "dol4-makeup-q08",
+          "standard": "A.12C",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A.12C",
+              "role": "primary"
+            }
+          ],
+          "studentActions": [
+            "buildSequenceTable",
+            "plotSequence",
+            "analyzeSequence"
+          ],
+          "sequence": {
+            "kind": "arithmetic",
+            "first": 6.5,
+            "difference": 1.7
+          },
+          "displayCount": 4,
+          "dok": 2,
+          "difficultyBand": 2,
+          "questionWeight": 1,
+          "prompt": "A sequence can be generated using the rule aₙ = aₙ₋₁ + 1.7, where a₁ = 6.5 is the first term of the sequence. Use the recursive rule to find the first 4 terms, plot them, and identify the common difference.",
+          "hints": [
+            "A recursive rule tells you how to get each term from the term just before it.",
+            "Start with the first term, a₁. Apply the rule to it to get a₂, then apply the rule again to a₂ to get a₃.",
+            "Plot each term as the point (n, aₙ). Do not connect the points: n is a whole-number term position."
+          ],
+          "solutionReview": {
+            "commonError": "Multiplying by 1.7 instead of adding it; the rule adds 1.7 to the term before, so the terms are 6.5, 8.2, 9.9, 11.6."
+          }
+        },
+        {
+          "questionId": "dol4-makeup-q09",
+          "standard": "A.2B",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A.2B",
+              "role": "primary"
+            }
+          ],
+          "studentActions": [
+            "connectLinearRepresentations"
+          ],
+          "mode": "linearMultipleRepresentations",
+          "interactionMode": "process",
+          "feedbackTiming": "guided",
+          "dok": 2,
+          "difficultyBand": 3,
+          "questionWeight": 1,
+          "prompt": "The graph of a linear function passes through the two marked points, (−6, 1) and (6, 4). Find the slope, then write the equation of the line in point-slope form and in slope-intercept form.",
+          "source": {
+            "kind": "graph",
+            "points": [
+              {
+                "x": -6,
+                "y": 1
+              },
+              {
+                "x": 6,
+                "y": 4
+              }
+            ]
+          },
+          "graphBounds": {
+            "xMin": -12,
+            "xMax": 12,
+            "yMin": -12,
+            "yMax": 12
+          },
+          "requiredCards": [
+            "slope",
+            "pointSlope",
+            "slopeIntercept"
+          ],
+          "hints": [
+            "Use the slope formula with the two marked points: (y₂ − y₁) ÷ (x₂ − x₁). Subtract in the same order on the top and the bottom.",
+            "Point-slope form is y − y₁ = m(x − x₁). Use your slope and either marked point.",
+            "Solve your point-slope equation for y to get slope-intercept form."
+          ],
+          "scaffold": {
+            "prompt": "Let’s back up. In y − y₁ = m(x − x₁), the values x₁ and y₁ come from…",
+            "options": [
+              "a point on the line",
+              "the slope and the y-intercept"
+            ],
+            "correct": "a point on the line"
+          },
+          "solutionReview": {
+            "commonError": "Writing the point-slope form with the wrong signs, such as y − 1 = (1/4)(x − 6) for the point (−6, 1); subtracting −6 makes x + 6, so it is y − 1 = (1/4)(x + 6)."
+          }
+        },
+        {
+          "questionId": "dol4-makeup-q10",
+          "standard": "A.3C",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A.3C",
+              "role": "primary"
+            }
+          ],
+          "studentActions": [
+            "readGraph",
+            "findXIntercepts",
+            "findYIntercept"
+          ],
+          "dok": 2,
+          "difficultyBand": 2,
+          "questionWeight": 1,
+          "prompt": "The graph of a linear function is shown on the grid. Find the x-intercept and the y-intercept of the function.",
+          "function": {
+            "family": "linear",
+            "m": 0.4,
+            "b": -2
+          },
+          "graph": {
+            "xMin": -6,
+            "xMax": 6,
+            "yMin": -6,
+            "yMax": 6,
+            "accessibleDescription": "A line that rises from left to right on a coordinate grid marked every unit from −6 to 6 on both axes. It crosses the vertical axis below the origin and the horizontal axis to the right of the origin."
+          },
+          "xIntercepts": [
+            {
+              "x": 5,
+              "y": 0
+            }
+          ],
+          "yIntercept": [
+            0,
+            -2
+          ],
+          "hints": [
+            "The y-intercept is where the line crosses the y-axis, the vertical axis. There, x = 0.",
+            "The x-intercept is where the line crosses the x-axis, the horizontal axis. There, y = 0.",
+            "Count the grid lines from the origin carefully. Each grid line is 1 unit."
+          ],
+          "misconceptions": [
+            {
+              "field": "yIntercept",
+              "match": [
+                "5",
+                "(5, 0)",
+                "(0, 5)"
+              ],
+              "message": "That is where the line crosses the x-axis. The y-intercept is where it crosses the y-axis, the vertical axis."
+            }
+          ],
+          "solutionReview": {
+            "commonError": "Mixing up the intercepts; the line crosses the vertical y-axis at −2 and the horizontal x-axis at 5."
+          }
+        },
+        {
+          "questionId": "dol4-makeup-q11",
+          "standard": "A.5A",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A.5A",
+              "role": "primary"
+            }
+          ],
+          "studentActions": [
+            "solveStepByStep"
+          ],
+          "dok": 2,
+          "difficultyBand": 3,
+          "questionWeight": 1,
+          "prompt": "What value of z makes the equation (3/2)z + 8 = −2((1/4)z + 6) true? Solve it step by step.",
+          "equation": "(3/2)z + 8 = -2((1/4)z + 6)",
+          "hints": [
+            "Distribute −2 on the right side to BOTH terms inside the parentheses. Watch the signs.",
+            "Add (1/2)z to both sides so the z-terms are on the left.",
+            "Subtract 8 from both sides, then divide by the coefficient of z. Check your value in the ORIGINAL equation."
+          ],
+          "scaffold": {
+            "prompt": "Let’s back up. Distributing on the right side, −2((1/4)z + 6) becomes…",
+            "options": [
+              "−(1/2)z − 12",
+              "−(1/2)z + 6"
+            ],
+            "correct": "−(1/2)z − 12"
+          },
+          "solutionReview": {
+            "reasoning": [
+              "Distribute −2: (3/2)z + 8 = −(1/2)z − 12.",
+              "Add (1/2)z to both sides: 2z + 8 = −12.",
+              "Subtract 8 from both sides: 2z = −20. Divide by 2: z = −10.",
+              "Check: (3/2)(−10) + 8 = −15 + 8 = −7 and −2((1/4)(−10) + 6) = −2(3.5) = −7."
+            ],
+            "commonError": "Multiplying −2 by only the first term, which gives −(1/2)z + 6; the −2 multiplies the 6 too, so the right side is −(1/2)z − 12."
+          }
+        },
+        {
+          "questionId": "dol4-makeup-q12",
+          "standard": "A.2C",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A.2C",
+              "role": "primary"
+            },
+            {
+              "framework": "teks",
+              "code": "A.3B",
+              "role": "secondary"
+            }
+          ],
+          "studentActions": [
+            "connectLinearRepresentations"
+          ],
+          "mode": "linearMultipleRepresentations",
+          "interactionMode": "process",
+          "feedbackTiming": "guided",
+          "dok": 2,
+          "difficultyBand": 3,
+          "questionWeight": 1,
+          "prompt": "Read the moving-van situation. Find the cost per mile and the flat fee, then write the linear equation for the total cost in dollars, y, for renting a van and driving it x miles.",
+          "xAxisLabel": "Miles driven",
+          "yAxisLabel": "Total cost (dollars)",
+          "source": {
+            "kind": "scenario",
+            "prompt": "A moving-van company charges a flat fee to rent a van and a cost per mile for driving it. One customer rented a van and drove it 30 miles for a total cost of $64. Another customer rented a van and drove it 120 miles for a total cost of $118. Let x be the number of miles driven and y be the total cost, in dollars.",
+            "rate": 0.6,
+            "initialValue": 46
+          },
+          "requiredCards": [
+            "slope",
+            "yIntercept",
+            "slopeIntercept"
+          ],
+          "context": {
+            "independentQuantity": {
+              "value": "miles driven",
+              "choices": [
+                "miles driven",
+                "total cost (dollars)",
+                "cost per mile (dollars)"
+              ]
+            },
+            "dependentQuantity": {
+              "value": "total cost (dollars)",
+              "choices": [
+                "miles driven",
+                "total cost (dollars)",
+                "cost per mile (dollars)"
+              ]
+            },
+            "slopeMeaning": {
+              "value": "The total cost goes up $0.60 for each mile driven.",
+              "choices": [
+                "The total cost goes up $0.60 for each mile driven.",
+                "The total cost goes up $46 for each mile driven.",
+                "The van was driven 0.6 miles.",
+                "The flat fee is $0.60."
+              ]
+            },
+            "yInterceptMeaning": {
+              "value": "The customer pays a $46 flat fee before driving any miles.",
+              "choices": [
+                "The customer pays a $46 flat fee before driving any miles.",
+                "The customer pays $64 before driving any miles.",
+                "Each mile costs $46.",
+                "The van can be driven 46 miles."
+              ]
+            }
+          },
+          "hints": [
+            "The two customers give two points, (30, 64) and (120, 118). The cost per mile is the slope: change in cost ÷ change in miles.",
+            "The flat fee is the cost when x = 0, so it is the y-intercept. Substitute the slope and one customer's point into y = mx + b and solve for b.",
+            "Write y = mx + b with your slope and y-intercept."
+          ],
+          "scaffold": {
+            "prompt": "Let’s back up. The cost per mile is found by dividing…",
+            "options": [
+              "the change in total cost by the change in miles",
+              "one customer's total cost by that customer's miles"
+            ],
+            "correct": "the change in total cost by the change in miles"
+          },
+          "solutionReview": {
+            "commonError": "Dividing one customer's cost by the miles, such as 64 ÷ 30; that includes the flat fee. Use the change: (118 − 64) ÷ (120 − 30) = 54 ÷ 90 = 0.6 dollars per mile, and then 64 = 0.6(30) + b gives b = 46."
+          }
+        },
+        {
+          "questionId": "dol4-makeup-q13",
+          "standard": "A.4C",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A.4C",
+              "role": "primary"
+            }
+          ],
+          "studentActions": [
+            "fitDataModel",
+            "predictFromModel"
+          ],
+          "points": [
+            {
+              "x": 1,
+              "y": 410
+            },
+            {
+              "x": 2,
+              "y": 374
+            },
+            {
+              "x": 3,
+              "y": 326
+            },
+            {
+              "x": 4,
+              "y": 289
+            },
+            {
+              "x": 5,
+              "y": 243
+            },
+            {
+              "x": 6,
+              "y": 205
+            },
+            {
+              "x": 7,
+              "y": 158
+            }
+          ],
+          "predictionX": 8,
+          "predictionTolerance": 2,
+          "xAxisLabel": "Hours after the sale began",
+          "yAxisLabel": "Number of customers",
+          "dok": 3,
+          "difficultyBand": 3,
+          "questionWeight": 1,
+          "prompt": "A store held an online sale. The data show the number of customers, y, during each hour, x hours after the sale began. First estimate a line of best fit by moving the slope and the intercept yourself. Then run linear regression to write a linear function that best models the data. Use the regression function to predict the number of customers 8 hours after the sale began.",
+          "hints": [
+            "The number of customers falls each hour, so your line should fall from left to right. Slide it until about as many points sit above it as below it.",
+            "Run linear regression on all seven data points. Its line replaces your estimate as your model.",
+            "Substitute 8 for x in the regression function y = mx + b, then round to the nearest whole customer."
+          ],
+          "scaffold": {
+            "prompt": "Let’s back up. To predict the number of customers 8 hours after the sale began, you substitute 8 for…",
+            "options": [
+              "x, the hours after the sale began",
+              "y, the number of customers"
+            ],
+            "correct": "x, the hours after the sale began"
+          },
+          "solutionReview": {
+            "commonError": "Writing the model from the first two rows only, or using the first row's value as the y-intercept; the y-intercept is the value at x = 0, and the best model comes from linear regression on all seven points."
+          }
+        },
+        {
+          "questionId": "dol4-makeup-honors-q14",
+          "type": "representationBridge",
+          "mode": "linearMultipleRepresentations",
+          "prompt": "Honors extension. Read the situation. Decide what x and y stand for, then build every representation of this relationship, in any order you like. Reason from the situation to interpret the slope and both intercepts, and choose the domain on which the model makes sense.",
+          "standard": "A.2C",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A.2C",
+              "role": "primary"
+            },
+            {
+              "framework": "teks",
+              "code": "A.3B",
+              "role": "secondary"
+            },
+            {
+              "framework": "teks",
+              "code": "A.3C",
+              "role": "secondary"
+            },
+            {
+              "framework": "teks",
+              "code": "A.2A",
+              "role": "secondary"
+            },
+            {
+              "framework": "teks",
+              "code": "A.2B",
+              "role": "secondary"
+            }
+          ],
+          "studentActions": [
+            "connectLinearRepresentations"
+          ],
+          "dok": 3,
+          "difficultyBand": 4,
+          "feedbackTiming": "guided",
+          "tags": [
+            "honors",
+            "honors-extension",
+            "multiple-representations",
+            "modeling",
+            "reasoning"
+          ],
+          "questionFamily": {
+            "id": "linear.multipleRepresentations",
+            "version": 1,
+            "constraints": {
+              "given": "scenario",
+              "scenarioStart": "fromReading",
+              "slope": "fraction",
+              "rateRange": [
+                2,
+                7
+              ],
+              "denominatorRange": [
+                2,
+                4
+              ],
+              "startRange": [
+                12,
+                48
+              ],
+              "durationRange": [
+                6,
+                30
+              ]
+            }
+          },
+          "source": {
+            "kind": "scenario",
+            "prompt": "A water tank drains at a constant rate of {{rate}} liters every {{per}} minutes. {{readTime}} minutes after it starts draining, the tank holds {{readAmount}} liters. It keeps draining at the same rate until it is empty."
+          },
+          "context": {
+            "independentQuantity": {
+              "value": "time since the tank started draining (minutes)",
+              "choices": [
+                "time since the tank started draining (minutes)",
+                "water in the tank (liters)",
+                "liters drained every {{per}} minutes"
+              ]
+            },
+            "dependentQuantity": {
+              "value": "water in the tank (liters)",
+              "choices": [
+                "time since the tank started draining (minutes)",
+                "water in the tank (liters)",
+                "liters drained every {{per}} minutes"
+              ]
+            },
+            "slopeMeaning": {
+              "value": "The tank loses {{unitRate}} liters of water each minute.",
+              "choices": [
+                "The tank loses {{unitRate}} liters of water each minute.",
+                "The tank loses {{rate}} liters of water each minute.",
+                "The tank loses {{inverseRate}} liters of water each minute.",
+                "The tank gains {{unitRate}} liters of water each minute."
+              ]
+            },
+            "yInterceptMeaning": {
+              "value": "The tank held {{start}} liters when it started draining.",
+              "choices": [
+                "The tank held {{start}} liters when it started draining.",
+                "The tank held {{readAmount}} liters when it started draining.",
+                "The tank is empty after {{start}} minutes.",
+                "The tank loses {{start}} liters every {{per}} minutes."
+              ]
+            },
+            "xInterceptMeaning": {
+              "value": "The tank is empty {{end}} minutes after it started draining.",
+              "choices": [
+                "The tank is empty {{end}} minutes after it started draining.",
+                "The tank is empty {{remaining}} minutes after it started draining.",
+                "The tank held {{end}} liters when it started draining.",
+                "The tank loses {{end}} liters of water each minute."
+              ]
+            },
+            "domain": {
+              "min": 0,
+              "max": "{{end}}",
+              "value": "0 ≤ x ≤ {{end}}",
+              "choices": [
+                "0 ≤ x ≤ {{end}}",
+                "0 ≤ x ≤ {{start}}",
+                "{{readTime}} ≤ x ≤ {{end}}",
+                "x ≥ 0"
+              ]
+            }
+          },
+          "questionWeight": 2,
+          "hints": [
+            "The rate is given for several minutes. Divide to find how many liters drain in one minute; that is the slope.",
+            "The amount in the story was measured some time after the tank started draining. Work backward to the moment it started to find the y-intercept.",
+            "The tank is empty when the amount reaches zero. That time is the x-intercept, and it is where the domain ends."
+          ],
+          "scaffold": {
+            "prompt": "Let’s back up. The amount of water given in the story was measured…",
+            "options": [
+              "after the tank had already drained for a while",
+              "at the moment the tank started draining"
+            ],
+            "correct": "after the tank had already drained for a while"
+          },
+          "solutionReview": {
+            "reasoning": [
+              "Find the rate for one minute: divide the liters drained by the number of minutes. The amount goes down, so the slope is negative.",
+              "The amount in the story was measured after the tank had drained for a while. Work back to the moment it started by adding the liters it drained before the reading. That starting amount is the y-intercept.",
+              "The x-intercept is the time when the amount reaches zero and the tank is empty: solve 0 = mx + b for x. The model makes sense from the moment the tank starts draining to that time.",
+              "With m and b, write y = mx + b, then rewrite it in point-slope form and in standard form, and check that the table and all three graphs show the same line."
+            ],
+            "commonError": "Using the amount in the story as the starting amount; it was measured after the tank had already drained for a while, so the starting amount is greater."
+          }
+        },
+        {
+          "questionId": "dol4-makeup-honors-q15",
+          "familyId": "mathmaster:sat:A.3E:ccmr-challenge-parameter-pass-through-point",
+          "familyVersion": 1,
+          "standard": "A.3E",
+          "prompt": "The line $y=g(x)$, where $g(x)=f(x)+k$ and $f(x)={{m}}x {{b|signed}}$, passes through $({{x}},{{y}})$. What is the value of $k$?",
+          "studentActions": [
+            "multipleResponses"
+          ],
+          "dok": 2,
+          "difficultyBand": 4,
+          "calculatorPolicy": "graphing",
+          "assessedConstruct": "A.3E",
+          "taskType": "reverseReasoning",
+          "representation": "functionRule",
+          "generator": {
+            "parameters": {
+              "m": {
+                "type": "int",
+                "min": -6,
+                "max": 6,
+                "exclude": [
+                  -1,
+                  0,
+                  1
+                ]
+              },
+              "b": {
+                "type": "int",
+                "min": -10,
+                "max": 10,
+                "exclude": [
+                  0
+                ]
+              },
+              "x": {
+                "type": "int",
+                "min": -5,
+                "max": 5
+              },
+              "k": {
+                "type": "int",
+                "min": -8,
+                "max": 8
+              }
+            },
+            "derived": {
+              "y": "m*x+b+k",
+              "answer": "k",
+              "fx": "m*x+b"
+            }
+          },
+          "answerFields": [
+            {
+              "id": "answer",
+              "label": "Answer",
+              "inputProfile": "number",
+              "answer": "{{answer}}",
+              "numberRules": "digitalSAT"
+            }
+          ],
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A.3E",
+              "role": "primary",
+              "evidenceLevel": "assessed"
+            },
+            {
+              "framework": "digitalSAT",
+              "domainId": "algebra",
+              "role": "primary",
+              "evidenceMode": "direct"
+            }
+          ],
+          "assessmentContext": {
+            "framework": "digitalSAT",
+            "examStyle": true,
+            "domainId": "algebra"
+          },
+          "assessmentItemFormat": "studentProducedResponse",
+          "ccmrChallengeTier": 2,
+          "ccmrFamilyRole": "challenge",
+          "ccmrAuthenticLanguage": {
+            "version": "2.1",
+            "authored": true,
+            "authoredChallenge": true,
+            "officialSkillFamily": "linear functions",
+            "stemProfile": "parameter-pass-through-point"
+          },
+          "solutionReview": {
+            "headline": "Evaluate f({{x}}), then k is what is left to reach {{y}}: k={{k}}.",
+            "reasoning": [
+              "At x={{x}}: f({{x}})={{m}}({{x|paren}}) {{b|signed}}={{fx}}.",
+              "The graph of g passes through ({{x}},{{y}}), so {{fx}}+k={{y}}.",
+              "Subtract: k={{y}}-{{fx|paren}}={{k}}."
+            ],
+            "commonError": "Subtracting only the constant {{b}} from {{y}} instead of the whole value f({{x}})={{fx}}.",
+            "answerSummary": "k={{k}}"
+          },
+          "attemptFeedback": [
+            "Translate each condition into the same representation, then use their relationship to answer the question."
+          ],
+          "supportHints": [
+            "Check boundary conditions and whether the requested point or feature satisfies every condition."
+          ],
+          "ccmrSource": {
+            "source": "auditedBank",
+            "releaseTarget": "ccmr-fidelity-v2.1-authentic-language",
+            "framework": "digitalSAT",
+            "domainId": "algebra",
+            "documentId": "mm_sat_A_3E_challenge_2_parameter-pass-through-point_v21",
+            "familyId": "mathmaster:sat:A.3E:ccmr-challenge-parameter-pass-through-point",
+            "familyVersion": 1
+          },
+          "scaffold": {
+            "prompt": "Let’s back up. If g(x) = f(x) + k, then at the same x-value, g(x) is…",
+            "options": [
+              "the value of f(x) plus k",
+              "the value of f(x + k)"
+            ],
+            "correct": "the value of f(x) plus k"
+          },
+          "questionFamily": {
+            "scope": "assignment"
+          },
+          "questionWeight": 1
+        },
+        {
+          "questionId": "dol4-makeup-honors-q16",
+          "familyId": "mathmaster:sat:A.5A:ccmr-challenge-equal-cost",
+          "familyVersion": 1,
+          "standard": "A.5A",
+          "prompt": "Company A charges {{baseA}} dollars plus {{rateA}} dollars per hour to rent a machine. Company B charges {{baseB}} dollars plus {{rateB}} dollars per hour for the same type of machine. For how many hours is the total charge from each company the same?",
+          "studentActions": [
+            "multipleResponses"
+          ],
+          "dok": 2,
+          "difficultyBand": 4,
+          "calculatorPolicy": "graphing",
+          "assessedConstruct": "A.5A",
+          "taskType": "application",
+          "representation": "context",
+          "generator": {
+            "parameters": {
+              "baseA": {
+                "type": "int",
+                "min": 8,
+                "max": 30
+              },
+              "rateA": {
+                "type": "int",
+                "min": 6,
+                "max": 12
+              },
+              "rateB": {
+                "type": "int",
+                "min": 2,
+                "max": 5
+              },
+              "hours": {
+                "type": "int",
+                "min": 2,
+                "max": 12
+              }
+            },
+            "derived": {
+              "baseB": "baseA+(rateA-rateB)*hours"
+            }
+          },
+          "answerFields": [
+            {
+              "id": "answer",
+              "label": "Hours",
+              "inputProfile": "number",
+              "answer": "{{hours}}",
+              "numberRules": "digitalSAT"
+            }
+          ],
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A.5A",
+              "role": "primary",
+              "evidenceLevel": "assessed"
+            },
+            {
+              "framework": "digitalSAT",
+              "domainId": "algebra",
+              "role": "primary",
+              "evidenceMode": "direct"
+            }
+          ],
+          "assessmentContext": {
+            "framework": "digitalSAT",
+            "examStyle": true,
+            "domainId": "algebra"
+          },
+          "assessmentItemFormat": "studentProducedResponse",
+          "ccmrChallengeTier": 2,
+          "ccmrFamilyRole": "challenge",
+          "ccmrAuthenticLanguage": {
+            "version": "2.1",
+            "authored": true,
+            "authoredChallenge": true,
+            "officialSkillFamily": "linear equations in one variable",
+            "stemProfile": "equal-value-context"
+          },
+          "solutionReview": {
+            "headline": "Set the two total charges equal.",
+            "reasoning": [
+              "Model each total charge as a linear expression in the number of hours and solve the resulting equation."
+            ],
+            "answerSummary": "{{hours}} hours",
+            "commonError": "Setting the two hourly rates or the two base fees equal; the totals are equal when base + rate × hours is the same for both companies, so set those two expressions equal and solve for the hours."
+          },
+          "attemptFeedback": [
+            "The break-even time occurs when the two linear cost expressions have the same value."
+          ],
+          "supportHints": [
+            "Write one expression for each company's total charge, then set them equal."
+          ],
+          "ccmrSource": {
+            "source": "auditedBank",
+            "releaseTarget": "ccmr-fidelity-v2.1-authentic-language",
+            "framework": "digitalSAT",
+            "domainId": "algebra",
+            "documentId": "mm_sat_A_5A_challenge_2_equal_cost_v21",
+            "familyId": "mathmaster:sat:A.5A:ccmr-challenge-equal-cost",
+            "familyVersion": 1
+          },
+          "scaffold": {
+            "prompt": "Let’s back up. The two companies charge the same total when…",
+            "options": [
+              "the expressions for the two total charges are equal",
+              "the two hourly rates are equal"
+            ],
+            "correct": "the expressions for the two total charges are equal"
+          },
+          "questionFamily": {
+            "scope": "assignment"
+          },
+          "questionWeight": 1
+        }
+      ]
+    }
+  ]
+}
