@@ -23,6 +23,7 @@ import {
 } from '../../functions/shared/masteryScoring.mjs';
 import { MASTERY_STATUS, classifyMasteryStatus, masteryFactsFromProfile } from '../../functions/shared/masteryRule.mjs';
 import { executableSource, region } from './helpers/sourceContract.mjs';
+import { functionsBackendSource, topLevelDeclaration } from './helpers/functionsBackendSource.mjs';
 
 const mathPath = createRequire(import.meta.url)('../../functions/lib/mathPath.js');
 
@@ -154,8 +155,8 @@ test('the document stays far below Firestore\'s 1 MiB limit however long the his
   // Every question still counted once in the sums.
   Object.values(profiles).forEach((entry) => assert.equal(entry.accumulator.eligibleEvents, 200));
   // The trigger compacts after every answer.
-  const trigger = executableSource(readFileSync(new URL('../../functions/index.js', import.meta.url), 'utf8'));
-  assert.match(region(trigger, 'exports.updateMyMathPathMasteryFromEvidence', '\nexports.', 'trigger'), /masteryScoring\.compactQuestionRows\(profiles\);/);
+  const trigger = executableSource(functionsBackendSource());
+  assert.match(topLevelDeclaration(trigger, 'exports.updateMyMathPathMasteryFromEvidence'), /masteryScoring\.compactQuestionRows\(profiles\);/);
 });
 
 test('the evidence a skill first reached Mastered with is kept, so a rescored or slipped skill still pays its growth reward', async () => {
@@ -191,12 +192,7 @@ test('rescoring a whole history gives the same profile in any order', () => {
 });
 
 test('the trigger scores through the shared scorer and writes the whole document', () => {
-  const trigger = region(
-    executableSource(readFileSync(new URL('../../functions/index.js', import.meta.url), 'utf8')),
-    'exports.updateMyMathPathMasteryFromEvidence',
-    '\nexports.',
-    'mastery trigger',
-  );
+  const trigger = topLevelDeclaration(executableSource(functionsBackendSource()), 'exports.updateMyMathPathMasteryFromEvidence');
   assert.match(trigger, /const facts = masteryScoring\.masteryEventFacts\(evidence, mathPath, \{ eventId: event\.params\.eventId \}\);/);
   assert.match(trigger, /profiles\[code\] = masteryScoring\.applyMasteryEvent\(profiles\[code\], facts, code, \{ now: Date\.now\(\) \}\)\.entry;/);
   // A merge would keep a floor the student reached and dropped question rows.

@@ -54,6 +54,7 @@ import { projectGradeTransferUnits } from '../../src/platform/gradeTransfer/grad
 import { buildStudentGradeCenter, findGradeCenterEntry } from '../../src/platform/student/studentGradeCenterModel.js';
 import { QUESTION_RESOLUTION_FAILURE, classifyFamilyFailure } from '../../src/platform/generation/familyPinReplay.js';
 import { executableSource, region } from './helpers/sourceContract.mjs';
+import { functionsBackendSource } from './helpers/functionsBackendSource.mjs';
 
 const require = createRequire(import.meta.url);
 const recoveryLib = require('../../functions/lib/sectionRecoveryGrades.js');
@@ -741,7 +742,7 @@ test('19. a held Recovery holds Classroom passback — and waking on it is what 
   assert.equal(server.tracker, ORIGINAL);
 
   // Both triggers ask before any Classroom write, record the hold, and skip.
-  const index = executableSource(readFileSync(new URL('../../functions/index.js', import.meta.url), 'utf8'));
+  const index = executableSource(functionsBackendSource());
   const sync = region(index, 'exports.syncGradeToClassroom = onDocumentWritten', 'exports.queueReleasedAssessmentGrades', 'whole-assignment passback');
   const holdAt = sync.search(/recoveryPassbackHold\(\{/);
   assert.ok(holdAt > 0, 'the whole-assignment trigger asks whether a Recovery is held');
@@ -828,7 +829,7 @@ test('21. teacher overrides still win and are audited: an assignment override re
   assert.equal(keptState.tracker, ORIGINAL, 'the original stands');
 
   // The callable that applies it is a teacher-of-record action with an audit row.
-  const index = executableSource(readFileSync(new URL('../../functions/index.js', import.meta.url), 'utf8'));
+  const index = executableSource(functionsBackendSource());
   const callable = region(index, 'exports.resolveHeldSectionRecovery = onCall(', '\n});', 'resolve held Recovery');
   assert.match(callable, /requireTeacher\(request\)/);
   assert.match(callable, /teacherOfRecord/);

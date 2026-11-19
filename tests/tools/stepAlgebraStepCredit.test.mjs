@@ -1136,10 +1136,11 @@ test('GR27 — a record keyed by the old x1 drawing stays continuous and earns o
 });
 
 // Every copy of the step-state key. The shared one is compactStepStateKey;
-// two synchronous CommonJS callers keep their own: functions/index.js and
+// two synchronous CommonJS callers keep their own: the backend's common
+// helpers (functions/functionsCommon.js, moved from index.js) and
 // functions/lib/classroomGradeRuntime.js (Test Cycle and section grading).
 // (functions-path-admin/vendor is regenerated from functions/shared.)
-const KEY_COPIES = ['functions/index.js', 'functions/lib/classroomGradeRuntime.js'];
+const KEY_COPIES = ['functions/functionsCommon.js', 'functions/lib/classroomGradeRuntime.js'];
 const keyCopy = (path) => {
   const source = readFileSync(new URL(`../../${path}`, import.meta.url), 'utf8');
   const body = source.slice(source.indexOf('function storedAlgebraStepPartialCredit('), source.indexOf('function getQuestionCredit('));

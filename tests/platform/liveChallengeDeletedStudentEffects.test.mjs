@@ -30,9 +30,10 @@ import {
   rosterAuthorizationFromRecords,
   stageLiveChallengeRewards,
 } from '../../functions/shared/liveChallengeClassPoints.mjs';
+import { functionsBackendSource } from './helpers/functionsBackendSource.mjs';
 
 const require = createRequire(import.meta.url);
-const SERVER = readFileSync(new URL('../../functions/index.js', import.meta.url), 'utf8');
+const SERVER = functionsBackendSource();
 const REPORTS = SERVER.match(/^const LIVE_CHALLENGE_REPORTS = "([^"]+)";/m)[1];
 
 const effects = new Function(

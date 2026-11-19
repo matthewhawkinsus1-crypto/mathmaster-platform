@@ -15,13 +15,14 @@ import { readFileSync } from 'node:fs';
 import { executableSource, region } from './helpers/sourceContract.mjs';
 import { takesFromAuthoringKit } from './helpers/authoringKitImport.mjs';
 import { collectReviewBlockers, summarizePreflightReadiness } from '../../src/components/teacher/preflightSteps.js';
+import { functionsBackendSource, topLevelDeclaration } from './helpers/functionsBackendSource.mjs';
 
 const read = (path) => readFileSync(new URL(`../../${path}`, import.meta.url), 'utf8');
 const modalSource = read('src/components/teacher/LessonPreflightModal.jsx');
 const modal = executableSource(modalSource);
 const workspaceSource = read('src/app/teacher/TeacherWorkspace.jsx');
 const workspace = executableSource(workspaceSource);
-const functionsIndex = executableSource(read('functions/index.js'));
+const functionsIndex = executableSource(functionsBackendSource());
 const service = executableSource(read('src/services/assignmentCcmrService.js'));
 
 const createHandler = () => region(workspace, 'const handleCreateAssignment = async', 'const updateExistingAssignmentFromReview', 'handleCreateAssignment');
@@ -186,7 +187,7 @@ test('the new controls stay usable on phones, Chromebooks and desktops', () => {
 });
 
 test('the callable passes the plan request through, and the service asks for it only when told', () => {
-  const callable = region(functionsIndex, 'exports.hydrateAssignmentCcmr = onCall', 'function assignmentAiModel', 'hydrateAssignmentCcmr');
+  const callable = topLevelDeclaration(functionsIndex, 'exports.hydrateAssignmentCcmr');
   assert.match(callable, /includeCandidates: request\.data\?\.includeCandidates === true/);
   assert.match(callable, /excludeDocumentIds,/);
   assert.match(callable, /\.slice\(0, 100\)/, 'a bounded exclusion list');

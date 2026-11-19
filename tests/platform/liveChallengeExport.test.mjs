@@ -11,8 +11,10 @@ import {
 } from '../../functions/shared/liveChallengeExport.mjs';
 import { buildChallengeReport } from '../../functions/shared/liveChallengeReport.mjs';
 import { buildMatchResult } from '../../functions/shared/liveChallengeResults.mjs';
+import { functionsBackendSource } from './helpers/functionsBackendSource.mjs';
 
-const codeOf = (path) => readFileSync(path, 'utf8')
+// functions/index.js names the backend: index.js and the modules it loads.
+const codeOf = (path) => (path === 'functions/index.js' ? functionsBackendSource() : readFileSync(path, 'utf8'))
   .replace(/\/\*[\s\S]*?\*\//g, ' ')
   .replace(/(^|[^:])\/\/[^\n]*/g, '$1');
 

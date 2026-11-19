@@ -1,8 +1,9 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
+import { functionsBackendSource } from './helpers/functionsBackendSource.mjs';
 
-const functionsSource = await readFile(new URL('../../functions/index.js', import.meta.url), 'utf8');
+const functionsSource = functionsBackendSource();
 const appSource = await readFile(new URL('../../src/App.jsx', import.meta.url), 'utf8');
 const pathStoreSource = await readFile(new URL('../../src/platform/path/pathStore.js', import.meta.url), 'utf8');
 

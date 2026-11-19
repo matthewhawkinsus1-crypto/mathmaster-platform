@@ -4,6 +4,7 @@ import { existsSync, readFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import { listDeployableFunctions } from '../../scripts/lib/functionsInventory.mjs';
 import { executableSource } from './helpers/sourceContract.mjs';
+import { functionsBackendSource, topLevelDeclaration } from './helpers/functionsBackendSource.mjs';
 
 const readRequired = (file) => {
   assert.equal(existsSync(file), true, `${file} must exist for Live Challenge Option B`);
@@ -84,9 +85,8 @@ test('configured speed is scored at submit, where the round is marked as adjuste
   // leaderboard stores, with nothing left to reconcile afterwards.
   const entry = readRequired('functions/entry.js');
   assert.doesNotMatch(entry, /exports\.submitLiveChallengeResponse\s*=/, 'a second scorer around submit would pay speed twice');
-  const server = readRequired('functions/index.js');
-  const start = server.indexOf('exports.submitLiveChallengeResponse');
-  const submit = server.slice(start, server.indexOf('// Phase 5D', start));
+  const server = functionsBackendSource();
+  const submit = topLevelDeclaration(server, 'exports.submitLiveChallengeResponse');
   assert.match(submit, /finalScore = strategy\.scoreResponse\(\{[^}]*speedInfluencePercent,/);
   // The marker is not needed by anything in this repository any more. It STAYS
   // while the retired trigger is still deployed in production: that trigger

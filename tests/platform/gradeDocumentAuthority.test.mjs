@@ -40,6 +40,7 @@ import {
   normalizeSubmissionEnvelope,
   questionProgressRecord,
 } from '../../functions/shared/submissionIngestion.mjs';
+import { functionsBackendPaths, functionsBackendSource } from './helpers/functionsBackendSource.mjs';
 
 const read = (path) => readFileSync(new URL(`../../${path}`, import.meta.url), 'utf8');
 const rules = read('firestore.rules');
@@ -119,7 +120,7 @@ test('the authority lists do not overlap and name every grade field the server w
   // document, never of the grades document.
   const RESPONSE_DETAIL_DOCUMENT_FIELDS = new Set(['questions']);
   const functionsSources = [
-    'functions/index.js', 'functions/classroomSectionEntry.js', 'functions/classroomSectionForceEntry.js',
+    ...functionsBackendPaths(), 'functions/classroomSectionEntry.js', 'functions/classroomSectionForceEntry.js',
     ...readdirSync(new URL('../../functions/lib/', import.meta.url)).filter((name) => name.endsWith('.js')).map((name) => `functions/lib/${name}`),
   ];
   const classified = new Set([...SERVER_OWNED_GRADE_FIELDS, ...SERVER_ONLY_GRADE_FIELDS, ...STUDENT_CLIENT_OWNED_GRADE_FIELDS, ...MIXED_AUTHORITY_GRADE_FIELDS]);
@@ -313,7 +314,7 @@ test('progress is recorded only for a question on an assignment the roster says 
 });
 
 test('the ingestion callable routes progress to its own writer, with the caller\'s identity', () => {
-  const functionsSource = read('functions/index.js');
+  const functionsSource = functionsBackendSource();
   const callable = executableSource(region(
     functionsSource, 'exports.ingestStudentSubmissions = onCall', 'PRACTICE-BASED RECOVERY — THE ONLY WRITER', 'ingestion callable',
   ));

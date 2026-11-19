@@ -1,11 +1,12 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
+import { functionsBackendSource } from './helpers/functionsBackendSource.mjs';
 
 const read = (path) => fs.readFileSync(path, 'utf8');
 
 test('stored Classroom ids must match the MathMaster publication marker', () => {
-  const src = read('functions/index.js');
+  const src = functionsBackendSource();
   assert.match(src, /function courseWorkMatchesPublication\(courseWork, publicationId, requiredInstanceMarker = null\)/);
   assert.match(src, /description\.includes\(publicationMarker\(publicationId\)\)/);
   assert.match(src, /!requiredInstanceMarker \|\| description\.includes\(String\(requiredInstanceMarker\)\)/);
@@ -30,7 +31,7 @@ test('stored Classroom ids must match the MathMaster publication marker', () => 
 });
 
 test('deleted Classroom assignment repair verifies before reposting', () => {
-  const src = read('functions/index.js');
+  const src = functionsBackendSource();
   const start = src.indexOf('exports.repairClassroomAssignmentPublications = onCall');
   const end = src.indexOf('// Read the live Google Classroom roster', start);
   assert.ok(start >= 0 && end > start, 'repair callable must exist before Classroom inspection');
@@ -45,7 +46,7 @@ test('deleted Classroom assignment repair verifies before reposting', () => {
 });
 
 test('repair reconciles current mapped destinations instead of trusting sibling-period publications', () => {
-  const src = read('functions/index.js');
+  const src = functionsBackendSource();
   const start = src.indexOf('exports.repairClassroomAssignmentPublications = onCall');
   const end = src.indexOf('// Read the live Google Classroom roster', start);
   const repair = src.slice(start, end);
@@ -61,7 +62,7 @@ test('repair reconciles current mapped destinations instead of trusting sibling-
 });
 
 test('repost repair reuses the publication record and preserves MathMaster work', () => {
-  const src = read('functions/index.js');
+  const src = functionsBackendSource();
   const start = src.indexOf('exports.repairClassroomAssignmentPublications = onCall');
   const end = src.indexOf('// Read the live Google Classroom roster', start);
   const repair = src.slice(start, end);
@@ -73,7 +74,7 @@ test('repost repair reuses the publication record and preserves MathMaster work'
 });
 
 test('repost queues linked grade records through the existing release-signal trigger', () => {
-  const src = read('functions/index.js');
+  const src = functionsBackendSource();
   assert.match(src, /async function queueRepostedAssignmentGrades/);
   assert.match(src, /classroomRosterLinks/);
   assert.match(src, /queueRepostedAssignmentGrades\(\{/);

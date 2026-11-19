@@ -17,6 +17,7 @@ import {
 } from '../../src/platform/path/recommendationV2.js';
 import { describeCoursePathPass } from '../../src/platform/path/pathPassPresentation.js';
 import { createTeacherPathRuntime } from '../../src/platform/simulation/teacherPathRuntime.js';
+import { functionsBackendSource } from './helpers/functionsBackendSource.mjs';
 
 const require = createRequire(import.meta.url);
 const pathRouting = require('../../functions/lib/pathRouting.js');
@@ -319,7 +320,7 @@ test('SCENARIO 9 free-choice completion visibly progresses Foundation to Deeper 
   // Level 3 is practice depth; it must not read as a mastery claim.
   assert.match(level3.levelLabel, /Stretch practice/);
 
-  const server = readFileSync('functions/index.js', 'utf8');
+  const server = functionsBackendSource();
   assert.match(server, /if \(coursePassLevel >= 2\)[\s\S]{0,500}preferredDifficultyBand = Math\.max\(4/);
   assert.match(server, /if \(coursePassLevel >= 3\)[\s\S]{0,650}preferredDok = Math\.max\(3/);
 });
@@ -347,7 +348,7 @@ test('SCENARIO 10 weekly assigned sessions contribute evidence but never increme
   assert.equal(issued.questionInstance.selectedDok, 3);
   assert.equal(issued.questionInstance.selectedBand, 4);
 
-  const server = readFileSync('functions/index.js', 'utf8');
+  const server = functionsBackendSource();
   assert.match(
     server,
     /if \(session\.weeklySlotKey\) return;/,

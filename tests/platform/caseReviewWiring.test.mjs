@@ -10,6 +10,7 @@ import { readFileSync, readdirSync } from 'node:fs';
 import { region, executableSource } from './helpers/sourceContract.mjs';
 import { caseReviewWindow } from '../../src/platform/caseReview/caseReviewStore.js';
 import { CASE_EVIDENCE_LIMITS } from '../../functions/shared/caseReviewEvidence.mjs';
+import { functionsBackendSource } from './helpers/functionsBackendSource.mjs';
 
 const read = (path) => readFileSync(new URL(`../../${path}`, import.meta.url), 'utf8');
 const appShell = read('src/App.jsx');
@@ -20,7 +21,7 @@ const drawer = read('src/components/teacher/StudentProfileDrawer.jsx');
 const view = read('src/components/teacher/caseReview/StudentCaseReviewView.jsx');
 const store = read('src/platform/caseReview/caseReviewStore.js');
 const css = read('src/components/teacher/caseReview/caseReview.css');
-const functionsIndex = read('functions/index.js');
+const functionsIndex = functionsBackendSource();
 const caseComponentDir = new URL('../../src/components/teacher/caseReview/', import.meta.url);
 const caseComponents = readdirSync(caseComponentDir).filter((name) => name.endsWith('.jsx'))
   .map((name) => ({ name, source: readFileSync(new URL(name, caseComponentDir), 'utf8') }));

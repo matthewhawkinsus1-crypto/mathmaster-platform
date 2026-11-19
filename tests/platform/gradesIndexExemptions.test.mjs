@@ -20,6 +20,7 @@ import assert from 'node:assert/strict';
 import { readFileSync, readdirSync, statSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { functionsBackendSource } from './helpers/functionsBackendSource.mjs';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
 const read = (file) => readFileSync(path.join(root, file), 'utf8');
@@ -137,7 +138,7 @@ test('every per-assignment map the code writes is in the exempted list', () => {
 });
 
 test('the ingestion error log keeps the cause', () => {
-  const source = read('functions/index.js');
+  const source = functionsBackendSource();
   const start = source.indexOf('exports.ingestStudentSubmissions = onCall(');
   const body = source.slice(start, source.indexOf('\n});', start));
   const logs = [...body.matchAll(/logger\.error\(([^;]+?)\}\);/gs)].map((match) => match[1]);

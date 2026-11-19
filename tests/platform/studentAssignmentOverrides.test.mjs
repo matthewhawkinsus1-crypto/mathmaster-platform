@@ -591,6 +591,7 @@ test('overrideEntryFor is the shared entry shape existing readers index', () => 
 import { createRequire } from 'node:module';
 import { readFileSync } from 'node:fs';
 import { executableSource, region } from './helpers/sourceContract.mjs';
+import { functionsBackendSource, topLevelDeclaration } from './helpers/functionsBackendSource.mjs';
 
 const requireCjs = createRequire(import.meta.url);
 
@@ -599,14 +600,14 @@ test('permanent deletion removes a student\'s private controls (by query), histo
   // against the Firestore-only emulator; its three new steps are pinned here.
   const { STUDENT_QUERY_COLLECTIONS } = requireCjs('../../functions/lib/admin.js');
   assert.ok(STUDENT_QUERY_COLLECTIONS.includes(STUDENT_ASSIGNMENT_OVERRIDES_COLLECTION), 'deleted by studentId query with the other per-student collections');
-  const index = readFileSync(new URL('../../functions/index.js', import.meta.url), 'utf8');
+  const index = functionsBackendSource();
   const removal = executableSource(region(index, 'async function removeStudentFromAssignmentDocuments(', 'async function recursiveDeleteQuery(', 'removeStudentFromAssignmentDocuments'));
   assert.match(removal, /\.select\("studentOverrides", "dol", "excusedStudentIds", "reopenedStudentIds"\)/, 'reads the list forms too');
   assert.match(removal, /plan\.arrayRemovals\.forEach\(\(field\) => fieldsAndValues\.push\(new FieldPath\(field\), FieldValue\.arrayRemove\(studentId\)\)\)/);
   assert.match(removal, /\.where\("studentIds", "array-contains", studentId\)/, 'finds every archive naming them');
   assert.match(removal, /overrides\.scrubStudentFromArchive\(archiveDoc\.data\(\) \|\| \{\}, studentId, `deleted-student:\$\{receipt\}`\)/);
   // The history lives under grades/{sid}, which the deletion removes recursively.
-  const deletion = executableSource(region(index, 'exports.permanentlyDeleteStudent', '// --- OAuth connect flow', 'permanentlyDeleteStudent'));
+  const deletion = executableSource(topLevelDeclaration(index, 'exports.permanentlyDeleteStudent'));
   assert.match(deletion, /await recursiveDeleteDocument\(db, rosterRef, deleted, "gradesWithSubcollections"\)/);
   // ORDER: the shared entries go before the roster row and the private
   // records. The absorber copies whatever a shared assignment still names into
@@ -620,7 +621,7 @@ test('permanent deletion removes a student\'s private controls (by query), histo
 });
 
 test('a class move re-authorizes the private records and their history for the new teacher', () => {
-  const index = readFileSync(new URL('../../functions/index.js', import.meta.url), 'utf8');
+  const index = functionsBackendSource();
   const children = executableSource(region(index, 'const AUTHORIZED_CHILD_COLLECTIONS = Object.freeze([', ']);', 'AUTHORIZED_CHILD_COLLECTIONS'));
   assert.match(children, /grades\/\$\{studentId\}\/assignmentOverrideEvents/);
   const reauthorize = executableSource(region(index, 'async function reauthorizeStudentRecords(', '// Class Points accounts and transactions', 'reauthorizeStudentRecords'));

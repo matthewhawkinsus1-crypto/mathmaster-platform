@@ -6,11 +6,12 @@ import { createRequire } from 'node:module';
 import { teksSkillId } from '../../functions/shared/pathSkillGraph.mjs';
 import { PATH_ACTION } from '../../functions/shared/pathSessionRouting.mjs';
 import { buildCoverageIndex } from '../../functions/shared/pathCoverage.mjs';
+import { functionsBackendSource } from './helpers/functionsBackendSource.mjs';
 
 const require = createRequire(import.meta.url);
 const pathRouting = require('../../functions/lib/pathRouting.js');
 
-const serverSource = readFileSync(new URL('../../functions/index.js', import.meta.url), 'utf8');
+const serverSource = functionsBackendSource();
 
 const TARGET = 'A.5C';
 const PREREQ = 'A.5A';

@@ -21,6 +21,7 @@ import {
 import { buildTeacherWeeklyView, buildWeeklyGoal } from '../../src/platform/path/weeklyPathGoal.js';
 import { PURPOSE } from '../../src/platform/path/recommendationV2.js';
 import { region } from './helpers/sourceContract.mjs';
+import { functionsBackendSource } from './helpers/functionsBackendSource.mjs';
 
 const require = createRequire(import.meta.url);
 const mathPath = require('../../functions/lib/mathPath.js');
@@ -32,7 +33,7 @@ const { syncWeeklyPathClassWeek } = require('../../functions/lib/weeklyPathSync.
 // freeze has moved to functions/shared/weeklyPathSlotAuthority.mjs (index.js
 // then only forwards to it), that module is what the callable runs, so that is
 // what gets tested: the invariant is about the frozen week, not about a file.
-const functionsSource = readFileSync(new URL('../../functions/index.js', import.meta.url), 'utf8');
+const functionsSource = functionsBackendSource();
 const frameworkSource = region(functionsSource, 'const PATH_ASSESSMENT_FRAMEWORKS = ', 'function pathQuestionMatchesFramework', 'framework normalizer');
 const normalizePathAssessmentFramework = new Function(`${frameworkSource}\nreturn normalizePathAssessmentFramework;`)();
 class HttpsError extends Error {

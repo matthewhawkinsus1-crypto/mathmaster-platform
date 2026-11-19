@@ -7,6 +7,7 @@ import {
   liveChallengeResponseReadiness,
   matchesQuestionStyle,
 } from '../../functions/shared/liveChallenge.mjs';
+import { functionsBackendSource } from './helpers/functionsBackendSource.mjs';
 
 const fieldQuestion = (overrides = {}) => ({
   id: 'question-1',
@@ -139,7 +140,7 @@ test('unknown response contracts fail closed before candidate selection', () => 
   // AND THE GATE IS ACTUALLY APPLIED. Being ineligible protects nobody unless
   // the candidate loader drops it, which is what "before candidate selection"
   // in this test's name means.
-  const index = readFileSync(new URL('../../functions/index.js', import.meta.url), 'utf8');
+  const index = functionsBackendSource();
   const start = index.indexOf('async function loadChallengeCandidates');
   assert.ok(start > 0, 'loadChallengeCandidates must exist');
   const loader = index.slice(start, index.indexOf('\nfunction selectChallengeQuestions', start));

@@ -4,8 +4,9 @@ import { readFileSync } from 'node:fs';
 
 import { region } from './helpers/sourceContract.mjs';
 import { excludedAsSecureWork } from '../../functions/shared/submissionIngestion.mjs';
+import { functionsBackendSource } from './helpers/functionsBackendSource.mjs';
 
-const functionsIndex = readFileSync(new URL('../../functions/index.js', import.meta.url), 'utf8');
+const functionsIndex = functionsBackendSource();
 
 /*
  * A TEST CYCLE'S REVIEW IS ORDINARY WORK, AND MUST REACH THE SERVER.

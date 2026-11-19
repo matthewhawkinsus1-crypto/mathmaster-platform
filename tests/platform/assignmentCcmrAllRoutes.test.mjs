@@ -7,12 +7,13 @@ import { region } from './helpers/sourceContract.mjs';
 import { parseAssignmentBlueprintText } from '../../src/assignmentBlueprint.js';
 import { buildAssignmentV5PreflightModel } from '../../src/platform/preflight/assignmentV5PreflightModel.js';
 import { buildHonorsCcmrCandidate } from '../../src/platform/assignments/canonicalCcmrHydration.js';
+import { functionsBackendSource, topLevelDeclaration } from './helpers/functionsBackendSource.mjs';
 
 const { replaceDirectCcmrQuestionsWithAuditedBank } = createRequire(import.meta.url)('../../functions/lib/ccmrAssignmentBank.js');
 
 const app = appAndTeacherWorkspaceSource();
 const service = fs.readFileSync('src/services/assignmentCcmrService.js', 'utf8');
-const functionsIndex = fs.readFileSync('functions/index.js', 'utf8');
+const functionsIndex = functionsBackendSource();
 const modal = fs.readFileSync('src/components/teacher/LessonPreflightModal.jsx', 'utf8');
 const canonicalHydration = fs.readFileSync('src/platform/assignments/canonicalCcmrHydration.js', 'utf8');
 const bankSource = fs.readFileSync('functions/lib/ccmrAssignmentBank.js', 'utf8');
@@ -42,9 +43,7 @@ test('the client uses a dedicated authenticated callable for bank hydration', ()
 });
 
 test('the server callable requires a teacher and returns audited bank hydration', () => {
-  const start = functionsIndex.indexOf('exports.hydrateAssignmentCcmr');
-  const end = functionsIndex.indexOf('exports.authorAssignmentWithAI', start);
-  const block = functionsIndex.slice(start, end);
+  const block = topLevelDeclaration(functionsIndex, 'exports.hydrateAssignmentCcmr');
   assert.match(block, /await requireTeacher\(request\)/);
   assert.match(block, /replaceDirectCcmrQuestionsWithAuditedBank\(assignment, \{[\s\S]*ensurePracticeTarget/);
   assert.match(block, /assignmentCcmrHydrationAudit/);

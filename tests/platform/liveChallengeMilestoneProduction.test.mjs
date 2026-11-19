@@ -11,6 +11,7 @@ import {
 import { accuracyFirstStrategy } from '../../functions/shared/liveChallengeScoring.mjs';
 import { SOLVER_RACE_CATALOG } from '../../functions/shared/solverRace.mjs';
 import { buildPrivateToolGrading, gradePathResponse } from '../../functions/shared/pathToolContracts.mjs';
+import { functionsBackendSource, topLevelDeclaration } from './helpers/functionsBackendSource.mjs';
 
 const milestone = (overrides = {}) => ({
   validated: true,
@@ -88,7 +89,7 @@ test('a securely proven depth jump banks every newly crossed milestone slice', (
 });
 
 test('the production progress callable enforces round identity and writes receipt-derived scores', () => {
-  const server = readFileSync(new URL('../../functions/index.js', import.meta.url), 'utf8');
+  const server = functionsBackendSource();
   const start = server.indexOf('exports.reportLiveChallengeProgress');
   const end = server.indexOf('async function maybeCompressLiveChallengeRoundAfterThreshold', start);
   const block = server.slice(start, end);
@@ -106,9 +107,8 @@ test('the production progress callable enforces round identity and writes receip
 });
 
 test('final scoring consumes banked milestone speed without double-paying it', () => {
-  const server = readFileSync(new URL('../../functions/index.js', import.meta.url), 'utf8');
-  const start = server.indexOf('exports.submitLiveChallengeResponse');
-  const block = server.slice(start, server.indexOf('// Phase 5D', start));
+  const server = functionsBackendSource();
+  const block = topLevelDeclaration(server, 'exports.submitLiveChallengeResponse');
   // Banked speed is handed to the strategy on the mature 100-point scale…
   assert.match(block, /bankedLegacyMilestoneSpeed: isSecondChance \? 0 : challenge\.legacyMilestoneSpeedTotalForRound\(/);
   assert.match(block, /authoritativeReceiptTotal\(submissionReceipts\)/);

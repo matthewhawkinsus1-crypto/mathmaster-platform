@@ -4,9 +4,10 @@ import { readFileSync } from 'node:fs';
 
 import testCycle from '../../functions/lib/testCycle.js';
 import { region } from './helpers/sourceContract.mjs';
+import { functionsBackendSource } from './helpers/functionsBackendSource.mjs';
 
 const { reviewProgress, reviewProgressBySkill } = testCycle;
-const functionsIndex = readFileSync(new URL('../../functions/index.js', import.meta.url), 'utf8');
+const functionsIndex = functionsBackendSource();
 
 /*
  * THE REVIEW, SKILL BY SKILL, ON THE STUDENT'S CARD.

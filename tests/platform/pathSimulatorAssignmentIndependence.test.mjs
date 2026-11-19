@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
+import { functionsBackendSource } from './helpers/functionsBackendSource.mjs';
 
 const simulator = fs.readFileSync(new URL('../../src/components/teacher/PathSimulator.jsx', import.meta.url), 'utf8');
 const experience = fs.readFileSync(new URL('../../src/components/teacher/SimulatedStudentExperience.jsx', import.meta.url), 'utf8');
@@ -31,7 +32,7 @@ test('root admin gets production-safe built-in activation controls without seed-
 });
 
 test('built-in Path starter answers stay server-side rather than in public hosting assets', () => {
-  const functionsIndex = fs.readFileSync(new URL('../../functions/index.js', import.meta.url), 'utf8');
+  const functionsIndex = functionsBackendSource();
   assert.match(functionsIndex, /initializeStarterPathQuestionBank/);
   assert.match(functionsIndex, /seeds["'],\s*["']pathQuestionBank/);
   assert.equal(fs.existsSync(new URL('../../public/path-bank-seed', import.meta.url)), false);

@@ -15,6 +15,7 @@ import {
   submissionArrivalDecision,
 } from '../../functions/shared/liveChallengeParity.mjs';
 import { buildRoundTimer, ROUND_COUNTDOWN_LEAD_MS } from '../../functions/shared/liveChallengeTimer.mjs';
+import { functionsBackendSource } from './helpers/functionsBackendSource.mjs';
 
 test('future authoritative start maps ahead of the monotonic clock without counting sync lead', () => {
   const origin = monotonicRoundOrigin({ monotonicNow: 8_000, serverNowMs: 100_600, startsAtMs: 101_500 });
@@ -184,7 +185,7 @@ test('30 clients converge through latency, jitter, disconnect, retry and simulta
 });
 
 test('server and student contracts include idempotency, immediate lock, trust boundary, and private diagnostics', () => {
-  const server = readFileSync(new URL('../../functions/index.js', import.meta.url), 'utf8');
+  const server = functionsBackendSource();
   const student = readFileSync(new URL('../../src/components/liveChallenge/LiveChallengeStudent.jsx', import.meta.url), 'utf8');
   const rules = readFileSync(new URL('../../firestore.rules', import.meta.url), 'utf8');
   assert.match(server, /submissionReceipts\?\.\[submissionId\]/);

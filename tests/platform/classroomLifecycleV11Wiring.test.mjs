@@ -1,16 +1,17 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
+import { functionsBackendSource } from './helpers/functionsBackendSource.mjs';
 
 test('server exposes live audience inspection and repair', () => {
-  const src = fs.readFileSync('functions/index.js', 'utf8');
+  const src = functionsBackendSource();
   assert.match(src, /exports\.inspectClassroomPublication = onCall/);
   assert.match(src, /repairAudience/);
   assert.match(src, /rosterStudentCount/);
 });
 
 test('server removes graded assignment and notes resource posts together', () => {
-  const src = fs.readFileSync('functions/index.js', 'utf8');
+  const src = functionsBackendSource();
   assert.match(src, /exports\.removeAssignmentClassroomPackage = onCall/);
   assert.match(src, /deleteCourseWorkMaterial/);
   assert.match(src, /deleteCourseWork/);

@@ -6,11 +6,12 @@ import testCycle from '../../functions/lib/testCycle.js';
 import { normalizeTestBlueprint } from '../../functions/shared/testCycleBlueprint.mjs';
 import { isCodeLikeSkillLabel, studentSkillName } from '../../src/platform/assessment/secureExamResultsModel.js';
 import { region } from './helpers/sourceContract.mjs';
+import { functionsBackendSource } from './helpers/functionsBackendSource.mjs';
 
 const {
   isCodeLikeTargetLabel, studentFacingTargetLabel, testSkillList, reviewProgress, reviewProgressBySkill,
 } = testCycle;
-const functionsIndex = readFileSync(new URL('../../functions/index.js', import.meta.url), 'utf8');
+const functionsIndex = functionsBackendSource();
 
 /*
  * WHAT A STUDENT'S TEST CYCLE CARD CALLS A SKILL, AND WHAT ITS ORDER GIVES AWAY.

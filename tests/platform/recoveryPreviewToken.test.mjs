@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import { previewTokenSetsMatch, recoveryPreviewToken } from '../../functions/shared/recoveryPreviewToken.mjs';
+import { functionsBackendSource } from './helpers/functionsBackendSource.mjs';
 
 const base = {
   studentId: 'student-a', assignmentId: 'assignment-a', classId: 'class-a',
@@ -48,7 +49,7 @@ test('preview token is opaque and the server validates it before its write loop'
   assert.match(token, /^[a-f0-9]{64}$/);
   assert.doesNotMatch(token, /42|literal|student-a/);
 
-  const source = fs.readFileSync('functions/index.js', 'utf8');
+  const source = functionsBackendSource();
   const staleCheck = source.indexOf('if (!previewTokenSetsMatch(previewTokens, currentTokens))');
   const writeLoop = source.indexOf('for (const proposal of proposals)', staleCheck);
   assert.ok(staleCheck > 0 && writeLoop > staleCheck, 'the complete set must be rejected before the first ingestion write');

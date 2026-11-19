@@ -14,6 +14,7 @@ import {
 import { STEP_ACTIONS, stepActionCountsAttempt } from '../../functions/shared/serverGrading/stepAlgebraStepVerification.mjs';
 import { getChallengeMode } from '../../functions/shared/liveChallengeModes.mjs';
 import { region } from './helpers/sourceContract.mjs';
+import { functionsBackendSource } from './helpers/functionsBackendSource.mjs';
 
 const read = (path) => readFileSync(new URL(path, import.meta.url), 'utf8');
 const require = createRequire(import.meta.url);
@@ -97,7 +98,7 @@ test('authoritative total is exactly the sum of accepted receipts and ignores re
 });
 
 test('teacher pacing changes are server-owned and closing is irreversible', () => {
-  const server = read('../../functions/index.js');
+  const server = functionsBackendSource();
   const update = server.slice(server.indexOf('exports.updateLiveChallengePacing'), server.indexOf('exports.submitLiveChallengeResponse'));
   assert.match(update, /requireOwnedChallenge/);
   assert.match(update, /roundClosingThreshold/);
@@ -125,7 +126,7 @@ test('Live Challenge lobby creation has enough memory for the secure planner', (
 test('Pace Race is mutually exclusive with the visible round timer and Second Chance is opt-in', () => {
   const teacher = read('../../src/components/liveChallenge/LiveChallengeTeacher.jsx');
   const dryRun = read('../../src/components/liveChallenge/ChallengeDryRun.jsx');
-  const server = read('../../functions/index.js');
+  const server = functionsBackendSource();
 
   assert.match(teacher, /const \[secondChanceMode, setSecondChanceMode\] = useState\('off'\)/);
   // Second Chance is opt-in on the server too: only an explicit "automatic"

@@ -8,6 +8,7 @@ import {
   mathMasterStudentLabel,
   parseRosterIdentityText,
 } from '../../src/classroomRosterMatching.js';
+import { functionsBackendSource } from './helpers/functionsBackendSource.mjs';
 
 test('teacher can paste ID, name, and email rows for ID-only MathMaster students', () => {
   const parsed = parseRosterIdentityText([
@@ -69,7 +70,7 @@ test('Classroom manager exposes direct ID entry, existing-link status, and teach
 });
 
 test('server roster linking stores Google identity and removes an obsolete passback owner when corrected', () => {
-  const server = fs.readFileSync(new URL('../../functions/index.js', import.meta.url), 'utf8');
+  const server = functionsBackendSource();
   assert.match(server, /exports\.listClassroomRosterLinks/);
   assert.match(server, /linksBeingReplaced/);
   assert.match(server, /FieldValue\.arrayRemove\(cleanCourseId\)/);

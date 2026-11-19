@@ -32,6 +32,7 @@ import {
 import { MASTERY_STATUS } from '../../functions/shared/masteryRule.mjs';
 import { weekKeyFor } from '../../functions/shared/weeklyPathGrade.mjs';
 import { executableSource, region } from './helpers/sourceContract.mjs';
+import { functionsBackendSource, topLevelDeclaration } from './helpers/functionsBackendSource.mjs';
 
 const require = createRequire(import.meta.url);
 const read = (path) => readFileSync(new URL(`../../${path}`, import.meta.url), 'utf8');
@@ -242,8 +243,8 @@ test('no comparison without two different weeks; nothing recorded lately is said
 
 // ------------------------------------------------------------------ wiring
 
-const functionsSource = executableSource(read('functions/index.js'));
-const trigger = region(functionsSource, 'exports.updateMyMathPathMasteryFromEvidence', 'ASSIGNMENT_AI_USAGE_COLLECTION', 'mastery trigger');
+const functionsSource = executableSource(functionsBackendSource());
+const trigger = topLevelDeclaration(functionsSource, 'exports.updateMyMathPathMasteryFromEvidence');
 
 test('the trigger reads the history inside the mastery transaction and writes it from the same profiles', () => {
   assert.match(trigger, /const masteryHistory = await import\("\.\/shared\/masteryHistory\.mjs"\)/);
@@ -272,7 +273,7 @@ test('the profile and its history are authorized by one derived object', () => {
 });
 
 test('a class move re-authorizes the history; erasure and the pre-production reset include it', () => {
-  const reauthorize = region(functionsSource, 'async function reauthorizeStudentRecords(', 'async function loadClasses(db)', 'reauthorization');
+  const reauthorize = topLevelDeclaration(functionsSource, 'function reauthorizeStudentRecords');
   assert.match(reauthorize, /for \(const collectionName of \[[^\]]*"studentMasteryHistory"[^\]]*\]\)/);
   assert.match(region(reauthorize, 'for (const collectionName of [', '}\n', 'derived loop'), /auth\.reauthorizeContext\(/);
   const admin = require('../../functions/lib/admin.js');

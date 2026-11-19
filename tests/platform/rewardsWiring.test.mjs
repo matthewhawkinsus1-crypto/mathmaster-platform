@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import { executableSource, region } from './helpers/sourceContract.mjs';
 import { importsComponent } from './helpers/componentImport.mjs';
+import { functionsBackendSource } from './helpers/functionsBackendSource.mjs';
 
 /*
  * WIRING THE REWARDS SYSTEM TOGETHER.
@@ -15,7 +16,7 @@ import { importsComponent } from './helpers/componentImport.mjs';
  */
 
 const read = (file) => fs.readFileSync(file, 'utf8');
-const index = read('functions/index.js');
+const index = functionsBackendSource();
 const app = read('src/App.jsx');
 
 test('every reward action is a callable that delegates to the one transactional store', () => {

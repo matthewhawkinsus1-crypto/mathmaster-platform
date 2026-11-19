@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
+import { functionsBackendSource } from './helpers/functionsBackendSource.mjs';
 
 const read = (path) => readFile(new URL(`../../${path}`, import.meta.url), 'utf8');
 
@@ -40,7 +41,7 @@ test('student home reads the caller-only weekly goal snapshot before declaring a
   const [app, store, functions] = await Promise.all([
     read('src/App.jsx'),
     read('src/platform/path/pathStore.js'),
-    read('functions/index.js'),
+    functionsBackendSource(),
   ]);
   // Home asks the page's week for the frozen goal too (goal: true), which is
   // pathStore's fetchStudentWeeklyPathGoalSnapshot (studentWeeklyPath.js).

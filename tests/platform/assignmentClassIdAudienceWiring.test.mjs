@@ -1,11 +1,12 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
+import { functionsBackendSource, topLevelDeclaration } from './helpers/functionsBackendSource.mjs';
 
 const app = fs.readFileSync('src/App.jsx', 'utf8');
 const lifecycle = fs.readFileSync('src/assignmentLifecycle.js', 'utf8');
 const destinations = fs.readFileSync('src/assignmentDestinations.js', 'utf8');
-const functions = fs.readFileSync('functions/index.js', 'utf8');
+const functions = functionsBackendSource();
 const preflight = fs.readFileSync('src/components/teacher/LessonPreflightModal.jsx', 'utf8');
 
 test('student assignment audience is class-ID only', () => {
@@ -23,11 +24,11 @@ test('assignment creation mode and destinations are class-ID authoritative', () 
 });
 
 test('server Classroom and assignment authorization never falls back to period audience', () => {
-  const audienceStart = functions.indexOf('const assignmentAudience');
-  const audienceEnd = functions.indexOf('async function assertTeacherMayManageAssignment', audienceStart);
-  const audienceBlock = functions.slice(audienceStart, audienceEnd);
+  const audienceBlock = topLevelDeclaration(functions, 'assignmentAudience');
   assert.match(audienceBlock, /classIds/);
-  assert.doesNotMatch(audienceBlock, /classPeriods|mappedPeriod/);
+  // Refused in every backend module, not only beside the audience helper: a
+  // period fallback could be written wherever an audience is read.
+  assert.doesNotMatch(functions, /classPeriods|mappedPeriod/);
 
   const publishStart = functions.indexOf('const mappedClassId');
   const publishBlock = functions.slice(publishStart, publishStart + 600);

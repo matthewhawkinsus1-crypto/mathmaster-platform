@@ -64,6 +64,7 @@ import {
   settle,
 } from '../../src/platform/liveChallenge/rushSession.js';
 import { executableSource, region } from './helpers/sourceContract.mjs';
+import { functionsBackendSource } from './helpers/functionsBackendSource.mjs';
 
 /*
  * SYSTEMS OF EQUATIONS RUSH (docs/architecture/systems-rush.md).
@@ -739,7 +740,7 @@ test('a round publishes a guide to reading a system, titled as one, short enough
 /* ------------------------------ the server ------------------------------ */
 
 test('the server plans, issues, grades, reveals and reports a systems room through the rush\'s own code', () => {
-  const index = executableSource(read('functions/index.js'));
+  const index = executableSource(functionsBackendSource());
   const planners = region(index, 'const GENERATED_QUESTION_PLANNERS = Object.freeze({', '\n});', 'the generated planners');
   assert.match(planners, /\bsystemsGenerator: SYSTEMS_RUSH_PLANNER,/);
   const planner = region(index, 'const SYSTEMS_RUSH_PLANNER = Object.freeze({', '\n});\n', 'the planner');

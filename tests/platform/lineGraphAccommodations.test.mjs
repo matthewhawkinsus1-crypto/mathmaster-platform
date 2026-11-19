@@ -28,6 +28,7 @@ import { EXTRA_TIME_RECEIPTS_FIELD, playerWorkReceipts, summarizeRoundProgress }
 import { buildRoundResult, questionSetMatchSummary, standingFromPlayer } from '../../functions/shared/liveChallengeResults.mjs';
 import { getScoringStrategy } from '../../functions/shared/liveChallengeScoring.mjs';
 import { lineExtraTimeRule } from '../../src/platform/liveChallenge/lineGraphSetupModel.js';
+import { functionsBackendSource } from './helpers/functionsBackendSource.mjs';
 
 /*
  * GRAPH THE LINE AND A STUDENT'S SUPPORT PLAN (LC09).
@@ -316,7 +317,7 @@ test('the student\'s round counts down to their own deadline, says when it is ex
 });
 
 test('the server: extra time comes after the buzzer and stays private; the slope helper goes to the student alone', () => {
-  const server = read('functions/index.js');
+  const server = functionsBackendSource();
   const arrival = region(server, 'function lineGraphArrival(', '\n}\n', 'the arrival rule');
   assert.match(arrival, /if \(classArrival\.accepted \|\| !afterBuzzer\) \{/, 'everyone races on the class\'s clock');
   assert.match(arrival, /extraTime: personalArrival\.accepted,/);

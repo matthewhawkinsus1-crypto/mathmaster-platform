@@ -16,6 +16,7 @@ import {
   runStepKeyCreditReport,
   teacherOverrideApplies,
 } from '../../scripts/report-step-key-credit-changes.mjs';
+import { functionsBackendSource } from './helpers/functionsBackendSource.mjs';
 
 const runtime = createRequire(import.meta.url)('../../functions/lib/classroomGradeRuntime.js');
 const SOURCE = readFileSync(new URL('../../scripts/report-step-key-credit-changes.mjs', import.meta.url), 'utf8');
@@ -120,7 +121,7 @@ test('the override rule is the server\'s, field for field', () => {
   assert.equal(teacherOverrideApplies({ ...record, lastAttemptAt: undefined, academicOccurredAt: '2026-10-01T10:00:00Z' }, base), true);
   assert.equal(teacherOverrideApplies(record, { ...base, lastAttemptAt: '' }), false);
   // Every field the server compares is compared here too.
-  const server = readFileSync(new URL('../../functions/index.js', import.meta.url), 'utf8');
+  const server = functionsBackendSource();
   const body = server.slice(server.indexOf('function teacherOverrideAppliesToRecord('), server.indexOf('const ASSIGNMENT_GRADE_OVERRIDE_KEY'));
   for (const field of ['teacher-section-zero', 'totalAttempts', 'attemptCount', 'variantIndex', 'submissionId', 'lastSubmissionId', 'lastAttemptAt', 'academicOccurredAt', 'persistent']) {
     assert.ok(body.includes(field), `the server's rule names ${field}`);

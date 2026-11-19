@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import { region, executableSource } from './helpers/sourceContract.mjs';
+import { functionsBackendSource } from './helpers/functionsBackendSource.mjs';
 
 // The stale-tab/offline race: a student has a Practice response open or
 // queued locally, redeems a Practice Pass before that response becomes a
@@ -13,7 +14,7 @@ import { region, executableSource } from './helpers/sourceContract.mjs';
 // proving the check exists, sees only Practice, runs before any canonical
 // write, and never touches drafts.
 
-const source = fs.readFileSync('functions/index.js', 'utf8');
+const source = functionsBackendSource();
 
 const ingestBody = executableSource(region(
   source,

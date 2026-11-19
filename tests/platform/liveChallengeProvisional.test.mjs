@@ -10,10 +10,11 @@ import {
 import { SCORE_ACCUMULATION, getScoringStrategy, listScoringStrategies, provisionalWorth, registerScoringStrategy } from '../../functions/shared/liveChallengeScoring.mjs';
 import { ACCURACY_FIRST_MATCH_RANKING } from '../../functions/shared/liveChallenge.mjs';
 import { executableSource, region } from './helpers/sourceContract.mjs';
+import { functionsBackendSource } from './helpers/functionsBackendSource.mjs';
 
 const read = (rel) => readFileSync(new URL(rel, import.meta.url), 'utf8');
 const student = read('../../src/components/liveChallenge/LiveChallengeStudent.jsx');
-const functionsIndex = read('../../functions/index.js');
+const functionsIndex = functionsBackendSource();
 
 const player = (overrides = {}) => ({
   playerKey: 'p1', alias: 'Falcon', score: 1000, joined: true, answeredRound: -1, ...overrides,

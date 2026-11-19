@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
+import { functionsBackendSource } from './helpers/functionsBackendSource.mjs';
 
 test('Google OAuth requests the narrow Drive file scope', () => {
   const src = fs.readFileSync('functions/lib/classroom.js', 'utf8');
@@ -17,7 +18,7 @@ test('Classroom can build native Drive file materials', () => {
 });
 
 test('notes PDF storage also attempts teacher-owned Drive storage', () => {
-  const src = fs.readFileSync('functions/index.js', 'utf8');
+  const src = functionsBackendSource();
   const start = src.indexOf('exports.storeLessonNotesPdf');
   const end = src.indexOf('exports.publishClassroomMaterial', start);
   const section = src.slice(start, end);
@@ -28,7 +29,7 @@ test('notes PDF storage also attempts teacher-owned Drive storage', () => {
 });
 
 test('publishing prefers native Drive notes when a ready Drive asset exists', () => {
-  const src = fs.readFileSync('functions/index.js', 'utf8');
+  const src = functionsBackendSource();
   assert.match(src, /function preferDriveNotesMaterial/);
   assert.match(src, /driveFileId/);
   assert.match(src, /preferDriveNotesMaterial\(materials, resourceAssignment\.data\(\)\)/);

@@ -5,9 +5,10 @@ import { challengeCanAdvance, roundCompressionMayApply } from '../../functions/s
 import { MATCH_STATE, planLifecycleCommand } from '../../functions/shared/liveChallengeLifecycle.mjs';
 import { buildRoundTimer } from '../../functions/shared/liveChallengeTimer.mjs';
 import { challengeClock, roundCloseDue } from '../../src/platform/liveChallenge/challengeShellModel.js';
+import { functionsBackendSource, topLevelDeclaration } from './helpers/functionsBackendSource.mjs';
 
 const student = readFileSync(new URL('../../src/components/liveChallenge/LiveChallengeStudent.jsx', import.meta.url), 'utf8');
-const server = readFileSync(new URL('../../functions/index.js', import.meta.url), 'utf8');
+const server = functionsBackendSource();
 
 test('Solver Race intermediate step actions do not consume attempts', () => {
   const start = student.indexOf('onStepGrade={async');
@@ -58,15 +59,13 @@ test('the closing check runs only when an answer could start the closing countdo
   // A room created before thresholds were stored keeps the platform default.
   assert.equal(roundCompressionMayApply({ endsAt: new Date(now + 30_000) }, now), true);
   // The submit path asks before counting, from the room its own transaction read.
-  const submit = server.slice(server.indexOf('exports.submitLiveChallengeResponse'), server.indexOf('// Phase 5D'));
+  const submit = topLevelDeclaration(server, 'exports.submitLiveChallengeResponse');
   assert.match(submit, /roomAtSubmit = latestRoom;/);
   assert.match(submit, /if \(challenge\.roundCompressionMayApply\(roomAtSubmit, Date\.now\(\)\)\) \{\s*await maybeCompressLiveChallengeRoundAfterThreshold\(/);
 });
 
 test('round compression is best-effort after the authoritative score write', () => {
-  const start = server.indexOf('exports.submitLiveChallengeResponse');
-  const end = server.indexOf('// Phase 5D', start);
-  const block = server.slice(start, end);
+  const block = topLevelDeclaration(server, 'exports.submitLiveChallengeResponse');
   const duplicate = block.indexOf('if (duplicateReceipt)');
   const compression = block.indexOf('maybeCompressLiveChallengeRoundAfterThreshold');
   const response = block.indexOf('return {', compression);
@@ -172,9 +171,7 @@ test('a round command that raced Finish is told the match finished, not that its
 });
 
 test('final speed scoring uses activeRoundSeconds rather than the teacher baseline', () => {
-  const start = server.indexOf('exports.submitLiveChallengeResponse');
-  const end = server.indexOf('// Phase 5D', start);
-  const block = server.slice(start, end);
+  const block = topLevelDeclaration(server, 'exports.submitLiveChallengeResponse');
   assert.match(block, /const activeRoundMs = (?:Math\.round\()?challenge\.normalizeRoundSeconds\([\s\S]*latestRoom\.activeRoundSeconds \|\| latestRoom\.roundSeconds/);
   assert.match(block, /totalMs: activeRoundMs/);
   assert.doesNotMatch(block, /totalMs: challenge\.normalizeRoundSeconds\(latestRoom\.roundSeconds\) \* 1000/);

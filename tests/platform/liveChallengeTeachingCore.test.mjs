@@ -28,8 +28,9 @@ import { planLifecycleCommand } from '../../functions/shared/liveChallengeLifecy
 import { timerAcceptsArrival } from '../../functions/shared/liveChallengeTimer.mjs';
 
 import { region } from './helpers/sourceContract.mjs';
+import { functionsBackendSource } from './helpers/functionsBackendSource.mjs';
 
-const server = readFileSync(new URL('../../functions/index.js', import.meta.url), 'utf8');
+const server = functionsBackendSource();
 // The repo's strict helper: an end marker that is missing fails the test
 // instead of binding the assertion to the rest of the file.
 const regionOf = (source, startMarker, endMarker) => region(source, startMarker, endMarker);

@@ -42,6 +42,7 @@ import {
   teacherWarmup,
   at,
 } from './helpers/warmupServerLifecycle.mjs';
+import { functionsBackendSource } from './helpers/functionsBackendSource.mjs';
 
 const { buildIngestedAttempt, questionIsFinal } = ingestion;
 
@@ -206,7 +207,7 @@ test('questionIsFinal is the attempt policy\'s own rule', () => {
 // ingestOneSubmission cannot be imported here (Admin SDK at module scope);
 // the emulator suite runs it. This pins its handling of `built.final`.
 const ingestBody = executableSource(region(
-  fs.readFileSync('functions/index.js', 'utf8'),
+  functionsBackendSource(),
   'async function ingestOneSubmission({ db, studentId, envelope, now',
   'exports.ingestStudentSubmissions = onCall(async (request) => {',
   'ingestOneSubmission',

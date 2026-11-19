@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
+import { functionsBackendSource } from './helpers/functionsBackendSource.mjs';
 
 /*
  * THE REAL "WOULD SHORTEN" REVIEW WORKFLOW.
@@ -14,7 +15,7 @@ import fs from 'node:fs';
  */
 const appSource = fs.readFileSync(new URL('../../src/App.jsx', import.meta.url), 'utf8');
 const panelSource = fs.readFileSync(new URL('../../src/components/teacher/AttendanceHistoryPanel.jsx', import.meta.url), 'utf8');
-const functionsSource = fs.readFileSync(new URL('../../functions/index.js', import.meta.url), 'utf8');
+const functionsSource = functionsBackendSource();
 
 test('Attendance History surfaces an open review with both explicit actions, discoverable without hunting', () => {
   assert.match(panelSource, /openAttendanceCorrectionReviewsForStudent/);

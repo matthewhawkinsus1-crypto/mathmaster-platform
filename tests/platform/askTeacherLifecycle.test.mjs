@@ -11,8 +11,9 @@ import {
   openQuestionHandover,
 } from '../../functions/shared/askTeacherLifecycle.mjs';
 import { componentSource, executableSource, region } from './helpers/sourceContract.mjs';
+import { functionsBackendSource } from './helpers/functionsBackendSource.mjs';
 
-const rawIndex = readFileSync('functions/index.js', 'utf8');
+const rawIndex = functionsBackendSource();
 const index = executableSource(rawIndex);
 const DAY = 24 * 60 * 60 * 1000;
 

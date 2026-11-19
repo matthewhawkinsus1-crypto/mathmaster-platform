@@ -3,11 +3,12 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import { assignmentQuestionEditorSource } from './helpers/splitComponentSource.mjs';
 import { appAndTeacherWorkspaceSource } from './helpers/appScreens.mjs';
+import { functionsBackendSource } from './helpers/functionsBackendSource.mjs';
 
 const app = appAndTeacherWorkspaceSource();
 const editor = assignmentQuestionEditorSource();
 const engine = fs.readFileSync('src/QuestionEngine.jsx', 'utf8');
-const functionsIndex = fs.readFileSync('functions/index.js', 'utf8');
+const functionsIndex = functionsBackendSource();
 
 test('teacher editor exposes per-question weight and live recalculation confirmation', () => {
   assert.match(editor, /Grade weight for Question/);

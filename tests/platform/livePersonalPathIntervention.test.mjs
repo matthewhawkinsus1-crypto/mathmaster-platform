@@ -4,6 +4,7 @@ import { readFileSync } from 'node:fs';
 
 import { getStudentPathOptions, STATUS } from '../../src/platform/path/recommendationEngine.js';
 import { getSkillGraph } from '../../src/platform/path/skillGraph.js';
+import { functionsBackendSource } from './helpers/functionsBackendSource.mjs';
 
 const read = (path) => readFileSync(new URL(`../../${path}`, import.meta.url), 'utf8');
 
@@ -33,7 +34,7 @@ test('student Path reads the personal intervention after class-wide overrides so
 });
 
 test('server authorizes personal Path changes and keeps normal content/course safeguards', () => {
-  const server = read('functions/index.js');
+  const server = functionsBackendSource();
   const start = server.indexOf('exports.setStudentPathIntervention');
   const end = server.indexOf('/** Start or resume one server-owned learning-path session', start);
   assert.ok(start >= 0 && end > start);
@@ -83,7 +84,7 @@ test('a personal recommend never overrules a severe prerequisite gap', () => {
 test('personal Path records are server-write-only and leave with the student lifecycle', () => {
   const rules = read('firestore.rules');
   const admin = read('functions/lib/admin.js');
-  const server = read('functions/index.js');
+  const server = functionsBackendSource();
 
   assert.match(rules, /match \/studentPathInterventions\/\{studentId\}/);
   assert.match(rules, /allow create, update, delete: if false/);
