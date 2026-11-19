@@ -1,0 +1,72 @@
+name: Grader Fuzz Nightly
+
+# The grader fuzz and parity harness, in full (scripts/lib/graderFuzz,
+# docs/architecture/GRADER_FUZZ.md).
+#
+# Every pull request runs a fixed slice of it in the platform tests
+# (tests/platform/graderFuzzParity.test.mjs): the same six thousand cases every
+# time, in about ten seconds. This runs a NEW seed every night, the date, and
+# about twenty times the cases: typed values of every class (the math editor's
+# LaTeX, unicode, unfinished entries, odd numbers, implicit products, long
+# input, the banks' own keys spelled and misspelled) through every grader,
+# held to: no throw, the screen's verdict is the server's, an unfinished
+# answer is not right, a saved draft reads back and reopens, a verdict in
+# under two seconds.
+#
+# It fails on a finding that scripts/grader-fuzz-known-findings.json does not
+# list, and nightly-failure-issue.yml then opens an issue. The run's log and
+# its `grader-fuzz-findings` artifact hold each finding's repro; run one again
+# with `node scripts/fuzz-graders.mjs --replay <file holding the repro JSON>`,
+# or the whole night with `--seed <that date>`.
+#
+# Not called by ci.yml: a new seed must not turn an unrelated pull request
+# red. Read-only: it writes nothing back and uses no secrets.
+
+on:
+  schedule:
+    - cron: "23 8 * * *"
+  workflow_dispatch:
+    inputs:
+      seed:
+        description: The seed to run (default, today's date in UTC). A night's seed is its date.
+        required: false
+        type: string
+      count:
+        description: Cases for each target.
+        required: false
+        default: "30000"
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  grader-fuzz:
+    name: Grader fuzz and parity (full)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v6
+      - uses: ./.github/actions/setup
+      # The Path and secure graders (functions/lib) load from functions/.
+      - run: npm --prefix functions ci
+      - name: Fuzz every grader on tonight's seed
+        env:
+          # Through env, never inside the script: an input is not shell code.
+          FUZZ_SEED: ${{ inputs.seed }}
+          FUZZ_COUNT: ${{ inputs.count }}
+        run: |
+          seed="${FUZZ_SEED:-$(date -u +%F)}"
+          count="${FUZZ_COUNT:-30000}"
+          echo "seed: $seed, $count cases for each target"
+          # --max-length 1000: at that length every verdict is well under the
+          # limit on any runner, so a time finding is a cost that explodes.
+          node scripts/fuzz-graders.mjs --seed "$seed" --count "$count" --max-length 1000 --budget-minutes 7 --out grader-fuzz-findings.json
+      - name: Upload the findings
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: grader-fuzz-findings
+          path: grader-fuzz-findings.json
+          if-no-files-found: ignore
+          retention-days: 30
