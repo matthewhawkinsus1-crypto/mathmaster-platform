@@ -714,7 +714,27 @@ export const getMonotonicAcceptedAnswers = (spec, kind, notation = 'interval') =
   if (!selected.length) return ['none', 'doesnotexist', 'emptyset', '∅'];
   const domainAware = selected.map((part) => intervalString(part.min, part.max, part.minInclusive, part.maxInclusive)).join('u');
   const openConvention = selected.map((part) => intervalString(part.min, part.max, false, false)).join('u');
-  return [...new Set([domainAware, openConvention])];
+  // AT A TURNING POINT, AN OPEN OR A CLOSED END IS RIGHT (the owner,
+  // 2026-11-19, for every lesson). Where a parabola or a V turns, x = h belongs
+  // to both of its pieces: x² is increasing on [0, ∞) as truly as on (0, ∞).
+  // Both forms above write that end open, so [0, ∞) was refused for x² while
+  // −√x's [0, ∞) was right, only because 0 ends its domain. Each form is now
+  // also accepted with its turning-point end closed. Only a turning point
+  // strictly inside the domain counts (a vertex at the end of a restricted
+  // graph is where that graph stops, and keeps its rule), and no other end
+  // moves: a domain end, a zero, an asymptote or a point where the function
+  // is undefined is as before. The first two answers stay first and as they
+  // were: the solution review shows the first one.
+  const turning = twoSidedTurning && Math.abs(a) > 1e-12 && h > domain.min && h < domain.max ? h : null;
+  const atTurning = (value) => turning !== null && Math.abs(value - turning) < 1e-9;
+  const turningClosed = (keepDomainEnds) => selected.map((part) => intervalString(
+    part.min,
+    part.max,
+    atTurning(part.min) || (keepDomainEnds && part.minInclusive),
+    atTurning(part.max) || (keepDomainEnds && part.maxInclusive),
+  )).join('u');
+  const turningForms = turning === null ? [] : [turningClosed(true), turningClosed(false)];
+  return [...new Set([domainAware, openConvention, ...turningForms])];
 };
 
 export const setAnswerMatches = (answer, accepted = []) => {
