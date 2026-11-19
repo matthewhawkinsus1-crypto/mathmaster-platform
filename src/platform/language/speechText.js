@@ -1980,6 +1980,13 @@ const spokenLineForms = (text, w) => text
 // is (0, 5)", "In interval notation:", "creciente en (−2, 2)". Anything else
 // keeps a round pair a point.
 const INTERVAL_CUE = /(?:\b(?:increasing|decreasing|positive|negative|constant)(?:\s+on)?|\bintervals?(?:\s+notation)?\s*:?|\b(?:domain|range)(?:\s+is|\s*[:=])?|\b(?:creciente|decreciente)(?:\s+en)?|\b(?:positiva|positivo|negativa|negativo|constante)\s+en|\bintervalos?\s*:?|\b(?:dominio|rango)(?:\s+es|\s*[:=])?)\s*$/i;
+// The next piece of the same answer, said after the one before it: "it is
+// decreasing on (−3, 0) and on (0, 3)". A function rises or falls on each
+// such piece, not on their union, so the worked steps say them one by one
+// (functionFeatures monotoneOn, the owner's interval rule of 2026-11-19); ∪
+// made the second piece an interval before. Only right after a cued pair,
+// and only in English: those steps have no Spanish yet.
+const INTERVAL_CONTINUED = /^\s*and\s+on\s*$/i;
 
 /*
  * A LINE BREAK THE AUTHOR WROTE IS A PAUSE (platform-polish-3; F-PROMPT-LINES
@@ -2310,6 +2317,13 @@ export const speechTextFor = (raw, { language = 'en', functionNames = '' } = {})
   // itself and whether intervals are cued. A box of many short pieces ("x y
   // x y …", "1 2 3 …") read each of its thousands from the start.
   const spokenPieces = new Map();
+  // Which pieces of mathematics the prose before them says are intervals.
+  const cued = [];
+  segments.forEach((segment, index) => {
+    const before = segments[index - 1];
+    if (segment.kind !== 'math' || before?.kind !== 'text') return;
+    cued[index] = INTERVAL_CUE.test(before.value) || (INTERVAL_CONTINUED.test(before.value) && cued[index - 2] === true);
+  });
   return segments
     .map((segment, index) => {
       // "1st": the number is split from its suffix, and "1 st" is read
@@ -2320,7 +2334,7 @@ export const speechTextFor = (raw, { language = 'en', functionNames = '' } = {})
         return ` ${segment.value.trim().replace(/\s*[×x]\s*/, ` ${w.by} `)} `;
       }
       if (segment.kind === 'math') {
-        const intervals = segments[index - 1]?.kind === 'text' && INTERVAL_CUE.test(segments[index - 1].value);
+        const intervals = cued[index] === true;
         const piece = withPriceSigns(segment);
         const key = `${intervals ? 'i' : 'p'}${piece}`;
         if (!spokenPieces.has(key)) spokenPieces.set(key, mathToSpeech(piece, { language, functionNames: names, intervals }));

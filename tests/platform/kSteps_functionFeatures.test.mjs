@@ -224,7 +224,9 @@ const assertSolutionSets = (rule, text, label) => {
 
 /* ------------------------------------------------------------ reading stated sets */
 
-const parseIntervals = (value) => ascii(value).split(' ∪ ').map((piece) => {
+// Pieces joined by ∪ (a set), or said one by one, "on A and on B": where a
+// function rises or falls piece by piece (functionFeatures monotoneOn).
+const parseIntervals = (value) => ascii(value).split(/ ∪ | and on /).map((piece) => {
   const match = /^([[(])(-?[\d.]+|-∞), (-?[\d.]+|∞)([\])])$/.exec(piece.trim());
   if (!match) return null;
   const end = (raw) => (raw === '∞' ? Infinity : raw === '-∞' ? -Infinity : Number(raw));
@@ -299,6 +301,19 @@ const assertIntervals = (f, spec, kind, stated, label) => {
     const truth = { positive: y > 1e-9, negative: y < -1e-9, increasing: change > 1e-12, decreasing: change < -1e-12, constant: Math.abs(y - before) < 1e-12 && Math.abs(after - y) < 1e-12 }[kind];
     assert.equal(inSet(x, set), truth, `${label}: ${kind} ${stated} at x = ${x}`);
   }
+  // "Decreasing on A ∪ B" says more than "on A and on B": across the pieces
+  // too. 1/x falls on each piece but f(−1) < f(1), so its pieces are said one
+  // by one (walkthrough 2026-11-06, P-6). Pieces joined by ∪ must keep the
+  // order the word claims from one piece to the next.
+  if (['increasing', 'decreasing'].includes(kind)) {
+    ascii(stated).split(' and on ').forEach((group) => {
+      const inside = parseSet(group).map((part) => (Number.isFinite(part.lo) && Number.isFinite(part.hi) ? (part.lo + part.hi) / 2 : Number.isFinite(part.lo) ? part.lo + 1 : part.hi - 1));
+      inside.slice(1).forEach((x, index) => {
+        const [left, right] = [f(inside[index]), f(x)];
+        assert.ok(kind === 'increasing' ? right > left : right < left, `${label}: ${kind} on ${group} claims f(${inside[index]}) = ${left} ${kind === 'increasing' ? '<' : '>'} f(${x}) = ${right}`);
+      });
+    });
+  }
 };
 
 /* ------------------------------------------------------------ the shapes */
@@ -346,7 +361,8 @@ const checkGraph = (question, worked, label) => {
       if (part.kind === 'domain') assertDomain(f, spec, stated, label);
       else if (part.kind === 'range') assertRange(f, spec, stated, label);
       else assertIntervals(f, spec, part.kind, stated, label);
-      analysis.answers[part.id] = stated;
+      // Typed as a student would: "on A and on B" is "A and B" in the box.
+      analysis.answers[part.id] = stated.split(' and on ').join(' and ');
     }
     const graded = gradeAnalysisPart(part, analysis, workspace.analysisTolerance);
     assert.equal(graded.isCorrect, true, `${label}: the ${part.kind} part's grader accepts ${JSON.stringify(graded.response)}`);

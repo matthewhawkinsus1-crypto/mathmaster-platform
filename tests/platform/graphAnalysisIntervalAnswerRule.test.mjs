@@ -36,6 +36,8 @@ import { gradeToolCheck } from '../../src/tools/shared/sharedToolGrading.js';
 import { gradeAnalysisPart, normalizeAnalysisRequests } from '../../functions/shared/toolMath/graphWorkspace/graphWorkspaceModel.mjs';
 import { getMonotonicAcceptedAnswers } from '../../functions/shared/toolMath/graphWorkspace/interactiveGraphEngine.mjs';
 import { buildPrivateToolGrading, gradePathResponse, pathAnalysisTextMatches } from '../../functions/shared/pathToolContracts.mjs';
+import * as functionFeatures from '../../src/platform/supports/families/functionFeatures.js';
+import { speechTextFor } from '../../src/platform/language/speechText.js';
 
 const lesson = (file) => parseAssignmentBlueprintText(readFileSync(new URL(`../../teacher-import-jsons/algebra2-honors-module1/${file}`, import.meta.url), 'utf8')).questions;
 const L2_DAY1 = lesson('L2_Day1_Parent_Functions_Key_Attributes.json');
@@ -212,4 +214,20 @@ test('My Math Path\'s function investigation reads the same lists (one matcher, 
   assert.equal(graded('(-\\infty,0)\\land(0,\\infty)'), true);
   assert.equal(graded('(-\\infty,0),(0,\\infty)'), true);
   assert.equal(graded('(-\\infty,0],(0,\\infty)'), false);
+});
+
+test('the worked step says 1/x decreases on each piece, not on their union, and Read aloud says both as intervals', () => {
+  const worked = functionFeatures.workedSolution(item(L2_DAY1, 'q_dol-4_4_1'));
+  const text = [...worked.steps, worked.answerSummary].join(' ');
+  assert.match(text, /decreasing on \(-∞, 0\) and on \(0, ∞\)/);
+  assert.doesNotMatch(text, /decreasing on \(-∞, 0\) ∪ \(0, ∞\)/);
+  // The domain is one set and keeps its ∪.
+  assert.match(text, /the domain is \(-∞, 0\) ∪ \(0, ∞\)/);
+  // A finite piece after "and on" is an interval, as it was after ∪.
+  assert.equal(
+    speechTextFor('So it is decreasing on (−3, 0) and on (0, 3).'),
+    'So it is decreasing on the interval from negative 3 to 0, not including negative 3 or 0 and on the interval from 0 to 3, not including 0 or 3.',
+  );
+  // Not after a pair that was not an interval.
+  assert.match(speechTextFor('Plot (1, 2) and on (3, 4) draw a dot.'), /the point 3, 4/);
 });

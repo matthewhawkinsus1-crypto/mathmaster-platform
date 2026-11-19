@@ -585,6 +585,14 @@ const showInterval = (part) => (same(part.lo, part.hi)
   ? `{${dec(part.lo)}}`
   : `${part.loIn ? '[' : '('}${dec(part.lo)}, ${dec(part.hi)}${part.hiIn ? ']' : ')'}`);
 const showIntervals = (parts) => parts.map(showInterval).join(' ∪ ');
+// A function that rises (or falls) on several pieces does so on EACH of them,
+// not on their union: 1/x is decreasing on (−∞, 0) and on (0, ∞), but not on
+// (−∞, 0) ∪ (0, ∞), since f(−1) < f(1) (walkthrough 2026-11-06, P-6; the
+// owner, 2026-11-19). Those pieces are said one by one, and typed joined by
+// "and", which the interval grader reads. A set — a domain, a range, where a
+// function is positive — keeps ∪.
+const monotoneOn = (parts) => parts.map(showInterval).join(' and on ');
+const monotoneTyped = (parts) => parts.map(showInterval).join(' and ');
 const showInequality = (parts, variable) => {
   if (parts.length === 1) {
     const part = parts[0];
@@ -1867,7 +1875,7 @@ const workGraph = (spec, parts) => {
     const turning = turningOf(spec);
     const described = monotone.map((kind) => {
       const intervals = monotoneIntervals(spec, kind === 'increasing' ? 1 : -1);
-      return intervals.length ? [`${kind} on ${showIntervals(intervals)}`, `${kind} ${showIntervals(intervals)}`] : [`never ${kind}`, `${kind} never`];
+      return intervals.length ? [`${kind} on ${monotoneOn(intervals)}`, `${kind} ${monotoneTyped(intervals)}`] : [`never ${kind}`, `${kind} never`];
     });
     if (kinds.has('constant')) described.push(['never flat (constant) on any interval', 'constant never']);
     const lead = turning !== null
@@ -2921,7 +2929,7 @@ const monotoneSentence = (spec, kinds) => {
   const said = kinds.map((kind) => {
     if (kind === 'constant') return 'never flat (constant) on any interval';
     const intervals = monotoneIntervals(spec, kind === 'increasing' ? 1 : -1);
-    return intervals.length ? `${kind} on ${showIntervals(intervals)}` : `never ${kind}`;
+    return intervals.length ? `${kind} on ${monotoneOn(intervals)}` : `never ${kind}`;
   });
   const goes = directionOf(spec, pieces[0]) > 0 ? 'rises' : 'falls';
   let lead;
@@ -3122,12 +3130,15 @@ const graphWorked = (question, model) => {
       steps.push(sentence);
       said.push(`${ANALYSIS_NAMES[part.kind]} is ${stated}`);
     } else if (intervalKinds.includes(part.kind) || signKinds.includes(part.kind)) {
-      const intervals = intervalKinds.includes(part.kind) ? monotoneParts(spec, part.kind) : signParts(spec, part.kind);
+      const monotone = intervalKinds.includes(part.kind);
+      const intervals = monotone ? monotoneParts(spec, part.kind) : signParts(spec, part.kind);
       if (!allExact(intervalNumbers(intervals).filter(Number.isFinite))) return null;
-      const stated = intervalAnswer(intervals, part.notation, 'x');
+      // Monotone pieces one by one, typed joined by "and" (monotoneOn above).
+      const eachPiece = monotone && part.notation === 'interval' && intervals.length > 1;
+      const stated = eachPiece ? monotoneTyped(intervals) : intervalAnswer(intervals, part.notation, 'x');
       analysis.answers[part.id] = stated;
       if (!accepted(part)) return null;
-      said.push(intervals.length ? `it is ${part.kind} on ${stated}` : `it is never ${part.kind} (${NO_INTERVAL})`);
+      said.push(intervals.length ? `it is ${part.kind} on ${eachPiece ? monotoneOn(intervals) : stated}` : `it is never ${part.kind} (${NO_INTERVAL})`);
     } else if (part.kind === 'point') {
       const worked = featureWork(spec, text(part.feature) || 'vertex');
       if (!worked || !samePoints(worked.points, list(part.expected))) return null;
