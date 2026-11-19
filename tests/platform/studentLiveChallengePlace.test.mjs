@@ -14,7 +14,7 @@ import { liveChallengeExitLabel, liveChallengeReturnPlace, sectionHoldsLobbyInvi
 import { shouldShowChallengeHandoffBanner, shouldShowChallengeLobbyInvite } from '../../src/platform/liveChallenge/warmupChallengeLink.js';
 import { classroomAnnouncement, classroomAnnouncementState } from '../../src/platform/student/classroomAnnouncements.js';
 import { executableSource, region } from './helpers/sourceContract.mjs';
-import { appHookSource, appSurfaceSource } from './helpers/appScreens.mjs';
+import { appFactorySource, appHookSource, appSurfaceSource } from './helpers/appScreens.mjs';
 
 const read = (path) => executableSource(readFileSync(new URL(`../../${path}`, import.meta.url), 'utf8'));
 const app = read('src/App.jsx');
@@ -83,20 +83,27 @@ test('NAV-25 review R1: a two-question exit ticket with Q1 submitted still holds
 });
 
 test('NAV-25: every way into the game keeps the place, and the game\'s exit returns there', () => {
-  const join = region(app, 'const joinLiveChallenge = () => {', '};', 'join');
+  // Since the App split (slice 5) joinLiveChallenge and leaveLiveChallenge are createStudentNavigation's
+  // (src/app/student/studentNavigation.js), which App calls once and takes them from, by position.
+  const navigation = executableSource(appFactorySource('createStudentNavigation'));
+  const join = region(navigation, 'const joinLiveChallenge = () => {', '};', 'join');
   assert.match(join, /setLiveChallengeReturn\(liveChallengeReturnPlace\(\{\s*activeView, activeAssignmentId, currentQuestionIndex, studentDashboardMode, assignmentResultRoute,\s*\}\)\);/);
   assert.match(join, /flushAssignmentActivity\(activeAssignmentId\)/);
   assert.match(join, /openStudentDashboardMode\('liveChallenge'\);/);
-  const leave = region(app, 'const leaveLiveChallenge = () => {', "openStudentDashboardMode(place?.kind === 'screen' ? place.mode : 'assignments');", 'leave');
+  const leave = region(navigation, 'const leaveLiveChallenge = () => {', "openStudentDashboardMode(place?.kind === 'screen' ? place.mode : 'assignments');", 'leave');
   assert.match(leave, /startAssignment\(place\.assignmentId, place\.questionIndex, \{ keepRequestedQuestion: true \}\);/);
   assert.match(leave, /openStudentAssignmentResult\(place\.assignmentId, \{ sectionKey: place\.sectionKey, origin: place\.origin \}\);/);
   const game = region(app, '<LiveChallengeStudent', '/>', 'game');
   assert.match(game, /onExit=\{leaveLiveChallenge\}/);
   assert.match(game, /exitLabel=\{liveChallengeExitLabel\(liveChallengeReturn\)\}/);
   // No way into the game skips keeping the place.
-  assert.doesNotMatch(app, /setStudentDashboardMode\('liveChallenge'\)/);
-  assert.equal((app.match(/openStudentDashboardMode\('liveChallenge'\)/g) || []).length, 1, 'only joinLiveChallenge opens the game');
-  assert.match(app, /import \{ liveChallengeExitLabel, liveChallengeReturnPlace, sectionHoldsLobbyInvite \} from '\.\/platform\/liveChallenge\/liveChallengeReturn\.js';/);
+  // Refused, and counted, across App and every module its code moved into, so a second way in cannot hide in one.
+  const surface = executableSource(appSurfaceSource());
+  assert.doesNotMatch(surface, /setStudentDashboardMode\('liveChallenge'\)/);
+  assert.equal((surface.match(/openStudentDashboardMode\('liveChallenge'\)/g) || []).length, 1, 'only joinLiveChallenge opens the game');
+  // Each name is imported by the file that calls it: the place by the navigation module, the label and the invite rule by App.
+  assert.match(navigation, /import \{ liveChallengeReturnPlace \} from '\.\.\/\.\.\/platform\/liveChallenge\/liveChallengeReturn\.js';/);
+  assert.match(app, /import \{ liveChallengeExitLabel, sectionHoldsLobbyInvite \} from '\.\/platform\/liveChallenge\/liveChallengeReturn\.js';/);
 });
 
 test('NAV-23: the invite and a Spotlight request are said once, when they newly appear', () => {

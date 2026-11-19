@@ -15,6 +15,7 @@ import { describeTestCycleForStudent } from '../../src/platform/student/testCycl
 import { describeSectionAccess } from '../../src/platform/student/assignmentNavigator.js';
 import { SECTION_STATE, describeSectionWait } from '../../src/platform/student/lessonSections.js';
 import { executableSource } from './helpers/sourceContract.mjs';
+import { appFactorySource, appSurfaceSource } from './helpers/appScreens.mjs';
 
 const NOW = new Date(2026, 9, 18, 13, 30).getTime(); // Sun, Oct 18 2026, 1:30 PM local
 const TODAY_215 = new Date(2026, 9, 18, 14, 15).getTime();
@@ -63,7 +64,11 @@ test('NAV-19: every student screen that prints an opening time uses the shared w
   const card = executableSource(readFileSync(new URL('../../src/components/student/TestCycleCard.jsx', import.meta.url), 'utf8'));
   // "Opens at 10:36 AM." today, "Opens on Wed, Oct 21, 2:15 PM." another day (review S4).
   assert.match(card, /Opens \{opensWhenPhrase\(availability\.opensAt\)\}\./);
-  const app = executableSource(readFileSync(new URL('../../src/App.jsx', import.meta.url), 'utf8'));
-  assert.match(app, /import \{ whenDateTimeText \} from '\.\/platform\/student\/studentWhen\.js';/);
-  assert.equal((app.match(/opensAtText: whenDateTimeText\(assignmentData\.releaseAt\)/g) || []).length, 2, 'both "not open yet" notices');
+  // Since the App split (slice 5) both notices are startAssignment's, in createStudentNavigation
+  // (src/app/student/studentNavigation.js), which App calls once, by position: the import is there, with the calls.
+  const navigation = executableSource(appFactorySource('createStudentNavigation'));
+  assert.match(navigation, /import \{ whenDateTimeText \} from '\.\.\/\.\.\/platform\/student\/studentWhen\.js';/);
+  assert.equal((navigation.match(/opensAtText: whenDateTimeText\(assignmentData\.releaseAt\)/g) || []).length, 2, 'both "not open yet" notices');
+  // And the same two across App and every module its code moved into: none lost, none added elsewhere.
+  assert.equal((executableSource(appSurfaceSource()).match(/opensAtText: whenDateTimeText\(assignmentData\.releaseAt\)/g) || []).length, 2, 'both "not open yet" notices');
 });

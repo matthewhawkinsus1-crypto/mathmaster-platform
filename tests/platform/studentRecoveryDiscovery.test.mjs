@@ -38,6 +38,7 @@ import {
   recoveryWasNotified,
 } from '../../src/platform/recovery/studentRecoveryDiscovery.js';
 import { componentSource, executableSource, region } from './helpers/sourceContract.mjs';
+import { appFactorySource } from './helpers/appScreens.mjs';
 
 const NOW = Date.parse('2026-10-01T15:00:00Z');
 const STUDENT = 'student-07';
@@ -583,7 +584,9 @@ test('Home, the Assignments Center and the assignment header all render the list
   const guard = app.slice(app.lastIndexOf('{', app.indexOf('<RecoveryInlineNotice')), app.indexOf('<RecoveryInlineNotice'));
   assert.match(guard, /!preview && user\?\.role === 'student'/);
 
-  const handler = region(app, 'const openStudentRecovery = (opportunity) => {', '\n  };\n', 'open Recovery handler');
+  // Since the App split (slice 5) the one handler is createStudentNavigation's
+  // (src/app/student/studentNavigation.js), which App calls once and takes it from, by position.
+  const handler = region(appFactorySource('createStudentNavigation'), 'const openStudentRecovery = (opportunity) => {', '\n  };\n', 'open Recovery handler');
   assert.match(handler, /openStudentAssignmentResult\(assignmentId,/, 'it lands on the Results route, where the runner lives');
   assert.match(handler, /opportunity\.action === 'start'[\s\S]*startStudentRecovery\(assignmentId, section\)/, 'Start goes through the server');
   assert.match(handler, /setRecoverySession\(\{ assignmentId, section, mode: opportunity\.action === 'continue' \? 'assessment' : 'practice' \}\)/);

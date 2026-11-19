@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { executableSource, region } from './helpers/sourceContract.mjs';
 import { importsComponent } from './helpers/componentImport.mjs';
-import { teacherControlsSource } from './helpers/appScreens.mjs';
+import { appFactorySource, teacherControlsSource } from './helpers/appScreens.mjs';
 
 /*
  * App.jsx WIRING FOR THE ONE "TODAY" RULE.
@@ -13,6 +13,9 @@ import { teacherControlsSource } from './helpers/appScreens.mjs';
  * import (AGENTS.md, "Two things the whole gate misses").
  */
 const app = executableSource(readFileSync(new URL('../../src/App.jsx', import.meta.url), 'utf8'));
+// Since the App split (slice 5) startAssignment is createStudentNavigation's
+// (src/app/student/studentNavigation.js), which App calls once, by position.
+const navigation = executableSource(appFactorySource('createStudentNavigation'));
 
 test('Recovery for every assignment is built and fed to the dashboard, with its import', async () => {
   assert.match(app, /import\s*\{[^}]*\brecoveryStatesFromSummaries\b[^}]*\}\s*from\s*'\.\/platform\/student\/recoveryStates\.js'/);
@@ -51,7 +54,7 @@ test('the dashboard model receives the student, their Recovery states and the te
 });
 
 test('Start/Continue lands on the first unfinished open question, and never on a dead end', () => {
-  const start = region(app, 'const startAssignment = (', 'const openStudentDashboardMode', 'startAssignment');
+  const start = region(navigation, 'const startAssignment = (', 'const openStudentDashboardMode', 'startAssignment');
   const entry = region(start, 'resolveStudentAssignmentEntry({', 'safeQuestionIndex = actionableIndex', 'entry resolution');
   // Review My Work keeps the question it asked for; a question's address
   // keeps it only while its section is open (roleIsActionable).
@@ -173,8 +176,9 @@ test('"Use a Practice Pass" is offered only to a student who holds one', () => {
 });
 
 test('entry shares the Today rule\'s predicates, with their imports (review findings 1, 2, 5)', () => {
-  assert.match(app, /import \{ questionIsTerminal, timedSectionWorkableNow \} from '\.\/platform\/student\/studentWorkState\.js'/);
-  const start = region(app, 'const startAssignment = (', 'const openStudentDashboardMode', 'startAssignment');
+  // The import is asserted in the module that now makes the calls.
+  assert.match(navigation, /import \{ questionIsTerminal, timedSectionWorkableNow \} from '\.\.\/\.\.\/platform\/student\/studentWorkState\.js'/);
+  const start = region(navigation, 'const startAssignment = (', 'const openStudentDashboardMode', 'startAssignment');
   const gate = region(start, 'const roleIsActionable = (role) => {', 'const actionableIndex', 'role gate');
   // A switched-off Warm-Up/DOL window is open, exactly as Home says.
   assert.match(gate, /return timedSectionWorkableNow\(getWarmupState\(/);

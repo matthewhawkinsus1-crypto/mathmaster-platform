@@ -4,8 +4,12 @@ import { readFileSync } from 'node:fs';
 
 import { executableSource, region } from './helpers/sourceContract.mjs';
 import { practiceSkillLaunch } from '../../src/platform/assessment/practiceSkillLaunch.js';
+import { appFactorySource } from './helpers/appScreens.mjs';
 
 const app = readFileSync(new URL('../../src/App.jsx', import.meta.url), 'utf8');
+// Since the App split (slice 5), createStudentNavigation (src/app/student/studentNavigation.js) owns
+// practiseSkillFromResults and openStudentDashboardMode; App takes them from its one call, by position.
+const navigation = appFactorySource('createStudentNavigation');
 
 /*
  * "PRACTISE THIS SKILL" FROM A RELEASED TEST REVIEW OR THE TEST CYCLE CARD.
@@ -37,8 +41,9 @@ test('nowhere to go means no launch', () => {
 });
 
 test('App wires the handler to both results screens, imported next to the call', () => {
-  assert.match(app, /^import \{ practiceSkillLaunch \} from '\.\/platform\/assessment\/practiceSkillLaunch\.js';$/m);
-  const handler = region(app, 'const practiseSkillFromResults = (destination) => {', '};', 'practise handler');
+  // The import is asserted in the module that now makes the call (createStudentNavigation).
+  assert.match(navigation, /^import \{ practiceSkillLaunch \} from '\.\.\/\.\.\/platform\/assessment\/practiceSkillLaunch\.js';$/m);
+  const handler = region(navigation, 'const practiseSkillFromResults = (destination) => {', '};', 'practise handler');
   assert.match(handler, /const launch = practiceSkillLaunch\(destination\);\s*if \(!launch\) return;/);
   assert.match(handler, /openStudentDashboardMode\('mathPath'\);\s*setPathLaunchTeks\(launch\.teksCode\);\s*setPathLaunchTab\(launch\.tab\);/);
   // The exam goes with the launch, tied to the standard it was set for (MP14).
@@ -50,7 +55,7 @@ test('App wires the handler to both results screens, imported next to the call',
   // otherwise the launch's tab, otherwise Path.
   assert.match(exec, /<MyMathPathApp[\s\S]{0,800}initialTab=\{(?:mathPathArrival\?\.tab \|\| )?pathLaunchTab \|\| 'path'\}/);
   // A stale CCMR tab never outlives the launch it was set for.
-  const open = region(app, 'const openStudentDashboardMode = (mode) => {', '};', 'open mode');
+  const open = region(navigation, 'const openStudentDashboardMode = (mode) => {', '};', 'open mode');
   assert.match(open, /setPathLaunchTab\(null\);/);
 });
 
@@ -59,7 +64,7 @@ test("the exam a practice test's link starts reaches My Math Path for that launc
   // Only for the standard it was set for: a course launch of another skill never runs in an exam's format.
   assert.match(exec, /<MyMathPathApp[\s\S]{0,700}launchFramework=\{pathLaunchFramework && pathLaunchFramework\.teksCode === pathLaunchTeks \? pathLaunchFramework\.framework : null\}/);
   // Every other destination, Back and the Path's own exit end it.
-  const open = region(app, 'const openStudentDashboardMode = (mode) => {', '};', 'open mode');
+  const open = region(navigation, 'const openStudentDashboardMode = (mode) => {', '};', 'open mode');
   assert.match(open, /setPathLaunchFramework\(null\);/);
   assert.match(exec, /if \(pathLaunchFramework && \(studentDashboardMode !== 'mathPath' \|\| activeView !== 'dashboard'\)\) setPathLaunchFramework\(null\);/);
   assert.match(exec, /onExit=\{\(\) => \{ setPathLaunchTeks\(null\); setPathLaunchTab\(null\); setPathLaunchFramework\(null\);/);

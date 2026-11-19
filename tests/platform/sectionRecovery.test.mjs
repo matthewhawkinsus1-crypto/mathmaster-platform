@@ -56,7 +56,7 @@ import { projectSectionRecoveryForAssignment } from '../../src/platform/grading/
 import { canonicalPresentedAssignmentGrade } from '../../src/platform/grading/canonicalGradeProjection.js';
 import { componentSource, region } from './helpers/sourceContract.mjs';
 import { importsComponent } from './helpers/componentImport.mjs';
-import { appHookSource } from './helpers/appScreens.mjs';
+import { appFactorySource, appHookSource } from './helpers/appScreens.mjs';
 import { functionsBackendSource } from './helpers/functionsBackendSource.mjs';
 
 const require = createRequire(import.meta.url);
@@ -855,7 +855,11 @@ test('the assignment result screen shows the Recovery panel and runner, each imp
   // The summary is decided by the student's Recovery kit, which loads after
   // Home (app/student/studentRecoveryKit.js): the same buildStudentRecoverySummary.
   assert.match(app, /^import \{ loadStudentRecoveryKit, loadedStudentRecoveryKit \} from '\.\/app\/student\/studentRecoveryKitLoader\.js';$/m);
-  assert.match(app, /^import \{ recoveryErrorCode, startSectionRecovery \} from '\.\/services\/sectionRecoveryService\.js';$/m);
+  // Since the App split (slice 5) startStudentRecovery is createStudentNavigation's
+  // (src/app/student/studentNavigation.js), which App calls once, by position:
+  // the service is imported there, where it is called.
+  const navigation = appFactorySource('createStudentNavigation');
+  assert.match(navigation, /^import \{ recoveryErrorCode, startSectionRecovery \} from '\.\.\/\.\.\/services\/sectionRecoveryService\.js';$/m);
   assert.match(resultView, /<SectionRecoveryRunner\b/);
   assert.match(resultView, /recoveryPanel=\{studentRecoverySummary\.length \? \(\s*<SectionRecoveryPanel\b/);
   const summaryMemo = region(app, 'const studentRecoverySummary = useMemo(', '}, [recoveryAssignmentId', 'recovery summary memo');
@@ -871,7 +875,7 @@ test('the assignment result screen shows the Recovery panel and runner, each imp
   // user.timingProfile (D7), not the normalized copy, which falls back to the
   // whole grade document.
   assert.match(summaryMemo, /studentProfile: user\.timingProfile \|\| null/, 'the browser decides with the same support profile as the server');
-  const startHandler = region(app, 'const startStudentRecovery = async', '};', 'start handler');
+  const startHandler = region(navigation, 'const startStudentRecovery = async', '};', 'start handler');
   assert.match(startHandler, /await startSectionRecovery\(\{ assignmentId, section \}\)/);
   assert.match(startHandler, /recoveryErrorCode\(error\)/);
 });

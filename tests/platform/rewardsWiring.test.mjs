@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import { executableSource, region } from './helpers/sourceContract.mjs';
 import { importsComponent } from './helpers/componentImport.mjs';
-import { appHookSource } from './helpers/appScreens.mjs';
+import { appFactorySource, appHookSource } from './helpers/appScreens.mjs';
 import { functionsBackendSource } from './helpers/functionsBackendSource.mjs';
 
 /*
@@ -92,7 +92,8 @@ test("the teacher's gradebook, Assignment Hub and student drawer all pass the wa
 });
 
 test('My Rewards is a student destination with its own screen, imported where it is used', () => {
-  const navigate = region(app, 'const navigateStudent = ', 'const openStudentAssignmentResult', 'navigateStudent');
+  // Since the App split (slice 5) navigateStudent is createStudentNavigation's, which App calls once, by position.
+  const navigate = region(appFactorySource('createStudentNavigation'), 'const navigateStudent = ', 'const openStudentAssignmentResult', 'navigateStudent');
   assert.match(navigate, /STUDENT_DESTINATION\.REWARDS\) return openStudentDashboardMode\('rewards'\)/);
   const branch = region(app, "if (studentDashboardMode === 'rewards') {", "if (studentDashboardMode === 'grades') {", 'rewards branch');
   assert.match(branch, /<StudentRewardsCenter/);

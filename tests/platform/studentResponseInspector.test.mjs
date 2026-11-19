@@ -30,6 +30,7 @@ import {
   firebaseFunctionTargets,
 } from '../../scripts/response-inspector-deploy-surface.mjs';
 import { functionsBackendSource, topLevelDeclaration } from './helpers/functionsBackendSource.mjs';
+import { appFactorySource } from './helpers/appScreens.mjs';
 
 const { weightedQuestionTotals } = questionWeights;
 
@@ -560,8 +561,10 @@ test('Firestore rules pin teacher override projection and default-deny private i
 test('PR250 universal draft-persistence certification and tool cache cleanup remain wired', () => {
   const pkg = JSON.parse(fs.readFileSync(new URL('../../package.json', import.meta.url), 'utf8'));
   assert.equal(pkg.scripts['test:draft-persistence'], 'node scripts/run-draft-persistence-certification.mjs');
-  const app = fs.readFileSync(new URL('../../src/App.jsx', import.meta.url), 'utf8');
-  assert.match(app, /forgetAssignmentToolDrafts/);
+  // Since the App split (slice 5) the preview's cache cleanup is createTeacherPreviewNavigation's
+  // (startTeacherPreview), which App calls once, by position: the call, not only the name.
+  const previewNavigation = appFactorySource('createTeacherPreviewNavigation');
+  assert.match(previewNavigation, /forgetAssignmentToolDrafts\(\{ studentId: 'teacher-preview', assignmentId \}\);/);
   // The inspector is opened from the teacher's screen, its own module since G2.
   const teacherWorkspace = fs.readFileSync(new URL('../../src/app/teacher/TeacherWorkspace.jsx', import.meta.url), 'utf8');
   assert.match(teacherWorkspace, /<StudentResponseInspector/);
