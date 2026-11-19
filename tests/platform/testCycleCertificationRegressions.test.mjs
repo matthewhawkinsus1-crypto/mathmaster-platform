@@ -8,8 +8,9 @@ import {
 import { buildSecureIssuancePlan } from '../../functions/shared/testCycleIssuance.mjs';
 import { TEST_CYCLE_STAGE, resolveTestCycleStage } from '../../functions/shared/testCycleStages.mjs';
 import { executableSource, region } from './helpers/sourceContract.mjs';
+import { functionsBackendSource } from './helpers/functionsBackendSource.mjs';
 
-const functionsIndex = readFileSync(new URL('../../functions/index.js', import.meta.url), 'utf8');
+const functionsIndex = functionsBackendSource();
 
 /*
  * REGRESSIONS FOR THE DEFECTS THE END-TO-END CERTIFICATION FOUND (#224).

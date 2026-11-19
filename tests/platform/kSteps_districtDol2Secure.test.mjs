@@ -62,6 +62,7 @@ import { buildClosedQuestionReview } from '../../src/platform/supports/review/cl
 import { reviewItemResult } from '../../src/platform/assessment/secureExamResultsModel.js';
 import { isMathSegment, splitMathSegments } from '../../src/components/common/mathSegments.js';
 import { executableSource, region } from './helpers/sourceContract.mjs';
+import { functionsBackendPaths, functionsBackendSource, functionsModuleDefining } from './helpers/functionsBackendSource.mjs';
 
 const require = createRequire(import.meta.url);
 const mathPath = require('../../functions/lib/mathPath.js');
@@ -455,7 +456,7 @@ test('the item documents are read in one request, by id, and never written', asy
 /* ------------------------------------------------------------ 4. where it is asked */
 
 test('only the review callable asks for the steps, after every gate, and returns them; no device runs the builder on a secure item', () => {
-  const functionsIndex = read('functions/index.js');
+  const functionsIndex = functionsBackendSource();
   const callable = region(functionsIndex, 'exports.getStudentSecureExamReview = onCall(', '\n});', 'review callable');
   const code = executableSource(callable);
   const asks = code.search(/await secureExamItems\.withReleasedWorkedSteps\(review, \{/);
@@ -478,9 +479,9 @@ test('only the review callable asks for the steps, after every gate, and returns
     if (statSync(new URL(child, ROOT)).isDirectory()) { if (name !== 'node_modules') walk(child); } else if (/\.(m?js|jsx|cjs)$/.test(name)) files.push(child);
   });
   ['src', 'functions/lib', 'functions/shared'].forEach(walk);
-  files.push('functions/index.js');
+  files.push(...functionsBackendPaths());
   const callers = files.filter((file) => /withReleasedWorkedSteps\(|releasedWorkedStepsFor\(/.test(executableSource(read(file))));
-  assert.deepEqual(callers.sort(), ['functions/index.js', 'functions/lib/secureExamItems.js']);
+  assert.deepEqual(callers.sort(), ['functions/lib/secureExamItems.js', functionsModuleDefining('getStudentSecureExamReview').path].sort());
   assert.equal((executableSource(functionsIndex).match(/withReleasedWorkedSteps\(/g) || []).length, 1, 'one call, in the review callable');
   const builder = 'functions/shared/districtDol2WorkedSolution.mjs';
   assert.deepEqual(files.filter((file) => file !== builder && /districtDol2SecureWorkedSolution/.test(executableSource(read(file)))), ['functions/lib/secureExamItems.js']);

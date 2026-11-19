@@ -12,11 +12,12 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { executableSource, region } from './helpers/sourceContract.mjs';
 import { weeklySessionLaunchOptions } from '../../src/platform/path/pathSessionLaunch.js';
+import { functionsBackendSource } from './helpers/functionsBackendSource.mjs';
 
 const read = (path) => readFileSync(new URL(`../../${path}`, import.meta.url), 'utf8');
 
 test('the server freezes a week, alternatives included, through the shared rule', () => {
-  const source = executableSource(read('functions/index.js'));
+  const source = executableSource(functionsBackendSource());
   const tools = region(source, 'const WEEKLY_SLOT_TEKS_TOOLS', 'async function sanitizeWeeklyPathGoalProposal', 'weekly slot TEKS tools');
   assert.match(tools, /canonicalTeks: mathPath\.canonicalAlignmentKey/);
   assert.match(tools, /displayTeks: mathPath\.displayAlignmentKey/);
@@ -38,7 +39,7 @@ test('the server freezes a week, alternatives included, through the shared rule'
 });
 
 test('a weekly launch is authorized by the shared rule and records the swap', () => {
-  const source = executableSource(read('functions/index.js'));
+  const source = executableSource(functionsBackendSource());
   const start = region(source, 'exports.startMyMathPathSession', 'exports.issueNextQuestion', 'start callable');
   const weekly = region(start, 'const requestedWeeklySlotKey', 'const coursePracticeIntent', 'weekly authority block');
 

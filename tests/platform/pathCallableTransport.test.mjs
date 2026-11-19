@@ -1,8 +1,9 @@
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import test from 'node:test';
+import { functionsBackendSource } from './helpers/functionsBackendSource.mjs';
 
-const source = readFileSync(new URL('../../functions/index.js', import.meta.url), 'utf8');
+const source = functionsBackendSource();
 
 test('HTTPS callable transport is source-controlled as public', () => {
   // The one global-options statement must keep the public invoker (it also

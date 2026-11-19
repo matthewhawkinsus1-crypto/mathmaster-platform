@@ -4,12 +4,13 @@ import { readFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 
 import { executableSource, region } from './helpers/sourceContract.mjs';
+import { functionsBackendSource, topLevelDeclaration } from './helpers/functionsBackendSource.mjs';
 
 const require_ = createRequire(import.meta.url);
 const navigation = require_('../../functions/lib/secureExamNavigation.js');
 const secureExam = require_('../../functions/lib/secureExam.js');
 const secureExamItems = require_('../../functions/lib/secureExamItems.js');
-const functionsIndex = readFileSync(new URL('../../functions/index.js', import.meta.url), 'utf8');
+const functionsIndex = functionsBackendSource();
 const rules = readFileSync(new URL('../../firestore.rules', import.meta.url), 'utf8');
 
 /*
@@ -208,10 +209,10 @@ test('the correct answer is shown as the choice the student would recognise, nev
 test('finalize, the timer and a proctor force-submit end a session the same way', () => {
   const finalize = region(functionsIndex, 'exports.finalizeSecureExam = onCall(', '/** Teacher-only live monitor summaries.', 'finalize');
   assert.match(finalize, /await finalizeSecureSessionInTransaction\(transaction, ref, session, \{/);
-  const proctor = region(functionsIndex, 'exports.proctorExamAction = onCall(', '// --- Test Cycle', 'proctor');
+  const proctor = topLevelDeclaration(functionsIndex, 'exports.proctorExamAction');
   assert.match(proctor, /if \(action === "forceSubmit"\) updated = \{ \.\.\.\(await finalizeSecureSessionInTransaction\(transaction, ref, updated, \{ status: "force_submitted", now \}\)\)/);
   // The new client never records-and-locks; only the legacy call grades early.
-  assert.doesNotMatch(executableSource(region(functionsIndex, 'exports.saveSecureExamDraft = onCall(', 'async function autoReleaseSecureSession(', 'save')), /gradeIssuedItem|buildResponseRecord/);
+  assert.doesNotMatch(executableSource(topLevelDeclaration(functionsIndex, 'exports.saveSecureExamDraft')), /gradeIssuedItem|buildResponseRecord/);
 });
 
 test('only a practice test releases itself, never a course Test', () => {

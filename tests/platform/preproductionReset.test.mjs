@@ -3,10 +3,11 @@ import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
 import { readFileSync } from 'node:fs';
 import { spawnSync } from 'node:child_process';
+import { functionsBackendPaths, functionsBackendSource, topLevelDeclaration } from './helpers/functionsBackendSource.mjs';
 
 const require = createRequire(import.meta.url);
 const admin = require('../../functions/lib/admin.js');
-const functionsSource = readFileSync(new URL('../../functions/index.js', import.meta.url), 'utf8');
+const functionsSource = functionsBackendSource();
 const authService = readFileSync(new URL('../../src/auth/authService.js', import.meta.url), 'utf8');
 const app = readFileSync(new URL('../../src/App.jsx', import.meta.url), 'utf8');
 const panel = readFileSync(new URL('../../src/components/admin/PreproductionReset.jsx', import.meta.url), 'utf8');
@@ -292,9 +293,7 @@ test('permanent student deletion erases the complete Class Points footprint, gat
   // ordinary identity records still exist. If Class Points cleanup fails,
   // retry must not be blocked by the initial "student account not present"
   // guard because roster/directory/alias were already erased.
-  const callableStart = functionsSource.indexOf('exports.permanentlyDeleteStudent');
-  const callableEnd = functionsSource.indexOf('exports.getGoogleAuthUrl', callableStart);
-  const callableBlock = functionsSource.slice(callableStart, callableEnd);
+  const callableBlock = topLevelDeclaration(functionsSource, 'exports.permanentlyDeleteStudent');
   const classPointsCleanup = callableBlock.indexOf('await deleteStudentClassPointsFootprint(db, studentId, deleted)');
   const rosterDelete = callableBlock.indexOf('await recursiveDeleteDocument(db, rosterRef');
   const directoryDelete = callableBlock.indexOf(
@@ -324,11 +323,14 @@ test('a roster class change (move or remove) never calls the permanent Class Poi
 });
 
 test('Firebase Functions source remains syntactically valid after destructive callable changes', () => {
-  const result = spawnSync(process.execPath, ['--check', 'functions/index.js'], {
-    cwd: new URL('../../', import.meta.url),
-    encoding: 'utf8',
-  });
-  assert.equal(result.status, 0, result.stderr || result.stdout);
+  // index.js and every module it loads: the callables are in the domain modules.
+  for (const path of functionsBackendPaths()) {
+    const result = spawnSync(process.execPath, ['--check', path], {
+      cwd: new URL('../../', import.meta.url),
+      encoding: 'utf8',
+    });
+    assert.equal(result.status, 0, `${path}: ${result.stderr || result.stdout}`);
+  }
 });
 
 console.log('preproductionReset.test.mjs: all assertions passed');

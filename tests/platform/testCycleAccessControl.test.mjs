@@ -4,8 +4,9 @@ import { readFileSync } from 'node:fs';
 
 import { assertCapability, componentSource, executableSource, region } from './helpers/sourceContract.mjs';
 import { teacherActionsForRow } from '../../src/platform/teacher/testCycleTeacherRows.js';
+import { functionsBackendSource, topLevelDeclaration } from './helpers/functionsBackendSource.mjs';
 
-const functionsIndex = readFileSync(new URL('../../functions/index.js', import.meta.url), 'utf8');
+const functionsIndex = functionsBackendSource();
 const dashboard = componentSource('src/components/assessment/StudentSecureExamDashboard.jsx');
 const card = componentSource('src/components/student/TestCycleCard.jsx');
 const controls = componentSource('src/components/teacher/TestCycleControls.jsx');
@@ -104,12 +105,7 @@ test('releasing a course test requires the teacher of record for that class; a p
   assert.match(guard, /if \(!teachesStudent && String\(session\.createdBy \|\| ""\) !== String\(teacherUid\)\) \{/);
   assert.equal((guard.match(/permission-denied/g) || []).length, 2);
 
-  const proctor = region(
-    functionsIndex,
-    'exports.proctorExamAction = onCall(',
-    '// --- Test Cycle',
-    'proctorExamAction',
-  );
+  const proctor = topLevelDeclaration(functionsIndex, 'exports.proctorExamAction');
   // Checked before the transaction, so an unauthorized release never runs.
   const beforeTransaction = proctor.slice(0, proctor.indexOf('db.runTransaction'));
   assert.match(beforeTransaction, /const scope = await secureExamProctorScope\(db, request, proctorSession, teacherUid\);/);
@@ -141,23 +137,13 @@ test('the proctor monitor does not show another class their course tests', () =>
 });
 
 test('a superseded session cannot be released over the replacement attempt', () => {
-  const proctor = region(
-    functionsIndex,
-    'exports.proctorExamAction = onCall(',
-    '// --- Test Cycle',
-    'proctorExamAction',
-  );
+  const proctor = topLevelDeclaration(functionsIndex, 'exports.proctorExamAction');
   assert.match(proctor, /courseTestSessionIsCurrent\(db, proctorSession\)/);
   assert.match(proctor, /replaced by a reset/);
 
   // And the release helper refuses independently: a stale score reaching the
   // record is not something a student can recover from.
-  const release = region(
-    functionsIndex,
-    'async function applyTestCycleFeedbackRelease(',
-    'async function syncTestCycleSessionState',
-    'release',
-  );
+  const release = topLevelDeclaration(functionsIndex, 'function applyTestCycleFeedbackRelease');
   // Exact match: an EMPTIED stage (a reset clears its session id) is not a
   // wildcard. The old `currentSessionId && ...` form let the superseded session
   // through precisely when the stage had just been emptied.
@@ -165,12 +151,7 @@ test('a superseded session cannot be released over the replacement attempt', () 
   assert.doesNotMatch(executableSource(release), /currentSessionId && currentSessionId !==/);
 
   // So does the state mirror, so a superseded session cannot move the card.
-  const sync = region(
-    functionsIndex,
-    'async function syncTestCycleSessionState(',
-    'async function buildCourseTestExamItem(',
-    'sync',
-  );
+  const sync = topLevelDeclaration(functionsIndex, 'function syncTestCycleSessionState');
   assert.match(sync, /String\(current\.examSessionId \|\| ""\) !== String\(session\.examSessionId \|\| ""\)\) return null;/);
   assert.doesNotMatch(executableSource(sync), /current\.examSessionId && current\.examSessionId !==/);
 });

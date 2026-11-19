@@ -13,6 +13,7 @@ import {
   resolveLiveSectionAccess,
 } from '../../functions/shared/submissionEnvelope.mjs';
 import { executableSource, region } from './helpers/sourceContract.mjs';
+import { functionsBackendSource } from './helpers/functionsBackendSource.mjs';
 
 /*
  * THE ACTIVITY A SUBMISSION IS JUDGED UNDER IS ITS QUESTION'S.
@@ -147,7 +148,7 @@ test('an envelope naming a different role than its question is still held for a 
 });
 
 test('ingestOneSubmission reads the section window and the DOL bucket under the judged role', () => {
-  const source = fs.readFileSync('functions/index.js', 'utf8');
+  const source = functionsBackendSource();
   const body = executableSource(region(
     source,
     'async function ingestOneSubmission({ db, studentId, envelope, now',

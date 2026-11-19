@@ -16,6 +16,7 @@ import {
 } from '../../scripts/migrate-integrity-override-notes.mjs';
 import { ASSIGNMENT_ZERO_REASON_LABELS, teacherGradeReasonLabel } from '../../src/platform/student/studentGradeCenterModel.js';
 import { executableSource, region } from './helpers/sourceContract.mjs';
+import { functionsBackendSource, topLevelDeclaration } from './helpers/functionsBackendSource.mjs';
 
 // An integrity zero lives on grades/{studentId}, which the student reads. Its
 // teacher-only details (the free-text note, who acted, the participant role)
@@ -67,8 +68,8 @@ test('a new integrity zero puts only the consequence and its fixed reason on the
 });
 
 test('overrideStudentAssignmentGrade writes the split: grade entries from studentOverride, details on the incident', () => {
-  const functions = readFileSync(new URL('../../functions/index.js', import.meta.url), 'utf8');
-  const callable = region(functions, 'exports.overrideStudentAssignmentGrade = onCall', '// Class Points:', 'integrity callable');
+  const functions = functionsBackendSource();
+  const callable = topLevelDeclaration(functions, 'exports.overrideStudentAssignmentGrade');
   const gradeWrites = executableSource(region(callable, 'if (scope === "section") {', 'transaction.update(gradeRef,', 'integrity grade-doc entries'));
   // Every entry the grade doc receives is built from the student-readable half.
   assert.match(gradeWrites, /assignmentOverrides\[String\(index\)\] = \{ \.\.\.studentOverride \}/);

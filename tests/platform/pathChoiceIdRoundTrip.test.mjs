@@ -21,6 +21,7 @@ import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
 import { readFileSync } from 'node:fs';
 import { executableSource, region } from './helpers/sourceContract.mjs';
+import { functionsBackendSource } from './helpers/functionsBackendSource.mjs';
 
 const require = createRequire(import.meta.url);
 const mathPath = require('../../functions/lib/mathPath.js');
@@ -126,7 +127,7 @@ test('a raw bank option that merely looks issued is still replaced: no author id
 });
 
 test('issueNextQuestion re-sends its stored item with issued: true, and sanitizes a fresh issue without it', () => {
-  const source = executableSource(readFileSync(new URL('../../functions/index.js', import.meta.url), 'utf8'));
+  const source = executableSource(functionsBackendSource());
   const issueNext = region(source, 'exports.issueNextQuestion', '\nexports.', 'issueNextQuestion');
   const calls = [...issueNext.matchAll(/mathPath\.buildSanitizedQuestion\((\w+),\s*\{([\s\S]*?)\}\)/g)];
   // The stored item reaches the browser on first issue and on both resume paths.

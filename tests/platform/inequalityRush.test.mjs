@@ -60,6 +60,7 @@ import {
   toggleAxisArrow,
 } from '../../src/platform/liveChallenge/rushSession.js';
 import { executableSource, region } from './helpers/sourceContract.mjs';
+import { functionsBackendSource } from './helpers/functionsBackendSource.mjs';
 
 /*
  * INEQUALITY GRAPHING RUSH (docs/architecture/inequality-rush.md).
@@ -584,7 +585,7 @@ test('a round publishes a guide to graphing the kinds in the game, titled as one
 /* ------------------------------ the server ------------------------------ */
 
 test('the server plans, issues, grades, reveals and reports an inequality room through the rush\'s own code', () => {
-  const index = executableSource(read('functions/index.js'));
+  const index = executableSource(functionsBackendSource());
   const planners = region(index, 'const GENERATED_QUESTION_PLANNERS = Object.freeze({', '\n});', 'the generated planners');
   assert.match(planners, /\binequalityGenerator: INEQUALITY_RUSH_PLANNER,/);
   const planner = region(index, 'const INEQUALITY_RUSH_PLANNER = Object.freeze({', '\n});\n', 'the planner');

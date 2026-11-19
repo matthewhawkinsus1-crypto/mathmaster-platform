@@ -1,8 +1,9 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
+import { functionsBackendSource } from './helpers/functionsBackendSource.mjs';
 
-const index = fs.readFileSync('functions/index.js', 'utf8');
+const index = functionsBackendSource();
 
 test('Functions discovery does not eagerly load the heavy Google Classroom module', () => {
   assert.doesNotMatch(index, /const\s+classroomLib\s*=\s*require\(["']\.\/lib\/classroom["']\)/);

@@ -3,9 +3,10 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 
 import { STUDENT_IDENTITY_FIELDS, TEACHER_ROSTER_SELECT_FIELDS } from '../../functions/shared/studentIdentity.mjs';
+import { functionsBackendSource } from './helpers/functionsBackendSource.mjs';
 
 const app = fs.readFileSync('src/App.jsx', 'utf8');
-const functions = fs.readFileSync('functions/index.js', 'utf8');
+const functions = functionsBackendSource();
 
 const between = (source, startText, endText, label) => {
   const start = source.indexOf(startText);

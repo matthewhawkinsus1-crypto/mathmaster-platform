@@ -185,6 +185,7 @@ import {
 } from '../../functions/shared/solverRace.mjs';
 import { revealableRounds, roundQuestionKeys } from '../../functions/shared/liveChallengeSolutionReveal.mjs';
 import { executableSource as srcOf, region as regionOf } from './helpers/sourceContract.mjs';
+import { functionsBackendSource } from './helpers/functionsBackendSource.mjs';
 
 const repeatedKeys = (race) => {
   const keys = race.flatMap(solverRaceQuestionKeys);
@@ -294,7 +295,7 @@ test('a dry-run swap never brings in an equation another round asks', () => {
     assert.equal(keys.some((key) => taken.has(key)), false, `swap ${index} is new (${question.equation} -> ${question.expectedFinalRelation})`);
     keys.forEach((key) => taken.add(key));
   }
-  const index = srcOf(readFileSync(new URL('../../functions/index.js', import.meta.url), 'utf8'));
+  const index = srcOf(functionsBackendSource());
   const swap = regionOf(index, 'async swap({ dryRun, roundIndex }) {', 'const GRAPH_FEATURE_RUSH_PLANNER');
   assert.match(swap, /\.filter\(\(_, index\) => index !== roundIndex\)\s*\.flatMap\(\(question\) => solverRace\.solverRaceQuestionKeys\(question\)\)/);
   assert.match(swap, /solverRace\.generateDistinctSolverRaceQuestion\(\{\s*structure: alternate,[\s\S]*?usedKeys,\s*\}\)/);
@@ -314,7 +315,7 @@ test('standard Live Challenge: a round on the same bank template as a later roun
   assert.match(mixed[0][0], /^linearEquation\|/);
   // The bank planner itself never schedules one template twice: it draws
   // distinct bank documents, and a swap takes the first one not in use.
-  const index = srcOf(readFileSync(new URL('../../functions/index.js', import.meta.url), 'utf8'));
+  const index = srcOf(functionsBackendSource());
   const select = regionOf(index, 'function selectChallengeQuestions(entries, requestedCount) {', '\n}\n');
   assert.match(select, /return \[\.\.\.firstByFamily, \.\.\.repeats\]\.slice\(0, requestedCount\);/);
   const bankSwap = regionOf(index, 'secureBank: Object.freeze({', 'solverRaceGenerator: Object.freeze({');

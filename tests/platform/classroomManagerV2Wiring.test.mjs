@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
+import { functionsBackendSource } from './helpers/functionsBackendSource.mjs';
 
 const read = (path) => fs.readFileSync(path, 'utf8');
 
@@ -38,7 +39,7 @@ test('classroom API exports V2 callables', () => {
 });
 
 test('server uses per-teacher Classroom client and stores teacherUid on publications', () => {
-  const src = read('functions/index.js');
+  const src = functionsBackendSource();
   assert.match(src, /getClassroomClient\(teacherUid\)/);
   assert.match(src, /teacherUid,\s*assignmentId/);
   assert.match(src, /classroomCourseMappings/);
@@ -58,14 +59,14 @@ test('student Classroom launch is audience checked before opening', () => {
 
 
 test('publishing fails closed through MathMaster class mapping and class-ID audience first', () => {
-  const src = read('functions/index.js');
+  const src = functionsBackendSource();
   assert.match(src, /Map this Google Classroom course to a MathMaster class first/);
   assert.match(src, /const mappedClassId = String\(mapping\.classId[\s\S]*const mappingMatchesAudience = Boolean\(mappedClassId && audience\.classIds\.includes\(mappedClassId\)\)/);
   assert.doesNotMatch(src, /mappingMatchesAudience[\s\S]{0,240}audience\.classPeriods\.includes/);
 });
 
 test('roster batch verifies the MathMaster student belongs to the mapped class', () => {
-  const src = read('functions/index.js');
+  const src = functionsBackendSource();
   assert.match(src, /studentBelongsToMappedClass/);
   assert.match(src, /is not enrolled in the mapped class/);
 });
@@ -76,13 +77,13 @@ test('legacy OAuth credentials can only migrate to one teacher', () => {
 });
 
 test('schema v3 publications do not use the legacy global student google id fallback', () => {
-  const src = read('functions/index.js');
+  const src = functionsBackendSource();
   assert.match(src, /Number\(publication\.schemaVersion\) < 2/);
 });
 
 
 test('Classroom mapping list returns a primitive public contract instead of raw Firestore documents', () => {
-  const src = read('functions/index.js');
+  const src = functionsBackendSource();
   assert.match(src, /function classroomMappingResponse/);
   assert.match(src, /updatedAtMillis/);
   assert.match(src, /snap\.docs\.map\(classroomMappingResponse\)/);
@@ -93,7 +94,7 @@ test('Classroom mapping list returns a primitive public contract instead of raw 
 });
 
 test('Classroom mapping failures include a safe server stage and error code', () => {
-  const server = read('functions/index.js');
+  const server = functionsBackendSource();
   const client = read('src/classroomApi.js');
   assert.match(server, /stage: "load-course-mappings"/);
   assert.match(server, /errorCode:/);

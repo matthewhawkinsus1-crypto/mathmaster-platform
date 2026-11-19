@@ -22,11 +22,12 @@ import { createRequire } from 'node:module';
 
 import { FAKE_FIELD_VALUE, FakeFirestore, topLevelFunction } from './helpers/serverCallableHarness.mjs';
 import { region } from './helpers/sourceContract.mjs';
+import { functionsBackendSource } from './helpers/functionsBackendSource.mjs';
 
 const require = createRequire(import.meta.url);
 const admin = require('../../functions/lib/admin.js');
 const studentSessionSummary = require('../../functions/lib/studentSessionSummary.js');
-const SERVER = readFileSync(new URL('../../functions/index.js', import.meta.url), 'utf8');
+const SERVER = functionsBackendSource();
 const SUMMARIES = SERVER.match(/^const STUDENT_SESSION_SUMMARY_COLLECTION = "([^"]+)";/m)[1];
 
 const archiveWith = (db) => new Function(

@@ -50,6 +50,7 @@ import {
 } from '../../src/platform/liveChallenge/rushSession.js';
 import { rushCreateRequest, rushSetupFromPreset, changeRushSetup } from '../../src/platform/liveChallenge/rushSetupModel.js';
 import { region } from './helpers/sourceContract.mjs';
+import { functionsBackendSource } from './helpers/functionsBackendSource.mjs';
 
 /*
  * ARROWS AND ENDPOINTS, RESTRICTED DOMAINS, ASYMPTOTES, AND FEATURES OFF THE
@@ -511,7 +512,7 @@ test('generator 3: rooms created under an older generator refuse to play rather 
   // 3 brought every change in this file; a later version keeps them (a bump
   // must not turn this red: AGENTS.md, versioned constants).
   assert.ok(GRAPH_FEATURE_GENERATOR_VERSION >= 3);
-  const index = read('functions/index.js');
+  const index = functionsBackendSource();
   // A room is played only under the generator version it was created with —
   // its own game's: for Graph Feature Rush, this generator's.
   const context = region(index, 'async function loadGraphFeatureRushContext(', '\n}\n', 'the rush context');

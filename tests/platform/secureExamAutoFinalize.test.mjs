@@ -4,6 +4,7 @@ import { readFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 
 import { executableSource, region } from './helpers/sourceContract.mjs';
+import { functionsBackendSource, topLevelDeclaration } from './helpers/functionsBackendSource.mjs';
 
 /*
  * AN EXPIRED, ABANDONED TIMED TEST IS FINISHED BY THE SERVER (pass 3, batch 3).
@@ -132,7 +133,7 @@ test('the sweep for sessions started before the hint pages, restarts, and ends o
 
 /* --- the wiring, which CI sees (the emulator suite is not in CI) ----------- */
 
-const functionsSource = executableSource(readFileSync(new URL('../../functions/index.js', import.meta.url), 'utf8'));
+const functionsSource = executableSource(functionsBackendSource());
 
 test('the finalizer is a private scheduler that reads the hint, a bounded batch at a time', () => {
   const scheduler = region(functionsSource, 'exports.finalizeAbandonedSecureExams = onSchedule(', '});', 'the scheduler');
@@ -168,7 +169,7 @@ test('every path that moves the deadline moves the hint, and every finish clears
   assert.match(start, /const next = \{ \.\.\.started, autoFinalizeAt: secureExam\.autoFinalizeAtFor\(started, now\) \};\s*transaction\.set\(ref, next\);/);
   // A resume of a session started before the hint stores it, and only then.
   assert.match(start, /if \(current\.autoFinalizeAt !== undefined\) return current;\s*const resumed = \{ \.\.\.current, autoFinalizeAt: secureExam\.autoFinalizeAtFor\(current, Date\.now\(\)\) \};\s*transaction\.set\(ref, \{ autoFinalizeAt: resumed\.autoFinalizeAt \}, \{ merge: true \}\);/);
-  const proctor = region(functionsSource, 'exports.proctorExamAction = onCall', 'exports.', 'proctor actions');
+  const proctor = topLevelDeclaration(functionsSource, 'exports.proctorExamAction');
   assert.match(proctor, /if \(action !== "forceSubmit"\) updated = \{ \.\.\.updated, autoFinalizeAt: secureExam\.autoFinalizeAtFor\(updated, now\) \};/);
   const holds = region(functionsSource, 'async function holdCourseTestClocks', '\n}\n', 'the assignment hold');
   assert.match(holds, /autoFinalizeAt: secureExam\.autoFinalizeAtFor\(\{ \.\.\.session, \.\.\.change \}, now\)/);

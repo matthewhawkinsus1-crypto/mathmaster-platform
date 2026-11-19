@@ -42,6 +42,7 @@ import {
 } from '../../functions/shared/liveChallengePlayerSummary.mjs';
 import { roundResultsView } from '../../src/platform/liveChallenge/challengeStandingsModel.js';
 import { executableSource, region } from './helpers/sourceContract.mjs';
+import { functionsBackendSource } from './helpers/functionsBackendSource.mjs';
 
 // A small deterministic generator: the same rounds every run.
 const seeded = (seed) => () => {
@@ -252,7 +253,7 @@ test('the own summary decodes its round and final, and says which rounds closed 
 });
 
 test('4. the server writes the class copy, the teacher\'s copy and each own summary at a close, and own finals at the finish', async () => {
-  const server = executableSource(await readFile(new URL('../../functions/index.js', import.meta.url), 'utf8'));
+  const server = executableSource(functionsBackendSource());
   const close = region(server, 'function applyLiveChallengeRoundClose(transaction, {', '\n}\n', 'round close');
   assert.match(close, /transaction\.set\(roomRef\.collection\(LIVE_CHALLENGE_HOST_ROUNDS\)\.doc\(String\(roundIndex\)\), \{\s*\.\.\.hostSummary,/);
   assert.match(close, /transaction\.set\(roomRef\.collection\("rounds"\)\.doc\(String\(roundIndex\)\), \{\s*\.\.\.engine\.results\.classRoundSummary\(roundResult, \{ standingsAfterRound \}\),/);

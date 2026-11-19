@@ -17,11 +17,12 @@ import { readFileSync } from 'node:fs';
 import { componentSource, executableSource, region } from './helpers/sourceContract.mjs';
 import { assignedTestCycleRow, testCycleDeliveryText, testCycleRowsKey, testCyclesWithoutSession } from '../../src/platform/student/assignedTestCyclesModel.js';
 import { getAssignmentLifecycle } from '../../src/assignmentLifecycle.js';
+import { functionsBackendSource } from './helpers/functionsBackendSource.mjs';
 
 const dashboard = componentSource('src/components/assessment/StudentSecureExamDashboard.jsx');
 const app = componentSource('src/App.jsx');
 const service = readFileSync(new URL('../../src/services/testCycleService.js', import.meta.url), 'utf8');
-const functionsIndex = readFileSync(new URL('../../functions/index.js', import.meta.url), 'utf8');
+const functionsIndex = functionsBackendSource();
 
 const testCycle = (id, extra = {}) => ({
   id,

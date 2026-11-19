@@ -20,6 +20,7 @@
  *   `base.NAME`, where `const base = require('./entry.js')`, reaches that one
  *   export of entry.js; `Object.assign(exports, base)` and
  *   `module.exports = { ... }` say which declaration each exported name is.
+ *   A helper module listed in STATEMENT_LEVEL_MODULES is read the same way.
  *   Every other file is a single node and depends on every file it loads:
  *   `import` and `export ... from`, `require()` at the top or inside a
  *   function, a literal `import()`, and the loader maps in COMPUTED_LOADERS.
@@ -101,6 +102,24 @@ export const COMPUTED_LOADERS = Object.freeze([
     describe: 'the weekly planner (PLANNER_ENTRIES, vendored into functions/vendor at predeploy)',
   }),
 ]);
+
+/*
+ * Helper modules read statement by statement, like an entry file.
+ *
+ * A file whose exports are merged into `main`'s is an entry file wherever it
+ * is: index.js's domain modules are read that way with nothing listed here.
+ * The module below is not one. It holds the helpers more than one domain
+ * module uses, and the domains take them by name:
+ * `const { helper } = require("./functionsCommon")`. Read as a single node,
+ * a change to any helper in it would reach every function that uses any
+ * other. Read by statement, it reaches the functions that use that helper.
+ *
+ * A module belongs here only if it exports its declarations by name
+ * (`module.exports = { a, b }` or `exports.a = ...`) and its top-level code
+ * does nothing but declare. If it gains a top-level statement that acts, that
+ * statement is treated as every function's, as in an entry file.
+ */
+export const STATEMENT_LEVEL_MODULES = Object.freeze(['functions/functionsCommon.js']);
 
 // Files under functions/ that the deployed code never loads.
 const NOT_RUNTIME = [/\.md$/i, /\.txt$/i, /\.png$/i, /(^|\/)\.gitignore$/, /\.example$/];
@@ -741,7 +760,7 @@ const statementFingerprint = (record) => {
  * `closure(name)` is everything the export `name` reaches, as a map from each
  * node to the node it was reached from, so a reason can be traced back.
  */
-export const buildFunctionsImportGraph = ({ source, codebaseDir = DEFAULT_CODEBASE_DIR, computedLoaders = COMPUTED_LOADERS } = {}) => {
+export const buildFunctionsImportGraph = ({ source, codebaseDir = DEFAULT_CODEBASE_DIR, computedLoaders = COMPUTED_LOADERS, statementLevelModules = STATEMENT_LEVEL_MODULES } = {}) => {
   const uncertain = [];
   const unsure = (why) => {
     if (!uncertain.includes(why)) uncertain.push(why);
@@ -830,6 +849,9 @@ export const buildFunctionsImportGraph = ({ source, codebaseDir = DEFAULT_CODEBA
   const lookup = (table, memberPath) => {
     let value = { table };
     for (const member of memberPath) {
+      // A member of a declaration (`helper.name`, where `helper` is one
+      // exported statement) is still that declaration.
+      if (value?.node) return value;
       if (!value?.table) return null;
       value = value.table.get(member) || null;
     }
@@ -914,6 +936,12 @@ export const buildFunctionsImportGraph = ({ source, codebaseDir = DEFAULT_CODEBA
     return out;
   };
   const exportNames = [...mainTable.entries()].filter(([, value]) => value.node).map(([name]) => name).sort();
+  // The helper modules read by statement join the entry files here, before
+  // any closure is walked, so that a top-level statement of theirs that acts
+  // is among what every function runs (globals, below).
+  statementLevelModules.forEach((file) => {
+    if (source.has(file)) exportTableOf(file);
+  });
   const isEntry = (file) => entryFiles.has(file);
 
   /* -- Edges. ------------------------------------------------------------- */

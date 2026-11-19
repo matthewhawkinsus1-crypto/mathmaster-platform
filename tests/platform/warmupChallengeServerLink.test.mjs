@@ -3,8 +3,9 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 
 import { normalizeWarmupChallengeConfig } from '../../functions/shared/warmupChallenge.mjs';
+import { functionsBackendSource } from './helpers/functionsBackendSource.mjs';
 
-const source = readFileSync(new URL('../../functions/index.js', import.meta.url), 'utf8');
+const source = functionsBackendSource();
 
 // Assert against code, never against the comments that describe it — a comment
 // claiming a rule is not the rule.

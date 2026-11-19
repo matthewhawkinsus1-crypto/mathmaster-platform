@@ -29,8 +29,9 @@ import {
 import { buildRoundTimer, timerAcceptsArrival } from '../../functions/shared/liveChallengeTimer.mjs';
 import { lockedAnswerLine } from '../../src/platform/liveChallenge/challengeShellModel.js';
 import { executableSource, region } from './helpers/sourceContract.mjs';
+import { functionsBackendSource } from './helpers/functionsBackendSource.mjs';
 
-const server = executableSource(await readFile(new URL('../../functions/index.js', import.meta.url), 'utf8'));
+const server = executableSource(functionsBackendSource());
 const refusalSource = region(server, 'const liveChallengeArrivalRefusal', ';\n', 'the arrival refusal');
 const wordsSource = region(server, 'const LIVE_CHALLENGE_ARRIVAL_WORDS', '});\n', 'the arrival words');
 const wordFor = (reason) => wordsSource.match(new RegExp(`${reason}: "([^"]+)"`))?.[1];

@@ -32,6 +32,7 @@ import { calculateNextRetentionDueDate } from '../../src/platform/retention/rete
 import { collectWeeklyPathSessions } from '../../functions/shared/weeklyPathCompletion.mjs';
 import { evaluateWeeklyGoalProgress, matchWeeklyGoalCompletions } from '../../functions/shared/weeklyPathGrade.mjs';
 import { executableSource, region } from './helpers/sourceContract.mjs';
+import { functionsBackendSource } from './helpers/functionsBackendSource.mjs';
 
 const require = createRequire(import.meta.url);
 const mathPath = require('../../functions/lib/mathPath.js');
@@ -117,7 +118,7 @@ test('the shared horizon, the server helper and the client scheduler agree: 14, 
 
 // --- The secure server applies the rule at both ends --------------------------
 
-const server = executableSource(read('functions/index.js'));
+const server = executableSource(functionsBackendSource());
 const start = region(server, 'exports.startMyMathPathSession', 'exports.issueNextQuestion', 'startMyMathPathSession');
 const submit = region(server, 'exports.submitPathResponse', 'exports.submitModelingLab', 'submitPathResponse');
 

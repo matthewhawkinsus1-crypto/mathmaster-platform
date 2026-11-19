@@ -39,13 +39,14 @@ import {
   getQuestionCredit as clientCredit,
   normalizeQuestionRecord,
 } from '../../functions/shared/attemptPolicy.mjs';
+import { functionsBackendSource } from './helpers/functionsBackendSource.mjs';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
 const require = createRequire(import.meta.url);
 const runtime = require(path.join(root, 'functions/lib/classroomGradeRuntime.js'));
 
 // functions/index.js's own credit functions, from its source.
-const indexSource = readFileSync(path.join(root, 'functions/index.js'), 'utf8');
+const indexSource = functionsBackendSource();
 const grab = (start) => {
   const at = indexSource.indexOf(start);
   assert.ok(at >= 0, `functions/index.js defines ${start}`);

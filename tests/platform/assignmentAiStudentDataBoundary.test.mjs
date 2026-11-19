@@ -4,10 +4,11 @@ import fs from 'node:fs';
 
 import { buildQuestionRepairRequest } from '../../src/platform/contract/questionRepairRequest.js';
 import { assignmentQuestionEditorSource } from './helpers/splitComponentSource.mjs';
+import { functionsBackendSource } from './helpers/functionsBackendSource.mjs';
 
 const preflight = fs.readFileSync('src/components/teacher/LessonPreflightModal.jsx', 'utf8');
 const editor = assignmentQuestionEditorSource();
-const functionsIndex = fs.readFileSync('functions/index.js', 'utf8');
+const functionsIndex = functionsBackendSource();
 
 // The site now carries real student records. Nothing on an AI path may carry a
 // student identity, an IEP/504/EB designation, an accommodation list or a grade

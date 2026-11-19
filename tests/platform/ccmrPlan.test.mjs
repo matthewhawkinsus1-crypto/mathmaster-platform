@@ -25,6 +25,7 @@ import {
   validateCcmrPlanInput,
 } from '../../functions/shared/ccmrPlan.mjs';
 import { ASSESSMENT_FRAMEWORKS } from '../../src/platform/ccmr/assessmentCrosswalk.js';
+import { functionsBackendSource } from './helpers/functionsBackendSource.mjs';
 
 // Noon in Chicago on 7 October 2026 (CDT, UTC-5).
 const NOON = Date.parse('2026-10-07T17:00:00Z');
@@ -48,7 +49,7 @@ test('the plan names exactly the frameworks the browser offers and the server la
   // Three copies of one list would drift. The browser's checkboxes, the plan
   // validator and the session launcher must agree on what a framework is.
   assert.deepEqual([...CCMR_PLAN_FRAMEWORKS], [...ASSESSMENT_FRAMEWORKS]);
-  const index = readFileSync(new URL('../../functions/index.js', import.meta.url), 'utf8');
+  const index = functionsBackendSource();
   const serverSet = index.match(/const PATH_ASSESSMENT_FRAMEWORKS = new Set\(\[([^\]]*)\]\)/);
   assert.ok(serverSet, 'the session launcher keeps its framework set');
   const serverFrameworks = serverSet[1].split(',').map((entry) => entry.trim().replace(/^"|"$/g, '')).filter(Boolean);

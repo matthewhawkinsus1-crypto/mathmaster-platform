@@ -17,6 +17,7 @@ import { resolveStudentFinalDeadlineFromAssignment } from '../../src/platform/gr
 import { withStudentSupportDates } from '../../functions/shared/supportDeadline.mjs';
 import { buildSupportProjection } from '../../functions/shared/supportProfileModel.mjs';
 import { region, executableSource } from './helpers/sourceContract.mjs';
+import { functionsBackendSource } from './helpers/functionsBackendSource.mjs';
 
 const CHICAGO = 'America/Chicago';
 const profileWithExtraTime = (dueDateExtension = { mode: 'school-days', value: 1 }) => buildSupportProjection({
@@ -90,7 +91,7 @@ test('with no support profile every reader behaves exactly as before', () => {
 
 // --- Wiring: every reader that decides credit actually receives the profile -----------------
 
-const server = readFileSync(new URL('../../functions/index.js', import.meta.url), 'utf8');
+const server = functionsBackendSource();
 const finalizer = readFileSync(new URL('../../functions/shared/responseCheckpointFinalizer.mjs', import.meta.url), 'utf8');
 const app = readFileSync(new URL('../../src/App.jsx', import.meta.url), 'utf8');
 

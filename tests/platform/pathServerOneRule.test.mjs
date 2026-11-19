@@ -27,6 +27,7 @@ import { buildUnifiedMasteryProfiles } from '../../src/platform/mastery/unifiedM
 import { evaluateStudentRetentionSchedule } from '../../src/platform/retention/retentionScheduler.js';
 import { buildStudentPathOptions } from '../../src/platform/path/studentPathOptions.js';
 import { getSkillGraph, teksCodeFromSkillId } from '../../src/platform/path/skillGraph.js';
+import { functionsBackendSource } from './helpers/functionsBackendSource.mjs';
 
 const require = createRequire(import.meta.url);
 const mathPath = require('../../functions/lib/mathPath.js');
@@ -35,7 +36,7 @@ const pathSessionLock = require('../../functions/lib/pathSessionLock.js');
 const favourableMastery = require('../../functions/lib/favourableMastery.js');
 const { loadWeeklyFreezeInputs } = require('../../functions/lib/weeklyPathFreezeInputs.js');
 
-const SERVER = readFileSync(new URL('../../functions/index.js', import.meta.url), 'utf8');
+const SERVER = functionsBackendSource();
 const DAY = 86400000;
 const STUDENT = 'S1';
 const CLASS = { classId: 'class-1', period: '2', course: 'algebra1', courseLevel: 'standard' };

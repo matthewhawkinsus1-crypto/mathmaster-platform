@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
 import { stripAssignmentInstanceState } from '../../functions/shared/assignmentPrivacy.mjs';
+import { functionsBackendSource } from './helpers/functionsBackendSource.mjs';
 
 const require = createRequire(import.meta.url);
 const { prepareContentRelease: prepareContentReleaseRaw } = require('../../functions/lib/assignmentContentVersion.js');
@@ -77,7 +78,7 @@ test('content release preserves reusable Firestore metadata values without JSON 
 test('content version callable is server-authorized and reuses Full Audit validation', async () => {
   const { readFile } = await import('node:fs/promises');
   const [indexSource, authSource] = await Promise.all([
-    readFile('functions/index.js', 'utf8'),
+    functionsBackendSource(),
     readFile('src/auth/authService.js', 'utf8'),
   ]);
   assert.match(indexSource, /exports\.createAssignmentContentVersion\s*=\s*onCall/);

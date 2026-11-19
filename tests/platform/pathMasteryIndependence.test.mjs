@@ -27,11 +27,12 @@ import { executableSource, region } from './helpers/sourceContract.mjs';
 import { ROLE_WEIGHT, applyMasteryEvent, masteryEventFacts } from '../../functions/shared/masteryScoring.mjs';
 import { createRequire } from 'node:module';
 import { buildAttemptSupportPayload, buildPrivateSupport } from '../../functions/shared/pathSolutionSupport.mjs';
+import { functionsBackendSource, topLevelDeclaration } from './helpers/functionsBackendSource.mjs';
 
 const mathPathHelpers = createRequire(import.meta.url)('../../functions/lib/mathPath.js');
 const { mathematicalIndependence, pathAttemptSupport } = mathPathHelpers;
 
-const serverSource = readFileSync(new URL('../../functions/index.js', import.meta.url), 'utf8');
+const serverSource = functionsBackendSource();
 
 // --- The arithmetic actually discounts ---------------------------------------
 
@@ -91,12 +92,7 @@ test('the Mastered gate requires successes the student produced unaided', () => 
   // that still matched was the RETENTION CHECK's pass test — so the assertion
   // stood for a behaviour it no longer looked at. It is now bound to the gate:
   // the trigger hands the rule the count of unaided successes...
-  const trigger = region(
-    executableSource(serverSource),
-    'exports.updateMyMathPathMasteryFromEvidence',
-    '\nexports.',
-    'the server mastery trigger',
-  );
+  const trigger = topLevelDeclaration(executableSource(serverSource), 'exports.updateMyMathPathMasteryFromEvidence');
   // The trigger scores each question through the shared scorer, which hands
   // the rule its count of unaided successes (functions/shared/masteryScoring.mjs).
   assert.match(trigger, /masteryScoring\.applyMasteryEvent\(profiles\[code\], facts, code,/,

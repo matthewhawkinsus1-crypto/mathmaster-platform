@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
+import { functionsBackendSource } from './helpers/functionsBackendSource.mjs';
 
 const require = createRequire(import.meta.url);
 const {
@@ -154,7 +155,7 @@ test('unprovable grading expansion preserves prior credit exactly', async () => 
 test('preview callable is server-side and client only calls it through Functions', async () => {
   const { readFile } = await import('node:fs/promises');
   const [indexSource, authSource] = await Promise.all([
-    readFile('functions/index.js', 'utf8'),
+    functionsBackendSource(),
     readFile('src/auth/authService.js', 'utf8'),
   ]);
   assert.match(indexSource, /exports\.previewAssignmentContentUpgrade\s*=\s*onCall/);
@@ -166,7 +167,7 @@ test('preview callable is server-side and client only calls it through Functions
 test('commit callable revalidates the preview and writes no replacement Classroom post', async () => {
   const { readFile } = await import('node:fs/promises');
   const [indexSource, authSource] = await Promise.all([
-    readFile('functions/index.js', 'utf8'),
+    functionsBackendSource(),
     readFile('src/auth/authService.js', 'utf8'),
   ]);
   assert.match(indexSource, /exports\.commitAssignmentContentUpgrade\s*=\s*onCall/);
@@ -180,7 +181,7 @@ test('commit callable revalidates the preview and writes no replacement Classroo
 
 test('live upgrade authority is class ownership, never designated repair authority', async () => {
   const { readFile } = await import('node:fs/promises');
-  const indexSource = await readFile('functions/index.js', 'utf8');
+  const indexSource = functionsBackendSource();
   const start = indexSource.indexOf('function contentUpgradeAudience');
   const end = indexSource.indexOf('async function loadSavedAssignmentTrackers', start);
   const authority = indexSource.slice(start, end);
@@ -193,7 +194,7 @@ test('live upgrade authority is class ownership, never designated repair authori
 
 test('live upgrade writes an allow-list and cannot reset the assignment or publication metadata', async () => {
   const { readFile } = await import('node:fs/promises');
-  const indexSource = await readFile('functions/index.js', 'utf8');
+  const indexSource = functionsBackendSource();
   const start = indexSource.indexOf('exports.commitAssignmentContentUpgrade = onCall');
   const end = indexSource.indexOf('/**\n * Create the next human-facing', start);
   const commit = indexSource.slice(start, end);
@@ -211,7 +212,7 @@ test('live upgrade writes an allow-list and cannot reset the assignment or publi
 
 test('live upgrade authority supports legacy period-only live assignments and verified root email', async () => {
   const { readFile } = await import('node:fs/promises');
-  const indexSource = await readFile('functions/index.js', 'utf8');
+  const indexSource = functionsBackendSource();
   const start = indexSource.indexOf('function contentUpgradeAudience');
   const end = indexSource.indexOf('async function loadSavedAssignmentTrackers', start);
   const authority = indexSource.slice(start, end);
@@ -224,7 +225,7 @@ test('live upgrade authority supports legacy period-only live assignments and ve
 
 test('preview wraps the full server path and logs unexpected failures instead of leaking bare internal', async () => {
   const { readFile } = await import('node:fs/promises');
-  const indexSource = await readFile('functions/index.js', 'utf8');
+  const indexSource = functionsBackendSource();
   const start = indexSource.indexOf('exports.previewAssignmentContentUpgrade = onCall');
   const end = indexSource.indexOf('exports.commitAssignmentContentUpgrade = onCall', start);
   const preview = indexSource.slice(start, end);
@@ -238,7 +239,7 @@ test('preview wraps the full server path and logs unexpected failures instead of
 
 test('content upgrade tracker reads stay scoped to the assignment audience', async () => {
   const { readFile } = await import('node:fs/promises');
-  const indexSource = await readFile('functions/index.js', 'utf8');
+  const indexSource = functionsBackendSource();
   const helperStart = indexSource.indexOf('function contentUpgradeGradeQueries');
   const previewStart = indexSource.indexOf('exports.previewAssignmentContentUpgrade = onCall');
   const commitStart = indexSource.indexOf('exports.commitAssignmentContentUpgrade = onCall');
@@ -253,7 +254,7 @@ test('content upgrade tracker reads stay scoped to the assignment audience', asy
 
 test('repeat Content V2 commit is idempotent after an earlier successful save', async () => {
   const { readFile } = await import('node:fs/promises');
-  const indexSource = await readFile('functions/index.js', 'utf8');
+  const indexSource = functionsBackendSource();
   const helperStart = indexSource.indexOf('function contentUpgradeAlreadyCurrent');
   const previewStart = indexSource.indexOf('exports.previewAssignmentContentUpgrade = onCall', helperStart);
   const helper = indexSource.slice(helperStart, previewStart);
@@ -268,7 +269,7 @@ test('repeat Content V2 commit is idempotent after an earlier successful save', 
 
 test('preview recognizes an already-current live assignment instead of treating it as an error', async () => {
   const { readFile } = await import('node:fs/promises');
-  const indexSource = await readFile('functions/index.js', 'utf8');
+  const indexSource = functionsBackendSource();
   const start = indexSource.indexOf('exports.previewAssignmentContentUpgrade = onCall');
   const end = indexSource.indexOf('exports.commitAssignmentContentUpgrade = onCall', start);
   const preview = indexSource.slice(start, end);

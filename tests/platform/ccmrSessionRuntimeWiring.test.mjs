@@ -1,8 +1,9 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
+import { functionsBackendSource, topLevelDeclaration } from './helpers/functionsBackendSource.mjs';
 
-const source = fs.readFileSync(new URL('../../functions/index.js', import.meta.url), 'utf8');
+const source = functionsBackendSource();
 
 function indexOfOrFail(fragment, message) {
   const index = source.indexOf(fragment);
@@ -55,10 +56,7 @@ test('assessment candidate selection cannot cross the session content release', 
 });
 
 test('manual custom seed writes cannot bypass any release-managed assessment bank', () => {
-  const importerStart = indexOfOrFail('exports.seedPathQuestionBank = onCall');
-  const importerEnd = source.indexOf('const BUILT_IN_PATH_SEED_FILES = Object.freeze([', importerStart);
-  assert.ok(importerEnd > importerStart, 'manual seed importer must end before built-in seed declarations');
-  const block = source.slice(importerStart, importerEnd);
+  const block = topLevelDeclaration(source, 'exports.seedPathQuestionBank');
 
   assert.match(block, /RELEASE_MANAGED_ASSESSMENT_FRAMEWORKS/, 'manual importer must recognize SAT, ACT, TSIA2, and ASVAB as release-managed');
   assert.match(block, /if\s*\(!dryRun/, 'read-only validation must remain available while protected writes are blocked');
@@ -120,7 +118,7 @@ test('coordinated assessment refresh is SAT ACT TSIA2 only and switches the mani
   assert.doesNotMatch(coordinatedList, /asvab/i, 'ASVAB must not be part of this coordinated release refresh');
 
   const refreshStart = indexOfOrFail('exports.refreshReleasedCcmrPathBanks = onCall');
-  const refreshBlock = source.slice(refreshStart);
+  const refreshBlock = topLevelDeclaration(source, 'exports.refreshReleasedCcmrPathBanks');
   const validation = source.indexOf('dryRun: true', refreshStart);
   const updating = source.indexOf('beginAssessmentContentReleaseUpdate', refreshStart);
   const write = source.indexOf('dryRun: false', refreshStart);

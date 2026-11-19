@@ -26,6 +26,7 @@ import { resolveEquationAfterMove } from '../../src/algebraSupportLevels.js';
 import { buildCancellationModel } from '../../src/algebraCancellationModel.js';
 
 import { projectedAssignmentTrackerFor } from '../../src/platform/grading/canonicalGradeProjection.js';
+import { functionsBackendSource } from './helpers/functionsBackendSource.mjs';
 
 const read = (path) => fs.readFileSync(path, 'utf8');
 
@@ -214,7 +215,7 @@ test('teacher Live Class receives the class schedule and renders active Warm-Up 
 
 
 test('server passback re-derives algebra step credit and versioned reconciliation reaches recent closed assignments', () => {
-  const source = read('functions/index.js');
+  const source = functionsBackendSource();
   assert.match(source, /function storedAlgebraStepPartialCredit\(record\)/);
   assert.match(source, /Math\.max\(stored, derived\) \/ 100/);
   assert.match(source, /const RECONCILE_VERSION = 2/);
@@ -348,7 +349,7 @@ test('closed Classroom regrade includes saved assignment students even when no p
 });
 
 test('manual Classroom retry cannot use an unrelated publication as an authorization anchor', () => {
-  const source = read('functions/index.js');
+  const source = functionsBackendSource();
   const start = source.indexOf('exports.retryClassroomGradeSync = onCall');
   const end = source.indexOf('exports.syncGradeToClassroom = onDocumentWritten', start);
   const retry = source.slice(start, end);
