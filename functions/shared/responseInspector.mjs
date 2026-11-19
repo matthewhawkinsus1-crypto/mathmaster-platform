@@ -282,6 +282,10 @@ export const effectiveGradeStatus = (record, override = null) => {
 
 const questionNeedsDeliveredAuthority = (question = {}) => Boolean(
   ['algebra', 'fraction', 'numberLine'].includes(String(question?.type || ''))
+  // A Question Family slot is a template, generator or not: the student
+  // answered an instance built from it, and ingestion graded that instance,
+  // rebuilt from the attempt's delivery pin (questionFamilyGrading.mjs).
+  || isFamilyBackedQuestion(question)
   || question?.generator
   || question?.variantGenerator
   || (Array.isArray(question?.variants) && question.variants.length)
@@ -327,16 +331,22 @@ const replayQuestion = ({ question, attemptRecord, evidence, assignment, questio
     };
   }
   if (assignment && isFamilyBackedQuestion(question) && attemptRecord?.familyDelivery) {
-    const family = resolveServerGradingQuestion({
-      assignment,
-      question,
-      questionIndex: Number(questionIndex) || 0,
-      variantIndex: Number(attemptRecord?.variantIndex) || 0,
-      canonicalRecord: attemptRecord,
-      studentId,
-      classId,
-    });
-    if (family.question) return { authoritative: true, question: family.question, source: 'family-delivery-pin' };
+    let family = null;
+    try {
+      family = resolveServerGradingQuestion({
+        assignment,
+        question,
+        questionIndex: Number(questionIndex) || 0,
+        variantIndex: Number(attemptRecord?.variantIndex) || 0,
+        canonicalRecord: attemptRecord,
+        studentId,
+        classId,
+      });
+    } catch {
+      // A pin that cannot be read rebuilds nothing: the template stays
+      // unauthoritative, and the inspector says so rather than fail.
+    }
+    if (family?.question) return { authoritative: true, question: family.question, source: 'family-delivery-pin' };
   }
   return authority;
 };
@@ -387,6 +397,8 @@ const replayWithQuestion = ({
   questionIndex = null,
   studentId = null,
   classId = null,
+  // The question already resolved by replayQuestion, when the caller has it.
+  graded = null,
 } = {}) => {
   const evidence = gradingEvidence || null;
   if (!evidence?.submittedResponse) {
@@ -399,7 +411,7 @@ const replayWithQuestion = ({
       },
     };
   }
-  const authority = replayQuestion({ question, attemptRecord, evidence, assignment, questionIndex, studentId, classId });
+  const authority = graded || replayQuestion({ question, attemptRecord, evidence, assignment, questionIndex, studentId, classId });
   if (!authority.authoritative) {
     return {
       question: null,
@@ -667,8 +679,7 @@ export const diagnoseResponse = ({
   };
 };
 
-export const expectedAnswers = ({ question, evidence } = {}) => {
-  const authority = authoritativeQuestionForInspection({ question, evidence });
+const expectedFor = (authority) => {
   if (!authority.authoritative) {
     return { available: false, reason: authority.reason, value: null };
   }
@@ -686,6 +697,8 @@ export const expectedAnswers = ({ question, evidence } = {}) => {
   return { available: true, reason: null, value };
 };
 
+export const expectedAnswers = ({ question, evidence } = {}) => expectedFor(authoritativeQuestionForInspection({ question, evidence }));
+
 export const buildInspectorModel = ({
   assignment,
   question,
@@ -699,15 +712,28 @@ export const buildInspectorModel = ({
   auditHistory = [],
 } = {}) => {
   const evidence = gradingEvidence || null;
-  const authority = authoritativeQuestionForInspection({ question, evidence });
-  const { replay, question: replayedQuestion } = replayWithQuestion({
+  // The question this attempt was graded against, resolved once for the
+  // replay, the diagnosis and the teacher's columns alike (replayQuestion).
+  const graded = replayQuestion({
     question,
     attemptRecord: record,
-    gradingEvidence: evidence,
+    evidence,
     assignment,
     questionIndex,
     studentId: student?.id || null,
     classId: student?.classId || null,
+  });
+  // The trace and Expected read the stored question when it is the one
+  // delivered; for a Question Family slot, the instance its pin rebuilds —
+  // never the template, whose key is no student's.
+  const authority = graded.source === 'family-delivery-pin'
+    ? graded
+    : authoritativeQuestionForInspection({ question, evidence });
+  const { replay, question: replayedQuestion } = replayWithQuestion({
+    question,
+    attemptRecord: record,
+    gradingEvidence: evidence,
+    graded,
   });
   const legacy = evidence?.submittedResponse ? null : legacyRecordedResponse(record);
   const teacherTrace = evidence?.submittedResponse && authority.authoritative
@@ -717,7 +743,7 @@ export const buildInspectorModel = ({
       grading: evidence.automaticResult,
     })
     : null;
-  const expected = expectedAnswers({ question, evidence });
+  const expected = expectedFor(authority);
   const automaticResult = evidence?.automaticResult || {
     parts: record?.partGrades || [],
     isCorrect: record?.status === 'correct',
@@ -734,7 +760,9 @@ export const buildInspectorModel = ({
     },
     question: {
       id: question?.questionId || 'Unavailable',
-      prompt: question?.prompt || 'Unavailable',
+      // A Question Family slot's own prompt has the family's placeholders,
+      // not the student's numbers: the instance's is the one they were shown.
+      prompt: (authority.source === 'family-delivery-pin' ? authority.question?.prompt : null) || question?.prompt || 'Unavailable',
       type: question?.type || question?.toolId || 'Unavailable',
     },
     // The student's name, or the explicit 'Name unavailable' — never the id,
