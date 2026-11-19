@@ -7,7 +7,9 @@
 // (tests/platform/helpers/editorPreflightFixtures.mjs): Algebra I M3 T2 L2,
 // whose Question 21 says "Use the prices you found" (a note), with a Step
 // Algebra question that writes x(x - 5) = 0 and one whose variable cancels
-// (a warning each). On each screen a teacher:
+// (a warning each), and Review's question-version notes: Warm-Up 3 draws one of
+// three cases a student is not told, and the whole assignment's (12 questions
+// generate a version for each student, Recovery ready). On each screen a teacher:
 //
 //   SEES    the question with a warning shows it in full under its controls,
 //           open from the start; the question with only notes says how many
@@ -222,7 +224,13 @@ const certify = async (screen) => {
     const notedItems = (await noted.getByRole('listitem').allTextContents()).map((text) => text.replace(/\s+/g, ' ').trim());
     if (JSON.stringify(notedItems) !== JSON.stringify(itemsOf(notedFindings).map((text) => text.replace(/\s+/g, ' ').trim()))) fail(screen.id, 'SEES', `Question ${NOTED.number}'s notes are not Pre-Flight's: ${JSON.stringify(notedItems).slice(0, 200)}`);
     if (!notedItems[0]?.includes('says "Use the prices you found"')) fail(screen.id, 'SEES', 'the question\'s own note does not come first');
-    if (await page.locator('section[data-preflight-findings="the whole assignment"]').count() !== 0) fail(screen.id, 'SEES', 'a whole-assignment region with nothing to say');
+    // The lesson's question-version notes that name no question ("12
+    // questions generate a different version …", "DOL Recovery ready: …")
+    // are the whole assignment's, above the cards; with none it has no region.
+    const whole = page.locator('[data-preflight-findings="the whole assignment"]');
+    const wholeName = `Pre-Flight for the whole assignment: ${preflightFindingsCountText(expected.assignment)}`;
+    if (itemsOf(expected.assignment).length === 0 ? await whole.count() !== 0 : await whole.getByRole('heading', { level: 3, name: wholeName, exact: true }).count() !== 1) fail(screen.id, 'SEES', `the whole assignment's region does not match its findings ("${wholeName}")`);
+    observed.wholeAssignmentNotes = expected.assignment.notes.length;
     await screenshotKeepingTouch(noted, { path: path.join(ARTIFACTS, `${screen.id}-note.png`) }).catch(() => {});
     await warned.scrollIntoViewIfNeeded();
     await screenshotKeepingTouch(card(page, WARNED.number), { path: path.join(ARTIFACTS, `${screen.id}-warning.png`) }).catch(() => {});

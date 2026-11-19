@@ -78,15 +78,24 @@ test('each question lists, in full, the readiness warnings Review lists for it, 
   assert.equal(found.warningCount, 2);
 });
 
-test('each question lists, in full, the notes Review shows in its panels for it; a note for many questions goes to each, after the question\'s own', () => {
+test('each question lists, in full, the notes Review shows for it: its question-version notes, then its panels\' notes, then a note for many questions; the rest are the whole assignment\'s', () => {
   const review = reviewOf(STORED);
   const { questions, found } = editorOf(STORED);
   const expected = new Map();
   const expect = (number) => {
     const id = questions[number - 1].questionId;
-    if (!expected.has(id)) expected.set(id, { own: [], shared: [] });
+    if (!expected.has(id)) expected.set(id, { versions: [], own: [], shared: [] });
     return expected.get(id);
   };
+  // Review's "Question versions and Recovery" panel comes first (questionGeneration.notes).
+  const versionNotes = review.questionGeneration?.notes || [];
+  const unnamed = [];
+  versionNotes.forEach((note) => {
+    const named = note.match(NAMED);
+    if (named) expect(Number(named[1])).versions.push(note);
+    else unnamed.push(note);
+  });
+  assert.ok(versionNotes.some((note) => NAMED.test(note)) && unnamed.length > 1, 'the lesson has question-version notes that name a question, and some that name none');
   let reviewNotes = 0;
   ADVISORY_FINDING_GROUPS.forEach(({ id }) => {
     (review[id]?.warnings || []).forEach((note) => {
@@ -102,15 +111,20 @@ test('each question lists, in full, the notes Review shows in its panels for it;
   });
   assert.ok(reviewNotes > 3, 'the lesson has notes of both kinds');
   assert.equal(found.byQuestionId.size, new Set([...expected.keys(), PRODUCT.questionId, CANCELS.questionId]).size);
-  for (const [id, { own, shared }] of expected) {
-    assert.deepEqual(found.byQuestionId.get(id)?.notes, [...own, ...shared], id);
+  for (const [id, { versions, own, shared }] of expected) {
+    assert.deepEqual(found.byQuestionId.get(id)?.notes, [...versions, ...own, ...shared], id);
   }
+  // Warm-Up 3 draws one of three cases a student is not told: on its card, in Review's words.
+  const mixed = found.byQuestionId.get(questions[2].questionId).notes[0];
+  assert.match(mixed, /^Question 3 \(Warm-Up Q3\) mixes one solution, no solution, infinitely many solutions .* and the workspace does not tell a student which case they drew\.$/);
   // Classwork 18: "Use the prices you found", exactly as Review's panel says it, first.
   const noted = found.byQuestionId.get(NOTED_ID);
   assert.equal(noted.notes[0], review.otherQuestionReferences.warnings[0]);
   assert.match(noted.notes[0], /^Question 21 says "Use the prices you found", which needs an answer from another question\./);
   assert.deepEqual(noted.warnings, []);
-  assert.deepEqual(found.assignment.notes, []);
+  // "12 questions generate a different version …", "DOL Recovery ready: …": the whole assignment's.
+  assert.deepEqual(found.assignment.notes, unnamed);
+  assert.ok(unnamed.some((note) => note.startsWith('DOL Recovery ready: ')));
 });
 
 test('the findings follow the teacher\'s edits, and Review agrees after each', () => {
@@ -168,12 +182,21 @@ test('a note that names no question, or a warning on no question, is the whole a
     ],
     hintAnswers: { warnings: ['Question 1, hint 2 gives the answer.'] },
     spanishVersions: { warnings: ['2 questions — 1, 2 have hints with no Spanish version, so a student who reads in Spanish sees them in English only. Add translations.es.hints: one Spanish line for each hint, in the same order, with every number, letter and symbol exactly as in the English.', 'A note for no question.'], hintsMissing: [1, 2], reviewMissing: [] },
+    // Review's question-version notes: one opening with its question, a
+    // Recovery note ending with it, one for the assignment, one naming two.
+    questionGeneration: { notes: [
+      '2 questions generate a different version for each student from a Question Family.',
+      'Question 1 (Warm-Up Q1) mixes one solution, no solution in equal shares as students are seated.',
+      'Warm-Up Recovery will skip one question: its family cannot make a fresh version (Question 2)',
+      '2 questions are graded on the student\'s device; the server records that result within its attempt limits but cannot re-mark it: Question 1 (a drawing); Question 2 (a drawing).',
+    ] },
   });
-  assert.deepEqual(found.byQuestionId.get('q1'), { warnings: [], notes: ['Question 1, hint 2 gives the answer.', 'Question 1 has hints with no Spanish version, so a student who reads in Spanish sees them in English only. Add translations.es.hints: one Spanish line for each hint, in the same order, with every number, letter and symbol exactly as in the English.'] });
+  assert.deepEqual(found.byQuestionId.get('q1'), { warnings: [], notes: ['Question 1 (Warm-Up Q1) mixes one solution, no solution in equal shares as students are seated.', 'Question 1, hint 2 gives the answer.', 'Question 1 has hints with no Spanish version, so a student who reads in Spanish sees them in English only. Add translations.es.hints: one Spanish line for each hint, in the same order, with every number, letter and symbol exactly as in the English.'] });
   assert.deepEqual(found.byQuestionId.get('q2').warnings, ['Question 2 warns.'], 'a blocking error is not a warning');
-  assert.deepEqual(found.assignment, { warnings: ['Every question is aligned to A.5A.'], notes: ['A note for no question.'] });
+  assert.deepEqual(found.byQuestionId.get('q2').notes, ['Warm-Up Recovery will skip one question: its family cannot make a fresh version (Question 2)', 'Question 2 has hints with no Spanish version, so a student who reads in Spanish sees them in English only. Add translations.es.hints: one Spanish line for each hint, in the same order, with every number, letter and symbol exactly as in the English.']);
+  assert.deepEqual(found.assignment, { warnings: ['Every question is aligned to A.5A.'], notes: ['2 questions generate a different version for each student from a Question Family.', '2 questions are graded on the student\'s device; the server records that result within its attempt limits but cannot re-mark it: Question 1 (a drawing); Question 2 (a drawing).', 'A note for no question.'] });
   assert.equal(found.warningCount, 2);
-  assert.equal(found.noteCount, 4);
+  assert.equal(found.noteCount, 8);
   assert.deepEqual(preflightFindingsByQuestion({}), { byQuestionId: new Map(), assignment: { warnings: [], notes: [] }, warningCount: 0, noteCount: 0 });
 });
 

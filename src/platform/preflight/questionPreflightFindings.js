@@ -6,24 +6,30 @@
  * warnings and the rest of the model's `warnings`) make an assignment Needs
  * Review. Advisory notes (ADVISORY_FINDING_GROUPS: a prompt that needs
  * another question's answer, an answer key to check, ...) are advice, each in
- * its own panel of Assignment Review's Check step. The Question Editor ran the
- * same model only to refuse an error, so a teacher fixing a question there
- * could not see what Pre-Flight said about it.
+ * its own panel of Assignment Review's Check step, and so are the notes of
+ * its "Question versions and Recovery" panel (questionGeneration.notes: a
+ * question that draws one of several cases a student is not told, Recovery
+ * ready or not). The Question Editor ran the same model only to refuse an
+ * error, so a teacher fixing a question there could not see what Pre-Flight
+ * said about it.
  *
  * This hands each question its own findings, in full text, from the SAME
  * model: buildAssignmentV5PreflightModel, which Review and the editor's own
  * Save both run. Nothing here judges anything.
  *   - A readiness warning goes to the question its diagnostic names
  *     (preflightDiagnostics.js, the attribution the Repair Center uses).
- *   - An advisory note goes to the question it opens with ("Question 3,
- *     hint 2 ..."). A note that covers many questions at once ("35 questions
+ *   - A note goes to the question it opens with ("Question 3, hint 2 ..."),
+ *     a question-version note first, as Review shows that panel first; a
+ *     Recovery note to the question it ends with ("... (Question 3)"). An
+ *     advisory note that covers many questions at once ("35 questions
  *     — 1, 2, 3 ... have hints with no Spanish version") goes to each of them
  *     in the words its own audit writes for one question, after the
  *     question's own notes.
  *   - Whatever names no question (an alignment spread across the assignment,
- *     a section whose questions do not vary) is the whole assignment's.
+ *     a section whose questions do not vary, whether the DOL's Recovery is
+ *     ready) is the whole assignment's.
  * Every message the model holds is shown exactly once, and none is added.
- * Neither kind ever blocks a save: only the model's errors do.
+ * None of them ever blocks a save: only the model's errors do.
  */
 import { ADVISORY_FINDING_GROUPS, buildAssignmentV5PreflightModel } from './assignmentV5PreflightModel.js';
 import { answerOnlyNote, noCommonErrorNote } from './solutionReviewPreflight.js';
@@ -41,6 +47,8 @@ const SPREAD_NOTES = Object.freeze({
 });
 
 const LEADING_QUESTION = /^Question (\d+)\b/;
+// A Recovery note names its one question last (questionGenerationPreflight.js).
+const TRAILING_QUESTION = /\(Question (\d+)\)\.?$/;
 
 // `shared` holds, until the end, the notes a question shares with others (its
 // line of a many-question note): its own notes come first.
@@ -73,6 +81,19 @@ export const preflightFindingsByQuestion = (model = {}) => {
       const index = byId >= 0 ? byId : diagnostic.questionIndex;
       add(findingsAt(index).warnings, clean(diagnostic.message));
     });
+
+  // Review's "Question versions and Recovery" notes, which its Check step
+  // shows above the advice panels. One that opens with its question
+  // ("Question 24 (Practice Q5) mixes one solution, no solution …") is that
+  // question's, and so is a Recovery note that ends with it ("… (Question
+  // 3)"), as the same words go to that question when they are a readiness
+  // warning. The rest ("12 questions generate a different version …", "DOL
+  // Recovery ready: …") are the whole assignment's.
+  list(model?.questionGeneration?.notes).forEach((note) => {
+    const text = clean(note);
+    const named = text.match(LEADING_QUESTION) || text.match(TRAILING_QUESTION);
+    add(findingsAt(named ? Number(named[1]) - 1 : -1).notes, text);
+  });
 
   // Advisory notes: every group Review's suggestions line counts.
   ADVISORY_FINDING_GROUPS.forEach(({ id }) => {
