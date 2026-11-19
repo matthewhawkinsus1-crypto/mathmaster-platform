@@ -264,6 +264,37 @@ export const effectiveQuestionScore = (record, override = null) => (
     : automaticQuestionScore(record)
 );
 
+/*
+ * APPLY CORRECTED GRADE RAISES A SCORE, AND NEVER LOWERS ONE (the owner,
+ * 2026-11-19).
+ *
+ * The replay grades the response the record holds, the student's last one, so
+ * its score can be lower than the score the student stands on, which counts
+ * their best attempt or a teacher's override: a question with a best attempt
+ * of 50% and a last of 0% went to 0% when a teacher pressed a button named
+ * "corrected". The replay now applies only when it raises the standing score.
+ * Otherwise nothing is written, not even an override at the same score, which
+ * would hold the question there against a later re-grade, and the teacher is
+ * told why. A teacher who means to lower a score still can, with Set Score.
+ */
+export const correctedGradeFromReplay = ({ replayScore, standingScore } = {}) => {
+  const replay = Number(replayScore);
+  const standing = Number(standingScore);
+  if (replayScore === null || replayScore === undefined || !Number.isFinite(replay)) {
+    return { apply: false, reason: 'The replay has no score to apply.' };
+  }
+  if (Number.isFinite(standing) && replay < standing) {
+    return {
+      apply: false,
+      reason: `The corrected grade (${replay}%) is lower than the student's current score (${standing}%), and Apply Corrected Grade never lowers a score. To lower it, enter the score and press Set Score.`,
+    };
+  }
+  if (Number.isFinite(standing) && replay === standing) {
+    return { apply: false, reason: `The corrected grade is the student's current score (${standing}%), so there is nothing to change.` };
+  }
+  return { apply: true, score: clamp(replay) };
+};
+
 export const effectiveGradeStatus = (record, override = null) => {
   const score = effectiveQuestionScore(record, override);
   const overridden = overrideAppliesToRecord(record, override);
@@ -807,6 +838,11 @@ export const buildInspectorModel = ({
       currentAnswerKey: question?.answerKeyVersion ?? question?.version ?? null,
     },
     replay,
+    // What Apply Corrected Grade would do with this replay: it applies only
+    // when it raises the score the student stands on (correctedGradeFromReplay).
+    correctedGrade: replay?.available
+      ? correctedGradeFromReplay({ replayScore: replay.currentScore, standingScore: effectiveQuestionScore(record, override) })
+      : null,
     diagnosis: diagnoseResponse({ record, workspace, replay, gradingEvidence: evidence, question: replayedQuestion }),
     // The field-by-field view, for every question type (responseInspectorView.mjs):
     // read with the question the student was shown when it is known.

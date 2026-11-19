@@ -60,6 +60,7 @@ const STUDENT = {
   classmate: { id: 'boundary-classmate', email: 'classmate.student@district-one.test', classId: CLASS.own },
   credited: { id: 'boundary-credited', email: 'credited.student@district-one.test', classId: CLASS.own },
   zeroed: { id: 'boundary-zeroed', email: 'zeroed.student@district-one.test', classId: CLASS.own },
+  replayed: { id: 'boundary-replayed', email: 'replayed.student@district-one.test', classId: CLASS.own },
   unverifiedsClass: { id: 'boundary-unverified-class', email: 'unverified.class.student@district-one.test', classId: CLASS.unverified },
 };
 const ANSWERS = ['2x+1', 'x+5'];
@@ -330,6 +331,8 @@ test("the student's own teacher inspects the response, and inspecting writes not
   );
   assert.deepEqual(model.diagnosis.reasons.map((reason) => reason.code), ['genuinely-incorrect']);
   assert.equal(model.replay.discrepancy, false, 'the recorded attempt replays to the same verdict');
+  // Applying it would change nothing, and the screen is told so.
+  assert.deepEqual(model.correctedGrade, { apply: false, reason: "The corrected grade is the student's current score (0%), so there is nothing to change." });
   // Ingestion stored what the attempt was graded against: the question and a
   // fingerprint of its key, never the key.
   const stored = (await db.collection('grades').doc(STUDENT.subject.id).collection('responseInspectionEvidence').doc(`${SHARED}__q0`).get()).data();
@@ -363,6 +366,28 @@ test("the student's own teacher grants credit: the override, its audit and the p
   assert.deepEqual(audit.actor, { uid: accounts.owner.uid, email: TEACHER.owner.email, name: null });
   assert.equal(audit.previousScore, 0);
   assert.equal(audit.newScore, 100);
+});
+
+test('Apply Corrected Grade never lowers a score: it is refused and writes nothing, and Set Score still can (the owner, 2026-11-19)', async () => {
+  const studentId = STUDENT.replayed.id;
+  // The teacher credited the wrong answer by hand: the student stands on 100%.
+  await accounts.owner.call('overrideStudentResponseGrade', GRADE_CALLABLES[1].data(studentId));
+  const model = await accounts.owner.call('inspectStudentResponse', { studentId, assignmentId: SHARED, questionIndex: 0 });
+  assert.equal(model.assignedScore, 100);
+  assert.equal(model.replay.currentScore, 0, 'the wrong answer replays to 0');
+  assert.equal(model.correctedGrade.apply, false);
+  assert.equal(model.correctedGrade.reason, "The corrected grade (0%) is lower than the student's current score (100%), and Apply Corrected Grade never lowers a score. To lower it, enter the score and press Set Score.");
+  // The button's call is refused in the same words, and changes nothing anywhere.
+  await assertRefusedAndNothingWritten(accounts.owner, 'overrideStudentResponseGrade', {
+    studentId, assignmentId: SHARED, questionIndex: 0, action: 'applyReplay', reason: 'Platform/grader issue',
+  }, { code: 'functions/invalid-argument', message: model.correctedGrade.reason });
+  // A teacher who means to lower it enters the score.
+  const lowered = await accounts.owner.call('overrideStudentResponseGrade', {
+    studentId, assignmentId: SHARED, questionIndex: 0, action: 'setScore', score: 0, reason: 'Other', note: 'Lowered on purpose.',
+  });
+  assert.equal(lowered.authoritativeScore, 0);
+  const grade = (await db.collection('grades').doc(studentId).get()).data();
+  assert.equal(grade.teacherGradeOverridesByAssignment[SHARED]['0'].score, 0);
 });
 
 test("the student's own teacher issues an integrity zero: the override, audit and teacher-only incident are written", async () => {

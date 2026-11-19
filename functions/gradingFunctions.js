@@ -1949,7 +1949,14 @@ exports.overrideStudentResponseGrade = onCall(async (request) => {
             classId: gradeData.classId || null,
           });
           if (!replay.available) throw new Error(replay.reason);
-          score = replay.currentScore;
+          // It raises the score the student stands on, or changes nothing
+          // (the owner, 2026-11-19; responseInspector.mjs correctedGradeFromReplay).
+          const corrected = inspector.correctedGradeFromReplay({
+            replayScore: replay.currentScore,
+            standingScore: inspector.effectiveQuestionScore(record, previousOverride),
+          });
+          if (!corrected.apply) throw new Error(corrected.reason);
+          score = corrected.score;
         }
         correction = inspector.buildGradeOverride({
           record,
