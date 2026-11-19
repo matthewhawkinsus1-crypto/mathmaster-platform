@@ -2,11 +2,12 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import { region } from './helpers/sourceContract.mjs';
+import { functionsBackendSource } from './helpers/functionsBackendSource.mjs';
 
 const home = fs.readFileSync('src/TeacherHome.jsx', 'utf8');
 const panel = fs.readFileSync('src/components/teacher/StudentPersistenceRecoveryPanel.jsx', 'utf8');
 const service = fs.readFileSync('src/services/persistenceRecoveryService.js', 'utf8');
-const functions = fs.readFileSync('functions/index.js', 'utf8');
+const functions = functionsBackendSource();
 
 test('Submission Recovery is permanent and scopes classes to the viewer before listing assignments', () => {
   // Permanent: the section sits at the top level of Home (folded, never gated

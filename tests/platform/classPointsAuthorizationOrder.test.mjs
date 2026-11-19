@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import { region, executableSource } from './helpers/sourceContract.mjs';
+import { functionsBackendSource, topLevelDeclaration } from './helpers/functionsBackendSource.mjs';
 
 // awardClassPoints and reverseClassPointAward run on the Admin SDK, so
 // firestore.rules cannot protect their response the way it protects a direct
@@ -20,7 +21,7 @@ import { region, executableSource } from './helpers/sourceContract.mjs';
 // authorization check's text position, not merely its presence, precedes the
 // idempotency-replay branch. See docs/handoffs/SOURCE_CONTRACT_PLAYBOOK.md.
 
-const source = fs.readFileSync('functions/index.js', 'utf8');
+const source = functionsBackendSource();
 
 const awardBody = executableSource(region(
   source,
@@ -29,12 +30,7 @@ const awardBody = executableSource(region(
   'awardClassPoints',
 ));
 
-const reversalBody = executableSource(region(
-  source,
-  'exports.reverseClassPointAward = onCall(',
-  'function trustedResponseInspectionEvidence(',
-  'reverseClassPointAward',
-));
+const reversalBody = executableSource(topLevelDeclaration(source, 'exports.reverseClassPointAward'));
 
 const firstIndexOf = (haystack, needle, label) => {
   const index = haystack.indexOf(needle);
@@ -140,7 +136,7 @@ const redeemBody = executableSource(region(
 ));
 
 test('the redeemPracticePass callable delegates to the one redemption transaction', () => {
-  const callable = executableSource(region(source, 'exports.redeemPracticePass = onCall(', '\n});', 'redeemPracticePass callable'));
+  const callable = executableSource(topLevelDeclaration(source, 'exports.redeemPracticePass'));
   assert.match(callable, /requireStudent\(request\)/, 'the student identity comes from the verified token');
   assert.match(callable, /store\.redeemPracticePass\(/);
   assert.doesNotMatch(callable, /transaction\.set\(/, 'the callable writes nothing itself');

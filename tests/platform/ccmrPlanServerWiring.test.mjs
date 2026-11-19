@@ -12,10 +12,11 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import { executableSource, region } from './helpers/sourceContract.mjs';
+import { functionsBackendSource, topLevelDeclaration } from './helpers/functionsBackendSource.mjs';
 
 const require = createRequire(import.meta.url);
 const admin = require('../../functions/lib/admin.js');
-const index = readFileSync(new URL('../../functions/index.js', import.meta.url), 'utf8');
+const index = functionsBackendSource();
 const rules = readFileSync(new URL('../../firestore.rules', import.meta.url), 'utf8');
 
 const callable = executableSource(region(index, 'exports.setMyCcmrPlan = onCall(', '\n}));', 'setMyCcmrPlan'));
@@ -51,7 +52,7 @@ test('the write happens in a transaction, carries the roster authorization, and 
 });
 
 test('a class move re-authorizes the plan with the other per-student documents', () => {
-  const reauthorize = executableSource(region(index, 'async function reauthorizeStudentRecords(', '\nasync function loadClasses', 'reauthorizeStudentRecords'));
+  const reauthorize = executableSource(topLevelDeclaration(index, 'function reauthorizeStudentRecords'));
   // The loop that re-authorizes single documents keyed by the student id —
   // not the earlier loop over collections queried by studentId.
   const loops = [...reauthorize.matchAll(/for \(const collectionName of \[([^\]]*)\]\) \{([\s\S]*?)\n {2}\}/g)];

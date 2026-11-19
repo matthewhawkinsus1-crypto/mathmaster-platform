@@ -31,6 +31,7 @@ import { resolveExamCalculatorPolicy } from '../../src/platform/policies/examPol
 import { describeToolWork, rawToolWorkOf, toolWorkLabel } from '../../src/platform/assessment/secureToolWorkSummary.js';
 import { secureItemDraftKey } from '../../src/platform/assessment/questionRuntimePolicy.js';
 import { createToolWorkGate } from '../../src/components/question/toolWorkGate.js';
+import { functionsBackendSource, topLevelDeclaration } from './helpers/functionsBackendSource.mjs';
 
 const require = createRequire(import.meta.url);
 const read = (path) => readFileSync(new URL(`../../${path}`, import.meta.url), 'utf8');
@@ -41,7 +42,7 @@ const container = read('src/components/assessment/SecureExamContainer.jsx');
 const corrections = read('src/components/student/TestCycleCorrections.jsx');
 const preview = read('src/components/teacher/TestCyclePreview.jsx');
 const engine = read('src/QuestionEngine.jsx');
-const functionsIndex = read('functions/index.js');
+const functionsIndex = functionsBackendSource();
 
 test('the secure player is an adapter over the shared runtime, in a secure mode only', () => {
   assert.match(player, /import RichQuestionRuntime from '\.\.\/question\/RichQuestionRuntime\.jsx';/);
@@ -405,7 +406,7 @@ test('the Retest and Corrections are given the tool the student met each standar
   assert.match(retest, /preferredToolsByTarget: shared\.retest\.retestToolPreferences\(\{ profile, retestBlueprint: generated\.blueprint \}\),/);
   const correction = region(functionsIndex, 'const declaredFamilies = await resolveBlueprintFamilies(db, target.practiceFamilyIds || []);', 'let issued = null;', 'correction families');
   assert.match(correction, /const families = shared\.corrections\.orderCorrectionFamilies\(\{\s*families: declaredFamilies,\s*testToolIds: target\.testToolIds \|\| \[\],\s*toolOf: \(family\) => correctionTools\.resolveSecureToolId\(family\) \|\| "fields",\s*attemptIndex,\s*\}\);/);
-  const issueLoop = region(functionsIndex, 'let issued = null;', 'issued = secureItems.storableItem({', 'correction issue loop');
+  const issueLoop = region(topLevelDeclaration(functionsIndex, 'exports.issueTestCycleCorrectionQuestion'), 'let issued = null;', 'issued = secureItems.storableItem({', 'correction issue loop');
   assert.match(issueLoop, /const family = families\[offset\];/);
 });
 
@@ -433,7 +434,7 @@ test('every secure callable grades through secureItems; the field grader is not 
   assert.match(region(items, 'async function buildResponseRecord(', 'function recordedPayloadOf(', 'response record'), /: await secureItems\.gradeIssuedItem\(storedItem, responsePayload \|\| \{\}\);/);
   assert.doesNotMatch(executableSource(items), /mathPath\.gradeResponse\(/);
   assert.match(region(functionsIndex, 'exports.submitTestCycleCorrectionResponse = onCall(', 'async function ensureRetestSession', 'corrections submit'), /secureItems\.gradeIssuedItem\(openForGrading,/);
-  assert.match(region(functionsIndex, 'exports.gradeTestCyclePreviewItem = onCall(', 'const ASSIGNMENT_EVIDENCE_GRADE_MAPS', 'preview grade'), /secureItems\.gradeItem\(issuePlan\.privateGrading/);
+  assert.match(topLevelDeclaration(functionsIndex, 'exports.gradeTestCyclePreviewItem'), /secureItems\.gradeItem\(issuePlan\.privateGrading/);
 });
 
 test('an issued Rich Tool item is stored with its tool fields encoded (Firestore holds no array inside an array)', () => {
@@ -448,19 +449,19 @@ test('an issued Rich Tool item is stored with its tool fields encoded (Firestore
   assert.deepEqual(storage.readStoredItem(stored), item);
   assert.deepEqual(storage.readStoredItem(item), item, 'a document written before the encoding reads back unchanged');
   // Every write of an issued item goes through it.
-  assert.match(region(functionsIndex, 'async function buildCourseTestExamItem(', 'exports.updateMyMathPathMasteryFromEvidence', 'course test issue'), /const storedItem = secureItems\.storableItem\(\{/);
-  assert.match(region(functionsIndex, 'async function buildSimulationExamItem(', 'exports.issueSecureExamQuestion = onCall(', 'simulation issue'), /storedItem: secureItems\.storableItem\(\{/);
-  assert.match(region(functionsIndex, 'exports.issueTestCycleCorrectionQuestion = onCall(', 'exports.submitTestCycleCorrectionResponse', 'correction issue'), /issued = secureItems\.storableItem\(\{/);
+  assert.match(topLevelDeclaration(functionsIndex, 'function buildCourseTestExamItem'), /const storedItem = secureItems\.storableItem\(\{/);
+  assert.match(topLevelDeclaration(functionsIndex, 'function buildSimulationExamItem'), /storedItem: secureItems\.storableItem\(\{/);
+  assert.match(topLevelDeclaration(functionsIndex, 'exports.issueTestCycleCorrectionQuestion'), /issued = secureItems\.storableItem\(\{/);
   // Every recorded response's snapshot too (secureExamItems.buildResponseRecord).
   assert.match(region(read('functions/lib/secureExamItems.js'), 'async function buildResponseRecord(', 'function recordedPayloadOf(', 'response record'), /questionSnapshot: secureItems\.storableItem\(snapshot\)/);
 });
 
 test('every secure issue path checks the item\'s certification and sends the mode-aware payload', () => {
-  assert.match(region(functionsIndex, 'async function buildCourseTestExamItem(', 'exports.updateMyMathPathMasteryFromEvidence', 'course test issue'), /secureItems\.certifyItem\(instantiated\.question, \{ mode: runtimeMode \}\)[\s\S]{0,120}if \(!certification\.compatible\)/);
-  assert.match(region(functionsIndex, 'exports.issueTestCycleCorrectionQuestion = onCall(', 'exports.submitTestCycleCorrectionResponse', 'correction issue'), /secureItems\.certifyItem\(instantiated\.question, \{ mode: "corrections" \}\);\s*if \(!certification\.compatible\) continue;/);
-  assert.match(region(functionsIndex, 'exports.previewTestCycleSecureItems = onCall(', 'exports.gradeTestCyclePreviewItem', 'preview issue'), /secureItems\.certifyItem\(instantiated\.question, \{ mode: runtimeMode \}\)/);
-  assert.match(region(functionsIndex, 'async function secureExamPublicQuestion(', 'function assertStudentExamSession', 'public question'), /secureItems\.publicItem\(question, \{ mode: mode \|\| "secureTest" \}\)/);
-  const draft = region(functionsIndex, 'exports.saveSecureExamDraft = onCall(', 'exports.submitSecureExamResponse', 'draft save');
+  assert.match(topLevelDeclaration(functionsIndex, 'function buildCourseTestExamItem'), /secureItems\.certifyItem\(instantiated\.question, \{ mode: runtimeMode \}\)[\s\S]{0,120}if \(!certification\.compatible\)/);
+  assert.match(topLevelDeclaration(functionsIndex, 'exports.issueTestCycleCorrectionQuestion'), /secureItems\.certifyItem\(instantiated\.question, \{ mode: "corrections" \}\);\s*if \(!certification\.compatible\) continue;/);
+  assert.match(topLevelDeclaration(functionsIndex, 'exports.previewTestCycleSecureItems'), /secureItems\.certifyItem\(instantiated\.question, \{ mode: runtimeMode \}\)/);
+  assert.match(topLevelDeclaration(functionsIndex, 'function secureExamPublicQuestion'), /secureItems\.publicItem\(question, \{ mode: mode \|\| "secureTest" \}\)/);
+  const draft = topLevelDeclaration(functionsIndex, 'exports.saveSecureExamDraft');
   assert.match(draft, /draftKey: await secureItems\.examItemDraftKey\(examSessionId, questionInstanceId\),\s*includeWorkspaceDrafts: true,/);
 });
 

@@ -37,6 +37,7 @@ import {
 } from '../../src/platform/studentName.js';
 import { normalizeTeacherRosterSummary } from '../../src/platform/teacher/teacherRosterSummary.js';
 import { executableSource, region } from './helpers/sourceContract.mjs';
+import { functionsBackendSource } from './helpers/functionsBackendSource.mjs';
 
 const ROOT = fileURLToPath(new URL('../../', import.meta.url));
 const read = (path) => readFileSync(join(ROOT, path), 'utf8');
@@ -52,7 +53,7 @@ const APP = code('src/App.jsx');
 // The teacher's screen (every mount below, the gradebook) is its own module
 // since G2; App renders it and hands it each handler and index by name.
 const TEACHER_WORKSPACE = code('src/app/teacher/TeacherWorkspace.jsx');
-const SERVER = code('functions/index.js');
+const SERVER = executableSource(functionsBackendSource());
 
 /** Every `import ... from '...'` in a module: [{ specifier, names }] (local names). */
 const importsOf = (source) => [...source.matchAll(/\bimport\s+([\s\S]*?)\s+from\s+['"]([^'"]+)['"]/g)]

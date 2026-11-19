@@ -22,6 +22,7 @@ import {
 import { evaluateWeeklyGoalProgress, describeWeeklyGradeForStudent, gradeWeeklyGoal } from '../../functions/shared/weeklyPathGrade.mjs';
 import { executableSource, region } from './helpers/sourceContract.mjs';
 import { weeklyStartLabel } from '../../src/platform/path/pathSessionLaunch.js';
+import { functionsBackendSource, topLevelDeclaration } from './helpers/functionsBackendSource.mjs';
 
 const read = (path) => readFileSync(new URL(`../../${path}`, import.meta.url), 'utf8');
 const WEEK = '2026-10-05';
@@ -88,8 +89,8 @@ test('the same session returned by two queries is counted once', () => {
 });
 
 test('teacher table, Classroom publisher and the student callable all use the shared rule', () => {
-  const source = executableSource(read('functions/index.js'));
-  const teacher = region(source, 'exports.getTeacherWeeklyPathCompletions', 'exports.getWeeklyPathClassroomSync', 'teacher callable');
+  const source = executableSource(functionsBackendSource());
+  const teacher = topLevelDeclaration(source, 'exports.getTeacherWeeklyPathCompletions');
   assert.match(teacher, /weeklyCompletion\.completionFromPathSession\(/);
   assert.doesNotMatch(teacher, /status\s*!==\s*"completed"/, 'the teacher table must not keep its own completion rule');
   assert.match(teacher, /weeklyCompletionWindow\(weekKey\)/);

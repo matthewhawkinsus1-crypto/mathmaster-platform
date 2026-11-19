@@ -1,11 +1,12 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
+import { functionsBackendSource } from './helpers/functionsBackendSource.mjs';
 
 const read = (path) => fs.readFileSync(path, 'utf8');
 
 test('teacher may intentionally create a new Classroom post in selected mapped courses', () => {
-  const server = read('functions/index.js');
+  const server = functionsBackendSource();
   const start = server.indexOf('exports.forceRepublishAssignmentToClassrooms = onCall');
   const end = server.indexOf('// Read the live Google Classroom roster', start);
   assert.ok(start >= 0 && end > start, 'force-repost callable must exist');
@@ -23,7 +24,7 @@ test('teacher may intentionally create a new Classroom post in selected mapped c
 });
 
 test('forced repost is idempotent for one teacher click but bypasses ordinary duplicate protection', () => {
-  const server = read('functions/index.js');
+  const server = functionsBackendSource();
   const classroom = read('functions/lib/classroom.js');
   const start = server.indexOf('exports.forceRepublishAssignmentToClassrooms = onCall');
   const end = server.indexOf('// Read the live Google Classroom roster', start);

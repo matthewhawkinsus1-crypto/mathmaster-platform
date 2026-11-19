@@ -11,8 +11,9 @@ import {
 } from '../../src/platform/teacher/testCycleFamilyRegistration.js';
 import { testCycleCandidateContract } from '../../src/platform/teacher/testCyclePreviewModel.js';
 import { componentSource, executableSource, region } from './helpers/sourceContract.mjs';
+import { functionsBackendSource, topLevelDeclaration } from './helpers/functionsBackendSource.mjs';
 
-const functionsIndex = readFileSync(new URL('../../functions/index.js', import.meta.url), 'utf8');
+const functionsIndex = functionsBackendSource();
 const lessonPreflight = componentSource('src/components/teacher/LessonPreflightModal.jsx');
 const preview = componentSource('src/components/teacher/TestCyclePreview.jsx');
 const app = componentSource('src/App.jsx');
@@ -199,7 +200,7 @@ test('the server previews and grades a candidate behind the teacher check, insid
   const issue = region(functionsIndex, 'exports.previewTestCycleSecureItems = onCall(', 'exports.gradeTestCyclePreviewItem', 'preview issue');
   assert.match(issue, /teacherUid = await requireTeacher\(request\);\s*loaded = \{ \.\.\.\(await loadTestCycleCandidate\(db, request\.data\?\.assignment\)\), candidate: true \};/);
   assert.match(issue, /\.\.\.\(loaded\.candidate \? \{ c: 1 \} : \{ a: assignmentId \}\)/);
-  const grade = region(functionsIndex, 'exports.gradeTestCyclePreviewItem = onCall(', 'const ASSIGNMENT_EVIDENCE_GRADE_MAPS', 'preview grade');
+  const grade = topLevelDeclaration(functionsIndex, 'exports.gradeTestCyclePreviewItem');
   const candidateBranch = region(grade, 'if (decoded.c === 1) {', '} else {', 'candidate branch');
   assert.match(candidateBranch, /teacherUid = await requireTeacher\(request\);[\s\S]*loadTestCycleCandidate\(db, request\.data\?\.assignment\)/);
   // Both branches then meet the same two checks before anything is graded.

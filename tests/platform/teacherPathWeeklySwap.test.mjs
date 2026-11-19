@@ -19,6 +19,7 @@ import { freezeWeeklyPathGoalProposal } from '../../functions/shared/weeklyPathS
 import { collectWeeklyPathSessions } from '../../functions/shared/weeklyPathCompletion.mjs';
 import { gradeWeeklyGoal, matchWeeklyGoalCompletions, weekKeyFor } from '../../functions/shared/weeklyPathGrade.mjs';
 import { topLevelFunction } from './helpers/serverCallableHarness.mjs';
+import { functionsBackendSource } from './helpers/functionsBackendSource.mjs';
 
 const require = createRequire(import.meta.url);
 const mathPath = require('../../functions/lib/mathPath.js');
@@ -27,7 +28,7 @@ const mathPath = require('../../functions/lib/mathPath.js');
 // (WEEKLY_SLOT_TEKS_TOOLS): mathPath's canonicalizers and the callable's own
 // framework rule, cut out of functions/index.js as written.
 const SERVER_TOOLS = (() => {
-  const source = readFileSync(new URL('../../functions/index.js', import.meta.url), 'utf8');
+  const source = functionsBackendSource();
   const declaration = source.match(/^const PATH_ASSESSMENT_FRAMEWORKS = [^\n]+;$/m);
   assert.ok(declaration, 'functions/index.js no longer declares PATH_ASSESSMENT_FRAMEWORKS on one line; update this test');
   const normalizeFramework = new Function(`"use strict";\n${declaration[0]}\n${topLevelFunction('normalizePathAssessmentFramework')}\nreturn normalizePathAssessmentFramework;`)();

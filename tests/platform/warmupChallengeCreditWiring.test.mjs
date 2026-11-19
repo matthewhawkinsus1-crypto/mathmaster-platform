@@ -8,8 +8,9 @@ import {
 } from '../../functions/shared/warmupChallenge.mjs';
 import { joinRoundFor } from '../../functions/shared/liveChallengeLifecycle.mjs';
 import { region } from './helpers/sourceContract.mjs';
+import { functionsBackendSource } from './helpers/functionsBackendSource.mjs';
 
-const source = readFileSync(new URL('../../functions/index.js', import.meta.url), 'utf8');
+const source = functionsBackendSource();
 const code = source
   .replace(/\/\*[\s\S]*?\*\//g, '')
   .split('\n')

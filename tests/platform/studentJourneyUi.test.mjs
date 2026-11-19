@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { region } from './helpers/sourceContract.mjs';
+import { functionsBackendSource } from './helpers/functionsBackendSource.mjs';
 
 const read = (relative) => readFileSync(new URL(`../../${relative}`, import.meta.url), 'utf8');
 const engine = read('src/QuestionEngine.jsx');
@@ -15,7 +16,7 @@ const securePlayer = secureRuntime.slice(secureRuntime.indexOf('const FieldItem 
 const secureToolItem = secureRuntime.slice(secureRuntime.indexOf('const ToolItem = ('), secureRuntime.indexOf('export default function RichQuestionRuntime'));
 const secureDashboard = read('src/components/assessment/StudentSecureExamDashboard.jsx');
 const secureReview = read('src/components/assessment/SecureExamReview.jsx');
-const functionSource = read('functions/index.js');
+const functionSource = functionsBackendSource();
 
 // Journey 1 — regular assignment: one clickable alignment owner, not an exam label.
 test('journey 1: regular assignment exposes one instructional standards control', () => {

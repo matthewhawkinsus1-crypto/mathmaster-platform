@@ -31,6 +31,7 @@ import {
   lineSetupConfig,
   lineSetupProblem,
 } from '../../src/platform/liveChallenge/lineGraphSetupModel.js';
+import { functionsBackendSource } from './helpers/functionsBackendSource.mjs';
 
 /*
  * GRAPH THE LINE ON EVERY SCREEN.
@@ -298,7 +299,7 @@ test('the console offers Graph the Line to every teacher once its modes are laun
   assert.match(teacher, /import \{ isRootAdminEmail \} from '\.\.\/\.\.\/\.\.\/functions\/shared\/rolePolicy\.mjs';/);
   LINE_GRAPH_MODE_IDS.forEach((id) => assert.equal(getChallengeMode(id).teacherSelectable, true, `${id} is launched`));
   // The server's gate stays for any mode that is not offered yet.
-  const server = executableSource(read('../../functions/index.js'));
+  const server = executableSource(functionsBackendSource());
   assert.match(server, /if \(!mode\.teacherSelectable && !authLib\.isRootAdminEmail\(teacherEmail\)\) \{\s*throw new HttpsError\("failed-precondition", `\$\{mode\.label\} is still in preview/);
   assert.match(teacher, /const LineGraphSetup = lazy\(\(\) => import\('\.\/LineGraphSetup\.jsx'\)\);/);
   assert.match(teacher, /const LineGraphPractice = lazy\(\(\) => import\('\.\/LineGraphPractice\.jsx'\)\);/);
@@ -375,7 +376,7 @@ test('the revealed line is loaded only when a round has one', async () => {
 /* ------------------------------- the server ------------------------------- */
 
 test('the server: the finished flag on the public row, and a shared line captured at its opening, published at its close', () => {
-  const server = read('../../functions/index.js');
+  const server = functionsBackendSource();
   const submit = region(server, 'exports.submitLineGraphAttempts = onCall', '\nexports.', 'line submit');
   const publicWrite = region(submit, 'transaction.set(roomRef.collection("players")', '}, { merge: true });', 'public row');
   // The race's own state: work a student does in extra time after the buzzer

@@ -37,6 +37,7 @@ import { FakeFieldPath, FakeFirestore, topLevelFunction } from './helpers/server
 import { readOnlyStore } from './helpers/readOnlyFirestore.mjs';
 import { FIXTURES, STORED, oldGradingFor, storedAttempt, toolResponseFor } from './helpers/classroomRegradeFixtures.mjs';
 import { executableSource } from './helpers/sourceContract.mjs';
+import { functionsBackendSource } from './helpers/functionsBackendSource.mjs';
 
 const ASSIGNMENT_ID = 'gr22-assignment';
 const CLASS_ID = 'gr22-class';
@@ -143,7 +144,7 @@ test('a teacher\'s decision stands, and secure work, untrusted evidence and a mi
  * out of the source as written, over the same cases.
  */
 test('the override and credit rules are the server\'s own, case for case', () => {
-  const server = readFileSync(new URL('../../functions/index.js', import.meta.url), 'utf8');
+  const server = functionsBackendSource();
   const clamp = server.match(/^const clampPercent = [\s\S]*?;\n/m)[0];
   // eslint-disable-next-line no-new-func
   const deployed = new Function(`${clamp}\n${topLevelFunction('storedAlgebraStepPartialCredit')}\n${topLevelFunction('teacherOverrideAppliesToRecord')}\n${topLevelFunction('getQuestionCredit')}\nreturn { teacherOverrideAppliesToRecord, getQuestionCredit };`)();

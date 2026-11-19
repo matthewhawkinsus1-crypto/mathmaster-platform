@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import { region } from './helpers/sourceContract.mjs';
 import { appHookSource, appSurfaceSource } from './helpers/appScreens.mjs';
+import { functionsBackendSource } from './helpers/functionsBackendSource.mjs';
 
 const read = (path) => fs.readFileSync(path, 'utf8');
 
@@ -96,7 +97,7 @@ test('live presence payload changes do not delete/recreate the session on every 
 
 test('crashed, reloaded, and abandoned presence sessions still reach the compact archive', () => {
   const app = read('src/App.jsx');
-  const functionsIndex = read('functions/index.js');
+  const functionsIndex = functionsBackendSource();
 
   // Reload/session replacement archives through one deliberate client delete,
   // not a server onWrite trigger that would run every 20-second heartbeat.
@@ -116,7 +117,7 @@ test('crashed, reloaded, and abandoned presence sessions still reach the compact
 });
 
 test('presence deletion archives one compact session summary instead of heartbeat history', () => {
-  const functionsIndex = read('functions/index.js');
+  const functionsIndex = functionsBackendSource();
   const summaryLib = read('functions/lib/studentSessionSummary.js');
 
   // Lock the deployed trigger path without coupling the test to whitespace,
@@ -155,7 +156,7 @@ test('the teacher subscribes to persistent support history and archived session 
 
 
 test('student reassignment carries support and session history to the new teacher without rewriting origin', () => {
-  const functionsIndex = read('functions/index.js');
+  const functionsIndex = functionsBackendSource();
   // The top-level collections reauthorized by studentId (a student's private
   // assignment controls joined the list with studentAssignmentOverrides.mjs).
   const reauthorized = region(functionsIndex, 'async function reauthorizeStudentRecords(', '// Class Points accounts and transactions', 'reauthorizeStudentRecords');

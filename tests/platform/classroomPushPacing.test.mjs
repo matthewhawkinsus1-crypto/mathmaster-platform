@@ -28,6 +28,7 @@ import {
   gradeSyncStatusLabel,
   isGradeSyncRetryEligible,
 } from '../../src/classroomGradeSyncUi.js';
+import { functionsBackendSource } from './helpers/functionsBackendSource.mjs';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
 const requireFromFunctions = createRequire(path.join(root, 'functions/index.js'));
@@ -222,7 +223,7 @@ const bodyOf = (source, signature) => {
 };
 
 test('no bulk sender signals grade documents directly any more', () => {
-  const index = read('functions/index.js');
+  const index = functionsBackendSource();
   const section = read('functions/classroomSectionEntry.js');
   const force = read('functions/classroomSectionForceEntry.js');
   const senders = [
@@ -241,7 +242,7 @@ test('no bulk sender signals grade documents directly any more', () => {
 });
 
 test('both triggers stop forcing on a queued retry, requeue a limit refusal, and log Google\'s answer under its own names', () => {
-  const index = read('functions/index.js');
+  const index = functionsBackendSource();
   const section = read('functions/classroomSectionEntry.js');
   const whole = bodyOf(index, 'exports.syncGradeToClassroom = onDocumentWritten(');
   const split = bodyOf(section, 'const syncSectionGradeToClassroom = onDocumentWritten(');

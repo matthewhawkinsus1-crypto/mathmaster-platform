@@ -20,6 +20,7 @@ import { buildSupportProjection } from '../../functions/shared/supportProfileMod
 import { evaluateClassworkCompletionRule } from '../../functions/shared/assignmentProjections.mjs';
 import { studentOmittedIndices } from '../../functions/shared/reducedWorkload.mjs';
 import { practicePassWaivedIndices, studentRequiredQuestions } from '../../src/assignmentLifecycle.js';
+import { functionsBackendSource, topLevelDeclaration } from './helpers/functionsBackendSource.mjs';
 
 const require = createRequire(import.meta.url);
 const { runtimeIncludedQuestionIndices, runtimeIncludedQuestionIndicesForSection } = require('../../functions/lib/assignmentRuntime.js');
@@ -135,7 +136,7 @@ test('a Classroom section column is graded over the student\'s required items', 
 
 // --- Every server site is wired -----------------------------------------------------------
 
-const index = readFileSync(new URL('../../functions/index.js', import.meta.url), 'utf8');
+const index = functionsBackendSource();
 const sectionEntry = readFileSync(new URL('../../functions/classroomSectionEntry.js', import.meta.url), 'utf8');
 const recoveryLib = readFileSync(new URL('../../functions/lib/sectionRecoveryGrades.js', import.meta.url), 'utf8');
 
@@ -144,23 +145,23 @@ test('functions/index.js loads the helper once and filters at every grade/comple
   assert.match(code, /const studentWorkloadIndices = require\("\.\/lib\/studentWorkloadIndices"\);/);
   assert.match(code, /const \{ studentRequiredIndices \} = studentWorkloadIndices;/);
   const sites = [
-    ['async function finalizeOneResponseCheckpoint(', 'function ', 'checkpoint finalizer'],
-    ['async function ingestOneSubmission(', '\nexports.', 'ingestion'],
-    ['exports.advanceSectionRecovery = onCall(', '\nexports.', 'Recovery'],
-    ['exports.resolveHeldSectionRecovery = onCall(', '\nexports.', 'held Recovery resolution'],
-    ['exports.overrideStudentResponseGrade = onCall(', '\nexports.', 'teacher response override'],
-    ['exports.reconcileAssignmentActivityProjection = onCall(', '\nexports.', 'classwork reconcile'],
+    ['function finalizeOneResponseCheckpoint', 'checkpoint finalizer'],
+    ['function ingestOneSubmission', 'ingestion'],
+    ['exports.advanceSectionRecovery', 'Recovery'],
+    ['exports.resolveHeldSectionRecovery', 'held Recovery resolution'],
+    ['exports.overrideStudentResponseGrade', 'teacher response override'],
+    ['exports.reconcileAssignmentActivityProjection', 'classwork reconcile'],
   ];
-  sites.forEach(([start, end, label]) => {
-    const body = executableSource(region(index, start, end, label));
+  sites.forEach(([declaration, label]) => {
+    const body = executableSource(topLevelDeclaration(index, declaration));
     assert.match(body, /await studentOmittedFor\(\{[^}]*assignment,\s*gradeData/, `${label} resolves the omission`);
     assert.match(body, /studentRequiredIndices\(runtimeIncludedQuestionIndicesForSection\(assignment, "(classwork|warmup|dol)"\)|studentRequiredIndices\(runtimeIncludedQuestionIndicesForSection\(assignment, section\)/, `${label} filters its section indices`);
   });
-  const ingestion = executableSource(region(index, 'async function ingestOneSubmission(', '\nexports.', 'ingestion'));
+  const ingestion = executableSource(topLevelDeclaration(index, 'function ingestOneSubmission'));
   assert.match(ingestion, /const resetsRecord = ingestion\.envelopeResetsRecord\(\{ envelope, canonicalRecord \}\);/);
   assert.match(ingestion, /answeredIndex: resetsRecord \? null : envelope\.questionIndex,/, 'the attempt being recorded counts as answered');
   assert.match(ingestion, /resetIndex: resetsRecord \? envelope\.questionIndex : null,/, 'an authorized replacement reads as reset');
-  const sync = executableSource(region(index, 'exports.syncGradeToClassroom', 'exports.queueReleasedAssessmentGrades', 'whole-assignment passback'));
+  const sync = executableSource(topLevelDeclaration(index, 'exports.syncGradeToClassroom'));
   assert.match(sync, /questionIndices = studentRequiredIndices\(questionIndices, studentOmitted\);/);
   assert.match(sync, /omittedIndices: studentOmitted,/, 'recovered sections use the same items');
   assert.match(sync, /canonicalAttempted,/, 'persistence safety keeps its full count');

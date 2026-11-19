@@ -22,6 +22,7 @@ import { LINE_ANSWER_STYLE, LINE_ATTEMPT_KIND, LINE_GRAPH_FORMAT, LINE_GRAPH_MOD
 import { EXTRA_TIME_RECEIPTS_FIELD } from '../../functions/shared/liveChallengeResponses.mjs';
 import { ROLE_WEIGHT, SUPPORTED_CREDIT, masteryEventFacts } from '../../functions/shared/masteryScoring.mjs';
 import { getScoringStrategy } from '../../functions/shared/liveChallengeScoring.mjs';
+import { functionsBackendSource } from './helpers/functionsBackendSource.mjs';
 
 const mathPath = createRequire(import.meta.url)('../../functions/lib/mathPath.js');
 
@@ -261,7 +262,7 @@ test('the owner\'s switch: only the boolean true turns it on', () => {
 /* ------------------------------- the wiring ------------------------------- */
 
 test('the server: each student\'s facts on the match result; line events only with the switch on; the bank builder unchanged', () => {
-  const server = executableSource(readFileSync(new URL('../../functions/index.js', import.meta.url), 'utf8'));
+  const server = executableSource(functionsBackendSource());
   const finalize = region(server, 'function applyLiveChallengeMatchFinalization(', '\n}\n', 'finalization');
   // Counted from each player's receipts in the finishing commit, onto their own standing.
   assert.match(finalize, /lineGraphEvidence: engine\.lineEvidence\.lineEvidenceFacts\(\{ player: playerById\.get\(standing\.studentId\) \|\| \{\}, roomSlopeHelper \}\)/);

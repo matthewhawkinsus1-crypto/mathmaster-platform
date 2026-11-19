@@ -22,6 +22,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import { executableSource } from './helpers/sourceContract.mjs';
+import { functionsBackendSource } from './helpers/functionsBackendSource.mjs';
 
 const require = createRequire(import.meta.url);
 const { buildContentUpgradePlan } = require('../../functions/lib/assignmentContentVersion.js');
@@ -101,7 +102,7 @@ test('without the server grader, or for a question the server cannot mark from i
 });
 
 test('both upgrade callables (Content V2 upgrade, teacher repair) pass the server grader into the migration', () => {
-  const index = executableSource(readFileSync(new URL('../../functions/index.js', import.meta.url), 'utf8'));
+  const index = executableSource(functionsBackendSource());
   const calls = index.split('assignmentContentTrackerMigration.migrateTrackerForContentUpgrade({').slice(1);
   assert.equal(calls.length, 2, 'the two callers');
   const before = index.split('assignmentContentTrackerMigration.migrateTrackerForContentUpgrade({').slice(0, -1);

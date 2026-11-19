@@ -8,6 +8,7 @@ import { buildInspectorModel } from '../../functions/shared/responseInspector.mj
 import { publicStudentLabel } from '../../functions/shared/classPoints.mjs';
 import { displayAliasForStudent } from '../../functions/shared/liveChallengeExperience.mjs';
 import { executableSource, region } from './helpers/sourceContract.mjs';
+import { functionsBackendSource, topLevelDeclaration } from './helpers/functionsBackendSource.mjs';
 
 // The SERVER side of the student-name contract (functions/shared/studentIdentity.mjs).
 //
@@ -28,9 +29,9 @@ import { executableSource, region } from './helpers/sourceContract.mjs';
 
 const require = createRequire(import.meta.url);
 const read = (path) => readFileSync(new URL(`../../${path}`, import.meta.url), 'utf8');
-const server = read('functions/index.js');
+const server = functionsBackendSource();
 const code = executableSource(server);
-const callable = (name, end) => region(code, `exports.${name} = onCall(`, end, name);
+const callable = (name) => topLevelDeclaration(code, `exports.${name}`);
 
 const HISTORY_FIELDS = [
   'gradesByAssignment', 'assignmentActivity', 'supportUsageByAssignment',
@@ -39,7 +40,7 @@ const HISTORY_FIELDS = [
 ];
 
 test('the teacher roster projection is the shared field list and the shared row builder', () => {
-  const roster = callable('listSignInAccess', 'exports.createStudentAccount');
+  const roster = callable('listSignInAccess');
   assert.match(roster, /db\.collection\("grades"\)\.select\(\.\.\.identity\.TEACHER_ROSTER_SELECT_FIELDS\)\.get\(\)/);
   assert.match(roster, /identity\.buildTeacherRosterSummaryRow\(rosterDoc\.id,/);
   assert.match(roster, /\.sort\(identity\.compareStudentIdentities\)/);
@@ -74,7 +75,7 @@ test('no server name copy falls back to the student id', () => {
   // Every writer that keeps a name copy goes through studentNameForStorage.
   const copies = [
     ['inspectStudentResponse', region(code, 'exports.inspectStudentResponse = onCall(', 'exports.loadStudentCaseEvidence', 'inspectStudentResponse'), /displayName: identity\.studentNameForStorage\(studentIdentityRecord\(identity, studentId, student\)\)/],
-    ['overrideStudentAssignmentGrade', region(code, 'exports.overrideStudentAssignmentGrade = onCall(', 'exports.awardClassPoints', 'overrideStudentAssignmentGrade'), /studentName: identity\.studentNameForStorage\(studentIdentityRecord\(identity, studentId, gradeData\)\)/],
+    ['overrideStudentAssignmentGrade', topLevelDeclaration(code, 'exports.overrideStudentAssignmentGrade'), /studentName: identity\.studentNameForStorage\(studentIdentityRecord\(identity, studentId, gradeData\)\)/],
     ['buildStudentRecoveryRow', region(code, 'async function buildStudentRecoveryRow(', 'exports.getStudentPersistenceRecoveryReport', 'buildStudentRecoveryRow'), /studentName: identity\.studentNameForStorage\(studentIdentityRecord\(identity, studentId, gradeData\)\)/],
     ['applyWorkspaceDraftRecovery', region(code, 'exports.applyWorkspaceDraftRecovery = onCall(', 'function normalizeTeamsSisStudentId', 'applyWorkspaceDraftRecovery'), /studentName: identity\.studentNameForStorage\(studentIdentityRecord\(identity, studentId, gradeData\)\)/],
   ];
@@ -147,7 +148,7 @@ test('class displays never show an id as a name, and keep their short formats', 
 });
 
 test('names typed by a person are validated on the server', () => {
-  const create = callable('createStudentAccount', 'exports.assignStudentToTeacher');
+  const create = callable('createStudentAccount');
   const validation = create.indexOf('identity.validateStudentNameInput(');
   assert.ok(validation > 0, 'createStudentAccount must validate the name server-side');
   assert.match(create, /if \(!validatedName\.ok\) throw new HttpsError\("invalid-argument", validatedName\.error\);/);
@@ -156,14 +157,14 @@ test('names typed by a person are validated on the server', () => {
   assert.equal(identity.validateStudentNameInput({ firstName: '', lastName: '' }, { studentId: '101410' }).ok, false);
   assert.equal(identity.validateStudentNameInput({ firstName: '101410', lastName: 'Samplewood' }, { studentId: '101410' }).ok, false);
 
-  const setName = callable('setStudentName', 'exports.retryLiveChallengeAchievementJobs');
+  const setName = callable('setStudentName');
   assert.match(setName, /await requireTeacher\(request\);/);
   assert.match(setName, /identity\.validateStudentNameInput\(/);
   assert.match(setName, /if \(!validatedName\.ok\) throw new HttpsError\("invalid-argument", validatedName\.error\);/);
 });
 
 test('setStudentName is authorized like setStudentSisId and writes only the name and its provenance', () => {
-  const setName = callable('setStudentName', 'exports.retryLiveChallengeAchievementJobs');
+  const setName = callable('setStudentName');
   // Authorization: root admin, roster teacher, or the class's teacher of record.
   assert.match(setName, /request\.auth\?\.token\?\.rootAdmin === true && authLib\.isRootAdminEmail\(email\)/);
   assert.match(setName, /String\(student\.assignedTeacherEmail \|\| ""\)\.trim\(\)\.toLowerCase\(\) === email/);
@@ -190,8 +191,8 @@ test('setStudentName is authorized like setStudentSisId and writes only the name
 });
 
 test('Classroom link callables never write — or erase — a name from an unvalidated value', () => {
-  const single = callable('linkStudentToClassroom', 'exports.linkClassroomRosterBatch');
-  const batch = callable('linkClassroomRosterBatch', 'exports.ensureClassroomTopics');
+  const single = callable('linkStudentToClassroom');
+  const batch = callable('linkClassroomRosterBatch');
   for (const [label, body] of [['linkStudentToClassroom', single], ['linkClassroomRosterBatch', batch]]) {
     // In every write, the only literal googleName/googleEmail/name/email left
     // is the replaced-link cleanup; every other one is the validated helper.
@@ -226,25 +227,25 @@ test('Classroom link callables never write — or erase — a name from an unval
 });
 
 test('studentSignIn creates the Auth user without the id as its display name', () => {
-  const signIn = callable('studentSignIn', 'exports.resetStudentPasscode');
+  const signIn = callable('studentSignIn');
   assert.match(signIn, /await getAuth\(\)\.createUser\(\{ uid \}\);/);
   assert.doesNotMatch(signIn, /createUser\([^)]*displayName/);
 });
 
 test('signing in never creates a roster row', () => {
-  const resolve = callable('resolveSignedInRole', 'exports.linkGoogleAccount');
+  const resolve = callable('resolveSignedInRole');
   assert.doesNotMatch(resolve, /ensureStudentRecord|collection\("grades"\)[^;]*\.(?:set|create)\(/);
   assert.equal((resolve.match(/await readStudentRosterPresence\(db, /g) || []).length, 2, 'both student branches only read');
   assert.match(resolve, /if \(!record\.exists\) throw new HttpsError\("failed-precondition", STUDENT_NOT_ON_ROSTER_MESSAGE\);/);
   assert.match(resolve, /if \(!record\.exists\) return \{ role: null, needsLink: true, email \};/);
-  const presence = region(code, 'async function readStudentRosterPresence(', 'const STUDENT_NOT_ON_ROSTER_MESSAGE', 'presence');
+  const presence = topLevelDeclaration(code, 'function readStudentRosterPresence');
   assert.match(presence, /db\.getAll\([\s\S]*\{ fieldMask: \["classPeriod", "status"\] \}/);
   assert.doesNotMatch(presence, /\.(?:set|create|update)\(/);
   assert.doesNotMatch(code, /function ensureStudentRecord/);
 });
 
 test('unlinking a Google account never creates a ghost roster row', () => {
-  const unlink = callable('unlinkStudentAccount', 'exports.issueClassJoinCode');
+  const unlink = callable('unlinkStudentAccount');
   assert.doesNotMatch(unlink, /collection\("grades"\)\.doc\(studentId\)\.set\(/);
   assert.match(unlink, /const rosterRow = await readStudentRosterPresence\(db, studentId\);\s*if \(rosterRow\.exists\) \{\s*await db\.collection\("grades"\)\.doc\(studentId\)\.update\(\{ linkedEmail: FieldValue\.delete\(\) \}\);/);
 });
@@ -268,7 +269,7 @@ test("the Live Challenge host roster reads names only, with each student's id", 
   // field-masked read (never a player's attempt history), are resolved with
   // the student's id so a stored id is never shown as a name, and a student
   // with no name reads as the explicit unavailable state.
-  const roster = callable('getLiveChallengeHostRoster', 'exports.startLiveChallenge');
+  const roster = callable('getLiveChallengeHostRoster');
   assert.match(roster, /\{ fieldMask: \[\.\.\.identity\.STUDENT_IDENTITY_FIELDS, "profile", "sisStudentId"\] \}/);
   assert.match(roster, /studentId: String\(player\.studentId \|\| ""\)/);
   assert.match(roster, /codeAlias: identity\.STUDENT_NAME_UNAVAILABLE/);

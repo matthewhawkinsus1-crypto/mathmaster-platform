@@ -12,9 +12,10 @@ import {
   pathToolIdOf,
 } from '../../functions/shared/liveChallenge.mjs';
 import { getChallengeMode, normalizeModeConfig } from '../../functions/shared/liveChallengeModes.mjs';
+import { functionsBackendSource } from './helpers/functionsBackendSource.mjs';
 
 const read = (rel) => readFileSync(new URL(rel, import.meta.url), 'utf8');
-const functionsIndex = read('../../functions/index.js');
+const functionsIndex = functionsBackendSource();
 const teacher = read('../../src/components/liveChallenge/LiveChallengeTeacher.jsx');
 const student = read('../../src/components/liveChallenge/LiveChallengeStudent.jsx');
 // Comments stripped: a promise made to a teacher has to be in the markup they

@@ -13,6 +13,7 @@ import {
 } from '../../functions/shared/pathQuestionSelection.mjs';
 import { pathCardLaunchOptions } from '../../src/platform/path/pathSessionLaunch.js';
 import { executableSource, region } from './helpers/sourceContract.mjs';
+import { functionsBackendSource } from './helpers/functionsBackendSource.mjs';
 
 const require = createRequire(import.meta.url);
 const mathPath = require('../../functions/lib/mathPath.js');
@@ -243,7 +244,7 @@ test('every Algebra I and Algebra II preferred adaptive cell can be issued throu
 
 
 test('frozen weekly slot rigor outranks open-practice pass escalation and enrichment', () => {
-  const source = readFileSync('functions/index.js', 'utf8');
+  const source = functionsBackendSource();
 
   assert.match(
     source,
@@ -267,7 +268,7 @@ test('frozen weekly slot rigor outranks open-practice pass escalation and enrich
 });
 
 test('server wiring passes target preferences and honors fresh enrichment', () => {
-  const source = readFileSync('functions/index.js', 'utf8');
+  const source = functionsBackendSource();
   assert.match(
     source,
     /instantiateQuestion\([\s\S]*preferredDok,[\s\S]*preferredDifficultyBand,[\s\S]*\)/,
@@ -286,7 +287,7 @@ test('server wiring passes target preferences and honors fresh enrichment', () =
 
 
 test('weekly sessions are not promoted into numbered course Path passes', () => {
-  const source = readFileSync('functions/index.js', 'utf8');
+  const source = functionsBackendSource();
 
   const progressBlock = /async function loadCoursePathPassProgress[\s\S]*?return \{[\s\S]*?totalCompletedPasses:[\s\S]*?\n  \};\n\}/.exec(source);
   assert.ok(progressBlock, 'course Path pass progress loader is missing');
@@ -311,7 +312,7 @@ test('weekly sessions are not promoted into numbered course Path passes', () => 
 
 
 test('earned free-choice Challenge is a one-way DOK3 Band4 intent and not a numbered pass', () => {
-  const server = readFileSync('functions/index.js', 'utf8');
+  const server = functionsBackendSource();
   const app = readFileSync('src/components/student/MyMathPathApp.jsx', 'utf8');
   const service = readFileSync('src/services/pathSessionService.js', 'utf8');
 
@@ -363,7 +364,7 @@ test('earned free-choice Challenge is a one-way DOK3 Band4 intent and not a numb
 
 
 test('server requires earned mastery before honoring free-choice Challenge intent', () => {
-  const server = executableSource(readFileSync('functions/index.js', 'utf8'));
+  const server = executableSource(functionsBackendSource());
   assert.match(server, /function courseChallengeEarned\(profile = \{\}\)/);
   assert.match(server, /\["mastered", "masters"\]\.includes\(status\)/);
   assert.match(server, /estimate >= 90/);

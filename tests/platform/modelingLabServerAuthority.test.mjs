@@ -23,6 +23,7 @@ import { attemptInputsFromGrading } from '../../functions/shared/serverGrading/g
 import { recordQuestionAttempt } from '../../functions/shared/attemptPolicy.mjs';
 import { serverResponseGradingSupport } from '../../functions/shared/serverGrading/serverResponseGrading.mjs';
 import { GRADING_AUTHORITY } from '../../functions/shared/serverGrading/gradingAuthority.mjs';
+import { functionsBackendSource } from './helpers/functionsBackendSource.mjs';
 
 const QUESTION = { questionId: 'lab-q', type: 'modelingLab', labDefinition: { labId: 'lab-1' }, activityRole: 'classwork' };
 const EVALUATION = { isMastered: false, compositeScore: 0.72, rubricBreakdown: { modelAccuracy: 90, hypothesisCompleteness: 60, writtenJustificationCompleteness: 88 } };
@@ -91,7 +92,7 @@ test('a marker for another student, assignment or lab is never used', () => {
 test('the ingestion transaction reads the server marker before writing and hands it to buildIngestedAttempt', async () => {
   const { readFileSync } = await import('node:fs');
   const { executableSource } = await import('./helpers/sourceContract.mjs');
-  const source = executableSource(readFileSync(new URL('../../functions/index.js', import.meta.url), 'utf8'));
+  const source = executableSource(functionsBackendSource());
   const start = source.indexOf('async function ingestOneSubmission(');
   const end = source.indexOf('\nasync function ', start + 10);
   const region = source.slice(start, end > start ? end : undefined);

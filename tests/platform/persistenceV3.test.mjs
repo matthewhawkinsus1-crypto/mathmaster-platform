@@ -37,6 +37,7 @@ import {
   resolveDeviceId,
 } from '../../src/platform/persistence/deviceIdentity.js';
 import { reportDeviceQueueUnlessUnchanged } from '../../src/platform/persistence/deviceReportDedupe.js';
+import { functionsBackendSource, topLevelDeclaration } from './helpers/functionsBackendSource.mjs';
 
 /*
  * Every file the browser ships, read once. Used to check a claim about the
@@ -163,7 +164,7 @@ test('production IAM verification requires a public invoker binding on every bro
 test('grade delivery has one canonical writer and hydration reports before and after drain', async () => {
   const [app, functionsSource] = await Promise.all([
     readFile(new URL('../../src/App.jsx', import.meta.url), 'utf8'),
-    readFile(new URL('../../functions/index.js', import.meta.url), 'utf8'),
+    functionsBackendSource(),
   ]);
   const dispatcher = region(app, 'const reconcileDurableStudentAction', 'const drainStudentOutbox', 'durable dispatcher');
   // Graded work — and elapsed time, which lands on the same server-owned
@@ -348,7 +349,7 @@ test('an ordinary background tick is rate limited, an immediate trigger is not',
  * ======================================================================== */
 
 test('the targeted deploy covers every production function this release changes', async () => {
-  const functionsSource = await readFile(new URL('../../functions/index.js', import.meta.url), 'utf8');
+  const functionsSource = functionsBackendSource();
   const names = persistenceFunctionNames();
 
   // The four the review named, at minimum.
@@ -646,7 +647,7 @@ test('a resolution that never described a real discrepancy covers nothing', () =
 test('the policy advertises no signal production finalization does not read', async () => {
   const [policy, functionsSource] = await Promise.all([
     readFile(new URL('../../functions/shared/persistencePending.mjs', import.meta.url), 'utf8'),
-    readFile(new URL('../../functions/index.js', import.meta.url), 'utf8'),
+    functionsBackendSource(),
   ]);
   const reader = region(
     functionsSource,
@@ -681,12 +682,7 @@ test('the policy advertises no signal production finalization does not read', as
     /const recoverableDrafts = [\s\S]*countRecoverableWorkspaceDrafts\(\{[\s\S]*assessPersistencePending\(\{[\s\S]*\brecoverableDrafts,/,
     'the recoverable-draft count must be derived from the draft document and handed to the policy',
   );
-  const draftCounter = region(
-    functionsSource,
-    'async function countRecoverableWorkspaceDrafts',
-    'exports.reportStudentDeviceQueue',
-    'workspace draft counter',
-  );
+  const draftCounter = topLevelDeclaration(functionsSource, 'function countRecoverableWorkspaceDrafts');
   assert.match(draftCounter, /assessWorkspaceDraftDocument/);
   assert.match(draftCounter, /assessment\?\.recoverable\?\.length/);
 });
@@ -721,7 +717,7 @@ test('the browser never writes classworkGradesByAssignment from its local tracke
   assert.match(flush, /reconcileAssignmentActivityProjection\(\{ assignmentId \}\)/);
 
   // And the server derives it from the canonical tracker, never the caller's.
-  const functionsSource = await readFile(new URL('../../functions/index.js', import.meta.url), 'utf8');
+  const functionsSource = functionsBackendSource();
   const reconciler = region(
     functionsSource,
     'exports.reconcileAssignmentActivityProjection',

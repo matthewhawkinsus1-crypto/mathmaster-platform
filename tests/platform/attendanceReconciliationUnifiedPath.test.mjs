@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import { executableSource as executableSourceOf } from './helpers/sourceContract.mjs';
+import { functionsBackendSource } from './helpers/functionsBackendSource.mjs';
 
 /*
  * ONE RECONCILIATION TRIGGER, NOT TWO.
@@ -86,7 +87,7 @@ test('firestore.rules blocks a direct client write to studentOverrides on the as
 });
 
 test('the applyStudentAttendanceExtension callable exists and re-verifies authorization and the never-shorten rule server-side', () => {
-  const functionsSource = fs.readFileSync(new URL('../../functions/index.js', import.meta.url), 'utf8');
+  const functionsSource = functionsBackendSource();
   assert.match(functionsSource, /exports\.applyStudentAttendanceExtension = onCall/);
   assert.match(functionsSource, /authorizeAttendanceExtensionActor\(\{/);
   assert.match(functionsSource, /validateProposedFinalCutoff\(\{/);

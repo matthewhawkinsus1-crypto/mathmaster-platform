@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 
 import { createTeacherPathRuntime } from '../../src/platform/simulation/teacherPathRuntime.js';
+import { functionsBackendSource } from './helpers/functionsBackendSource.mjs';
 
 const seed = JSON.parse(readFileSync('seed/pathQuestionBank/algebra1_pathQuestionBank_seed.json', 'utf8'));
 const records = seed.documents || [];
@@ -75,7 +76,7 @@ test('live Path service does not trust browser-supplied weekly rigor', () => {
   assert.doesNotMatch(liveService, /intendedDifficultyBand/);
   assert.doesNotMatch(liveService, /weeklyPurpose/);
 
-  const server = readFileSync('functions/index.js', 'utf8');
+  const server = functionsBackendSource();
   assert.match(server, /intendedDok: weeklySlot\?\.dok \|\| null/);
   assert.match(server, /intendedDifficultyBand: weeklySlot\?\.difficultyBand \|\| null/);
   assert.match(server, /weeklyPurpose: weeklySlot\?\.purpose \|\| null/);

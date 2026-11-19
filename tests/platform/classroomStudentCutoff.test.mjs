@@ -25,6 +25,7 @@ import { readFileSync } from 'node:fs';
 import { arrivedStudentCheckpoints, studentClassroomDeadlines } from '../../functions/shared/classroomStudentDeadlines.mjs';
 import { buildSupportProjection } from '../../functions/shared/supportProfileModel.mjs';
 import { executableSource, region } from './helpers/sourceContract.mjs';
+import { functionsBackendSource, topLevelDeclaration } from './helpers/functionsBackendSource.mjs';
 
 const require = createRequire(import.meta.url);
 const runtime = require('../../functions/lib/classroomGradeRuntime.js');
@@ -238,7 +239,7 @@ test('NV02: only an own close later than the class\'s holds anything', () => {
 });
 
 test('NV02: both triggers hold the return and record the student\'s own close for the scheduler', () => {
-  const index = executableSource(readFileSync(new URL('../../functions/index.js', import.meta.url), 'utf8'));
+  const index = executableSource(functionsBackendSource());
   const section = executableSource(readFileSync(new URL('../../functions/classroomSectionEntry.js', import.meta.url), 'utf8'));
   // index.js's own release policy holds by the lib's one rule: the rule is
   // imported from the lib (beside whatever else index.js takes from it).
@@ -296,7 +297,7 @@ test('recording and waking, against a fake state document', async () => {
 });
 
 test('both Classroom paths record a deferred student and both schedulers wake them', () => {
-  const index = executableSource(readFileSync(new URL('../../functions/index.js', import.meta.url), 'utf8'));
+  const index = executableSource(functionsBackendSource());
   const section = executableSource(readFileSync(new URL('../../functions/classroomSectionEntry.js', import.meta.url), 'utf8'));
 
   const sync = region(index, 'exports.syncGradeToClassroom = onDocumentWritten(', 'exports.queueReleasedAssessmentGrades', 'syncGradeToClassroom');
@@ -317,7 +318,7 @@ test('both Classroom paths record a deferred student and both schedulers wake th
   assert.match(sync, /recordDeferredStudentCheckpoint\(\{\s*stateRef: db\.collection\(CLASSROOM_GRADE_CHECKPOINT_COLLECTION\)\.doc\(assignmentId\),/);
   // index.js takes the deferral rule from the lib (beside NV02's hold rule).
   assert.match(index, /const \{[^}]*\bdeferredClassCheckpoint\b[^}]*\} = require\("\.\/lib\/classroomGradeRuntime"\);/);
-  const scheduler = region(index, 'exports.queueClassroomGradeCheckpoints = onSchedule', 'let liveChallengeModule = null;', 'queueClassroomGradeCheckpoints');
+  const scheduler = topLevelDeclaration(index, 'exports.queueClassroomGradeCheckpoints');
   assert.match(scheduler, /classroomStudentCheckpoints\.wakeArrivedStudentCheckpoints\(\{\s*stateRef,\s*state,\s*now,/);
 
   const sectionSync = region(section, 'const syncSectionGradeToClassroom = onDocumentWritten(', 'const queueClassroomSectionGradeCheckpoints', 'syncSectionGradeToClassroom');
@@ -325,7 +326,7 @@ test('both Classroom paths record a deferred student and both schedulers wake th
   assert.match(sectionSync, /resolveClassroomGradeStage\(\{[^}]*studentFinalCutoff: ownDeadlines\.studentFinalCutoff,\s*studentDueAt: ownDeadlines\.studentDueAt,\s*\}\)/);
   assert.match(sectionSync, /classroomGradeReleasePolicy\(\{\s*stage, assignment, nowValue: stageNow, studentDueAt: ownDeadlines\.studentDueAt, studentFinalCutoff: ownDeadlines\.studentFinalCutoff,\s*\}\)/);
   assert.match(sectionSync, /recordDeferredStudentCheckpoint\(\{\s*stateRef: db\.collection\(SECTION_CHECKPOINT_COLLECTION\)\.doc\(assignmentId\),/);
-  const sectionScheduler = region(section, 'const queueClassroomSectionGradeCheckpoints', 'const drainClassroomPushQueue', 'section scheduler');
+  const sectionScheduler = topLevelDeclaration(section, 'queueClassroomSectionGradeCheckpoints');
   assert.match(sectionScheduler, /classroomStudentCheckpoints\.wakeArrivedStudentCheckpoints\(\{\s*stateRef,\s*state,\s*now,/);
   assert.match(section, /const classroomStudentCheckpoints = require\("\.\/lib\/classroomStudentCheckpoints"\);/);
 });

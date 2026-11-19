@@ -10,6 +10,7 @@ import {
 } from '../../functions/shared/liveChallengeExperience.mjs';
 import { replayExperienceFromRoom, replayRequestFromRoom } from '../../src/platform/liveChallenge/challengeReplayModel.js';
 import { executableSource, region } from './helpers/sourceContract.mjs';
+import { functionsBackendSource } from './helpers/functionsBackendSource.mjs';
 
 /*
  * A GAME PLAYED WITH NAMES IS PLAYED WITH NAMES, FROM THE FIRST SEAT TO PLAY AGAIN.
@@ -113,7 +114,7 @@ test('Play Again asks for the last game\'s names on the create itself, the same 
 
 /* ------------------------------ the wiring ------------------------------ */
 
-const server = executableSource(read('functions/index.js'));
+const server = executableSource(functionsBackendSource());
 const teacher = read('src/components/liveChallenge/LiveChallengeTeacher.jsx');
 
 test('createLiveChallenge names every seat from the request\'s setting before any invite is written, and stores the setting on the room', () => {

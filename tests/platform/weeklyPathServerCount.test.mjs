@@ -30,6 +30,7 @@ import { WEEKLY_GOAL, buildTeacherWeeklyView, describeShortWeek, normalizeWeekly
 import { evaluateStudentRetentionSchedule } from '../../src/platform/retention/retentionScheduler.js';
 import { buildUnifiedMasteryProfiles } from '../../src/platform/mastery/unifiedMastery.js';
 import { executableSource, region } from './helpers/sourceContract.mjs';
+import { functionsBackendSource } from './helpers/functionsBackendSource.mjs';
 
 const require = createRequire(import.meta.url);
 const { loadWeeklyFreezeInputs } = require('../../functions/lib/weeklyPathFreezeInputs.js');
@@ -170,7 +171,7 @@ test('the server reads the class\'s settings by class id, then period, and the s
 });
 
 test('resolveWeeklyPathGoalSnapshot freezes a new week with the server\'s facts, and returns a frozen one as it is', () => {
-  const index = executableSource(read('functions/index.js'));
+  const index = executableSource(functionsBackendSource());
   const callable = region(index, 'exports.resolveWeeklyPathGoalSnapshot = onCall(', '\n});', 'the freeze callable');
   const existing = callable.indexOf('if (frozen.exists) return { success: true, goal: frozen.data() };');
   // The proposal rides along only so a short one can be checked against the

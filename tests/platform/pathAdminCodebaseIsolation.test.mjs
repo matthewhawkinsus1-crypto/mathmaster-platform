@@ -7,6 +7,7 @@ import test from 'node:test';
 import { syncPathAdminRuntime, vendorDrift, vendoredFilePairs } from '../../scripts/sync-path-admin-runtime.mjs';
 import { authorizeRootAdmin, ROOT_ADMIN_EMAIL } from '../../functions/shared/rolePolicy.mjs';
 import { executableSource } from './helpers/sourceContract.mjs';
+import { functionsBackendSource } from './helpers/functionsBackendSource.mjs';
 
 const require = createRequire(import.meta.url);
 const read = (relative) => fs.readFileSync(new URL(`../../${relative}`, import.meta.url), 'utf8');
@@ -99,7 +100,7 @@ test('path-admin defines only new V2 names, so it can take nothing from the defa
   ]);
 
   const defaultExports = new Set([
-    ...[...read('functions/index.js').matchAll(/^exports\.(\w+)\s*=/gm)].map((match) => match[1]),
+    ...[...functionsBackendSource().matchAll(/^exports\.(\w+)\s*=/gm)].map((match) => match[1]),
     ...[...read('functions/platformEntry.js').matchAll(/^exports\.(\w+)\s*=/gm)].map((match) => match[1]),
     ...[...read('functions/entry.js').matchAll(/^exports\.(\w+)\s*=/gm)].map((match) => match[1]),
   ]);

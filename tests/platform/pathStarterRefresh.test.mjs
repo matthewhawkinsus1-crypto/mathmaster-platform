@@ -3,10 +3,11 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { functionsBackendSource } from './helpers/functionsBackendSource.mjs';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const repoRoot = path.resolve(here, '../..');
-const functionsIndex = fs.readFileSync(path.join(repoRoot, 'functions/index.js'), 'utf8');
+const functionsIndex = functionsBackendSource();
 const releaseSource = fs.readFileSync(path.join(repoRoot, 'src/platform/path/pathRelease.js'), 'utf8');
 
 const seedFiles = [

@@ -22,8 +22,9 @@ import {
   applicableSupports, attemptsWithEntitlements, isSupportAuthorized,
   reconcileSupportDelivery, reducesMathematicalIndependence, resolveSupportEntitlements,
 } from '../../functions/shared/supportEntitlements.mjs';
+import { functionsBackendSource } from './helpers/functionsBackendSource.mjs';
 
-const serverSource = readFileSync(new URL('../../functions/index.js', import.meta.url), 'utf8');
+const serverSource = functionsBackendSource();
 const mathPathSource = readFileSync(new URL('../../functions/lib/mathPath.js', import.meta.url), 'utf8');
 
 // --- One model over both stored shapes ---------------------------------------

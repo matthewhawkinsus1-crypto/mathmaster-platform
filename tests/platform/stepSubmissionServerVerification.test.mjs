@@ -56,6 +56,7 @@ import {
   stepActionCountsAttempt,
 } from '../../functions/shared/serverGrading/stepAlgebraStepVerification.mjs';
 import { executableSource, region } from './helpers/sourceContract.mjs';
+import { functionsBackendSource } from './helpers/functionsBackendSource.mjs';
 
 const CAPTURED_AT = Date.parse('2026-09-14T15:20:00Z');
 const MAX_ATTEMPTS = 3; // classwork
@@ -395,7 +396,7 @@ test('with settings/serverGrading.requireStepWork on, leaving the work out earns
 });
 
 test('the ingestion callable reads the switch once per call and keeps a wall-clock budget', () => {
-  const functionsSource = readFileSync('functions/index.js', 'utf8');
+  const functionsSource = functionsBackendSource();
   const callable = functionsSource.slice(functionsSource.indexOf('exports.ingestStudentSubmissions = onCall'), functionsSource.indexOf('PRACTICE-BASED RECOVERY'));
   assert.match(callable, /db\.collection\("settings"\)\.doc\("serverGrading"\)\.get\(\)/);
   assert.match(callable, /if \(Date\.now\(\) - now > INGESTION_CALL_BUDGET_MS\) \{[\s\S]*?SUBMISSION_DISPOSITION\.RETRYABLE,[\s\S]*?continue;/);

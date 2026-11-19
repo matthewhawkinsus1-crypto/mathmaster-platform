@@ -10,8 +10,10 @@ import {
   planSecondChanceRounds,
   scoreChallengeRound,
 } from '../../functions/shared/liveChallenge.mjs';
+import { functionsBackendSource } from './helpers/functionsBackendSource.mjs';
 
-const codeOf = (path) => readFileSync(path, 'utf8')
+// functions/index.js names the backend: index.js and the modules it loads.
+const codeOf = (path) => (path === 'functions/index.js' ? functionsBackendSource() : readFileSync(path, 'utf8'))
   .replace(/\/\*[\s\S]*?\*\//g, ' ')
   .replace(/(^|[^:])\/\/[^\n]*/g, '$1');
 

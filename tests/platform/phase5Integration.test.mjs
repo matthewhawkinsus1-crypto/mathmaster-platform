@@ -10,6 +10,7 @@ import { evaluateRetentionProbeResult } from '../../src/platform/retention/reten
 import { buildAttemptEvidenceEvent } from '../../src/platform/history/evidenceEvent.js';
 import { buildStudentEvidenceTimeline } from '../../src/platform/history/evidenceTimelineService.js';
 import { generateRuntimeUUID } from '../../src/utils/idUtils.js';
+import { functionsBackendSource } from './helpers/functionsBackendSource.mjs';
 
 const require = createRequire(import.meta.url);
 const mathPath = require('../../functions/lib/mathPath.js');
@@ -136,7 +137,7 @@ test('every server call into the async graders is awaited', async () => {
   //
   // Checked against the source rather than by exercising the callables, because
   // the callables need Firestore and this is a syntactic mistake.
-  const source = await readFile(new URL('../../functions/index.js', import.meta.url), 'utf8');
+  const source = functionsBackendSource();
   const ASYNC_BRIDGES = ['gradeResponse', 'gradePathToolResponse', 'buildIssuePlan'];
   const unawaited = [];
   ASYNC_BRIDGES.forEach((name) => {

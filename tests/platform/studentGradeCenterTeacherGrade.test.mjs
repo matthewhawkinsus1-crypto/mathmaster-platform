@@ -13,6 +13,7 @@ import { WAY_ACTION, WAY_KIND, buildWaysToRaise, countWaysToRaise, entryCanStill
 import { canonicalPresentedAssignmentGrade, canonicalPresentedSectionGrade } from '../../src/platform/grading/canonicalGradeProjection.js';
 import { region } from './helpers/sourceContract.mjs';
 import { buildScreens, NOW as TODAY_NOW } from './fixtures/studentTodayScreens.mjs';
+import { functionsBackendSource } from './helpers/functionsBackendSource.mjs';
 
 /*
  * The Grades tab, "How this grade is figured" and "Ways to raise" must agree
@@ -150,7 +151,7 @@ test('the row names only the fixed reason label — never the note or the teache
 });
 
 test('the reason labels are exactly index.js ASSIGNMENT_ZERO_REASONS, code for code', () => {
-  const block = region(read('../../functions/index.js'), 'const ASSIGNMENT_ZERO_REASONS = Object.freeze({', '});');
+  const block = region(functionsBackendSource(), 'const ASSIGNMENT_ZERO_REASONS = Object.freeze({', '});');
   const server = Object.fromEntries([...block.matchAll(/(\w+):\s*"([^"]+)"/g)].map((match) => [match[1], match[2]]));
   assert.ok(Object.keys(server).length >= 3);
   assert.deepEqual({ ...ASSIGNMENT_ZERO_REASON_LABELS }, server);

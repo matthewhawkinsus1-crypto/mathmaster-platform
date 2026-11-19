@@ -19,8 +19,9 @@ import {
   movedByClassRestamp,
   movedFromMigrationUpdates,
 } from '../../functions/shared/liveChallengeBulkInvite.mjs';
+import { functionsBackendSource } from './helpers/functionsBackendSource.mjs';
 
-const index = readFileSync(new URL('../../functions/index.js', import.meta.url), 'utf8');
+const index = functionsBackendSource();
 
 /** A fake game board: which teachers have a game, what inviting each student says, and what was asked. */
 const board = ({ games = [], outcomes = {} } = {}) => {

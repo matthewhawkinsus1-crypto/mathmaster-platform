@@ -52,9 +52,11 @@ const REWARD_FILES = new Set([
 // line that names them must be one of these, so a grader living in the same
 // file (functions/index.js grades answers) cannot start reading a reward.
 const WIRING_LINES = {
-  // The three callables, and moving a student's pending requests with them
-  // when they change class.
-  'functions/index.js': /exports\.(?:saveClassRewardCatalog|redeemClassReward|resolveClassRewardRequest) = onCall\(\(request\) => require\("\.\/lib\/classRewardStore"\)\.\w+Handler\(request\)\);|counts\.classRewardRequests = (?:await require\("\.\/lib\/classRewardStore"\)|0;)|^\s*\.reauthorizeClassRewardRequests\(db, studentId, classRecord\);/,
+  // The three callables, in the rewards domain module.
+  'functions/rewardsFunctions.js': /^exports\.(?:saveClassRewardCatalog|redeemClassReward|resolveClassRewardRequest) = onCall\(\(request\) => require\("\.\/lib\/classRewardStore"\)\.\w+Handler\(request\)\);$/,
+  // Moving a student's pending requests with them when they change class, in
+  // the accounts domain module.
+  'functions/accountsFunctions.js': /counts\.classRewardRequests = (?:await require\("\.\/lib\/classRewardStore"\)|0;)|^\s*\.reauthorizeClassRewardRequests\(db, studentId, classRecord\);/,
   // The lists of collections a student's deletion and a test reset clear.
   'functions/lib/admin.js': /^\s*"classReward(?:Catalogs|Requests)",$/,
   // The two reward screens in the teacher's workspace, and their lazy load.
