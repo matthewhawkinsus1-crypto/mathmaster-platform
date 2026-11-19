@@ -78,8 +78,81 @@ test('attempted only when the heartbeat shows an answer on that question', () =>
   assert.equal(liveInspectorTarget({ studentId: 's', live: live({ questionStates: 'cn....' }), assignment: ASSIGNMENT })?.attempted, false, 'an item the student is not required to do');
 });
 
+/* ------------------------------------------- once per assignment, not per tile */
+
+// An assignment whose every read of `sections` is counted: the lists are built from it.
+const counted = (assignment) => {
+  let reads = 0;
+  const proxy = new Proxy(assignment, {
+    get: (target, key, receiver) => {
+      if (key === 'sections') reads += 1;
+      return Reflect.get(target, key, receiver);
+    },
+  });
+  return { assignment: proxy, reads: () => reads };
+};
+// Four sections of 20: the size of a real lesson.
+const sized = (id) => ({
+  id,
+  schemaVersion: 5,
+  sections: ['warmup', 'classwork', 'practice', 'dol'].map((role) => ({
+    id: role, role, title: role, questions: Array.from({ length: 20 }, (_, index) => question(`${role}-${index + 1}`, role)),
+  })),
+});
+
+test('Live View works the lists out once per copy of an assignment, not for every tile on every heartbeat', () => {
+  // 30 tiles, each a student somewhere in Practice, redrawn on 10 heartbeats.
+  const tile = (student) => live({ assignmentId: 'a-big', activityRole: 'practice', questionIndex: 40 + (student % 20), questionCount: 80, sectionQuestionIndex: student % 20, questionStates: 'c'.repeat(80) });
+  const redraw = (assignment) => Array.from({ length: 30 }, (_, student) => liveInspectorTarget({ studentId: `s${student}`, live: tile(student), assignment }));
+  // What working the lists out once reads: one tile's target.
+  const single = counted(sized('a-big'));
+  liveInspectorTarget({ studentId: 's0', live: tile(0), assignment: single.assignment });
+  const once = single.reads();
+  assert.ok(once > 0, 'the lists are built from the assignment');
+
+  const { assignment, reads } = counted(sized('a-big'));
+  const first = redraw(assignment);
+  assert.deepEqual(first.map((target) => target?.questionIndex), Array.from({ length: 30 }, (_, student) => 40 + (student % 20)), 'every tile names its question');
+  assert.equal(reads(), once, `30 tiles read the assignment ${reads()} times; one tile reads it ${once}`);
+  for (let heartbeat = 0; heartbeat < 9; heartbeat += 1) assert.deepEqual(redraw(assignment), first);
+  assert.equal(reads(), once, `10 redraws of 30 tiles read the assignment ${reads()} times; once is ${once}`);
+
+  // An edited assignment arrives as a new copy, and is worked out again, once.
+  const edited = counted({ ...sized('a-big'), title: 'edited' });
+  for (let heartbeat = 0; heartbeat < 10; heartbeat += 1) redraw(edited.assignment);
+  assert.equal(edited.reads(), once, 'the new copy, once');
+});
+
+test('a question re-included before the student in their own section never names the wrong question while their heartbeat catches up', () => {
+  // Warm-Up 2, Classwork 3, Practice 1, DOL 1. On the student's device C1 is
+  // still left out, and they are on C3 (storage 4), which they answered.
+  const make = (c1Excluded) => ({
+    id: 'a-live',
+    schemaVersion: 5,
+    sections: [
+      { id: 'wu', role: 'warmup', title: 'Warm-Up', questions: [question('w1', 'warmup'), question('w2', 'warmup')] },
+      { id: 'cw', role: 'classwork', title: 'Classwork', questions: [question('c1', 'classwork', c1Excluded ? { teacherExcluded: true } : {}), question('c2', 'classwork'), question('c3', 'classwork')] },
+      { id: 'pr', role: 'practice', title: 'Practice', questions: [question('p1', 'practice')] },
+      { id: 'dol', role: 'dol', title: 'DOL', questions: [question('d1', 'dol')] },
+    ],
+  });
+  // The heartbeat as App builds it (buildLiveStatus): C3's place in the
+  // student's list of 6 and in their Classwork of 2.
+  const stale = live({ questionIndex: 3, questionCount: 6, sectionQuestionIndex: 1, sectionQuestionCount: 2, questionStates: '...x..', currentAttempts: 1 });
+  assert.equal(liveInspectorTarget({ studentId: 's', live: stale, assignment: make(true) })?.questionIndex, 4, 'the student\'s own copy names C3');
+  // The teacher has just re-included C1. Their list with a Practice Pass is as
+  // long as the student's (one in, one waived), and C2 sits at the student's
+  // place in the list and in Classwork; only Classwork's length differs.
+  const teacherCopy = make(false);
+  assert.equal(studentAssignmentIndicesWithPracticePass({ assignment: teacherCopy, hasPracticePass: true }).length, 6);
+  assert.equal(liveInspectorTarget({ studentId: 's', live: stale, assignment: teacherCopy }), null, 'no entry, rather than C2');
+  // On the next heartbeat the student's device holds the new copy too: C3 again.
+  const caughtUp = live({ questionIndex: 4, questionCount: 7, sectionQuestionIndex: 2, sectionQuestionCount: 3, questionStates: '....x..', currentAttempts: 1 });
+  assert.equal(liveInspectorTarget({ studentId: 's', live: caughtUp, assignment: teacherCopy })?.questionIndex, 4);
+});
+
 test('hostile heartbeats and assignments give no target, and never throw', () => {
-  const hostile = [null, undefined, 'x', 7, [], { toString: null }, { assignmentId: { toString: null } }, live({ questionIndex: -1 }), live({ questionIndex: 1.5 }), live({ questionIndex: '1' }), live({ questionStates: { toString: null } })];
+  const hostile = [null, undefined, 'x', 7, [], { toString: null }, { assignmentId: { toString: null } }, live({ questionIndex: -1 }), live({ questionIndex: 1.5 }), live({ questionIndex: '1' }), live({ questionStates: { toString: null } }), live({ sectionQuestionCount: -1 }), live({ sectionQuestionCount: '1' }), live({ sectionQuestionCount: { toString: null } })];
   for (const entry of hostile) {
     for (const assignment of [ASSIGNMENT, null, { id: 'a-live', schemaVersion: 5, sections: 'nope' }, { id: 'a-live', schemaVersion: 5, sections: [null, { questions: [null] }] }]) {
       let target;
@@ -118,6 +191,14 @@ test('Teacher Home passes it through, and the workspace opens the gradebook\'s o
   const home = read('src/TeacherHome.jsx');
   assert.match(home, /onInspectResponse = null \}\) \{/);
   assert.match(region(home, '<LiveClassMonitor', '/>', 'Teacher Home\'s Live Class'), /onInspectResponse=\{onInspectResponse\}/);
+  // A tile's assignment is the copy App holds, handed down unchanged, so it is
+  // the same object on every heartbeat and its lists are worked out once
+  // (liveInspectorLists keeps them with the copy). A copy made per redraw
+  // would work them out again for every tile.
+  assert.match(region(home, '<LiveClassMonitor', '/>', 'Teacher Home\'s Live Class'), /\btimerAssignments=\{assignments\}/);
+  const inspectFor = region(monitor, 'const inspectorAssignments =', 'const switchMode', 'the inspector target for a row');
+  assert.match(inspectFor, /const inspectorAssignments = Array\.isArray\(timerAssignments\) \? timerAssignments : assignments;/);
+  assert.match(inspectFor, /const assignment = inspectorAssignments\.find\(\(entry\) => String\(entry\?\.id \|\| ''\) === String\(row\.live\.assignmentId\)\) \|\| null;/);
   const workspace = read('src/app/teacher/TeacherWorkspace.jsx');
   assert.match(region(workspace, '<TeacherHome', '/>', 'Teacher Home in the workspace'), /onInspectResponse=\{\(target\) => setResponseInspectorTarget\(target\)\}/);
   // One inspector, the same one the gradebook opens: the same screen and callable.
