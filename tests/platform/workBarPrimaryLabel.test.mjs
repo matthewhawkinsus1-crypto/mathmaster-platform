@@ -32,30 +32,52 @@ test('the primary action keeps its words: it never shrinks below them and never 
   assert.doesNotMatch(css, /portrait-action-bar[^{]*mathmaster-bar-(submit|continue)[^{]*\{[^}]*text-overflow: ellipsis/);
 });
 
-test('the tools give way instead, down to a floor that is still a target', () => {
+// THE TOOLS GIVE WAY BY COMING INTO THE ROW NARROW. They were 44px wide and
+// shrank to a fixed 36px (32px below 340px) whatever they held, so at 200% text
+// the row could not fit and scrolled sideways, and Undo's and Start over's words
+// ran into the tools beside them (the bar's reflow, phoneActionBarReflow.test.mjs).
+test('the tools give way instead: they come into the row at a floor that is still a target, and take its room first', () => {
   const tools = rule(`${PRIMARY_BAR} > .mathmaster-work-bar-tool`);
-  const shrink = tools.match(/flex: (\d+) (\d+) (\d+)px;/);
-  assert.ok(shrink, 'the tools have a definite flex basis');
-  assert.equal(Number(shrink[2]) > 0, true, 'the tools can shrink');
-  assert.equal(Number(shrink[3]), 44, 'they are 44px wide where there is room');
-  assert.ok(px(tools, 'min-width') >= 36, 'and never narrower than 36px');
+  const flex = tools.match(/flex: (\d+) (\d+) (\d+)px;/);
+  assert.ok(flex, 'the tools have a definite flex basis');
+  assert.ok(Number(flex[3]) >= 24, 'they come into the row at 24px or more, a target WCAG 2.5.8 counts');
+  assert.equal(Number(flex[2]), 0, 'never narrower: a row that cannot hold them all wraps instead');
+  assert.match(tools, /min-width: min-content;/, 'and never narrower than what each shows');
+  assert.equal(px(tools, 'max-width'), 44, 'they are 44px wide where there is room...');
+  const primary = rule(`${PRIMARY_BAR} > .mathmaster-bar-submit,\n  ${PRIMARY_BAR} > .mathmaster-bar-continue`);
+  assert.ok(Number(flex[1]) >= 100 * Number(primary.match(/flex: (\d+) /)[1]), '...which goes to them before the primary grows');
+  assert.match(rule(PRIMARY_BAR), /flex-wrap: wrap;/);
 });
 
-// The arithmetic of the narrowest supported phone (the 344px foldable) with
-// every tool the bar can carry beside Submit: Undo, Reset, Scratchpad,
-// Calculator, Hint and Read aloud. "Submit" with the bar's 8px side padding is
-// 70px in Arial/Arimo/Liberation Sans Bold and 80px in DejaVu Sans Bold — a
-// face wider than Roboto and SF — as measured by the browser proof.
-test('at 344px six tools at their floor leave the primary room for "Submit" in a wide font', () => {
+// The arithmetic of the narrowest supported phones, a 320px phone and the 344px
+// foldable, with every tool the bar can carry beside Submit: Undo, Start over,
+// Scratchpad, Calculator, Hint and Read aloud. In the control font Chromium
+// gives a button (Liberation Sans on Linux, Arial's metrics, a Chromebook's
+// Arimo), Undo is 32px and Start over 53px with the 2px sides a 320px phone
+// gives a tool, their words under their icons (36px and 57px at 4px sides), as
+// measured by the browser proof; "Submit" with the bar's 8px side padding is
+// 70px there and 80px in DejaVu Sans Bold, counted at 80. Every other tool
+// comes in at its basis. (With DejaVu Sans forced onto the whole bar Undo and
+// Start over are 4 and 10px wider, and the proof lets Submit take a row of its
+// own there.)
+const MEASURED = Object.freeze({ undo: 31.5, startOver: 52.7, sideBelow340: 2, submit: 80 });
+test('at 320px and 344px, six tools and "Submit" share one row at 100% text in a wide font', () => {
   const bar = rule(BAR);
   const sidePadding = Number(bar.match(/padding: \d+px max\((\d+)px, env\(safe-area-inset-right\)\)/)?.[1]);
   assert.ok(sidePadding > 0, 'the bar declares its side padding');
-  const gap = px(rule(PRIMARY_BAR), 'gap');
-  assert.ok(gap !== null, 'the primary bar declares its gap');
-  const toolFloor = px(rule(`${PRIMARY_BAR} > .mathmaster-work-bar-tool`), 'min-width');
-  const TOOLS = 6;
-  const room = 344 - 2 * 1 /* borders of the stage */ - 2 * sidePadding - TOOLS * toolFloor - TOOLS * gap;
-  assert.ok(room >= 80, `the primary gets ${room}px; "Submit" needs up to 80px`);
+  const basis = Number(rule(`${PRIMARY_BAR} > .mathmaster-work-bar-tool`).match(/flex: \d+ \d+ (\d+)px;/)?.[1]);
+  assert.ok(basis >= 24, 'the tools declare their basis');
+  const narrow = css.slice(css.indexOf('@media (max-width: 339.98px) {'));
+  const narrowBar = narrow.slice(narrow.indexOf(`${PRIMARY_BAR} {`), narrow.indexOf('}'));
+  const narrowTools = narrow.slice(narrow.indexOf(`${PRIMARY_BAR} > .mathmaster-work-bar-tool {`));
+  const toolSide = (block) => Number(block.match(/padding-left: (\d+)px !important;/)?.[1]);
+  for (const [width, gap, side] of [[320, px(narrowBar, 'gap'), toolSide(narrowTools)], [344, px(rule(PRIMARY_BAR), 'gap'), toolSide(rule(`${PRIMARY_BAR} > .mathmaster-work-bar-tool`))]]) {
+    assert.ok(gap > 0 && side > 0, `${width}px: the gap and the tools' sides are declared`);
+    // Undo and Start over are as wide as their words, measured at a 320px phone's sides and widened by the sides here.
+    const words = (measured) => measured + 2 * (side - MEASURED.sideBelow340);
+    const used = 2 /* the stage's borders */ + 2 * sidePadding + 6 * gap + words(MEASURED.undo) + words(MEASURED.startOver) + 4 * basis + MEASURED.submit;
+    assert.ok(used <= width, `${width}px: six tools and Submit need ${used}px`);
+  }
 });
 
 test('Next and Continue show their first word and arrow on a phone, and keep the whole label as their name', () => {

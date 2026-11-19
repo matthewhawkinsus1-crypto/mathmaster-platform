@@ -35,7 +35,11 @@
  *           "Show progress" open: the question keeps a fifth of the screen for its work (WORK_ROOM_SHARE; it had
  *           16px), and its tries, Work View's opener, Submit and Next can each be reached by scrolling what a finger
  *           scrolls, whole and on top. Work View on the graph and the staged question is tall enough for a plane at
- *           its 160px floor and its zoom row together. At 100% Focus view stays one screen with no page scroll.
+ *           its 160px floor and its zoom row together. At 100% Focus view stays one screen with no page scroll. At
+ *           every size, 100% included, the question's action bar (and Work View's controls while it is open) fits
+ *           the screen: within it and not scrolled sideways, each control within it too, its words inside its own
+ *           box and its target 24x24 or more (ACTION_BARS), keeping one layout for 1.5s once settled (BAR_WATCH_MS);
+ *           and so on a phone on its side at 200% text, read for its bars alone (ROOM_SIDE_SIZES).
  *   scroll  With Work View open on a 390x844, 360x740 and 320x568 phone, a 1366x768 Chromebook and a 1920x1080
  *           desktop, for every plane tool, the table tools and the Step Algebra boards: the view itself is the one
  *           thing that scrolls up and down (no scroller inside a scroller), and the plane fits the height it is
@@ -459,6 +463,13 @@ export const ROOM_SIZES = Object.freeze([
   { id: '390x844@200%', width: 390, height: 844, phone: true, textScale: 2 },
   { id: '412x915@200%', width: 412, height: 915, phone: true, textScale: 2 },
 ].map(Object.freeze));
+// A phone on its side at 200% text, read for its bars alone (ACTION_BARS, below): there the question is two columns,
+// its action bar in the left one, a column that scrolls, and the identity bar and the navigator take most of the
+// screen's 360 to 375px; its room for its work is not this check's.
+export const ROOM_SIDE_SIZES = Object.freeze([
+  { id: '667x375@200%', width: 667, height: 375, phone: true, textScale: 2, side: true },
+  { id: '740x360@200%', width: 740, height: 360, phone: true, textScale: 2, side: true },
+].map(Object.freeze));
 // The lesson's Classwork (textRoomLesson.js), each question with what shows it is that kind of question.
 export const ROOM_SCENES = Object.freeze([
   { kind: 'typed', question: 'Classwork Q1', shows: 'math-field' },
@@ -565,6 +576,98 @@ const READ_ROOM_VIEW = () => {
   return { view: surface.clientHeight, zoomRow, short: host.getAttribute('data-height') === 'short' };
 };
 
+// THE ACTION BAR FITS THE SCREEN (WCAG 1.4.10, 1.4.4, 2.5.8). At 200% text on a 320 to 375px phone the question's
+// action bar was wider than the screen: beside six tools at their narrowest, Submit ran 25px past the right edge at
+// 320x568 and the bar scrolled sideways to show it, and the words Undo and Start over keep under their icons ran 10
+// and 31px past their own buttons, into the tools beside them (6px at 100% text on a 320px phone). In Work View, its
+// "Submit — uses 1 of 3 tries" ran 72px past its button. Every bar the question shows (its own, or Work View's
+// controls while the view is open), read with nothing scrolled sideways: the bar within the screen and as wide as
+// what it holds, and each control within the screen, its words inside its own box and a target of 24x24 or more
+// (2.5.8). A bar may wrap onto rows of its own: the question's room for its work is read beside it.
+export const ACTION_BARS = '.mathmaster-question-stage .portrait-action-bar, .mathmaster-question-stage .landscape-action-bar, .mathmaster-question-stage .mathmaster-desktop-action-bar, .mathmaster-work-view-host[data-open="true"] .mathmaster-work-view-actions';
+export const TARGET_MIN = 24;
+const READ_BARS = (selector) => {
+  const screen = document.documentElement.clientWidth;
+  const shown = (element) => {
+    const style = getComputedStyle(element);
+    const box = element.getBoundingClientRect();
+    return style.display !== 'none' && style.visibility !== 'hidden' && box.width > 0 && box.height > 0;
+  };
+  // A word hidden to the eye on purpose (a tool's name kept for a screen reader, clipped to 1px) is not drawn.
+  const drawn = (text, control) => {
+    for (let node = text.parentElement; node && node !== control.parentElement; node = node.parentElement) {
+      const style = getComputedStyle(node);
+      const box = node.getBoundingClientRect();
+      if (style.display === 'none' || style.visibility === 'hidden' || (style.clip && style.clip !== 'auto') || (style.position === 'absolute' && box.width <= 1 && box.height <= 1)) return false;
+    }
+    return true;
+  };
+  const round = (value) => Math.round(value * 10) / 10;
+  return [...document.querySelectorAll(selector)].filter(shown).map((bar) => {
+    bar.scrollLeft = 0;
+    const box = bar.getBoundingClientRect();
+    const controls = [...bar.querySelectorAll('button, [role="button"], a[href], input, select')].filter(shown).map((control) => {
+      const rect = control.getBoundingClientRect();
+      // How far its words (and the icons drawn as text) reach past its own box, on any side.
+      let wordsPast = 0;
+      const walker = document.createTreeWalker(control, NodeFilter.SHOW_TEXT);
+      for (let text = walker.nextNode(); text; text = walker.nextNode()) {
+        if (!text.textContent.trim() || !drawn(text, control)) continue;
+        const range = document.createRange();
+        range.selectNodeContents(text);
+        for (const ink of range.getClientRects()) {
+          if (!ink.width) continue;
+          wordsPast = Math.max(wordsPast, ink.right - rect.right, rect.left - ink.left, ink.bottom - rect.bottom, rect.top - ink.top);
+        }
+      }
+      return {
+        name: (control.getAttribute('aria-label') || control.textContent || '').replace(/\s+/g, ' ').trim().slice(0, 40),
+        left: round(rect.left), right: round(rect.right), top: round(rect.top), width: round(rect.width), height: round(rect.height), wordsPast: round(wordsPast),
+      };
+    });
+    return {
+      name: bar.matches('.mathmaster-work-view-actions') ? 'Work View\'s action area' : 'action bar',
+      screen, left: round(box.left), right: round(box.right), width: bar.clientWidth, content: bar.scrollWidth,
+      rows: new Set(controls.map((control) => Math.round(control.top))).size, height: round(box.height), controls,
+    };
+  });
+};
+// ...AND IT SETTLES. A layout that measures itself can switch back and forth (a staged step did, 58 times in 2s); the
+// bar is laid out by its stylesheet alone, and this holds it so: once the question has settled, every bar and each of
+// its controls keep one size and one place in it, read every frame for BAR_WATCH_MS.
+export const BAR_WATCH_MS = 1500;
+const WATCH_BARS = ({ selector, ms }) => new Promise((resolve) => {
+  const shape = () => [...document.querySelectorAll(selector)].map((bar) => {
+    const box = bar.getBoundingClientRect();
+    return [bar.clientWidth, bar.scrollWidth, Math.round(box.height), ...[...bar.querySelectorAll('button')].map((button) => {
+      const rect = button.getBoundingClientRect();
+      return `${Math.round(rect.width)}x${Math.round(rect.height)}@${Math.round(rect.left - box.left)},${Math.round(rect.top - box.top)}`;
+    })].join(' ');
+  }).join(' | ');
+  const started = performance.now();
+  let last = shape();
+  let frames = 0;
+  let changes = 0;
+  const tick = () => {
+    const now = shape();
+    frames += 1;
+    if (now !== last) { changes += 1; last = now; }
+    if (performance.now() - started < ms) requestAnimationFrame(tick);
+    else resolve({ frames, changes });
+  };
+  requestAnimationFrame(tick);
+});
+// What a bar reading fails on, said where it was read.
+export const barProblems = (bars, where) => bars.flatMap((bar) => [
+  ...(bar.right > bar.screen + 1 || bar.left < -1 ? [`${where}: the ${bar.name} runs ${Math.round(Math.max(bar.right - bar.screen, -bar.left))}px past the screen`] : []),
+  ...(bar.content > bar.width + 1 ? [`${where}: the ${bar.name} holds ${bar.content}px in ${bar.width}px and scrolls sideways`] : []),
+  ...bar.controls.flatMap((control) => [
+    ...(control.right > bar.screen + 1 || control.left < -1 ? [`${where}: "${control.name}" in the ${bar.name} runs past the screen (${Math.round(control.left)} to ${Math.round(control.right)} of ${bar.screen}px)`] : []),
+    ...(control.wordsPast > 1 ? [`${where}: the words of "${control.name}" in the ${bar.name} run ${Math.round(control.wordsPast)}px past its own box`] : []),
+    ...(control.width < TARGET_MIN || control.height < TARGET_MIN ? [`${where}: "${control.name}" in the ${bar.name} is ${Math.round(control.width)}x${Math.round(control.height)}, under ${TARGET_MIN}x${TARGET_MIN}`] : []),
+  ]),
+]);
+
 const runRoom = async (browser, origins, size) => {
   const { context, page, errors } = await newPage(browser, size, { school: true });
   const problems = [];
@@ -597,15 +700,26 @@ const runRoom = async (browser, origins, size) => {
         await page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight));
         await settled(page, 500);
         const room = await page.evaluate(READ_WORK_ROOM);
+        // Before the reach below, which scrolls a box that scrolls sideways (the bar did) to bring Submit in.
+        const bars = await page.evaluate(READ_BARS, ACTION_BARS);
         const reach = {};
-        for (const [name, selector] of Object.entries(ROOM_REACH)) {
+        for (const [name, selector] of Object.entries(size.side ? {} : ROOM_REACH)) {
           reach[name] = await page.evaluate(READ_REACH, selector);
           await page.waitForTimeout(100);
         }
         await page.evaluate(() => window.scrollTo(0, 0));
-        reading[state] = { room, reach };
+        reading[state] = { room, reach, bars };
         const where = `${scene.kind}, ${state}`;
         if (!room) problems.push(`${where}: no work to measure`);
+        // The bar fits the screen at every text size, 100% included, and settles there.
+        if (!bars.length) problems.push(`${where}: no action bar to read`);
+        problems.push(...barProblems(bars, where));
+        if (folded) {
+          const watch = await page.evaluate(WATCH_BARS, { selector: ACTION_BARS, ms: BAR_WATCH_MS });
+          reading[state].barWatch = watch;
+          if (watch.changes || watch.frames < 10) problems.push(`${where}: the action bar changed its layout ${watch.changes} times in ${BAR_WATCH_MS}ms (${watch.frames} frames read)`);
+        }
+        if (size.side) continue;
         // At 100% text the phone is the baseline, one screen in Focus view, and nothing more is asked of it here: a
         // choice at 320x568 has 40px for its work there, its opener cut, as before this check.
         if (!large) {
@@ -626,6 +740,12 @@ const runRoom = async (browser, origins, size) => {
         await page.locator('.mathmaster-work-view-host[data-open="true"]').waitFor({ timeout: 30_000 });
         await settled(page, 1200);
         reading['work view'] = await page.evaluate(READ_ROOM_VIEW);
+        // The question's bar is put away while Work View is open, and Work View's controls carry its actions.
+        const viewBars = await page.evaluate(READ_BARS, ACTION_BARS);
+        if (reading['work view']) reading['work view'].bars = viewBars;
+        problems.push(...barProblems(viewBars, `${scene.kind}, work view`));
+        const viewWatch = await page.evaluate(WATCH_BARS, { selector: ACTION_BARS, ms: BAR_WATCH_MS });
+        if (viewWatch.changes || viewWatch.frames < 10) problems.push(`${scene.kind}, work view: Work View's action area changed its layout ${viewWatch.changes} times in ${BAR_WATCH_MS}ms (${viewWatch.frames} frames read)`);
         if (reading['work view']?.zoomRow != null) zoomRow = reading['work view'].zoomRow;
         await page.evaluate(() => [...document.querySelectorAll('.mathmaster-work-view-host[data-open="true"] .mathmaster-work-view-header button')].find((button) => button.textContent.trim().startsWith('Close'))?.click());
         await page.locator('.mathmaster-work-view-host[data-open="true"]').waitFor({ state: 'detached', timeout: 30_000 }).catch(() => {});
@@ -634,11 +754,11 @@ const runRoom = async (browser, origins, size) => {
       scenes[scene.kind] = reading;
     }
     // A plane at its floor and its zoom row together (the graph's plane shows the row), in each Work View.
-    if (zoomRow == null) problems.push('Work View on the graph shows no plane with its zoom row');
+    if (zoomRow == null && !size.side) problems.push('Work View on the graph shows no plane with its zoom row');
     for (const scene of ROOM_SCENES.filter((entry) => entry.workView)) {
       const view = scenes[scene.kind]?.['work view'];
       if (!view) problems.push(`${scene.kind}: Work View did not open`);
-      else if (zoomRow != null && view.view < PLANE_MIN + zoomRow) problems.push(`${scene.kind}: Work View is ${view.view}px tall, too short for a plane at its ${PLANE_MIN}px floor and its ${zoomRow}px zoom row together`);
+      else if (zoomRow != null && !size.side && view.view < PLANE_MIN + zoomRow) problems.push(`${scene.kind}: Work View is ${view.view}px tall, too short for a plane at its ${PLANE_MIN}px floor and its ${zoomRow}px zoom row together`);
     }
   } catch (error) {
     problems.push(`could not read the room: ${error.message.split('\n')[0]}`);
@@ -1226,7 +1346,7 @@ const say = (result) => {
     : result.check === 'staged'
       ? `${Object.keys(result.steps).length} steps, ${Object.values(result.steps).filter((step) => step.flow).length} in a view that scrolls as one, ${Object.values(result.steps).filter((step) => step.plane).length} with a plane, the counter under its heading (no room beside it) on ${Object.values(result.steps).filter((step) => step.headingRow?.page?.counterBelow).length} on the page and ${Object.values(result.steps).filter((step) => step.headingRow?.view?.counterBelow).length} in Work View${result.scrolling.length ? `; taller than the room it has, so it scrolls (left as it is): ${result.scrolling.join(', ')}` : ''}`
     : result.check === 'room'
-      ? `the question's work: ${Object.entries(result.scenes).map(([kind, scene]) => `${kind} ${scene['focus view']?.room?.seen ?? '?'}px in Focus view, ${scene['progress shown']?.room?.seen ?? '?'}px with progress shown${scene['work view'] ? `, Work View ${scene['work view'].view}px` : ''}`).join('; ')}`
+      ? `the question's work: ${Object.entries(result.scenes).map(([kind, scene]) => `${kind} ${scene['focus view']?.room?.seen ?? '?'}px in Focus view (its bar ${scene['focus view']?.bars?.map((bar) => `${bar.rows} row${bar.rows === 1 ? '' : 's'}, ${Math.round(bar.height)}px`).join(' + ') || 'none'}), ${scene['progress shown']?.room?.seen ?? '?'}px with progress shown${scene['work view'] ? `, Work View ${scene['work view'].view}px` : ''}`).join('; ')}`
     : result.check === 'scroll'
       ? `${Object.keys(result.scenes).length} Work Views${Object.values(result.scenes).some((scene) => scene.sideways?.length) ? `; sideways: ${[...new Set(Object.values(result.scenes).flatMap((scene) => scene.sideways || []))].join(', ')}` : ''}${result.known?.length ? `; left for the owner: ${result.known.join('; ')}` : ''}`
       : `${Object.keys(result.readings).length} states${result.workRoom?.['progress shown'] != null ? `; the question's work: ${result.workRoom['progress shown']}px with progress shown, ${result.workRoom['focus view']}px in Focus view` : ''}`;
@@ -1262,7 +1382,7 @@ const main = async () => {
     for (const size of sized(SIZES)) tasks.push(() => runBadges(browser, origins, size));
   }
   if (checks.has('room') && (!only.size || only.has('assignment-screen'))) {
-    for (const size of sized(ROOM_SIZES)) tasks.push(() => runRoom(browser, origins, size));
+    for (const size of sized([...ROOM_SIZES, ...ROOM_SIDE_SIZES])) tasks.push(() => runRoom(browser, origins, size));
   }
   if (checks.has('scroll') && (!only.size || only.has('assignment'))) {
     for (const size of sized(SCROLL_SIZES)) tasks.push(() => runScroll(browser, origins, size));
@@ -1289,7 +1409,7 @@ const main = async () => {
     console.log(`What Work View's opener covers: ${failed} reading(s) failed.`);
     process.exitCode = 1;
   } else {
-    console.log('What Work View\'s opener covers: nothing, on every surface and size; the header\'s badges clear; a phone question keeps room for its work at any text size; one scroller in Work View; every staged step has room, its plane fits it, its heading is whole, it settles, and a hint asked for on it is in sight with focus.');
+    console.log('What Work View\'s opener covers: nothing, on every surface and size; the header\'s badges clear; a phone question keeps room for its work at any text size, and its action bar fits the screen and settles; one scroller in Work View; every staged step has room, its plane fits it, its heading is whole, it settles, and a hint asked for on it is in sight with focus.');
   }
 };
 

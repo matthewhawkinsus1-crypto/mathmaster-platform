@@ -7,24 +7,35 @@
 // (tests/platform/helpers/editorPreflightFixtures.mjs): Algebra I M3 T2 L2,
 // whose Question 21 says "Use the prices you found" (a note), with a Step
 // Algebra question that writes x(x - 5) = 0 and one whose variable cancels
-// (a warning each). On each screen a teacher:
+// (a warning each), and Review's question-version notes: Warm-Up 3 draws one of
+// three cases a student is not told, and the whole assignment's (12 questions
+// generate a version for each student, Recovery ready). On each screen a teacher:
 //
 //   SEES    the question with a warning shows it in full under its controls,
 //           open from the start; the question with only notes says how many
-//           and keeps them behind Show; every text is the model's own
-//   READS   each region is named by its heading ("Pre-Flight for Question
-//           23: 1 warning, 2 notes"), a level-3 heading, and a list a screen
-//           reader moves through item by item
+//           and keeps them behind Show, and a warning an edit brings to it
+//           opens them (weight 15 typed into Question 21: "counts ×15, but
+//           the work it assesses …"); every text is the model's own
+//   READS   each question's findings sit under a level-3 heading that names
+//           them ("Pre-Flight for Question 23: 1 warning, 2 notes") and in a
+//           list a screen reader moves through item by item; none is a
+//           landmark, so the editor's one region stays its Repair Center's
 //   KEYS    Show is a button that says whether it is open, pressed by Enter
 //   QUIET   typing a grade weight keeps focus in the box, moves nothing above
 //           it and announces nothing; Exclude takes a question's findings
 //           away once Pre-Flight has run again; Save is never refused for them
 //   FITS    nothing pushes the page sideways or is cut, at 1440×900, 390×844,
 //           200% text, 320 px wide, and 320 px at 200% text
+//   NUMBERS on an assignment with student records, a Duplicate is the last
+//           card, every card's findings name its own number, and Save stores
+//           the cards' order with no stored question moved
 //
 // and on a large assignment (82 questions) it measures what a keystroke in a
 // grade weight costs, and the one Pre-Flight run after the teacher pauses, at
-// full speed and with the CPU slowed 4×.
+// full speed and with the CPU slowed 4×. That run is made in a worker
+// (src/platform/preflight/editorPreflightWorker.js): no task on the page after
+// the pause may be as long as half a run, or a key pressed then waits for it
+// (COST).
 //
 // Each screen is its own browser context, closed before the next: a renderer
 // navigated again and again on the dev server keeps shared-memory files in
@@ -52,6 +63,8 @@ const {
 } = await import(`${repo}/tests/platform/helpers/editorPreflightFixtures.mjs`);
 const { editorPreflightFindings, preflightFindingsCountText } = await import(`${repo}/src/platform/preflight/questionPreflightFindings.js`);
 const { getStoredAssignmentQuestions } = await import(`${repo}/src/platform/contract/storedAssignmentV5.js`);
+const { rebuildV5SectionsFromQuestions } = await import(`${repo}/src/platform/contract/assignmentSchemaV5.js`);
+const { withAppendedQuestionSections } = await import(`${repo}/src/platform/rigor/honorsExtensionSwap.js`);
 
 const FIXTURES = { flagged: editorPreflightAssignment(), large: largeEditorAssignment() };
 const flaggedQuestions = getStoredAssignmentQuestions(FIXTURES.flagged);
@@ -78,7 +91,7 @@ const launchOptions = { args: ['--no-sandbox'] };
 if (process.env.CHROMIUM_PATH) launchOptions.executablePath = process.env.CHROMIUM_PATH;
 const browser = await chromium.launch(launchOptions);
 
-const openEditor = async (screen, scenario) => {
+const openEditor = async (screen, scenario, query = '') => {
   const context = await browser.newContext({
     viewport: { width: screen.width, height: screen.height },
     isMobile: Boolean(screen.mobile),
@@ -97,14 +110,14 @@ const openEditor = async (screen, scenario) => {
   };
   await cdp.send('Page.enable');
   await textScale();
-  await page.goto(`${PAGE}?scenario=${scenario}`);
+  await page.goto(`${PAGE}?scenario=${scenario}${query}`);
   await textScale();
   await page.locator('[data-preflight-findings-state="current"]').waitFor({ state: 'attached', timeout: 60000 });
   return { context, page, cdp, errors };
 };
 
 const card = (page, number) => page.locator(`[data-question-card="${number}"]`);
-const regionOf = (page, number) => card(page, number).locator(`section[data-preflight-findings="Question ${number}"]`);
+const regionOf = (page, number) => card(page, number).locator(`[data-preflight-findings="Question ${number}"]`);
 // The state's wrapper has no box of its own (PreflightFindingsState), so it is waited for attached.
 const settled = (page) => page.locator('[data-preflight-findings-state="current"]').waitFor({ state: 'attached', timeout: 30000 });
 const textOf = async (locator) => (await locator.textContent() || '').replace(/\s+/g, ' ').trim();
@@ -114,7 +127,7 @@ const textOf = async (locator) => (await locator.textContent() || '').replace(/\
 const fits = async (page, screen) => {
   const measured = await page.evaluate(() => {
     const dialog = document.querySelector('[role="dialog"]');
-    const regions = [...document.querySelectorAll('section[data-preflight-findings]')];
+    const regions = [...document.querySelectorAll('[data-preflight-findings]')];
     const clipped = [];
     for (const regionNode of regions) {
       for (const element of [regionNode, ...regionNode.querySelectorAll('*')]) {
@@ -160,12 +173,27 @@ const certify = async (screen) => {
   const { context, page, errors } = await openEditor(screen, 'flagged');
   const observed = { screen: screen.id };
   try {
+    /* SEES: every region holds Pre-Flight's findings for its question, message
+       for message: made in the editor's worker, judged here against node's. */
+    const norm = (text) => text.replace(/\s+/g, ' ').trim();
+    const drawnFindings = await page.evaluate(() => Object.fromEntries([...document.querySelectorAll('[data-preflight-findings]')]
+      .map((node) => [node.getAttribute('data-preflight-findings'), [...node.querySelectorAll('li')].map((item) => item.textContent)])));
+    const wantedFindings = Object.fromEntries([...expected.byQuestionId].map(([id, entry]) => [`Question ${numberOf(id)}`, itemsOf(entry)]));
+    if (itemsOf(expected.assignment).length) wantedFindings['the whole assignment'] = itemsOf(expected.assignment);
+    const asText = (byRegion) => JSON.stringify(Object.keys(byRegion).sort().map((key) => [key, byRegion[key].map(norm)]));
+    observed.regionsMatched = Object.keys(drawnFindings).length;
+    if (asText(drawnFindings) !== asText(wantedFindings)) fail(screen.id, 'SEES', `the regions do not hold Pre-Flight's findings: ${Object.keys(drawnFindings).length} regions drawn, ${Object.keys(wantedFindings).length} expected`);
+
     /* SEES + READS: the warned question, open from the start. */
     const warnedFindings = expected.byQuestionId.get(WARNED.id);
     const warned = regionOf(page, WARNED.number);
     await warned.scrollIntoViewIfNeeded();
     const name = `Pre-Flight for Question ${WARNED.number}: ${preflightFindingsCountText(warnedFindings)}`;
-    if (await page.getByRole('region', { name, exact: true }).count() !== 1) fail(screen.id, 'READS', `no region named "${name}"`);
+    // A heading, not a landmark: the editor's only region is its Repair Center.
+    if (await page.getByRole('region', { name, exact: true }).count() !== 0) fail(screen.id, 'READS', `a region landmark named "${name}"`);
+    const landmarks = await page.locator('[role="dialog"]').getByRole('region').evaluateAll((nodes) => nodes.map((node) => node.getAttribute('aria-label') || node.getAttribute('aria-labelledby') || node.tagName));
+    observed.regionLandmarks = landmarks.length;
+    if (JSON.stringify(landmarks) !== JSON.stringify(['Assignment Repair Center'])) fail(screen.id, 'READS', `the editor's region landmarks are ${JSON.stringify(landmarks).slice(0, 160)}, not its Repair Center alone`);
     if (await warned.getByRole('heading', { level: 3, name, exact: true }).count() !== 1) fail(screen.id, 'READS', 'the region has no level-3 heading with its count');
     const warnedToggle = warned.getByRole('button');
     if (await warnedToggle.getAttribute('aria-expanded') !== 'true') fail(screen.id, 'SEES', 'a question with a warning does not show it from the start');
@@ -186,7 +214,7 @@ const certify = async (screen) => {
     const notedName = `Pre-Flight for Question ${NOTED.number}: ${preflightFindingsCountText(notedFindings)}`;
     observed.notedHeading = notedName;
     if (await noted.getByRole('heading', { level: 3, name: notedName, exact: true }).count() !== 1) fail(screen.id, 'READS', `Question ${NOTED.number}'s heading does not read "${notedName}" (${await textOf(noted.getByRole('heading', { level: 3 }))})`);
-    if (await page.getByRole('region', { name: notedName, exact: true }).count() !== 1) fail(screen.id, 'READS', `no region named "${notedName}"`);
+    if (await page.getByRole('region', { name: notedName, exact: true }).count() !== 0) fail(screen.id, 'READS', `a region landmark named "${notedName}"`);
     // Drawn without the question's number, which the card already shows.
     const drawn = await noted.getByRole('heading', { level: 3 }).evaluate((node) => {
       const copy = node.cloneNode(true);
@@ -206,7 +234,13 @@ const certify = async (screen) => {
     const notedItems = (await noted.getByRole('listitem').allTextContents()).map((text) => text.replace(/\s+/g, ' ').trim());
     if (JSON.stringify(notedItems) !== JSON.stringify(itemsOf(notedFindings).map((text) => text.replace(/\s+/g, ' ').trim()))) fail(screen.id, 'SEES', `Question ${NOTED.number}'s notes are not Pre-Flight's: ${JSON.stringify(notedItems).slice(0, 200)}`);
     if (!notedItems[0]?.includes('says "Use the prices you found"')) fail(screen.id, 'SEES', 'the question\'s own note does not come first');
-    if (await page.locator('section[data-preflight-findings="the whole assignment"]').count() !== 0) fail(screen.id, 'SEES', 'a whole-assignment region with nothing to say');
+    // The lesson's question-version notes that name no question ("12
+    // questions generate a different version …", "DOL Recovery ready: …")
+    // are the whole assignment's, above the cards; with none it has no region.
+    const whole = page.locator('[data-preflight-findings="the whole assignment"]');
+    const wholeName = `Pre-Flight for the whole assignment: ${preflightFindingsCountText(expected.assignment)}`;
+    if (itemsOf(expected.assignment).length === 0 ? await whole.count() !== 0 : await whole.getByRole('heading', { level: 3, name: wholeName, exact: true }).count() !== 1) fail(screen.id, 'SEES', `the whole assignment's region does not match its findings ("${wholeName}")`);
+    observed.wholeAssignmentNotes = expected.assignment.notes.length;
     await screenshotKeepingTouch(noted, { path: path.join(ARTIFACTS, `${screen.id}-note.png`) }).catch(() => {});
     await warned.scrollIntoViewIfNeeded();
     await screenshotKeepingTouch(card(page, WARNED.number), { path: path.join(ARTIFACTS, `${screen.id}-warning.png`) }).catch(() => {});
@@ -215,6 +249,25 @@ const certify = async (screen) => {
     observed.fits = await fits(page, screen);
 
     if (screen.interact) {
+      /* SEES: a warning an edit brings to a question whose notes wait behind
+         Show opens the list; focus stays in the box typed in. */
+      if (await notedToggle.getAttribute('aria-expanded') === 'true') await notedToggle.click();
+      const notedWeight = card(page, NOTED.number).getByRole('spinbutton', { name: `Grade weight for Question ${NOTED.number}` });
+      await notedWeight.scrollIntoViewIfNeeded();
+      await notedWeight.click();
+      await page.keyboard.press('Control+A');
+      await page.keyboard.type('15', { delay: 80 });
+      await page.locator('[data-preflight-findings-state="checking"]').waitFor({ state: 'attached', timeout: 5000 }).catch(() => {});
+      await settled(page);
+      const risen = {
+        expanded: await notedToggle.getAttribute('aria-expanded'),
+        first: norm(await noted.getByRole('listitem').first().textContent({ timeout: 2000 }).catch(() => '')),
+        focus: await page.evaluate(() => document.activeElement?.getAttribute('aria-label')),
+      };
+      observed.warningArrived = risen.expanded;
+      if (risen.expanded !== 'true' || !new RegExp(`^Warning: Question ${NOTED.number} \\(Classwork Q18\\) counts ×15, but the work it assesses`).test(risen.first)) fail(screen.id, 'SEES', `a warning an edit brought stayed behind Show (${JSON.stringify(risen).slice(0, 200)})`);
+      if (risen.focus !== `Grade weight for Question ${NOTED.number}`) fail(screen.id, 'QUIET', `focus left the grade weight when the warning came (${risen.focus})`);
+
       /* QUIET: a grade weight typed under the findings. */
       const weight = card(page, WARNED.number).getByRole('spinbutton', { name: `Grade weight for Question ${WARNED.number}` });
       await weight.scrollIntoViewIfNeeded();
@@ -292,6 +345,54 @@ const measureCost = async (cpuSlowdown) => {
     observed.longTasksAfterPause = longTasks.filter((task) => task.start >= typingEnded).map((task) => Math.round(task.duration));
     observed.weight = await weight.inputValue();
     if (observed.keystrokes < 8) fail(screen.id, 'COST', `only ${observed.keystrokes} keystrokes were timed`);
+    // The run after the pause is the worker's: the page only hands it the
+    // questions and draws what changed. A task half as long as a run (timed in
+    // this page, the first left out as its warm-up) is the run on the page's thread.
+    const run = Math.min(...observed.findingsRunMs.slice(1));
+    const blocking = observed.longTasksAfterPause.filter((ms) => ms >= Math.max(100, run / 2));
+    if (blocking.length) fail(screen.id, 'COST', `the page was busy ${blocking.join(', ')} ms after the pause (a run takes ${run} ms here): Pre-Flight ran on the page's thread`);
+  } catch (error) {
+    fail(screen.id, 'RUN', `could not be carried out: ${String(error?.message || error).split('\n')[0]}`);
+  }
+  errors.forEach((message) => fail(screen.id, 'ERROR', message));
+  await context.close();
+  return observed;
+};
+
+/* ------------------------------------ a copy on a live assignment */
+
+// Duplicate on an assignment with student records: the copy is the last card,
+// every card's findings name that card's number, and Save hands over the
+// questions in the order the cards show, which is the order they are stored
+// in, every stored question at its own index.
+const duplicateOnLiveAssignment = async () => {
+  const screen = { id: 'live-duplicate', width: 1440, height: 900 };
+  const { context, page, errors } = await openEditor(screen, 'flagged', '&live=1');
+  const observed = { screen: screen.id };
+  try {
+    await card(page, 2).getByRole('button', { name: 'Duplicate', exact: true }).click();
+    await page.locator('[data-preflight-findings-state="checking"]').waitFor({ state: 'attached', timeout: 5000 }).catch(() => {});
+    await settled(page);
+    observed.cards = await page.locator('[data-question-card]').count();
+    if (observed.cards !== flaggedQuestions.length + 1) fail(screen.id, 'NUMBERS', `${observed.cards} cards after Duplicate`);
+    const off = await page.evaluate(() => [...document.querySelectorAll('[data-question-card]')].flatMap((cardNode) => {
+      const number = Number(cardNode.getAttribute('data-question-card'));
+      return [...cardNode.querySelectorAll('[data-preflight-findings] li')]
+        .map((item) => item.textContent.replace(/^(?:Warning|Note): /, ''))
+        .filter((text) => /^Question \d+\b/.test(text) && Number(text.match(/^Question (\d+)/)[1]) !== number)
+        .map((text) => `card ${number}: ${text.slice(0, 60)}`);
+    }));
+    observed.findingsOffTheirCard = off.length;
+    off.slice(0, 3).forEach((detail) => fail(screen.id, 'NUMBERS', `a finding names another question than its card: ${detail}`));
+    await page.getByRole('button', { name: 'Save Assignment Questions', exact: true }).click();
+    await page.waitForFunction(() => window.__SAVES__?.length === 1, null, { timeout: 8000 });
+    const [saved] = await page.evaluate(() => window.__SAVES__);
+    const stored = getStoredAssignmentQuestions({ ...FIXTURES.flagged, sections: rebuildV5SectionsFromQuestions(withAppendedQuestionSections(FIXTURES.flagged, saved.appendedSections), saved.questions) });
+    const ids = (list) => list.map((question) => question.questionId).join();
+    observed.copyStoredAs = stored.findIndex((question) => question.questionId === saved.questions.at(-1).questionId) + 1;
+    if (ids(stored) !== ids(saved.questions)) fail(screen.id, 'NUMBERS', `Save stores another order than the cards show (the copy as Question ${observed.copyStoredAs})`);
+    const moved = flaggedQuestions.filter((question, index) => stored[index]?.questionId !== question.questionId).length;
+    if (moved) fail(screen.id, 'NUMBERS', `${moved} stored questions move to another index`);
   } catch (error) {
     fail(screen.id, 'RUN', `could not be carried out: ${String(error?.message || error).split('\n')[0]}`);
   }
@@ -347,6 +448,7 @@ try {
     measurements.push(await measureCost(1));
     measurements.push(await measureCost(4));
   }
+  if (wanted('live-duplicate')) measurements.push(await duplicateOnLiveAssignment());
   if (wanted('dialog-opener')) measurements.push(await disabledOpenerLetGo());
 } finally {
   await browser.close();

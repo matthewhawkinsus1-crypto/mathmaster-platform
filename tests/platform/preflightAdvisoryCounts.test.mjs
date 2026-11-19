@@ -20,6 +20,7 @@ import {
   buildAssignmentV5PreflightModel,
   summarizeAdvisoryFindings,
 } from '../../src/platform/preflight/assignmentV5PreflightModel.js';
+import { auditAssignmentChoiceOptions } from '../../src/platform/preflight/choiceOptionPreflight.js';
 import { componentSource, executableSource, region } from './helpers/sourceContract.mjs';
 
 // What a teacher reads for one note of each group, and for two.
@@ -28,7 +29,8 @@ const READS = Object.freeze({
   attemptFeedback: ['1 Practice question with no attempt feedback', '2 Practice questions with no attempt feedback'],
   hintAnswers: ['1 hint that states the answer', '2 hints that state the answer'],
   hiddenHints: ['1 hint students will not see', '2 hints students will not see'],
-  choiceOptions: ['1 question with a choice worth the same as the key', '2 questions with choices worth the same as the key'],
+  // One note per choice box (choiceOptionPreflight.js), and a question can have several.
+  choiceOptions: ['1 choice box with an option worth the same as the key', '2 choice boxes with options worth the same as the key'],
   spanishVersions: ['1 note on Spanish for hints and worked solutions', '2 notes on Spanish for hints and worked solutions'],
   otherQuestionReferences: ['1 prompt that needs another question\'s answer', '2 prompts that need another question\'s answer'],
   graphingCalculatorPrompts: ['1 prompt that names a graphing calculator students do not get', '2 prompts that name a graphing calculator students do not get'],
@@ -98,4 +100,29 @@ test('Review\'s Check step counts every advisory panel it shows, with the shared
   const check = region(modal, 'const renderCheck = () => (', '{preflightModel.questionValues?.rows?.length > 0 && (', 'the Check step\'s advice panels');
   const panels = [...check.matchAll(/\{preflightModel\.(\w+)\?\.warnings\?\.length > 0 && \(/g)].map((match) => match[1]);
   assert.deepEqual([...panels].sort(), Object.keys(READS).sort());
+});
+
+// One question with two choice boxes, each with an option worth its key: two
+// notes, one a box, and the line said "2 questions with choices worth the
+// same as the key" for one question (probe_choice_count).
+test('choice notes are counted, and named, per choice box: two boxes of one question read as two boxes', () => {
+  const question = {
+    questionId: 'q1',
+    type: 'multiAnswer',
+    activityRole: 'classwork',
+    prompt: 'Which forms equal each value?',
+    answerFields: [
+      { id: 'a', label: 'One half', inputProfile: 'choice', options: ['1/2', '0.5', '2'], answer: '1/2' },
+      { id: 'b', label: 'Three quarters', inputProfile: 'choice', options: ['3/4', '0.75', '4/3'], answer: '3/4' },
+    ],
+  };
+  const choiceOptions = auditAssignmentChoiceOptions([question]);
+  assert.deepEqual(choiceOptions.warnings.map((note) => note.slice(0, note.indexOf(':'))), ['Question 1 (One half)', 'Question 1 (Three quarters)'], 'one note a box, both on Question 1');
+  const advisory = summarizeAdvisoryFindings({ choiceOptions });
+  assert.equal(`${advisoryTotalText(advisory)} below (${advisoryCountsText(advisory)})`, '2 suggestions below (2 choice boxes with options worth the same as the key)');
+  // The panel's summary names what its list holds, a line a box.
+  const modal = executableSource(componentSource('src/components/teacher/LessonPreflightModal.jsx'));
+  const panel = region(modal, '{preflightModel.choiceOptions?.warnings?.length > 0 && (', '\n      )}', 'the choice-option panel');
+  assert.match(panel, /<summary[^>]*>\{preflightModel\.choiceOptions\.warnings\.length === 1 \? '1 choice box' : `\$\{preflightModel\.choiceOptions\.warnings\.length\} choice boxes`\}<\/summary>/);
+  assert.doesNotMatch(panel, /'1 question'/);
 });

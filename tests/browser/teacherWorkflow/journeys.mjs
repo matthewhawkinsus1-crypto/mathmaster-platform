@@ -36,6 +36,10 @@ import { fileURLToPath } from 'node:url';
 import { inflateRawSync } from 'node:zlib';
 
 import { watchUnimplementedCallables } from './journeyChecks.mjs';
+// Before each check the driver waits for what that check reads, up to 10 s,
+// without throwing (journeyWaits.mjs): the checks used to follow fixed pauses
+// (0.3–1.5 s), and on a loaded machine a correct app failed.
+import { settle } from './journeyWaits.mjs';
 import { newSchoolContext } from './schoolClock.mjs';
 
 const { chromium } = await import(process.env.PLAYWRIGHT_MODULE || '/opt/node22/lib/node_modules/playwright/index.mjs');
@@ -63,26 +67,6 @@ const text = async (locator) => (await locator.innerText()).replace(/\s+/g, ' ')
 const expect = (journey, condition, detail) => {
   if (!condition) findings.push({ journey, detail });
   return Boolean(condition);
-};
-
-// Waits until `ready()` holds, for at most `timeout` ms, and returns either way:
-// it never throws. The checks here used to follow fixed pauses (0.3–1.5 s); on
-// a loaded machine the screen was not there yet, and a correct app failed.
-// Before a check the driver now waits for what that check reads, and the check
-// then reads it again itself: an app that never gets there still fails, with
-// the check's own message, about `timeout` ms later.
-const SETTLE_MS = 10_000;
-const settle = async (ready, timeout = SETTLE_MS) => {
-  const deadline = Date.now() + timeout;
-  for (;;) {
-    let timer;
-    const outOfTime = new Promise((resolve) => { timer = setTimeout(resolve, Math.max(0, deadline - Date.now()), false); });
-    const held = await Promise.race([Promise.resolve().then(ready).then(Boolean, () => false), outOfTime]);
-    clearTimeout(timer);
-    if (held) return true;
-    if (Date.now() >= deadline) return false;
-    await new Promise((resolve) => { setTimeout(resolve, 100); });
-  }
 };
 
 // Minimal ZIP reader (stored/deflated entries) so an export's contents can be

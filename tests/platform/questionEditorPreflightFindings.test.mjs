@@ -15,7 +15,7 @@
  */
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+import { readdirSync, readFileSync } from 'node:fs';
 
 import { rebuildV5SectionsFromQuestions } from '../../src/platform/contract/assignmentSchemaV5.js';
 import { CANCELS_QUESTION_ID, NOTED_QUESTION_ID, PRODUCT_QUESTION_ID, editorPreflightAssignment } from './helpers/editorPreflightFixtures.mjs';
@@ -78,15 +78,24 @@ test('each question lists, in full, the readiness warnings Review lists for it, 
   assert.equal(found.warningCount, 2);
 });
 
-test('each question lists, in full, the notes Review shows in its panels for it; a note for many questions goes to each, after the question\'s own', () => {
+test('each question lists, in full, the notes Review shows for it: its question-version notes, then its panels\' notes, then a note for many questions; the rest are the whole assignment\'s', () => {
   const review = reviewOf(STORED);
   const { questions, found } = editorOf(STORED);
   const expected = new Map();
   const expect = (number) => {
     const id = questions[number - 1].questionId;
-    if (!expected.has(id)) expected.set(id, { own: [], shared: [] });
+    if (!expected.has(id)) expected.set(id, { versions: [], own: [], shared: [] });
     return expected.get(id);
   };
+  // Review's "Question versions and Recovery" panel comes first (questionGeneration.notes).
+  const versionNotes = review.questionGeneration?.notes || [];
+  const unnamed = [];
+  versionNotes.forEach((note) => {
+    const named = note.match(NAMED);
+    if (named) expect(Number(named[1])).versions.push(note);
+    else unnamed.push(note);
+  });
+  assert.ok(versionNotes.some((note) => NAMED.test(note)) && unnamed.length > 1, 'the lesson has question-version notes that name a question, and some that name none');
   let reviewNotes = 0;
   ADVISORY_FINDING_GROUPS.forEach(({ id }) => {
     (review[id]?.warnings || []).forEach((note) => {
@@ -102,15 +111,20 @@ test('each question lists, in full, the notes Review shows in its panels for it;
   });
   assert.ok(reviewNotes > 3, 'the lesson has notes of both kinds');
   assert.equal(found.byQuestionId.size, new Set([...expected.keys(), PRODUCT.questionId, CANCELS.questionId]).size);
-  for (const [id, { own, shared }] of expected) {
-    assert.deepEqual(found.byQuestionId.get(id)?.notes, [...own, ...shared], id);
+  for (const [id, { versions, own, shared }] of expected) {
+    assert.deepEqual(found.byQuestionId.get(id)?.notes, [...versions, ...own, ...shared], id);
   }
+  // Warm-Up 3 draws one of three cases a student is not told: on its card, in Review's words.
+  const mixed = found.byQuestionId.get(questions[2].questionId).notes[0];
+  assert.match(mixed, /^Question 3 \(Warm-Up Q3\) mixes one solution, no solution, infinitely many solutions .* and the workspace does not tell a student which case they drew\.$/);
   // Classwork 18: "Use the prices you found", exactly as Review's panel says it, first.
   const noted = found.byQuestionId.get(NOTED_ID);
   assert.equal(noted.notes[0], review.otherQuestionReferences.warnings[0]);
   assert.match(noted.notes[0], /^Question 21 says "Use the prices you found", which needs an answer from another question\./);
   assert.deepEqual(noted.warnings, []);
-  assert.deepEqual(found.assignment.notes, []);
+  // "12 questions generate a different version …", "DOL Recovery ready: …": the whole assignment's.
+  assert.deepEqual(found.assignment.notes, unnamed);
+  assert.ok(unnamed.some((note) => note.startsWith('DOL Recovery ready: ')));
 });
 
 test('the findings follow the teacher\'s edits, and Review agrees after each', () => {
@@ -168,12 +182,21 @@ test('a note that names no question, or a warning on no question, is the whole a
     ],
     hintAnswers: { warnings: ['Question 1, hint 2 gives the answer.'] },
     spanishVersions: { warnings: ['2 questions — 1, 2 have hints with no Spanish version, so a student who reads in Spanish sees them in English only. Add translations.es.hints: one Spanish line for each hint, in the same order, with every number, letter and symbol exactly as in the English.', 'A note for no question.'], hintsMissing: [1, 2], reviewMissing: [] },
+    // Review's question-version notes: one opening with its question, a
+    // Recovery note ending with it, one for the assignment, one naming two.
+    questionGeneration: { notes: [
+      '2 questions generate a different version for each student from a Question Family.',
+      'Question 1 (Warm-Up Q1) mixes one solution, no solution in equal shares as students are seated.',
+      'Warm-Up Recovery will skip one question: its family cannot make a fresh version (Question 2)',
+      '2 questions are graded on the student\'s device; the server records that result within its attempt limits but cannot re-mark it: Question 1 (a drawing); Question 2 (a drawing).',
+    ] },
   });
-  assert.deepEqual(found.byQuestionId.get('q1'), { warnings: [], notes: ['Question 1, hint 2 gives the answer.', 'Question 1 has hints with no Spanish version, so a student who reads in Spanish sees them in English only. Add translations.es.hints: one Spanish line for each hint, in the same order, with every number, letter and symbol exactly as in the English.'] });
+  assert.deepEqual(found.byQuestionId.get('q1'), { warnings: [], notes: ['Question 1 (Warm-Up Q1) mixes one solution, no solution in equal shares as students are seated.', 'Question 1, hint 2 gives the answer.', 'Question 1 has hints with no Spanish version, so a student who reads in Spanish sees them in English only. Add translations.es.hints: one Spanish line for each hint, in the same order, with every number, letter and symbol exactly as in the English.'] });
   assert.deepEqual(found.byQuestionId.get('q2').warnings, ['Question 2 warns.'], 'a blocking error is not a warning');
-  assert.deepEqual(found.assignment, { warnings: ['Every question is aligned to A.5A.'], notes: ['A note for no question.'] });
+  assert.deepEqual(found.byQuestionId.get('q2').notes, ['Warm-Up Recovery will skip one question: its family cannot make a fresh version (Question 2)', 'Question 2 has hints with no Spanish version, so a student who reads in Spanish sees them in English only. Add translations.es.hints: one Spanish line for each hint, in the same order, with every number, letter and symbol exactly as in the English.']);
+  assert.deepEqual(found.assignment, { warnings: ['Every question is aligned to A.5A.'], notes: ['2 questions generate a different version for each student from a Question Family.', '2 questions are graded on the student\'s device; the server records that result within its attempt limits but cannot re-mark it: Question 1 (a drawing); Question 2 (a drawing).', 'A note for no question.'] });
   assert.equal(found.warningCount, 2);
-  assert.equal(found.noteCount, 4);
+  assert.equal(found.noteCount, 8);
   assert.deepEqual(preflightFindingsByQuestion({}), { byQuestionId: new Map(), assignment: { warnings: [], notes: [] }, warningCount: 0, noteCount: 0 });
 });
 
@@ -200,17 +223,28 @@ test('the editor runs the hook on the candidate Save judges, never on the title,
   assert.doesNotMatch(editor, /preflightFindings\b|preflightStore\.snapshot/);
 });
 
-test('the hook runs once as the editor opens, then only when the questions have been still for the delay', () => {
+test('the hook runs once as the editor opens, then only when the questions have been still for the delay, in the worker', () => {
   const hook = executableSource(readFileSync(new URL('../../src/components/teacher/useQuestionPreflightFindings.js', import.meta.url), 'utf8'));
   assert.match(hook, /export const PREFLIGHT_FINDINGS_DELAY_MS = 500;/);
-  const effect = region(hook, 'useEffect(() => {', '}, [store, source, questions, classSize, delayMs]);', 'the effect');
-  assert.match(effect, /const timer = setTimeout\(\(\) => \{[\s\S]*editorPreflightFindings\(\{ source, questions, classSize \}\)[\s\S]*store\.publish\(findings, \{ source, questions, classSize \}\);[\s\S]*\}, ranRef\.current \? delayMs : 0\);/);
-  assert.match(effect, /return \(\) => clearTimeout\(timer\);/);
+  const effect = region(hook, 'useEffect(() => {', '}, [store, runner, source, questions, classSize, delayMs]);', 'the effect');
+  assert.match(effect, /const timer = setTimeout\(\(\) => \{[\s\S]*runner\.request\(\{ source, questions, classSize \}, \(findings, basis\) => store\.publish\(findings, basis\)\);[\s\S]*\}, ranRef\.current \? delayMs : 0\);/);
+  // An edit (or closing the editor) clears the timer and makes a run still going stale.
+  assert.match(effect, /return \(\) => \{\s*clearTimeout\(timer\);\s*runner\.cancel\(\);\s*\};/);
   // An edit publishes nothing and sets no state: the editor draws once a
   // keystroke, as before, and the findings already shown stay until the new ones are in.
   const beforeTimer = effect.slice(0, effect.indexOf('const timer = setTimeout('));
-  assert.doesNotMatch(beforeTimer, /setState|publish/);
+  assert.doesNotMatch(beforeTimer, /setState|publish|request/);
   assert.doesNotMatch(hook, /useState\(\{ findings/);
+  // The hook makes no run on the page's thread: the runner hands each to the
+  // worker (questionEditorPreflightWorker.test.mjs), and closing the editor ends it.
+  const body = region(hook, 'export default function useQuestionPreflightFindings', '\n}', 'the hook');
+  assert.doesNotMatch(body, /editorPreflightFindings|answerEditorPreflightRequest|buildAssignmentV5PreflightModel/);
+  assert.match(body, /const \[runner\] = useState\(createPreflightFindingsRunner\);/);
+  assert.match(body, /useEffect\(\(\) => \(\) => runner\.stop\(\), \[runner\]\);/);
+  // The worker in the one form Vite bundles as a worker, answering with the page's own function.
+  assert.match(hook, /new Worker\(new URL\('\.\.\/\.\.\/platform\/preflight\/editorPreflightWorker\.js', import\.meta\.url\), \{ type: 'module'/);
+  const worker = executableSource(readFileSync(new URL('../../src/platform/preflight/editorPreflightWorker.js', import.meta.url), 'utf8'));
+  assert.match(worker, /self\.addEventListener\('message', \(event\) => \{\s*self\.postMessage\(answerEditorPreflightRequest\(event\.data\)\);\s*\}\);/);
 });
 
 test('the store hands each region its question\'s findings, the same object while they do not change', () => {
@@ -242,10 +276,13 @@ test('the store hands each region its question\'s findings, the same object whil
   assert.equal(heard.length, 3, 'a listener that left hears nothing more');
 });
 
-test('the region: labelled, a heading with the count, a list item by item; warnings open, notes behind Show; nothing announced or focused', () => {
+test('the region: a heading with the count, no landmark, a list item by item; warnings open, notes behind Show; nothing announced or focused', () => {
   const view = executableSource(readFileSync(new URL('../../src/components/teacher/PreflightFindings.jsx', import.meta.url), 'utf8'));
-  assert.match(view, /<section aria-labelledby=\{headingId\} data-preflight-findings=\{subject\}/);
-  assert.match(view, /<h3 id=\{headingId\}[^>]*>\s*Pre-Flight<span className="mm-visually-hidden"> for \{subject\}:<\/span><span aria-hidden="true">:<\/span> \{preflightFindingsCountText\(\{ warnings, notes \}\)\}\s*<\/h3>/);
+  // Not a landmark (preflightFindingsRegion.test.mjs renders it): one for each
+  // question flooded a screen reader's landmark list.
+  assert.match(view, /<div data-preflight-findings=\{subject\} style=\{regionStyle\}>/);
+  assert.doesNotMatch(view, /<section\b|role="region"|aria-labelledby/);
+  assert.match(view, /<h3 style=\{headingStyle\}>\s*Pre-Flight<span className="mm-visually-hidden"> for \{subject\}:<\/span><span aria-hidden="true">:<\/span> \{preflightFindingsCountText\(\{ warnings, notes \}\)\}\s*<\/h3>/);
   assert.match(view, /aria-expanded=\{open\}\s*aria-controls=\{listId\}/);
   assert.match(view, /const \[open, setOpen\] = useState\(warnings\.length > 0\);/);
   assert.match(view, /<ul id=\{listId\} hidden=\{!open\} style=\{\{ \.\.\.listStyle, display: open \? 'grid' : 'none' \}\}>/);
@@ -266,6 +303,13 @@ test('it stays off the student\'s first load: only lazy teacher screens import i
     .filter((file) => readFileSync(new URL(`../../${file}`, import.meta.url), 'utf8').includes(needle));
   assert.deepEqual(importers('questionPreflightFindings.js'), ['src/AssignmentQuestionEditorBase.jsx', 'src/components/teacher/LessonPreflightModal.jsx']);
   assert.deepEqual(importers('PreflightFindings.jsx'), ['src/AssignmentQuestionEditorBase.jsx']);
+  assert.deepEqual(importers('useQuestionPreflightFindings.js'), ['src/AssignmentQuestionEditorBase.jsx']);
+  // The worker (the model's whole graph again, about 0.9 MB gzip) is started
+  // by the hook alone, so only a teacher who opens the editor ever fetches it.
+  const walk = (dir) => readdirSync(new URL(`../../${dir}`, import.meta.url), { withFileTypes: true })
+    .flatMap((entry) => (entry.isDirectory() ? walk(`${dir}/${entry.name}`) : [`${dir}/${entry.name}`]));
+  const startsWorker = walk('src').filter((file) => /\.(?:js|jsx)$/.test(file) && executableSource(readFileSync(new URL(`../../${file}`, import.meta.url), 'utf8')).includes('editorPreflightWorker.js'));
+  assert.deepEqual(startsWorker, ['src/components/teacher/useQuestionPreflightFindings.js']);
   const lazy = readFileSync(new URL('../../src/app/lazyScreens.js', import.meta.url), 'utf8');
   assert.match(lazy, /export const AssignmentQuestionEditor = lazy\(\(\) => import\('\.\.\/AssignmentQuestionEditor\.jsx'\)\);/);
   assert.match(lazy, /export const LessonPreflightModal = lazy\(\(\) => import\('\.\.\/components\/teacher\/LessonPreflightModal\.jsx'\)\);/);

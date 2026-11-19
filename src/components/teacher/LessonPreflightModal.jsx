@@ -2122,7 +2122,7 @@ export const LessonPreflightModal = ({
             These options have the key's value. A student who picks one is marked wrong: check each question asks for a form, not just an equal value. This does not stop you publishing.
           </p>
           <details>
-            <summary style={{ cursor: 'pointer', minHeight: 24, fontSize: 'calc(12.5 * var(--mm-px))', fontWeight: 800 }}>{preflightModel.choiceOptions.warnings.length === 1 ? '1 question' : `${preflightModel.choiceOptions.warnings.length} questions`}</summary>
+            <summary style={{ cursor: 'pointer', minHeight: 24, fontSize: 'calc(12.5 * var(--mm-px))', fontWeight: 800 }}>{preflightModel.choiceOptions.warnings.length === 1 ? '1 choice box' : `${preflightModel.choiceOptions.warnings.length} choice boxes`}</summary>
             <ul data-choice-option-warnings="true" style={{ margin: '6px 0 0', paddingLeft: 18, fontSize: 'calc(13 * var(--mm-px))', lineHeight: 1.5, color: 'var(--mm-warning-text)' }}>
               {preflightModel.choiceOptions.warnings.map((warning) => <li key={warning}>{warning}</li>)}
             </ul>

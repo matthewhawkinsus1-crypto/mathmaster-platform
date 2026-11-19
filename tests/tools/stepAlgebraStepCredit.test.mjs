@@ -462,6 +462,42 @@ test('a literal formula on the balance and the retired algebra alias', () => {
   balance(retired, { operation: 'divide', operand: '4' });
 });
 
+test('the server gives full step credit for cancelling the two factors of Pr', () => {
+  const question = { ...LITERAL, formula: 'I = Prt', solveFor: 't' };
+  const built = literalWorkspaceQuestion(question).question;
+  assert.ok(built);
+  const session = equationSession(question, { workspaceQuestion: built });
+  balance(session, { operation: 'divide', operand: 'Pr' });
+  assert.equal(session.equation.right, 't');
+  assert.equal(session.records.server.stepGrades[0].earned, 2);
+  assert.equal(session.records.server.attemptCount, 0);
+});
+
+test('the server accepts cancellation after restoring an older compact quotient', () => {
+  const question = { ...LINEAR, equation: 'I = Prt', solveFor: 't' };
+  const before = { left: '(I)/(P r)', right: '(P r t)/(P r)' };
+  const verdict = verifyOnServer(question, {
+    algebraState: { equation: { left: '(I)/(Pr)', right: '(Prt)/(Pr)' }, stepNumber: 1 },
+  }, equationStepWork({
+    action: STEP_ACTIONS.REWRITE, kind: 'student-cancellation', supportLevel: 3,
+    before, after: { ...before, right: 't' },
+  }));
+  assert.equal(verdict.verified, true, verdict.reason);
+  assert.equal(verdict.statePatch.algebraState.stepNumber, 2);
+});
+
+test('the server can replay a queued division from before Pr was split into factors', () => {
+  const question = { ...LINEAR, equation: 'I = P*r*t', solveFor: 't' };
+  const before = { left: 'I', right: 'P*r*t' };
+  const after = { left: '(I)/(Pr)', right: '(P*r*t)/(Pr)' };
+  const verdict = verifyOnServer(question, null, equationStepWork({
+    action: STEP_ACTIONS.BALANCED_MOVE, supportLevel: 3, before, after,
+    move: { operation: 'divide', operandExpression: 'Pr' },
+  }));
+  assert.equal(verdict.verified, true, verdict.reason);
+  assert.equal(verdict.stepGrade.earned, 1);
+});
+
 test('a Question Family instance: steps on the instance the pin rebuilds are credited', async () => {
   const { resolveFamilyQuestionInstance } = await import('../../functions/shared/questionFamilyInstance.mjs');
   const instance = resolveFamilyQuestionInstance({
