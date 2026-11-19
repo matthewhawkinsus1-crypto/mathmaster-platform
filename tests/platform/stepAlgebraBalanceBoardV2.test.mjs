@@ -29,7 +29,7 @@ test('operation placement uses the latest side synchronously before the algebra 
 });
 
 test('equivalent MathLive operand re-emissions do not erase a staged side', () => {
-  assert.match(stepSource, /operationOperandIdentity\(value\) !== operationOperandIdentity\(operand\)/);
+  assert.match(stepSource, /operationOperandIdentity\(value, equation\) !== operationOperandIdentity\(operand, equation\)/);
   assert.match(stepSource, /if \(operandChanged && placedOperationSidesRef\.current\.length\)/);
 });
 

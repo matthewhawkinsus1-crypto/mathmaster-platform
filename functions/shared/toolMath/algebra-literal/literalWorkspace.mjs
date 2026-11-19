@@ -18,6 +18,7 @@
  * nothing. Pure.
  */
 import { latexToExpression } from '../../algebra/algebraAstEngine.mjs';
+import { expandTargetProduct } from '../../algebra/latexToExpression.mjs';
 import { LITERAL_EQUATION_FIELDS, readLiteralVariable } from '../../serverGrading/stepAlgebraRouting.mjs';
 
 export { readLiteralVariable };
@@ -32,17 +33,15 @@ export const LITERAL_WORKSPACE_SURFACE = 'literalWorkspace';
 // isolates anything. Authored formulas do use that notation, so runs of single
 // lowercase letters are expanded into explicit products.
 //
-// Deliberately narrow. An uppercase or mixed run (SA, Area, V) is one quantity
-// with a multi-letter name, and a known function or constant is neither, so
-// both are left exactly as written. The rule is "lowercase letters standing
-// together are separate variables", which is the convention the formulas
-// themselves follow.
+// Keep uppercase abbreviations and longer names, such as SA and Area. A
+// short mixed product that contains the target is handled when reading the
+// authored formula below.
 const RESERVED = new Set(['pi', 'sqrt', 'abs', 'exp', 'log', 'ln', 'sin', 'cos', 'tan', 'sec', 'csc', 'cot', 'mod', 'nthroot']);
 
 // The run must stand alone: bounded by non-letters on both sides, so the "rea"
 // inside "Area" is not a product of three variables.
 export const expandImplicitProducts = (expression) => String(expression ?? '')
-  .replace(/(?<![A-Za-z])[a-z]{2,3}(?![A-Za-z])/g, (run) => (RESERVED.has(run) ? run : run.split('').join('*')));
+  .replace(/(?<![A-Za-z_\\])[a-z]{2,3}(?![A-Za-z0-9_(])/g, (run) => (RESERVED.has(run) ? run : run.split('').join('*')));
 
 /** Every symbol the equation actually contains, once implicit products are explicit. */
 export const literalSymbols = (expression) => [
@@ -61,7 +60,7 @@ export const readLiteralEquation = (question = {}) => {
   const candidates = LITERAL_EQUATION_FIELDS.map((field) => question[field]);
   const found = candidates.map(text).find((value) => value.includes('='));
   if (!found) return null;
-  const expression = expandImplicitProducts(latexToExpression(found));
+  const expression = expandTargetProduct(expandImplicitProducts(latexToExpression(found)), readLiteralVariable(question));
   return expression.split('=').length === 2 ? expression : null;
 };
 

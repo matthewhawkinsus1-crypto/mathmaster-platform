@@ -1,6 +1,6 @@
 import { OperatorNode, ParenthesisNode, evaluate, parse, simplify } from './safeMath.mjs';
 import { gcdInteger, makeRational, reducedNumberValue } from './algebraExactRational.mjs';
-import { latexToExpression } from './latexToExpression.mjs';
+import { expandTargetProduct, latexToExpression, letterRunsAsProducts } from './latexToExpression.mjs';
 
 const EPSILON = 1e-9;
 const nearlyEqual = (left, right) => Math.abs(Number(left) - Number(right)) <= EPSILON;
@@ -134,21 +134,33 @@ export const parseEquationInput = (question = {}) => {
     // Added only when authored so every other objective keeps its exact shape.
     ...(Array.isArray(question.objective?.variables) ? { variables: question.objective.variables.map(String) } : {}),
   };
-  // A sum the teacher bracketed behind a minus stays one term (TL22, above).
-  if (question.leftExpression && question.rightExpression) {
-    return { left: keepAuthoredGroups(question.leftExpression), right: keepAuthoredGroups(question.rightExpression), variable: objective.variable, objective };
-  }
   // `equationLatex` is read too, and it has to be. The platform's own authoring
   // catalogue lists it as a stepAlgebra field and its worked example uses it —
   // but nothing ever translated it into what this parser reads, so a question
   // authored exactly as documented reached the student as "This question could
   // not be displayed". It is converted rather than parsed as-is, because
   // `\frac{x}{2}=3` is not an expression until the LaTeX is unwrapped.
-  const equation = String(question.equation || question.equationAscii || question.initialEquation || '')
-    || latexToExpression(question.equationLatex);
-  const parts = equation.split('=');
+  const parts = question.leftExpression && question.rightExpression
+    ? [question.leftExpression, question.rightExpression]
+    : String(question.equation || question.equationAscii || question.initialEquation || question.equationLatex || '').split('=');
   if (parts.length !== 2) throw new Error('Step-by-step algebra questions require one equation with one equals sign.');
-  return { left: keepAuthoredGroups(parts[0].trim()), right: keepAuthoredGroups(parts[1].trim()), variable: objective.variable, objective };
+  const [left, right] = expandTargetProduct(parts.map(latexToExpression).join('='), objective.variable).split('=');
+  // A sum the teacher bracketed behind a minus stays one term (TL22, above).
+  return { left: keepAuthoredGroups(left), right: keepAuthoredGroups(right), variable: objective.variable, objective };
+};
+
+const equationSymbolsContext = (equation) => [equation?.left, equation?.right, equation?.variable];
+
+// A saved board can still contain compact products from before they were
+// expanded on opening. Read them against the authored formula's factors.
+export const readSavedEquationProducts = (equation, pristine) => {
+  if (!equation || !pristine) return equation;
+  const context = equationSymbolsContext(pristine);
+  return {
+    ...equation,
+    left: letterRunsAsProducts(equation.left, context),
+    right: letterRunsAsProducts(equation.right, context),
+  };
 };
 
 // --- Traditional multiplication notation -------------------------------------
@@ -254,7 +266,10 @@ const cleanImplicitMultiplicationLatex = (latex) => {
     }
     const numberSecond = rightOperand && /^\d/.test(rightOperand[1]);
     if (leftOperand && rightOperand && SIMPLE_OPERAND.test(rightOperand[1]) && !numberSecond) {
-      text = `${before}${after}`;
+      // TeX consumes consecutive letters as one command (`\pir`), so keep
+      // a delimiter between a control word and the next letter factor.
+      const delimiter = /^\\[a-zA-Z]+$/.test(leftOperand[1]) && /^[a-zA-Z]/.test(after) ? ' ' : '';
+      text = `${before}${delimiter}${after}`;
       continue;
     }
 
@@ -1118,11 +1133,12 @@ export const isSolvedEquation = (equationState) => {
 // function models (./latexToExpression.mjs).
 export { latexToExpression };
 
-export const parseOperationOperand = (rawValue) => {
+export const parseOperationOperand = (rawValue, equation = null) => {
   // Adjacent groups are ordinary multiplication in written algebra:
   // (1/2)(b+c). MathJS is deliberately stricter at this boundary, so make only
   // that unambiguous adjacency explicit rather than globally rewriting names.
-  const text = latexToExpression(rawValue).replace(/\)\s*\(/g, ')*(');
+  const expressionText = latexToExpression(rawValue).replace(/\)\s*\(/g, ')*(');
+  const text = equation ? letterRunsAsProducts(expressionText, equationSymbolsContext(equation)) : expressionText;
   if (!text) throw new Error('Enter a number, variable term, or expression for the operation.');
   if (/[=;\[\]{}]/.test(text)) throw new Error('Enter only the expression being applied, without an equals sign.');
   const node = parse(text);
@@ -1214,9 +1230,9 @@ const numericProductive = (analysis, operation, operand) => {
   return forms.some((form) => !nearlyEqual(form.coefficient, 0) && nearlyEqual(form.constant, 0) && nearlyEqual(operation === 'multiply' ? form.coefficient * operand : form.coefficient / operand, 1));
 };
 
-export const applyBalancedOperation = ({ equationState, operation, operand: rawOperand, placementBySide = {} }) => {
+export const applyBalancedOperation = ({ equationState, operation, operand: rawOperand, placementBySide = {}, useEquationSymbols = true }) => {
   if (!OPERATION_SYMBOLS[operation]) throw new Error('Choose a supported operation.');
-  const operand = parseOperationOperand(rawOperand);
+  const operand = parseOperationOperand(rawOperand, useEquationSymbols ? equationState : null);
   if ((operation === 'multiply' || operation === 'divide') && operand.numericValue !== null && nearlyEqual(operand.numericValue, 0)) throw new Error('Multiplying or dividing both sides by zero is not allowed.');
 
   const analysisBefore = getEquationAnalysis(equationState);
