@@ -265,6 +265,24 @@ export const effectiveQuestionScore = (record, override = null) => (
 );
 
 /*
+ * A SECTION'S ACADEMIC-INTEGRITY ZERO HOLDS WHATEVER THE ATTEMPTS. A confirmed
+ * section consequence is a teacher's decision, not a correction of one
+ * attempt: the gradebook and Classroom apply it to every question of the
+ * section though the record's attempts no longer match it
+ * (classroomSectionGrade.js and functionsCommon.js
+ * teacherOverrideAppliesToRecord), where overrideAppliesToRecord, which reads
+ * one attempt's correction, does not. Apply Corrected Grade read the question
+ * under such a zero at its automatic score, and a replay above that wrote an
+ * attempt's override over the zero, lifting it on that question.
+ */
+export const sectionZeroHolds = (override = null) => Boolean(
+  override?.active === true
+  && override.persistent === true
+  && override.source === 'teacher-section-zero'
+  && Number.isFinite(Number(override.score)),
+);
+
+/*
  * APPLY CORRECTED GRADE RAISES A SCORE, AND NEVER LOWERS ONE (the owner,
  * 2026-11-19).
  *
@@ -277,7 +295,12 @@ export const effectiveQuestionScore = (record, override = null) => (
  * would hold the question there against a later re-grade, and the teacher is
  * told why. A teacher who means to lower a score still can, with Set Score.
  */
-export const correctedGradeFromReplay = ({ replayScore, standingScore } = {}) => {
+export const correctedGradeFromReplay = ({ replayScore, standingScore, sectionZero = false } = {}) => {
+  // A section's academic-integrity zero is the teacher's decision about the
+  // whole section, not a grade a replay corrects (sectionZeroHolds).
+  if (sectionZero) {
+    return { apply: false, reason: 'This question is under its section\'s academic-integrity zero, which a corrected grade does not lift.' };
+  }
   const replay = Number(replayScore);
   const standing = Number(standingScore);
   if (replayScore === null || replayScore === undefined || !Number.isFinite(replay)) {
@@ -841,7 +864,7 @@ export const buildInspectorModel = ({
     // What Apply Corrected Grade would do with this replay: it applies only
     // when it raises the score the student stands on (correctedGradeFromReplay).
     correctedGrade: replay?.available
-      ? correctedGradeFromReplay({ replayScore: replay.currentScore, standingScore: effectiveQuestionScore(record, override) })
+      ? correctedGradeFromReplay({ replayScore: replay.currentScore, standingScore: effectiveQuestionScore(record, override), sectionZero: sectionZeroHolds(override) })
       : null,
     diagnosis: diagnoseResponse({ record, workspace, replay, gradingEvidence: evidence, question: replayedQuestion }),
     // The field-by-field view, for every question type (responseInspectorView.mjs):

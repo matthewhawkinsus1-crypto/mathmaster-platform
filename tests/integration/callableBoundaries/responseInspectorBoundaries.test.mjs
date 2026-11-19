@@ -33,6 +33,7 @@
  */
 import test, { after, before } from 'node:test';
 import assert from 'node:assert/strict';
+import { splitIntegrityConsequence } from '../../../functions/shared/integrityOverridePrivacy.mjs';
 
 const {
   FieldPath, NOTHING_CHANGED, browser, changesBetween, db, googleCallsSince, googleFixtures, googleMark,
@@ -388,6 +389,23 @@ test('Apply Corrected Grade never lowers a score: it is refused and writes nothi
   assert.equal(lowered.authoritativeScore, 0);
   const grade = (await db.collection('grades').doc(studentId).get()).data();
   assert.equal(grade.teacherGradeOverridesByAssignment[SHARED]['0'].score, 0);
+});
+
+test("a section's academic-integrity zero is never lifted by Apply Corrected Grade: refused, nothing written", async () => {
+  const studentId = STUDENT.replayed.id;
+  // The zero as the integrity workflow stores it on each question of the section.
+  const { studentOverride: zero } = splitIntegrityConsequence({
+    scope: 'section', reasonCode: 'copied', reasonLabel: 'Academic integrity', sectionRole: 'dol', incidentId: 'boundary-section-zero', at: '2026-11-19T10:00:00.000Z',
+  });
+  await db.collection('grades').doc(studentId).set({ teacherGradeOverridesByAssignment: { [SHARED]: { 0: zero } } }, { merge: true });
+  const model = await accounts.owner.call('inspectStudentResponse', { studentId, assignmentId: SHARED, questionIndex: 0 });
+  assert.equal(model.correctedGrade.apply, false);
+  assert.equal(model.correctedGrade.reason, "This question is under its section's academic-integrity zero, which a corrected grade does not lift.");
+  await assertRefusedAndNothingWritten(accounts.owner, 'overrideStudentResponseGrade', {
+    studentId, assignmentId: SHARED, questionIndex: 0, action: 'applyReplay', reason: 'Platform/grader issue',
+  }, { code: 'functions/invalid-argument', message: model.correctedGrade.reason });
+  const grade = (await db.collection('grades').doc(studentId).get()).data();
+  assert.equal(grade.teacherGradeOverridesByAssignment[SHARED]['0'].source, 'teacher-section-zero');
 });
 
 test("the student's own teacher issues an integrity zero: the override, audit and teacher-only incident are written", async () => {

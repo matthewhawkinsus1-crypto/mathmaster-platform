@@ -1954,6 +1954,8 @@ exports.overrideStudentResponseGrade = onCall(async (request) => {
           const corrected = inspector.correctedGradeFromReplay({
             replayScore: replay.currentScore,
             standingScore: inspector.effectiveQuestionScore(record, previousOverride),
+            // A section's academic-integrity zero is never lifted by a replay.
+            sectionZero: inspector.sectionZeroHolds(previousOverride),
           });
           if (!corrected.apply) throw new Error(corrected.reason);
           score = corrected.score;
