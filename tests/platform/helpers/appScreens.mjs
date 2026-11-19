@@ -176,11 +176,19 @@ export const positionalHookNames = () => Object.entries(appHookPaths())
  *                                                 checking App imports it, calls
  *                                                 it once and the seam lines up
  */
-/** { factoryName: repo path } for every factory App imports from src/app. */
+/**
+ * { factoryName: repo path } for every factory App imports from src/app: a
+ * `create…` whose result App takes into one array of names at its top level.
+ * (createEmptyAssignmentTracker and its like are helpers App calls where it
+ * needs them, not factories of App's own functions.)
+ */
 export const appFactoryPaths = () => {
+  const app = read(APP_PATH);
   const paths = {};
-  for (const [, names, path] of read(APP_PATH).matchAll(HOOK_IMPORT)) {
-    for (const name of names.split(',').map((entry) => entry.trim())) if (/^create[A-Z]/.test(name)) paths[name] = `src/${path}`;
+  for (const [, names, path] of app.matchAll(HOOK_IMPORT)) {
+    for (const name of names.split(',').map((entry) => entry.trim())) {
+      if (/^create[A-Z]/.test(name) && new RegExp(`^ {2}(?:const \\[[^\\]]*)?\\] = ${name}\\(`, 'm').test(app)) paths[name] = `src/${path}`;
+    }
   }
   return paths;
 };
