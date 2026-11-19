@@ -10,9 +10,10 @@ import { preflightFindingsCountText } from '../../platform/preflight/questionPre
  * keeps: each region subscribes to its own question's findings. A labelled region; a heading with the count;
  * a list a screen reader moves through item by item, each item saying in
  * words whether it is a warning or a note, in full. Warnings are open from
- * the start; notes alone wait behind Show, so a lesson whose every question
- * has a note stays quiet. Nothing here takes focus, announces itself or
- * stops a save, and it changes only when the findings do.
+ * the start, and a warning that comes later opens the list again; notes
+ * alone wait behind Show, so a lesson whose every question has a note stays
+ * quiet. Nothing here takes focus, announces itself or stops a save, and it
+ * changes only when the findings do.
  */
 const regionStyle = {
   marginTop: 12,
@@ -48,6 +49,15 @@ function PreflightFindings({ findings, subject }) {
   const warnings = Array.isArray(findings?.warnings) ? findings.warnings : [];
   const notes = Array.isArray(findings?.notes) ? findings.notes : [];
   const [open, setOpen] = useState(warnings.length > 0);
+  // Whenever the warnings grow, the list opens: a warning that comes with an
+  // edit, on a question whose notes were waiting behind Show, is shown as a
+  // warning drawn with its region is. A Hide holds while their number does not
+  // grow. Adjusted while drawing, so the list never shows closed first.
+  const [warningCount, setWarningCount] = useState(warnings.length);
+  if (warnings.length !== warningCount) {
+    setWarningCount(warnings.length);
+    if (warnings.length > warningCount) setOpen(true);
+  }
   if (!warnings.length && !notes.length) return null;
   const headingId = `${id}-heading`;
   const listId = `${id}-list`;

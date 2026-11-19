@@ -11,7 +11,9 @@
 //
 //   SEES    the question with a warning shows it in full under its controls,
 //           open from the start; the question with only notes says how many
-//           and keeps them behind Show; every text is the model's own
+//           and keeps them behind Show, and a warning an edit brings to it
+//           opens them (weight 15 typed into Question 21: "counts ×15, but
+//           the work it assesses …"); every text is the model's own
 //   READS   each region is named by its heading ("Pre-Flight for Question
 //           23: 1 warning, 2 notes"), a level-3 heading, and a list a screen
 //           reader moves through item by item
@@ -229,6 +231,25 @@ const certify = async (screen) => {
     observed.fits = await fits(page, screen);
 
     if (screen.interact) {
+      /* SEES: a warning an edit brings to a question whose notes wait behind
+         Show opens the list; focus stays in the box typed in. */
+      if (await notedToggle.getAttribute('aria-expanded') === 'true') await notedToggle.click();
+      const notedWeight = card(page, NOTED.number).getByRole('spinbutton', { name: `Grade weight for Question ${NOTED.number}` });
+      await notedWeight.scrollIntoViewIfNeeded();
+      await notedWeight.click();
+      await page.keyboard.press('Control+A');
+      await page.keyboard.type('15', { delay: 80 });
+      await page.locator('[data-preflight-findings-state="checking"]').waitFor({ state: 'attached', timeout: 5000 }).catch(() => {});
+      await settled(page);
+      const risen = {
+        expanded: await notedToggle.getAttribute('aria-expanded'),
+        first: norm(await noted.getByRole('listitem').first().textContent({ timeout: 2000 }).catch(() => '')),
+        focus: await page.evaluate(() => document.activeElement?.getAttribute('aria-label')),
+      };
+      observed.warningArrived = risen.expanded;
+      if (risen.expanded !== 'true' || !new RegExp(`^Warning: Question ${NOTED.number} \\(Classwork Q18\\) counts ×15, but the work it assesses`).test(risen.first)) fail(screen.id, 'SEES', `a warning an edit brought stayed behind Show (${JSON.stringify(risen).slice(0, 200)})`);
+      if (risen.focus !== `Grade weight for Question ${NOTED.number}`) fail(screen.id, 'QUIET', `focus left the grade weight when the warning came (${risen.focus})`);
+
       /* QUIET: a grade weight typed under the findings. */
       const weight = card(page, WARNED.number).getByRole('spinbutton', { name: `Grade weight for Question ${WARNED.number}` });
       await weight.scrollIntoViewIfNeeded();
