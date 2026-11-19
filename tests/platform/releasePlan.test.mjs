@@ -19,6 +19,7 @@ import {
   assessBuildInfoResponse,
   buildInfoRequest,
   buildReleasePlan,
+  releaseScope,
   classifyChangedFiles,
   classifyDeployFailure,
   deployCommandFor,
@@ -1185,4 +1186,25 @@ test('the real common helpers are read by statement', () => {
   assert.ok(Math.max(...sizes) < inventory.length, 'no helper is every function\'s');
   const small = sizes.filter((size) => size <= inventory.length / 4).length;
   assert.ok(small >= sizes.length / 2, `${small} of ${sizes.length} helpers reach at most a quarter of the functions`);
+});
+
+// --functions deploys the named functions and nothing else. It used to add
+// every target the diff needed, so "take the Classroom functions early" also
+// shipped rules and Hosting against a fleet still on the old code.
+test('--functions narrows a release to the functions; other targets ride along only when --only names them', () => {
+  const targets = [T.INDEXES, T.FUNCTIONS, T.PATH_ADMIN, T.RULES, T.HOSTING];
+  const allFunctions = ['alpha', 'beta', B];
+  const plan = (options) => buildReleasePlan({
+    targets, allFunctions, functionNames: options.functionNames, only: releaseScope(options), expectedGitSha: 'a'.repeat(40),
+  }).map((step) => step.target);
+
+  assert.deepEqual(plan({ functionNames: ['alpha'] }), [T.FUNCTIONS, VERIFY_FUNCTIONS, ACCESS_FUNCTIONS]);
+  assert.deepEqual(plan({ functionNames: ['alpha'], only: [T.RULES] }),
+    [T.FUNCTIONS, VERIFY_FUNCTIONS, ACCESS_FUNCTIONS, T.RULES]);
+  // Without --functions nothing changes: --only as given, or the whole diff.
+  assert.deepEqual(releaseScope({ only: [T.HOSTING] }), [T.HOSTING]);
+  assert.equal(releaseScope({}), null);
+  assert.deepEqual(plan({}), [T.INDEXES, T.FUNCTIONS, VERIFY_FUNCTIONS, ACCESS_FUNCTIONS, T.PATH_ADMIN, T.RULES, T.HOSTING]);
+  // The release script plans with this rule and no other.
+  assert.match(readFileSync(new URL('../../scripts/release-firebase.mjs', import.meta.url), 'utf8'), /only: releaseScope\(\{ only, functionNames \}\),/);
 });

@@ -18,6 +18,7 @@
  *                         indexes, functions, path-admin, rules, database, hosting
  *                         (functions here is the whole default codebase)
  *   --functions a,b       exact default-codebase functions (implies functions)
+ *                         and nothing else, unless --only names more targets
  *   --group-size N        functions per group (default 8)
  *   --pause-seconds N     pause between groups (default 45)
  *   --max-attempts N      tries per group (and per verify) before giving up (default 3)
@@ -73,6 +74,7 @@ import {
   describeStep,
   firebaseFunctionsSettingsChanged,
   functionSelectionLines,
+  releaseScope,
   retryCommandFor,
   summarizeFunctionLabels,
 } from './lib/releasePlan.mjs';
@@ -309,7 +311,7 @@ try {
     allFunctions: inventory,
     functionNames,
     selectedFunctions: selection && !selection.all.length ? selection.functions : null,
-    only: functionNames?.length ? [...new Set([...(only || targets), RELEASE_TARGETS.FUNCTIONS])] : only,
+    only: releaseScope({ only, functionNames }),
     groupSize: GROUP_SIZE,
     expectedGitSha: headFull,
   });
