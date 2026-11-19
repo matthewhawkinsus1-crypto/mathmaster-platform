@@ -27,6 +27,7 @@ import { teacherAssignmentView, legacyStudentIds, overrideAuthorizationContext, 
 import { stripAssignmentInstanceState } from '../../functions/shared/assignmentPrivacy.mjs';
 import { ALL_STUDENTS, CLASS_ID, TEACHER, legacyAssignment } from '../fixtures/studentAssignmentOverrideLegacyFixtures.mjs';
 import { importsComponent } from './helpers/componentImport.mjs';
+import { appHookSource } from './helpers/appScreens.mjs';
 
 const read = (file) => readFileSync(new URL(`../../${file}`, import.meta.url), 'utf8');
 const app = read('src/App.jsx');
@@ -138,11 +139,17 @@ test('a resume restored from the server is projected with the controls held when
 });
 
 test('the student\'s lessons are re-projected — not re-listened — when their controls or profile change', () => {
-  const effect = region(code, "if (user?.role === 'student' && user.id) {\n      studentViewerRef.current", '}, [user?.role, user?.id, user?.profile, user?.timingProfile, studentAssignmentControls, teacherClassControls]);', 're-projection');
+  // Since the App split, app/shell/useAssignmentListeners.js owns both effects:
+  // App calls it once and hands it the account, the controls and the publishers.
+  const listeners = executableSource(appHookSource('useAssignmentListeners'));
+  const call = region(code, 'useAssignmentListeners({', '});', "App's useAssignmentListeners call");
+  ['user', 'studentAssignmentControls', 'teacherClassControls', 'studentViewerRef', 'publishStudentAssignments', 'publishTeacherAssignments']
+    .forEach((input) => assert.match(call, new RegExp(`[{,\\s]${input}[,\\s}]`), `App hands ${input} to useAssignmentListeners`));
+  const effect = region(listeners, "if (user?.role === 'student' && user.id) {\n      studentViewerRef.current", '}, [user?.role, user?.id, user?.profile, user?.timingProfile, studentAssignmentControls, teacherClassControls]);', 're-projection');
   assert.match(effect, /publishStudentAssignments\(\);[\s\S]*publishTeacherAssignments\(\);/);
   assert.doesNotMatch(effect, /subscribe|onSnapshot/);
   // The lesson listener follows who is signed in and their class, not every profile revision.
-  assert.match(code, /return unsubscribe;\s*\}, \[user\?\.role, user\?\.id, user\?\.classId\]\);/);
+  assert.match(listeners, /return unsubscribe;\s*\}, \[user\?\.role, user\?\.id, user\?\.classId\]\);/);
 });
 
 test('5. the staff-only override history is read by staff screens only — never on a student\'s device', () => {

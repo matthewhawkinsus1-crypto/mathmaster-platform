@@ -23,6 +23,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { executableSource, region } from './helpers/sourceContract.mjs';
+import { appHookSource } from './helpers/appScreens.mjs';
 import {
   followRosterClass, followSupportProfile, rosterMembershipOf, sameRosterMembership, studentClassFields,
 } from '../../src/platform/student/rosterMembership.js';
@@ -124,32 +125,50 @@ test('after a move, the class left\'s lessons with the student\'s work stay as p
 
 test('the app follows the row: sign-in and the listener read the class the same way, and the class listener keeps the work', () => {
   const app = executableSource(readFileSync(new URL('../../src/App.jsx', import.meta.url), 'utf8'));
-  assert.match(app, /^import \{ followRosterClass, followSupportProfile, rosterMembershipOf, sameRosterMembership, studentClassFields \} from '\.\/platform\/student\/rosterMembership\.js';$/m);
+  // Since the App split the row is followed in three hooks App calls, and each
+  // imports what it calls: app/student/useStudentGradeDocument.js (the grade
+  // document's listener), app/student/useRosterClassFollow.js (the follower)
+  // and app/shell/useAssignmentListeners.js (the class listener).
+  const gradeDocument = executableSource(appHookSource('useStudentGradeDocument'));
+  const rosterFollow = executableSource(appHookSource('useRosterClassFollow'));
+  const assignmentListeners = executableSource(appHookSource('useAssignmentListeners'));
+  const hands = (call, inputs, hook) => inputs.forEach((input) => assert.match(call, new RegExp(`[{,\\s]${input}[,\\s}]`), `App hands ${input} to ${hook}`));
+  assert.match(app, /^import \{ studentClassFields \} from '\.\/platform\/student\/rosterMembership\.js';$/m);
+  assert.match(gradeDocument, /^import \{ followSupportProfile, rosterMembershipOf, sameRosterMembership \} from '\.\.\/\.\.\/platform\/student\/rosterMembership\.js';$/m);
+  assert.match(rosterFollow, /^import \{ followRosterClass \} from '\.\.\/\.\.\/platform\/student\/rosterMembership\.js';$/m);
+  // The listener's membership is what App hands the follower.
+  const gradeDocumentCall = region(app, 'const { studentRosterMembership } = useStudentGradeDocument({', '});', "App's useStudentGradeDocument call");
+  hands(gradeDocumentCall, ['user', 'setUser', 'toastSuccess'], 'useStudentGradeDocument');
+  const rosterFollowCall = region(app, 'useRosterClassFollow({', '});', "App's useRosterClassFollow call");
+  hands(rosterFollowCall, ['user', 'setUser', 'studentRosterMembership', 'classesById', 'courseProfiles', 'fetchStudentClass'], 'useRosterClassFollow');
+  const assignmentListenersCall = region(app, 'useAssignmentListeners({', '});', "App's useAssignmentListeners call");
+  hands(assignmentListenersCall, ['user', 'tracker', 'testCycleGrades', 'studentClassAssignmentsRef', 'studentPriorWorkAssignmentsRef'], 'useAssignmentListeners');
   // Sign-in: the class fields from the row, and the course and level into the profile.
   const hydrate = region(app, 'const hydrateSession = async', 'hydrateSession();', 'hydrateSession');
   assert.match(hydrate, /const \{ course: classCourse, courseLevel: classCourseLevel, \.\.\.classFields \} = studentClassFields\(\{\s*rosterRow: studentData,/);
   assert.match(hydrate, /\.\.\.classFields,\s*profile: \{\s*\.\.\.studentProfile,\s*course: classCourse,\s*courseLevel: classCourseLevel,\s*\},/);
   // The grade document's listener: each snapshot's membership, and supports through followSupportProfile.
-  const listener = region(app, "doc(db, 'grades', user.id),", 'Object.entries(next).forEach', 'the grade document listener');
+  const listener = region(gradeDocument, "doc(db, 'grades', user.id),", 'Object.entries(next).forEach', 'the grade document listener');
   assert.match(listener, /setUser\(\(current\) => followSupportProfile\(current, liveProfile\)\);/);
   assert.match(listener, /const membership = rosterMembershipOf\(snapshot\.data\(\)\);\s*setStudentRosterMembership\(\(current\) => \(sameRosterMembership\(current, membership\) \? current : membership\)\);/);
   // Forgotten whenever the listener opens or closes: another account's row is never followed into this one's session.
-  const opens = region(app, 'const [studentRosterMembership, setStudentRosterMembership] = useState(null);', 'const stopGrades = onSnapshot(', 'the grade document listener\'s opening');
+  const opens = region(gradeDocument, 'const [studentRosterMembership, setStudentRosterMembership] = useState(null);', 'const stopGrades = onSnapshot(', 'the grade document listener\'s opening');
   // Reset, then only the adoption of server records joined to their stored
   // detail (gradeEntryStorage.mjs) is set up before the listener opens.
   assert.match(opens, /useEffect\(\(\) => \{\s*if \(user\?\.role !== 'student' \|\| !user\.id\) \{\s*setStudentRosterMembership\(null\);[\s\S]*return undefined;\s*\}\s*setStudentRosterMembership\(null\);\s*let latestServerGrades = null;\s*let latestDetail = null;\s*let stopDetail = null;\s*const adoptServerGrades = \(\) => \{[\s\S]*\};\s*$/);
-  const listenerEffect = region(app, 'const [studentRosterMembership, setStudentRosterMembership] = useState(null);', 'const classReadForRosterRef = useRef(null);', 'the grade document listener');
+  const listenerEffect = region(gradeDocument, 'const [studentRosterMembership, setStudentRosterMembership] = useState(null);', 'return { studentRosterMembership };', 'the grade document listener');
   assert.match(listenerEffect, /\}, \[user\?\.role, user\?\.id, toastSuccess\]\);\s*$/, 'the listener opens again for each account');
   // The follower: a class the session has, or the student's own, at once; another read once first, then followed.
-  const follower = region(app, 'const classReadForRosterRef = useRef(null);', '\n  }, [user?.role, user?.classId, studentRosterMembership, classesById, courseProfiles]);', 'the roster row\'s follower');
+  const follower = region(rosterFollow, 'const classReadForRosterRef = useRef(null);', '\n  }, [user?.role, user?.classId, studentRosterMembership, classesById, courseProfiles]);', 'the roster row\'s follower');
   assert.match(follower, /const follow = \(byId\) => setUser\(\(current\) => followRosterClass\(current, studentRosterMembership, \{ classesById: byId, courseProfiles \}\)\);/);
   assert.match(follower, /if \(!classId \|\| classId === \(user\.classId \|\| null\) \|\| classesById\[classId\] \|\| classReadForRosterRef\.current === classId\) \{\s*follow\(classesById\);/);
   // The class moved to is read once — that one class, by id — then followed.
   assert.match(follower, /classReadForRosterRef\.current = classId;[\s\S]*fetchStudentClass\(classId\)\.then\(\(loaded\) => \{ if \(!cancelled\) follow\(/);
   // The class listener follows user.classId, and on each snapshot keeps the class left's worked lessons as prior work.
-  const classListener = region(app, "if (user.role === 'student') {\n      return subscribeStudentClassAssignments({", '(error) =>', 'the class listener');
-  assert.match(classListener, /classId: user\.classId,/);
+  const classListener = region(assignmentListeners, "if (user.role === 'student') {\n      return subscribeStudentClassAssignments({", '(error) =>', 'the class listener');
+  // (Its own line: the subscription's class, not the classId the kept-work call below names.)
+  assert.match(classListener, /^\s*classId: user\.classId,$/m);
   assert.match(classListener, /const keptFromClassLeft = priorWorkFromClassLeft\(\{ classAssignments: studentClassAssignmentsRef\.current, classId: user\.classId, workedIds: studentWorkedIds \}\);\s*if \(keptFromClassLeft\.length\) studentPriorWorkAssignmentsRef\.current = mergeStudentAssignments\(studentPriorWorkAssignmentsRef\.current, keptFromClassLeft\);\s*studentClassAssignmentsRef\.current = classAssignments;/);
-  assert.match(app, /const studentWorkedIds = user\.role === 'student' \? workedAssignmentKey\(tracker, individuallyAssignedTestCycleIds\(testCycleGrades\)\)\.split\('\|'\) : \[\];/);
-  assert.match(app, /\}, \[user\?\.role, user\?\.id, user\?\.classId\]\);/, 'the listener opens again for the new class');
+  assert.match(assignmentListeners, /const studentWorkedIds = user\.role === 'student' \? workedAssignmentKey\(tracker, individuallyAssignedTestCycleIds\(testCycleGrades\)\)\.split\('\|'\) : \[\];/);
+  assert.match(assignmentListeners, /\}, \[user\?\.role, user\?\.id, user\?\.classId\]\);/, 'the listener opens again for the new class');
 });

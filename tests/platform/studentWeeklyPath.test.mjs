@@ -24,6 +24,7 @@ import { readFileSync } from 'node:fs';
 import { register } from 'node:module';
 
 import { executableSource, region } from './helpers/sourceContract.mjs';
+import { appHookSource, appSurfaceSource } from './helpers/appScreens.mjs';
 import { firestoreClient, resetFirestoreClient } from './helpers/firestoreClientStub.mjs';
 
 register('./helpers/firestoreClientIsolation.mjs', import.meta.url);
@@ -510,15 +511,24 @@ test('My Progress\'s recent weeks: asked for once a minute, again after Path wor
 });
 
 test('Home follows the page\'s week, with the frozen goal, and says when it has no answer', () => {
-  assert.match(app, /const studentWeeklyPathFacts = useMemo\(\(\) => \(\s*user\?\.role === 'student' && user\.id \? studentWeeklyPath\.forStudent\(\{ studentId: user\.id, classId: user\.classId \|\| null \}\) : null\s*\), \[user\?\.role, user\?\.id, user\?\.classId\]\);/);
-  const effect = region(app, 'if (studentDashboardMode !== \'assignments\' || !studentWeeklyPathFacts) return undefined;', 'studentDashboardMode, Math.floor(now / 3_600_000),', 'Home weekly status');
+  // Since the App split, app/student/useStudentWeeklyPathProgress.js owns the
+  // page's week and Home's status effect: App calls it with the student, the
+  // setter Home's card reads from, the clock, the mode and the goal settings,
+  // and takes the week back for My Math Path.
+  const weekly = executableSource(appHookSource('useStudentWeeklyPathProgress'));
+  const weeklyCall = region(app, 'const { studentWeeklyPathFacts } = useStudentWeeklyPathProgress({', '});', "App's useStudentWeeklyPathProgress call");
+  ['user', 'setStudentWeeklyPathProgress', 'now', 'studentDashboardMode', 'studentWeeklyGoalConfig']
+    .forEach((input) => assert.match(weeklyCall, new RegExp(`[{,\\s]${input}[,\\s}]`), `App hands ${input} to useStudentWeeklyPathProgress`));
+  assert.match(weekly, /return \{ studentWeeklyPathFacts \};/);
+  assert.match(weekly, /const studentWeeklyPathFacts = useMemo\(\(\) => \(\s*user\?\.role === 'student' && user\.id \? studentWeeklyPath\.forStudent\(\{ studentId: user\.id, classId: user\.classId \|\| null \}\) : null\s*\), \[user\?\.role, user\?\.id, user\?\.classId\]\);/);
+  const effect = region(weekly, 'if (studentDashboardMode !== \'assignments\' || !studentWeeklyPathFacts) return undefined;', 'studentDashboardMode, Math.floor(now / 3_600_000),', 'Home weekly status');
   const unsettle = effect.indexOf('setStudentWeeklyPathProgress(null);');
   const follow = effect.indexOf('return studentWeeklyPathFacts.follow(currentWeekKey, {');
   assert.ok(unsettle > -1 && follow > unsettle, 'nothing shown until the week is known, then the answer');
   assert.match(effect, /goal: true,\s*apply: \(\{ goal, facts: weeklyFacts \}\) => \{/);
   assert.match(region(effect, 'fail: (error) => {', '},', 'the failure'), /setStudentWeeklyPathProgress\(null\);/, 'no answer, never a zero');
-  assert.match(app, /user\?\.role, user\?\.id, user\?\.profile\?\.courseLevel, studentWeeklyGoalConfig, studentWeeklyPathFacts,/);
-  assert.doesNotMatch(app, /fetchMyWeeklyPathCompletions\(|fetchStudentWeeklyPathGoalSnapshot\(/, 'no call of its own beside the page\'s week');
+  assert.match(weekly, /user\?\.role, user\?\.id, user\?\.profile\?\.courseLevel, studentWeeklyGoalConfig, studentWeeklyPathFacts,/);
+  assert.doesNotMatch(executableSource(appSurfaceSource()), /fetchMyWeeklyPathCompletions\(|fetchStudentWeeklyPathGoalSnapshot\(/, 'no call of its own beside the page\'s week');
   // Another account: nothing held is used.
   assert.match(app, /if \(hydratedSessionUidRef\.current !== session\.uid\) \{\s*forgetSessionPathCoverage\(\);\s*studentWeeklyPath\.forget\(\);\s*\}/);
   assert.match(region(app, '<MyMathPathApp', '/>', 'My Math Path'), /weeklyPathFacts=\{studentWeeklyPathFacts\}/);

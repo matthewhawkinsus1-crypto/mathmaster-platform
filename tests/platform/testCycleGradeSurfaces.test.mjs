@@ -6,6 +6,7 @@ import { buildStudentGradeCenter } from '../../src/platform/student/studentGrade
 import { buildStudentAssignmentsCenter } from '../../src/platform/student/studentAssignmentsCenterModel.js';
 import { buildTestCycleGradeState } from '../../functions/shared/testCycleGrade.mjs';
 import { assertCapability, componentSource, executableSource, region } from './helpers/sourceContract.mjs';
+import { appHookSource } from './helpers/appScreens.mjs';
 
 const functionsIndex = readFileSync(new URL('../../functions/index.js', import.meta.url), 'utf8');
 const gradeCenter = componentSource('src/components/student/StudentGradeCenter.jsx');
@@ -147,7 +148,14 @@ test('the browser never writes a recorded Test Cycle grade', () => {
   assert.doesNotMatch(state, /updateDoc[^\n]*testCycleGrades/);
   // Read from the grade document's snapshot (kept as it was while that says
   // the same: keepSame, appRenderWork.test.mjs).
-  assert.match(app, /setTestCycleGrades\((?:keepSame\()?snapshot\.data\(\)\?\.testCycleGrades \|\| \{\}\)/);
+  // Since the App split, app/student/useStudentGradeDocument.js owns that
+  // listener: App hands it the setter, and it reads and never writes either.
+  const gradeDocument = appHookSource('useStudentGradeDocument');
+  const gradeDocumentCall = region(app, 'useStudentGradeDocument({', '});', "App's useStudentGradeDocument call");
+  ['user', 'setTestCycleGrades']
+    .forEach((input) => assert.match(gradeDocumentCall, new RegExp(`[{,\\s]${input}[,\\s}]`), `App hands ${input} to useStudentGradeDocument`));
+  assert.doesNotMatch(gradeDocument, /updateDoc[^\n]*testCycleGrades/);
+  assert.match(gradeDocument, /setTestCycleGrades\((?:keepSame\()?snapshot\.data\(\)\?\.testCycleGrades \|\| \{\}\)/);
   assert.match(app, /testCycleGrades,/);
 });
 

@@ -16,6 +16,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { assertCapability, componentSource, executableSource, region } from './helpers/sourceContract.mjs';
+import { appHookSource } from './helpers/appScreens.mjs';
 import { studentScheduleBlocks } from '../../src/platform/student/testCycleScheduleView.js';
 import { testSkillsSection } from '../../src/platform/student/testCycleDiscovery.js';
 import {
@@ -48,10 +49,18 @@ const assertImported = (source, from, names, where) => {
 
 test('every new function a screen calls is imported where it is called', () => {
   // App.jsx: the two loaders a student's device needs for a Test they were added to on their own.
-  assert.match(app, /individuallyAssignedTestCycleIds\(testCycleGrades\)/);
-  assert.match(app, /markIndividuallyAssigned\(fetched,/);
+  // Since the App split, app/shell/useAssignmentListeners.js owns the listener
+  // and the earlier-class fetch: App hands it the student's Test grades, and
+  // the hook imports what it calls. Sign-in's loader is still App's.
+  const assignmentListeners = appHookSource('useAssignmentListeners');
+  const listenersCall = region(app, 'useAssignmentListeners({', '});', "App's useAssignmentListeners call");
+  ['user', 'tracker', 'testCycleGrades', 'studentPriorWorkAssignmentsRef', 'publishStudentAssignments']
+    .forEach((input) => assert.match(listenersCall, new RegExp(`[{,\\s]${input}[,\\s}]`), `App hands ${input} to useAssignmentListeners`));
+  assert.match(assignmentListeners, /individuallyAssignedTestCycleIds\(testCycleGrades\)/);
+  assert.match(assignmentListeners, /markIndividuallyAssigned\(fetched,/);
   assert.match(app, /individualAssignmentIds: individuallyAssignedTestCycleIds\(studentData\.testCycleGrades\)/);
-  assertImported(app, 'platform/assignments/studentAssignmentScope.js', ['individuallyAssignedTestCycleIds', 'markIndividuallyAssigned', 'workedAssignmentKey'], 'App.jsx');
+  assertImported(app, 'platform/assignments/studentAssignmentScope.js', ['individuallyAssignedTestCycleIds'], 'App.jsx');
+  assertImported(assignmentListeners, 'platform/assignments/studentAssignmentScope.js', ['individuallyAssignedTestCycleIds', 'markIndividuallyAssigned', 'workedAssignmentKey'], 'useAssignmentListeners.js');
 
   // The teacher panel: its services, its tools and its panels.
   const controlCalls = {

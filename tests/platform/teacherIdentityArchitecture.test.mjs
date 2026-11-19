@@ -37,6 +37,7 @@ import {
 } from '../../src/platform/studentName.js';
 import { normalizeTeacherRosterSummary } from '../../src/platform/teacher/teacherRosterSummary.js';
 import { executableSource, region } from './helpers/sourceContract.mjs';
+import { appHookSource } from './helpers/appScreens.mjs';
 
 const ROOT = fileURLToPath(new URL('../../', import.meta.url));
 const read = (path) => readFileSync(join(ROOT, path), 'utf8');
@@ -225,14 +226,17 @@ const KNOWN_GRADES_DOCUMENT_ACCESS = {
     'useEffect: let cancelled = false;': 2,
     // …engagement time, the one field the student's client still writes…
     flushAssignmentActivity: 1,
-    // …and the receipt listener on their own document. (Closing a DOL no
-    // longer touches the document: the DOL projection is server-owned.)
-    "useEffect: if (user?.role !== 'student' || !user.id) {": 1,
+    // …and the receipt listener on their own document, which since the App
+    // split is in app/student/useStudentGradeDocument.js (below).
     // The profile drawer: ONE student, when a teacher opens them.
     "useEffect: if (user?.role !== 'teacher' || !profileDrawerStudentId) {": 1,
     // Assignment Hub "who has finished?": one class, on request.
     loadClassGradeRecords: 1,
   },
+  // The signed-in STUDENT's receipt listener on their own document, moved
+  // from App.jsx with the hook App calls (the App split). (Closing a DOL no
+  // longer touches the document: the DOL projection is server-owned.)
+  'src/app/student/useStudentGradeDocument.js': { useStudentGradeDocument: 1 },
   // App's teacher-only handlers moved here with the teacher's screen (G2).
   'src/app/teacher/TeacherWorkspace.jsx': {
     // A teacher saving a question-weight change migrates the affected grades in one transaction.
@@ -267,6 +271,8 @@ test('Test F: no screen reads or listens to grades documents to learn a name —
     + '(teacherStudentIdentityIndex / resolveRosterStudentName). Never read or subscribe to grades/{studentId} for it. '
     + 'If a NEW grades read is needed for another reason, justify it and add it here; if an existing one only moved, update its label.';
   assert.deepEqual(census(GRADES_REFERENCE), KNOWN_GRADES_DOCUMENT_ACCESS, guidance);
+  // The inventoried listener runs only while App calls the hook that holds it.
+  appHookSource('useStudentGradeDocument');
   assert.deepEqual(census(FULL_RECORD_HELPER_CALL), KNOWN_FULL_RECORD_HELPER_CALLS, guidance);
 });
 

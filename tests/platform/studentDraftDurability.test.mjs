@@ -1,6 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
+import { appHookSource } from './helpers/appScreens.mjs';
+import { region } from './helpers/sourceContract.mjs';
 
 const read = (path) => readFile(new URL(`../../${path}`, import.meta.url), 'utf8');
 
@@ -44,7 +46,12 @@ test('student home reads the caller-only weekly goal snapshot before declaring a
   ]);
   // Home asks the page's week for the frozen goal too (goal: true), which is
   // pathStore's fetchStudentWeeklyPathGoalSnapshot (studentWeeklyPath.js).
-  assert.match(app, /studentWeeklyPathFacts\.follow\(currentWeekKey, \{\s*goal: true,/);
+  // Since the App split, app/student/useStudentWeeklyPathProgress.js owns the
+  // read: App calls it with the student and the setter Home's card reads from.
+  const weeklyCall = region(app, 'useStudentWeeklyPathProgress({', '});', "App's useStudentWeeklyPathProgress call");
+  ['user', 'setStudentWeeklyPathProgress', 'studentWeeklyGoalConfig']
+    .forEach((input) => assert.match(weeklyCall, new RegExp(`[{,\\s]${input}[,\\s}]`), `App hands ${input} to useStudentWeeklyPathProgress`));
+  assert.match(appHookSource('useStudentWeeklyPathProgress'), /studentWeeklyPathFacts\.follow\(currentWeekKey, \{\s*goal: true,/);
   assert.match(store, /goal: fetchStudentWeeklyPathGoalSnapshot,/);
   assert.match(store, /getStudentWeeklyPathGoalSnapshot/);
   assert.match(functions, /exports\.getStudentWeeklyPathGoalSnapshot/);
