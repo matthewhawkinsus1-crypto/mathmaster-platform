@@ -16,9 +16,10 @@
 //           and keeps them behind Show, and a warning an edit brings to it
 //           opens them (weight 15 typed into Question 21: "counts ×15, but
 //           the work it assesses …"); every text is the model's own
-//   READS   each region is named by its heading ("Pre-Flight for Question
-//           23: 1 warning, 2 notes"), a level-3 heading, and a list a screen
-//           reader moves through item by item
+//   READS   each question's findings sit under a level-3 heading that names
+//           them ("Pre-Flight for Question 23: 1 warning, 2 notes") and in a
+//           list a screen reader moves through item by item; none is a
+//           landmark, so the editor's one region stays its Repair Center's
 //   KEYS    Show is a button that says whether it is open, pressed by Enter
 //   QUIET   typing a grade weight keeps focus in the box, moves nothing above
 //           it and announces nothing; Exclude takes a question's findings
@@ -116,7 +117,7 @@ const openEditor = async (screen, scenario, query = '') => {
 };
 
 const card = (page, number) => page.locator(`[data-question-card="${number}"]`);
-const regionOf = (page, number) => card(page, number).locator(`section[data-preflight-findings="Question ${number}"]`);
+const regionOf = (page, number) => card(page, number).locator(`[data-preflight-findings="Question ${number}"]`);
 // The state's wrapper has no box of its own (PreflightFindingsState), so it is waited for attached.
 const settled = (page) => page.locator('[data-preflight-findings-state="current"]').waitFor({ state: 'attached', timeout: 30000 });
 const textOf = async (locator) => (await locator.textContent() || '').replace(/\s+/g, ' ').trim();
@@ -126,7 +127,7 @@ const textOf = async (locator) => (await locator.textContent() || '').replace(/\
 const fits = async (page, screen) => {
   const measured = await page.evaluate(() => {
     const dialog = document.querySelector('[role="dialog"]');
-    const regions = [...document.querySelectorAll('section[data-preflight-findings]')];
+    const regions = [...document.querySelectorAll('[data-preflight-findings]')];
     const clipped = [];
     for (const regionNode of regions) {
       for (const element of [regionNode, ...regionNode.querySelectorAll('*')]) {
@@ -188,7 +189,11 @@ const certify = async (screen) => {
     const warned = regionOf(page, WARNED.number);
     await warned.scrollIntoViewIfNeeded();
     const name = `Pre-Flight for Question ${WARNED.number}: ${preflightFindingsCountText(warnedFindings)}`;
-    if (await page.getByRole('region', { name, exact: true }).count() !== 1) fail(screen.id, 'READS', `no region named "${name}"`);
+    // A heading, not a landmark: the editor's only region is its Repair Center.
+    if (await page.getByRole('region', { name, exact: true }).count() !== 0) fail(screen.id, 'READS', `a region landmark named "${name}"`);
+    const landmarks = await page.locator('[role="dialog"]').getByRole('region').evaluateAll((nodes) => nodes.map((node) => node.getAttribute('aria-label') || node.getAttribute('aria-labelledby') || node.tagName));
+    observed.regionLandmarks = landmarks.length;
+    if (JSON.stringify(landmarks) !== JSON.stringify(['Assignment Repair Center'])) fail(screen.id, 'READS', `the editor's region landmarks are ${JSON.stringify(landmarks).slice(0, 160)}, not its Repair Center alone`);
     if (await warned.getByRole('heading', { level: 3, name, exact: true }).count() !== 1) fail(screen.id, 'READS', 'the region has no level-3 heading with its count');
     const warnedToggle = warned.getByRole('button');
     if (await warnedToggle.getAttribute('aria-expanded') !== 'true') fail(screen.id, 'SEES', 'a question with a warning does not show it from the start');
@@ -209,7 +214,7 @@ const certify = async (screen) => {
     const notedName = `Pre-Flight for Question ${NOTED.number}: ${preflightFindingsCountText(notedFindings)}`;
     observed.notedHeading = notedName;
     if (await noted.getByRole('heading', { level: 3, name: notedName, exact: true }).count() !== 1) fail(screen.id, 'READS', `Question ${NOTED.number}'s heading does not read "${notedName}" (${await textOf(noted.getByRole('heading', { level: 3 }))})`);
-    if (await page.getByRole('region', { name: notedName, exact: true }).count() !== 1) fail(screen.id, 'READS', `no region named "${notedName}"`);
+    if (await page.getByRole('region', { name: notedName, exact: true }).count() !== 0) fail(screen.id, 'READS', `a region landmark named "${notedName}"`);
     // Drawn without the question's number, which the card already shows.
     const drawn = await noted.getByRole('heading', { level: 3 }).evaluate((node) => {
       const copy = node.cloneNode(true);

@@ -276,10 +276,13 @@ test('the store hands each region its question\'s findings, the same object whil
   assert.equal(heard.length, 3, 'a listener that left hears nothing more');
 });
 
-test('the region: labelled, a heading with the count, a list item by item; warnings open, notes behind Show; nothing announced or focused', () => {
+test('the region: a heading with the count, no landmark, a list item by item; warnings open, notes behind Show; nothing announced or focused', () => {
   const view = executableSource(readFileSync(new URL('../../src/components/teacher/PreflightFindings.jsx', import.meta.url), 'utf8'));
-  assert.match(view, /<section aria-labelledby=\{headingId\} data-preflight-findings=\{subject\}/);
-  assert.match(view, /<h3 id=\{headingId\}[^>]*>\s*Pre-Flight<span className="mm-visually-hidden"> for \{subject\}:<\/span><span aria-hidden="true">:<\/span> \{preflightFindingsCountText\(\{ warnings, notes \}\)\}\s*<\/h3>/);
+  // Not a landmark (preflightFindingsRegion.test.mjs renders it): one for each
+  // question flooded a screen reader's landmark list.
+  assert.match(view, /<div data-preflight-findings=\{subject\} style=\{regionStyle\}>/);
+  assert.doesNotMatch(view, /<section\b|role="region"|aria-labelledby/);
+  assert.match(view, /<h3 style=\{headingStyle\}>\s*Pre-Flight<span className="mm-visually-hidden"> for \{subject\}:<\/span><span aria-hidden="true">:<\/span> \{preflightFindingsCountText\(\{ warnings, notes \}\)\}\s*<\/h3>/);
   assert.match(view, /aria-expanded=\{open\}\s*aria-controls=\{listId\}/);
   assert.match(view, /const \[open, setOpen\] = useState\(warnings\.length > 0\);/);
   assert.match(view, /<ul id=\{listId\} hidden=\{!open\} style=\{\{ \.\.\.listStyle, display: open \? 'grid' : 'none' \}\}>/);

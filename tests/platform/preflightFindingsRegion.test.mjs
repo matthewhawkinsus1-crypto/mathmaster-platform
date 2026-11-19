@@ -15,6 +15,11 @@
  * store draws it after each Pre-Flight run. Whenever the warning count rises
  * the list opens; nothing takes focus or is announced (the source contract in
  * questionEditorPreflightFindings.test.mjs).
+ *
+ * And the region is no landmark. Each was a <section> named by its heading,
+ * so an 82-question assignment put 82 "Pre-Flight for Question N" regions in a
+ * screen reader's landmark list, beside the editor's own one (its Repair
+ * Center). A teacher reaches each by its heading now, as before.
  */
 import test, { after, before } from 'node:test';
 import assert from 'node:assert/strict';
@@ -83,4 +88,22 @@ test('a note that arrives leaves the list as it was', () => {
   const view = mount(Region, props([], NOTES.slice(0, 2)));
   view.update(props([], NOTES));
   assert.equal(isOpen(view), false, 'notes alone still wait behind Show');
+});
+
+// Every role and name the region's own element carries.
+const landmarkProps = (element) => Object.fromEntries(Object.entries(element.props)
+  .filter(([key]) => ['role', 'aria-label', 'aria-labelledby'].includes(key)));
+const textOf = (node) => (Array.isArray(node) ? node.map(textOf).join('') : node && typeof node === 'object' ? textOf(node.props?.children) : String(node ?? ''));
+
+test('a question\'s findings, and the whole assignment\'s, are a heading and a list, never a landmark', () => {
+  for (const subject of ['Question 21', 'the whole assignment']) {
+    const view = mount(Region, { findings: { warnings: [WEIGHT], notes: NOTES }, subject });
+    assert.notEqual(view.output.type, 'section', `${subject}: a <section> with a name is a region landmark`);
+    assert.deepEqual(landmarkProps(view.output), {}, `${subject}: no role and no name of its own`);
+    assert.equal(view.output.props['data-preflight-findings'], subject);
+    const heading = findElement(view.output, (element) => element.type === 'h3');
+    assert.ok(heading, `${subject}: a level-3 heading`);
+    assert.equal(textOf(heading.props.children).replace(/\s+/g, ' '), `Pre-Flight for ${subject}:: 1 warning, 3 notes`, 'read with the hidden words and drawn with the visible colon');
+    assert.ok(findElement(view.output, (element) => element.type === 'ul'), `${subject}: the list`);
+  }
 });
