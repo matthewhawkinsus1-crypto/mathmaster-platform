@@ -15,7 +15,7 @@
  */
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+import { readdirSync, readFileSync } from 'node:fs';
 
 import { rebuildV5SectionsFromQuestions } from '../../src/platform/contract/assignmentSchemaV5.js';
 import { CANCELS_QUESTION_ID, NOTED_QUESTION_ID, PRODUCT_QUESTION_ID, editorPreflightAssignment } from './helpers/editorPreflightFixtures.mjs';
@@ -200,17 +200,28 @@ test('the editor runs the hook on the candidate Save judges, never on the title,
   assert.doesNotMatch(editor, /preflightFindings\b|preflightStore\.snapshot/);
 });
 
-test('the hook runs once as the editor opens, then only when the questions have been still for the delay', () => {
+test('the hook runs once as the editor opens, then only when the questions have been still for the delay, in the worker', () => {
   const hook = executableSource(readFileSync(new URL('../../src/components/teacher/useQuestionPreflightFindings.js', import.meta.url), 'utf8'));
   assert.match(hook, /export const PREFLIGHT_FINDINGS_DELAY_MS = 500;/);
-  const effect = region(hook, 'useEffect(() => {', '}, [store, source, questions, classSize, delayMs]);', 'the effect');
-  assert.match(effect, /const timer = setTimeout\(\(\) => \{[\s\S]*editorPreflightFindings\(\{ source, questions, classSize \}\)[\s\S]*store\.publish\(findings, \{ source, questions, classSize \}\);[\s\S]*\}, ranRef\.current \? delayMs : 0\);/);
-  assert.match(effect, /return \(\) => clearTimeout\(timer\);/);
+  const effect = region(hook, 'useEffect(() => {', '}, [store, runner, source, questions, classSize, delayMs]);', 'the effect');
+  assert.match(effect, /const timer = setTimeout\(\(\) => \{[\s\S]*runner\.request\(\{ source, questions, classSize \}, \(findings, basis\) => store\.publish\(findings, basis\)\);[\s\S]*\}, ranRef\.current \? delayMs : 0\);/);
+  // An edit (or closing the editor) clears the timer and makes a run still going stale.
+  assert.match(effect, /return \(\) => \{\s*clearTimeout\(timer\);\s*runner\.cancel\(\);\s*\};/);
   // An edit publishes nothing and sets no state: the editor draws once a
   // keystroke, as before, and the findings already shown stay until the new ones are in.
   const beforeTimer = effect.slice(0, effect.indexOf('const timer = setTimeout('));
-  assert.doesNotMatch(beforeTimer, /setState|publish/);
+  assert.doesNotMatch(beforeTimer, /setState|publish|request/);
   assert.doesNotMatch(hook, /useState\(\{ findings/);
+  // The hook makes no run on the page's thread: the runner hands each to the
+  // worker (questionEditorPreflightWorker.test.mjs), and closing the editor ends it.
+  const body = region(hook, 'export default function useQuestionPreflightFindings', '\n}', 'the hook');
+  assert.doesNotMatch(body, /editorPreflightFindings|answerEditorPreflightRequest|buildAssignmentV5PreflightModel/);
+  assert.match(body, /const \[runner\] = useState\(createPreflightFindingsRunner\);/);
+  assert.match(body, /useEffect\(\(\) => \(\) => runner\.stop\(\), \[runner\]\);/);
+  // The worker in the one form Vite bundles as a worker, answering with the page's own function.
+  assert.match(hook, /new Worker\(new URL\('\.\.\/\.\.\/platform\/preflight\/editorPreflightWorker\.js', import\.meta\.url\), \{ type: 'module'/);
+  const worker = executableSource(readFileSync(new URL('../../src/platform/preflight/editorPreflightWorker.js', import.meta.url), 'utf8'));
+  assert.match(worker, /self\.addEventListener\('message', \(event\) => \{\s*self\.postMessage\(answerEditorPreflightRequest\(event\.data\)\);\s*\}\);/);
 });
 
 test('the store hands each region its question\'s findings, the same object while they do not change', () => {
@@ -266,6 +277,13 @@ test('it stays off the student\'s first load: only lazy teacher screens import i
     .filter((file) => readFileSync(new URL(`../../${file}`, import.meta.url), 'utf8').includes(needle));
   assert.deepEqual(importers('questionPreflightFindings.js'), ['src/AssignmentQuestionEditorBase.jsx', 'src/components/teacher/LessonPreflightModal.jsx']);
   assert.deepEqual(importers('PreflightFindings.jsx'), ['src/AssignmentQuestionEditorBase.jsx']);
+  assert.deepEqual(importers('useQuestionPreflightFindings.js'), ['src/AssignmentQuestionEditorBase.jsx']);
+  // The worker (the model's whole graph again, about 0.9 MB gzip) is started
+  // by the hook alone, so only a teacher who opens the editor ever fetches it.
+  const walk = (dir) => readdirSync(new URL(`../../${dir}`, import.meta.url), { withFileTypes: true })
+    .flatMap((entry) => (entry.isDirectory() ? walk(`${dir}/${entry.name}`) : [`${dir}/${entry.name}`]));
+  const startsWorker = walk('src').filter((file) => /\.(?:js|jsx)$/.test(file) && executableSource(readFileSync(new URL(`../../${file}`, import.meta.url), 'utf8')).includes('editorPreflightWorker.js'));
+  assert.deepEqual(startsWorker, ['src/components/teacher/useQuestionPreflightFindings.js']);
   const lazy = readFileSync(new URL('../../src/app/lazyScreens.js', import.meta.url), 'utf8');
   assert.match(lazy, /export const AssignmentQuestionEditor = lazy\(\(\) => import\('\.\.\/AssignmentQuestionEditor\.jsx'\)\);/);
   assert.match(lazy, /export const LessonPreflightModal = lazy\(\(\) => import\('\.\.\/components\/teacher\/LessonPreflightModal\.jsx'\)\);/);

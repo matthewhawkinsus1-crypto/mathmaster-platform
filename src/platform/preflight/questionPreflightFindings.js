@@ -117,6 +117,22 @@ export const editorPreflightFindings = ({ source, questions, classSize = null } 
 );
 
 /**
+ * One of the editor's runs, as its worker answers it (editorPreflightWorker.js,
+ * and the page itself where no worker can start): the request's id and the
+ * findings for its { source, questions, classSize }, or null for a candidate
+ * the model cannot read at all (Save says why).
+ */
+export const answerEditorPreflightRequest = ({ id = null, source, questions, classSize = null } = {}) => {
+  let findings = null;
+  try {
+    findings = editorPreflightFindings({ source, questions, classSize });
+  } catch {
+    findings = null;
+  }
+  return { id, findings };
+};
+
+/**
  * The class a question's versions are counted against: the largest of the
  * classes chosen, or of all the teacher's classes when none is (Review's
  * rule, for uniqueness is per class). null when no roster size is known.

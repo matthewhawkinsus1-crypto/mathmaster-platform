@@ -24,7 +24,10 @@
 //
 // and on a large assignment (82 questions) it measures what a keystroke in a
 // grade weight costs, and the one Pre-Flight run after the teacher pauses, at
-// full speed and with the CPU slowed 4×.
+// full speed and with the CPU slowed 4×. That run is made in a worker
+// (src/platform/preflight/editorPreflightWorker.js): no task on the page after
+// the pause may be as long as half a run, or a key pressed then waits for it
+// (COST).
 //
 // Each screen is its own browser context, closed before the next: a renderer
 // navigated again and again on the dev server keeps shared-memory files in
@@ -160,6 +163,17 @@ const certify = async (screen) => {
   const { context, page, errors } = await openEditor(screen, 'flagged');
   const observed = { screen: screen.id };
   try {
+    /* SEES: every region holds Pre-Flight's findings for its question, message
+       for message: made in the editor's worker, judged here against node's. */
+    const norm = (text) => text.replace(/\s+/g, ' ').trim();
+    const drawnFindings = await page.evaluate(() => Object.fromEntries([...document.querySelectorAll('[data-preflight-findings]')]
+      .map((node) => [node.getAttribute('data-preflight-findings'), [...node.querySelectorAll('li')].map((item) => item.textContent)])));
+    const wantedFindings = Object.fromEntries([...expected.byQuestionId].map(([id, entry]) => [`Question ${numberOf(id)}`, itemsOf(entry)]));
+    if (itemsOf(expected.assignment).length) wantedFindings['the whole assignment'] = itemsOf(expected.assignment);
+    const asText = (byRegion) => JSON.stringify(Object.keys(byRegion).sort().map((key) => [key, byRegion[key].map(norm)]));
+    observed.regionsMatched = Object.keys(drawnFindings).length;
+    if (asText(drawnFindings) !== asText(wantedFindings)) fail(screen.id, 'SEES', `the regions do not hold Pre-Flight's findings: ${Object.keys(drawnFindings).length} regions drawn, ${Object.keys(wantedFindings).length} expected`);
+
     /* SEES + READS: the warned question, open from the start. */
     const warnedFindings = expected.byQuestionId.get(WARNED.id);
     const warned = regionOf(page, WARNED.number);
@@ -292,6 +306,12 @@ const measureCost = async (cpuSlowdown) => {
     observed.longTasksAfterPause = longTasks.filter((task) => task.start >= typingEnded).map((task) => Math.round(task.duration));
     observed.weight = await weight.inputValue();
     if (observed.keystrokes < 8) fail(screen.id, 'COST', `only ${observed.keystrokes} keystrokes were timed`);
+    // The run after the pause is the worker's: the page only hands it the
+    // questions and draws what changed. A task half as long as a run (timed in
+    // this page, the first left out as its warm-up) is the run on the page's thread.
+    const run = Math.min(...observed.findingsRunMs.slice(1));
+    const blocking = observed.longTasksAfterPause.filter((ms) => ms >= Math.max(100, run / 2));
+    if (blocking.length) fail(screen.id, 'COST', `the page was busy ${blocking.join(', ')} ms after the pause (a run takes ${run} ms here): Pre-Flight ran on the page's thread`);
   } catch (error) {
     fail(screen.id, 'RUN', `could not be carried out: ${String(error?.message || error).split('\n')[0]}`);
   }
