@@ -17,7 +17,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { executableSource } from './helpers/sourceContract.mjs';
-import { teacherControlPaths, teacherControlsSeam, teacherControlsSource } from './helpers/appScreens.mjs';
+import { teacherControlPaths, teacherControlsSeam, teacherControlsSeamProblem, teacherControlsSource } from './helpers/appScreens.mjs';
 
 const read = (path) => readFileSync(new URL(`../../${path}`, import.meta.url), 'utf8');
 const controls = teacherControlPaths();
@@ -38,13 +38,15 @@ test('every factory: App passes its parameters and takes its results, name for n
   }
 });
 
-test('the check sees a seam that is out of order', () => {
-  const [name] = Object.keys(controls).filter((candidate) => teacherControlsSeam(candidate).parameters.length > 1);
+test('the check sees a seam that is out of order, short or renamed', () => {
+  const [name] = Object.keys(controls).filter((candidate) => teacherControlsSeam(candidate).parameters.length > 1 && teacherControlsSeam(candidate).returned.length > 1);
   const seam = teacherControlsSeam(name);
-  const swapped = [seam.parameters[1], seam.parameters[0], ...seam.parameters.slice(2)];
-  assert.notDeepEqual(swapped, seam.passed, 'two parameters in the other order are a different seam');
-  assert.deepEqual(seam.passed, seam.parameters);
-  assert.deepEqual(seam.taken, seam.returned);
+  assert.equal(teacherControlsSeamProblem(name, seam), null);
+  const swap = (list) => [list[1], list[0], ...list.slice(2)];
+  assert.match(teacherControlsSeamProblem(name, { ...seam, passed: swap(seam.passed) }), /passes .* but .* declares/);
+  assert.match(teacherControlsSeamProblem(name, { ...seam, passed: seam.passed.slice(1) }), /passes .* but .* declares/);
+  assert.match(teacherControlsSeamProblem(name, { ...seam, taken: swap(seam.taken) }), /takes .* but .* returns/);
+  assert.match(teacherControlsSeamProblem(name, { ...seam, returned: [...seam.returned.slice(0, -1), 'somethingElse'] }), /takes .* but .* returns/);
 });
 
 test('no factory calls a hook: it runs only once the kit is there, and React needs the same hooks every render', () => {

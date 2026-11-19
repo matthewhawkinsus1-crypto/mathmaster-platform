@@ -108,12 +108,19 @@ export const teacherControlsSeam = (factoryName) => {
   return { path, source, passed: nameList(calls[0][2]), taken: nameList(calls[0][1]), parameters: nameList(declared[1]), returned: nameList(returned[1]) };
 };
 
+/** What is wrong with a control factory's seam, or null: by position, the names must match in order. */
+export const teacherControlsSeamProblem = (factoryName, seam) => {
+  const same = (left, right) => left.length === right.length && left.every((name, index) => name === right[index]);
+  if (!same(seam.passed, seam.parameters)) return `App.jsx passes ${factoryName}(${seam.passed.join(', ')}) but ${seam.path} declares (${seam.parameters.join(', ')}): the seam is by position, so the names must match in order.`;
+  if (!same(seam.taken, seam.returned)) return `App.jsx takes [${seam.taken.join(', ')}] from ${factoryName} but ${seam.path} returns [${seam.returned.join(', ')}]: the seam is by position, so the names must match in order.`;
+  return null;
+};
+
 /** The module of a control factory App calls through the teacher kit. Throws when the seam does not line up. */
 export const teacherControlsSource = (factoryName) => {
   const seam = teacherControlsSeam(factoryName);
-  const same = (left, right) => left.length === right.length && left.every((name, index) => name === right[index]);
-  if (!same(seam.passed, seam.parameters)) throw new Error(`App.jsx passes ${factoryName}(${seam.passed.join(', ')}) but ${seam.path} declares (${seam.parameters.join(', ')}): the seam is by position, so the names must match in order.`);
-  if (!same(seam.taken, seam.returned)) throw new Error(`App.jsx takes [${seam.taken.join(', ')}] from ${factoryName} but ${seam.path} returns [${seam.returned.join(', ')}]: the seam is by position, so the names must match in order.`);
+  const problem = teacherControlsSeamProblem(factoryName, seam);
+  if (problem) throw new Error(problem);
   return seam.source;
 };
 
