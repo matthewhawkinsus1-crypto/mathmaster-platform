@@ -215,16 +215,32 @@ const withoutMarkers = (record) => {
   return rest;
 };
 
+/*
+ * The credit a reader built before the split gives a record. It knows nothing
+ * of `stepCredit`, and it keeps reading the grades document while a release
+ * rolls out and in every browser tab opened before Hosting ships (nothing
+ * reloads one), where the gradebook, the Grade Center and Grade Transfer's
+ * TEAMS rows grade from it. A record whose steps earned more than its stored
+ * credit would read lower there from its summary, so it is not split.
+ */
+const creditWithoutStepCredit = (record) => {
+  if (!isPlainObject(record)) return getQuestionCredit(record);
+  const { stepCredit: _stepCredit, ...rest } = record;
+  return getQuestionCredit(rest);
+};
+
 /**
  * Whether a split is faithful for this record: joined back it is the record,
  * and its summary alone grades exactly as the record does (credit, card,
- * normalized attempts and credit). `extraChecks` adds the caller's own grading
- * views ([name, fn] pairs). A record that fails is left stored whole.
+ * normalized attempts and credit), for a reader built before the split too.
+ * `extraChecks` adds the caller's own grading views ([name, fn] pairs). A
+ * record that fails is left stored whole.
  */
 export const splitIsFaithful = (record, { summary, detail }, extraChecks = []) => {
   if (stable(withoutMarkers(mergeQuestionRecord(summary, detail))) !== stable(record)) return false;
   const views = [
     (x) => getQuestionCredit(x),
+    (x) => creditWithoutStepCredit(x),
     (x) => stable(getQuestionCardState(x)),
     (x) => { const n = normalizeQuestionRecord(x); return stable([n.status, n.attemptCount, n.totalAttempts, n.partialCredit, n.bestPartialCredit, n.variantIndex, n.timeSpent, n.lastAttemptAt]); },
     ...extraChecks,

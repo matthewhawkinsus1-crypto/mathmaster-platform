@@ -68,19 +68,24 @@ test('a student\'s records stored whole move into the split intact, grading the 
   await gradeRef.set({ classId: `${P}c`, gradesByAssignment: original });
 
   const moved = await store.splitInlineRecords({ db, studentId });
-  assert.deepEqual(moved, { split: 3, kept: 0 });
+  // a1/0's steps earned more than its stored credit: a reader built before the
+  // split would grade its summary lower, so it stays whole
+  // (gradeEntryStorage.mjs splitIsFaithful; tests/platform/gradeSplitOlderReaders.test.mjs).
+  assert.deepEqual(moved, { split: 2, kept: 1 });
 
   const stored = (await gradeRef.get()).data();
+  assert.deepEqual(stored.gradesByAssignment.a1[0], original.a1[0], 'a1/0 is left whole');
   for (const [assignmentId, tracker] of Object.entries(stored.gradesByAssignment)) {
     for (const [key, summary] of Object.entries(tracker)) {
       if (typeof summary !== 'object') { assert.equal(summary, original[assignmentId][key]); continue; }
+      if (assignmentId === 'a1' && key === '0') continue;
       assert.equal(typeof summary.detailRef, 'string');
       for (const field of DETAIL_FIELDS) assert.ok(!(field in summary), `${assignmentId}/${key}: ${field} moved off the grades document`);
       assert.equal(runtime.getQuestionCredit(summary), runtime.getQuestionCredit(original[assignmentId][key]), 'the summary alone grades the same');
     }
   }
   const detail = (await store.responseDetailRef(gradeRef, 'a1').get()).data();
-  assert.deepEqual(Object.keys(detail.questions).sort(), ['0', '1']);
+  assert.deepEqual(Object.keys(detail.questions).sort(), ['1']);
   assert.equal(detail.studentId, studentId);
 
   const joined = await store.hydrateGradeData({ db, gradeRef, gradeData: stored });
@@ -88,7 +93,7 @@ test('a student\'s records stored whole move into the split intact, grading the 
     for (const [key, record] of Object.entries(tracker)) assert.deepEqual(strip(joined.gradesByAssignment[assignmentId][key]), record);
   }
 
-  assert.deepEqual(await store.splitInlineRecords({ db, studentId }), { split: 0, kept: 0 }, 'nothing left to move');
+  assert.deepEqual(await store.splitInlineRecords({ db, studentId }), { split: 0, kept: 1 }, 'nothing left to move');
 });
 
 test('a record written later replaces its detail entry whole, in the same transaction as its summary', async () => {
