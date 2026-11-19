@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { EXAM_TOOL_NARROW_QUERY, examToolRoom } from '../../platform/assessment/examToolLayout.js';
+import { EXAM_TOOLBAR_MOVED_EVENT, EXAM_TOOL_NARROW_QUERY, examToolRoom } from '../../platform/assessment/examToolLayout.js';
 
 /*
  * TWO THINGS EVERY EXAM TOOL DRAWER NEEDS TO KNOW ABOUT THE SCREEN.
@@ -23,9 +23,11 @@ const readOffset = (anchor) => {
 };
 
 /**
- * The exam toolbar's height as the launcher inherits it: read when the panel
- * opens, and again whenever the window changes size while it is open (the
- * toolbar wraps onto more lines on a narrower screen).
+ * Where the exam toolbar ends, as the launcher inherits it: read when the panel
+ * opens, whenever the window changes size while it is open (the toolbar wraps
+ * onto more lines on a narrower screen), and whenever the exam says the
+ * toolbar moved (the page scrolled: examToolLayout.js EXAM_TOOLBAR_MOVED_EVENT,
+ * fired after the exam has set the new offset).
  */
 export const useExamToolbarOffset = (anchorRef, open) => {
   const [offset, setOffset] = useState('0px');
@@ -34,10 +36,12 @@ export const useExamToolbarOffset = (anchorRef, open) => {
     const update = () => setOffset(readOffset(anchorRef.current));
     update();
     window.addEventListener('resize', update);
+    window.addEventListener(EXAM_TOOLBAR_MOVED_EVENT, update);
     // The exam may measure its toolbar a moment after the panel opens.
     const frame = window.requestAnimationFrame?.(update);
     return () => {
       window.removeEventListener('resize', update);
+      window.removeEventListener(EXAM_TOOLBAR_MOVED_EVENT, update);
       if (frame) window.cancelAnimationFrame?.(frame);
     };
   }, [anchorRef, open]);

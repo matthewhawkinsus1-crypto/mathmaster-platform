@@ -264,6 +264,60 @@ export const effectiveQuestionScore = (record, override = null) => (
     : automaticQuestionScore(record)
 );
 
+/*
+ * A SECTION'S ACADEMIC-INTEGRITY ZERO HOLDS WHATEVER THE ATTEMPTS. A confirmed
+ * section consequence is a teacher's decision, not a correction of one
+ * attempt: the gradebook and Classroom apply it to every question of the
+ * section though the record's attempts no longer match it
+ * (classroomSectionGrade.js and functionsCommon.js
+ * teacherOverrideAppliesToRecord), where overrideAppliesToRecord, which reads
+ * one attempt's correction, does not. Apply Corrected Grade read the question
+ * under such a zero at its automatic score, and a replay above that wrote an
+ * attempt's override over the zero, lifting it on that question.
+ */
+export const sectionZeroHolds = (override = null) => Boolean(
+  override?.active === true
+  && override.persistent === true
+  && override.source === 'teacher-section-zero'
+  && Number.isFinite(Number(override.score)),
+);
+
+/*
+ * APPLY CORRECTED GRADE RAISES A SCORE, AND NEVER LOWERS ONE (the owner,
+ * 2026-11-19).
+ *
+ * The replay grades the response the record holds, the student's last one, so
+ * its score can be lower than the score the student stands on, which counts
+ * their best attempt or a teacher's override: a question with a best attempt
+ * of 50% and a last of 0% went to 0% when a teacher pressed a button named
+ * "corrected". The replay now applies only when it raises the standing score.
+ * Otherwise nothing is written, not even an override at the same score, which
+ * would hold the question there against a later re-grade, and the teacher is
+ * told why. A teacher who means to lower a score still can, with Set Score.
+ */
+export const correctedGradeFromReplay = ({ replayScore, standingScore, sectionZero = false } = {}) => {
+  // A section's academic-integrity zero is the teacher's decision about the
+  // whole section, not a grade a replay corrects (sectionZeroHolds).
+  if (sectionZero) {
+    return { apply: false, reason: 'This question is under its section\'s academic-integrity zero, which a corrected grade does not lift.' };
+  }
+  const replay = Number(replayScore);
+  const standing = Number(standingScore);
+  if (replayScore === null || replayScore === undefined || !Number.isFinite(replay)) {
+    return { apply: false, reason: 'The replay has no score to apply.' };
+  }
+  if (Number.isFinite(standing) && replay < standing) {
+    return {
+      apply: false,
+      reason: `The corrected grade (${replay}%) is lower than the student's current score (${standing}%), and Apply Corrected Grade never lowers a score. To lower it, enter the score and press Set Score.`,
+    };
+  }
+  if (Number.isFinite(standing) && replay === standing) {
+    return { apply: false, reason: `The corrected grade is the student's current score (${standing}%), so there is nothing to change.` };
+  }
+  return { apply: true, score: clamp(replay) };
+};
+
 export const effectiveGradeStatus = (record, override = null) => {
   const score = effectiveQuestionScore(record, override);
   const overridden = overrideAppliesToRecord(record, override);
@@ -807,6 +861,11 @@ export const buildInspectorModel = ({
       currentAnswerKey: question?.answerKeyVersion ?? question?.version ?? null,
     },
     replay,
+    // What Apply Corrected Grade would do with this replay: it applies only
+    // when it raises the score the student stands on (correctedGradeFromReplay).
+    correctedGrade: replay?.available
+      ? correctedGradeFromReplay({ replayScore: replay.currentScore, standingScore: effectiveQuestionScore(record, override), sectionZero: sectionZeroHolds(override) })
+      : null,
     diagnosis: diagnoseResponse({ record, workspace, replay, gradingEvidence: evidence, question: replayedQuestion }),
     // The field-by-field view, for every question type (responseInspectorView.mjs):
     // read with the question the student was shown when it is known.

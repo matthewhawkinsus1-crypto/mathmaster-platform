@@ -19,7 +19,8 @@ export const isDesktopStickyLayout = (win = typeof window !== 'undefined' ? wind
   Boolean(win?.matchMedia?.(DESKTOP_STICKY_QUERY)?.matches)
 );
 
-const identityStackOffset = (win) => {
+/** How far down the student's pinned name bar reaches (0 where there is none). */
+export const identityStackOffset = (win = typeof window !== 'undefined' ? window : null) => {
   const root = win?.document?.documentElement;
   const value = root ? win.getComputedStyle?.(root)?.getPropertyValue?.('--mm-student-identity-stack-offset') : '';
   const parsed = Number.parseFloat(value);

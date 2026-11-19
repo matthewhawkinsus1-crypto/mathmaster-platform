@@ -57,6 +57,10 @@
 //   - nothing says right, wrong or correct while any question can be answered;
 //   - a student whose plan grants a glossary on a test gets Vocabulary on a
 //     Rich Tool item, terms and definitions without worked examples (H-16);
+//   - an item that cannot be drawn says so inside the page's one main
+//     landmark, without "your grade is not affected" or a copyable report, and
+//     the rest of the Test still works: Try again, Next, Previous with the
+//     answer kept, the review and Submit;
 //   - no sideways scroll, and every control in these screens at least 44px.
 
 import { spawn } from 'node:child_process';
@@ -681,6 +685,199 @@ const courseJourney = async (context, device) => {
   await page.close();
 };
 
+/* --------------- an item that cannot be drawn keeps the Test --------------- */
+
+// One item that threw while it was drawn replaced the whole Test screen: the
+// header, the question list, Next and Submit. The item now says it did not
+// load, and the student keeps the Test. React reports the error the boundary
+// caught, and the boundary records it: those two console errors are expected.
+const EXPECTED_ITEM_FAILURE = /Question could not be prepared|QuestionResolutionBoundary|reading 'id'/;
+/* ------------- a tool that is gone holds nothing out of reach (r8) ------------- */
+
+// Review r8 of the secure exam's tools:
+//   - A course Test sets its calculator per item. With the calculator open on a
+//     graphing item, Next onto an item with no tools took the calculator away
+//     while the exam still thought it open. On a phone, or a Chromebook made
+//     narrow, the question was then inert with nothing on the screen to close:
+//     no answer, no Next, no Submit.
+//   - On a phone the question list stayed in reach under a tool's sheet. The
+//     list and a sheet now never share the screen.
+//   - Escape on the pause screen closed the reference sheet behind it.
+const toolGoneJourney = async (context, device) => {
+  const toolState = (page) => page.evaluate(() => {
+    const column = document.querySelector('[data-secure-question-column]');
+    return {
+      position: document.querySelector('[data-secure-navigator-toggle]')?.textContent?.replace('▾', '').trim() || null,
+      inert: Boolean(column?.closest('[inert]')),
+      padding: column ? `${column.style.paddingLeft || '0px'} ${column.style.paddingRight || '0px'}` : null,
+      panels: [...document.querySelectorAll('[data-exam-tool-panel]')].map((panel) => panel.getAttribute('data-exam-tool-panel')),
+      calculator: document.querySelector('[data-secure-exam-header] [data-graphing-calculator-launcher]')?.getAttribute('aria-expanded') ?? 'none',
+      list: Boolean(document.querySelector('[data-secure-navigator]')),
+    };
+  });
+  const start = async (page) => {
+    // The window stays as it is: a full-screen window cannot be resized, and
+    // this walk narrows one (full screen has its own journeys).
+    await page.evaluate(() => { Element.prototype.requestFullscreen = function requestFullscreen() { return Promise.resolve(); }; });
+    await page.getByRole('button', { name: 'Start Test' }).click();
+    await page.waitForSelector('[data-secure-navigator-toggle]');
+  };
+  const openTool = async (page, tool) => {
+    await page.locator(`[data-secure-exam-header] ${tool === 'referenceSheet' ? '[data-sat-reference-launcher]' : '[data-graphing-calculator-launcher]'}`).click();
+    await page.locator(`[data-exam-tool-panel="${tool}"]`).waitFor({ timeout: 10000 });
+    await page.waitForTimeout(300);
+  };
+  const at = (page, ordinal) => page.waitForFunction((n) => new RegExp(`Question ${n} of`).test(document.querySelector('[data-secure-navigator-toggle]')?.textContent || ''), ordinal, { timeout: 15000 });
+  const typeHere = async (page, value) => {
+    const box = page.locator('[data-secure-question-column] input:not([type="hidden"]), [data-secure-question-column] textarea').first();
+    await box.click({ timeout: 5000 });
+    await box.fill(value);
+    return box.inputValue();
+  };
+
+  const { page, errors } = await openPage(context, 'toolGone', device);
+  const label = (name) => `${device.id} toolGone ${name}`;
+  await start(page);
+  await openTool(page, 'graphingCalculator');
+  let state = await toolState(page);
+  check(state.panels.includes('graphingCalculator') && state.inert === Boolean(device.mobile), label('the calculator is open on the graphing item'), JSON.stringify(state));
+  if (!device.mobile) {
+    await next(page);
+    await at(page, 2);
+    await page.waitForTimeout(400);
+    state = await toolState(page);
+    check(!state.panels.length && state.calculator === 'none' && state.padding === '0px 0px' && !state.inert, label('Next onto an item with no tools: no drawer, no room kept for one, the question in reach'), JSON.stringify(state));
+    await page.setViewportSize({ width: 700, height: 768 });
+    await page.waitForTimeout(500);
+    state = await toolState(page);
+    check(!state.inert, label('made as narrow as a phone, the question is still in reach'), JSON.stringify(state));
+  } else {
+    // The list takes the screen the sheet holds: the sheet closes.
+    await page.locator('[data-secure-navigator-toggle]').click();
+    await page.locator('[data-secure-navigator]').waitFor({ timeout: 10000 });
+    await page.waitForTimeout(300);
+    state = await toolState(page);
+    check(state.list && !state.panels.length && state.calculator === 'false', label('opening the question list closes the sheet'), JSON.stringify(state));
+    await page.locator('[data-secure-navigator] button[aria-label^="Question 2"]').click();
+    await at(page, 2);
+    await page.waitForTimeout(400);
+    state = await toolState(page);
+    check(!state.panels.length && !state.inert, label('the item with no tools is in reach'), JSON.stringify(state));
+  }
+  const typed = await typeHere(page, '-3/4').catch((error) => `not typed: ${String(error?.message || error).split('\n')[0]}`);
+  check(typed === '-3/4', label('the student can answer it'), typed);
+  await next(page);
+  const moved = await at(page, 3).then(() => true, () => false);
+  check(moved, label('and move on with Next'));
+  if (moved) {
+    await page.waitForTimeout(400);
+    state = await toolState(page);
+    check(state.calculator === 'false' && !state.panels.length && !state.inert, label('the next graphing item offers the calculator, closed'), JSON.stringify(state));
+    if (device.mobile) {
+      // And a sheet that opens closes the list.
+      await page.locator('[data-secure-navigator-toggle]').click();
+      await page.locator('[data-secure-navigator]').waitFor({ timeout: 10000 });
+      await openTool(page, 'graphingCalculator');
+      state = await toolState(page);
+      check(!state.list && state.panels.includes('graphingCalculator') && state.inert, label('opening a sheet closes the question list'), JSON.stringify(state));
+    }
+  }
+  check(!errors.length, label('no console errors'), errors.slice(0, 3).join(' | '));
+  if (findings.some((finding) => finding.startsWith(`${device.id} toolGone`))) await shot(page, device, 'toolgone-01');
+  await page.close();
+
+  if (device.mobile) {
+    // A Digital SAT on a phone: the reference sheet is open when the teacher
+    // pauses the test. Escape on the pause screen leaves it as it was.
+    const sat = await openPage(context, 'toolGone', device, '&exam=sat');
+    const satLabel = (name) => `${device.id} toolGone sat ${name}`;
+    await start(sat.page);
+    await openTool(sat.page, 'referenceSheet');
+    // The screen learns of the pause on its next call: beside the sheet that
+    // is the toolbar's Mark for review.
+    await sat.page.evaluate(() => window.__secureHarness.proctor('lock'));
+    await sat.page.locator('[data-secure-exam-header] button', { hasText: 'Mark for review' }).click();
+    await sat.page.waitForSelector('[data-secure-pause]', { timeout: 15000 });
+    await sat.page.keyboard.press('Escape');
+    await sat.page.waitForTimeout(300);
+    await sat.page.evaluate(() => window.__secureHarness.proctor('unlock'));
+    await sat.page.waitForSelector('[data-secure-pause]', { state: 'detached', timeout: 15000 });
+    await sat.page.waitForTimeout(300);
+    const after = await toolState(sat.page);
+    check(after.panels.includes('referenceSheet'), satLabel('Escape on the pause screen leaves the reference sheet open behind it'), JSON.stringify(after));
+    check(!sat.errors.length, satLabel('no console errors'), sat.errors.slice(0, 3).join(' | '));
+    await sat.page.close();
+  }
+};
+
+const brokenItemJourney = async (context, device) => {
+  const { page, errors } = await openPage(context, 'brokenItem', device);
+  const label = (name) => `${device.id} brokenItem ${name}`;
+  const position = () => page.locator('[data-secure-navigator-toggle]').textContent({ timeout: 3000 }).then((text) => text.replace('▾', '').trim(), () => null);
+  await page.getByRole('button', { name: 'Start Test' }).click();
+  await page.waitForSelector('[data-secure-navigator-toggle]');
+  await page.getByRole('radio').nth(2).check();
+  await waitSaved(page);
+  await next(page);
+  const panel = page.locator('[data-question-resolution-failure]');
+  await page.waitForFunction(() => document.querySelector('[data-question-resolution-failure]') || !document.querySelector('[data-secure-navigator-toggle]'), null, { timeout: 15000 }).catch(() => {});
+  const kept = (await position()) === 'Question 2 of 3';
+  check(kept, label('the Test keeps its header and the question list'), kept ? '' : `on screen: ${(await bodyText(page)).replace(/\s+/g, ' ').slice(0, 160)}`);
+  const said = await panel.count() === 1;
+  check(said, label('the item says it did not load'));
+  if (!kept || !said) {
+    await shot(page, device, 'broken-01-lost');
+    await page.close();
+    return;
+  }
+  let text = await bodyText(page);
+  check(/This question did not load/.test(text) && /let your teacher know/.test(text) && /Your saved answers are kept exactly as they are\./.test(text), label('it says what to do and that the saved answers are kept'));
+  check(!/grade is not affected/.test(text), label('it promises nothing about the grade'));
+  check(!/Copy details for your teacher|Technical details/.test(text), label('no copyable report on a secure Test'));
+  const landmarks = await page.evaluate(() => ({ mains: document.querySelectorAll('main').length, inMain: Boolean(document.querySelector('[data-question-resolution-failure]')?.closest('main')) }));
+  check(landmarks.mains === 1 && landmarks.inMain, label('the panel is the page\'s one main landmark'), JSON.stringify(landmarks));
+  const moves = await page.evaluate(() => ['previous', 'next', 'review'].filter((name) => document.querySelector(`[data-secure-nav="${name}"]`)));
+  check(moves.length === 3, label('Previous, Next and the review are still there'), moves.join(','));
+  const small = await panel.locator('button').evaluateAll((buttons, minTap) => buttons
+    .map((button) => ({ text: button.textContent.trim(), rect: button.getBoundingClientRect() }))
+    .filter(({ rect }) => Math.min(rect.width, rect.height) < minTap)
+    .map(({ text, rect }) => `${text} ${Math.round(rect.width)}x${Math.round(rect.height)}`), MIN_TAP);
+  check(small.length === 0, label(`its buttons at least ${MIN_TAP}px`), small.join(', '));
+  await layout(page, label('the item that did not load'));
+  await noVerdict(page, label('the item that did not load'));
+  await shot(page, device, 'broken-01-item');
+
+  // Try again draws the item afresh; it still cannot be drawn, and the Test stays.
+  await panel.getByRole('button', { name: 'Try again' }).click();
+  await wait(300);
+  check(await panel.count() === 1 && (await position()) === 'Question 2 of 3', label('Try again: the item says so again, the Test stays'));
+
+  // The next item is drawn as usual, and the first keeps its answer.
+  await next(page);
+  await atQuestion(page, 'Question 3 of 3');
+  check(await panel.count() === 0, label('the next item starts clean'));
+  await typedAnswer(page).fill('6');
+  await waitSaved(page);
+  await previous(page);
+  await atQuestion(page, 'Question 2 of 3');
+  await panel.waitFor({ timeout: 8000 });
+  await previous(page);
+  await atQuestion(page, 'Question 1 of 3');
+  check(await page.getByRole('radio').nth(2).isChecked(), label('the first item keeps its answer'));
+
+  // The review counts the item as unanswered, and the Test can be submitted.
+  await page.locator('[data-secure-nav="review"]').click();
+  await page.waitForSelector('[data-secure-review="submit"]');
+  text = await bodyText(page);
+  check(/You answered 2 of 3 questions/.test(text), label('the review counts what was answered'), text.match(/You answered[^.]*\./)?.[0] || '');
+  await page.getByRole('button', { name: 'Submit test' }).click();
+  await page.waitForSelector('[data-secure-finished]');
+  check(/Test submitted/.test(await bodyText(page)), label('the Test is submitted'));
+  const unexpected = errors.filter((message) => !EXPECTED_ITEM_FAILURE.test(message));
+  check(unexpected.length === 0, label('no other console errors'), unexpected.slice(0, 3).join(' | '));
+  await page.close();
+};
+
 /* --------------------------- time runs out ------------------------------ */
 
 const timeoutJourney = async (context, device) => {
@@ -991,7 +1188,7 @@ for (const device of DEVICES) {
     return route.abort();
   });
   const only = (process.env.SECURE_NAV_JOURNEYS || '').split(',').map((name) => name.trim()).filter(Boolean);
-  const journeys = [practiceJourney, courseJourney, toolTriesJourney, supportsJourney, backtrackJourney, darkJourney, timeoutJourney, legacyJourney, dashboardJourney]
+  const journeys = [practiceJourney, courseJourney, toolTriesJourney, supportsJourney, backtrackJourney, darkJourney, timeoutJourney, brokenItemJourney, toolGoneJourney, legacyJourney, dashboardJourney]
     .filter((journey) => !only.length || only.includes(journey.name.replace(/Journey$/, '')));
   for (const journey of journeys) {
     try {
