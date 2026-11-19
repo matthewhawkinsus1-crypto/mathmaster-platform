@@ -41,6 +41,7 @@
 import {
   asNumber,
   normalizeAnswer,
+  normalizeStructuralMathLive,
   sameNumber,
   sameSimpleInequality,
   sameText,
@@ -288,6 +289,35 @@ const intervalTextToPathIntervals = (value) => {
   return parsePathIntervalNotation(value);
 };
 
+/*
+ * WHERE A FUNCTION RISES, FALLS, STAYS LEVEL OR HAS A SIGN, ITS PIECES MAY BE
+ * LISTED (the owner, 2026-11-19, for every lesson). 1/x decreases on
+ * (−∞, 0) and on (0, ∞). Written "(−∞, 0) and (0, ∞)" or "(−∞, 0), (0, ∞)"
+ * that is the answer "(−∞, 0) ∪ (0, ∞)" gives (more exactly: 1/x is not
+ * decreasing on the union, since f(−1) < f(1)), and both were refused, on a
+ * one-try exit ticket. For these kinds only, pieces joined by "and" or by a
+ * comma are read as the pieces of one answer: "and" as typed, as a word in the
+ * editor's text, or as the ∧ the math editor makes of a typed "and" (`\land`);
+ * a comma, or ", and", standing between one piece's closing bracket and the
+ * next one's opening bracket. A domain or a range is one set and keeps ∪.
+ * Nothing else is read: "or", a semicolon and pieces side by side stay
+ * unreadable, and each piece is still graded exactly, so a wrong end, a
+ * missing piece or a closed end where the function is undefined is wrong.
+ * Text with no such join is read exactly as before.
+ */
+const INTERVAL_LIST_KINDS = new Set(['increasing', 'decreasing', 'constant', 'positive', 'negative']);
+const LIST_SPACE = String.raw`(?:\s|\\[,:;!]|\\quad|\\qquad|~)*`;
+const LIST_AND = String.raw`(?:and|\\land|\\wedge|∧)`;
+const INTERVAL_LIST_JOIN = new RegExp(
+  String.raw`([)\]])${LIST_SPACE}(?:,${LIST_SPACE}(?:${LIST_AND}${LIST_SPACE})?|${LIST_AND}${LIST_SPACE})(?=[([])`,
+  'gi',
+);
+const listedIntervalsAsUnion = (value) => {
+  const text = normalizeStructuralMathLive(value).replace(/\{\s*,\s*\}/g, ',');
+  const joined = text.replace(INTERVAL_LIST_JOIN, '$1∪');
+  return joined === text ? value : joined;
+};
+
 export const pathAnalysisTextMatches = (
   studentText,
   candidates = [],
@@ -297,9 +327,11 @@ export const pathAnalysisTextMatches = (
     || (FUNCTION_ANALYSIS_INTERVAL_KINDS.has(String(kind || '')) ? 'interval' : '');
 
   if (resolvedNotation === 'interval') {
-    const studentIntervals = intervalTextToPathIntervals(studentText);
+    const listed = INTERVAL_LIST_KINDS.has(String(kind || ''));
+    const readIntervals = (value) => intervalTextToPathIntervals(listed ? listedIntervalsAsUnion(value) : value);
+    const studentIntervals = readIntervals(studentText);
     return list(candidates).some((candidate) => {
-      const expectedIntervals = intervalTextToPathIntervals(candidate);
+      const expectedIntervals = readIntervals(candidate);
       if (studentIntervals && expectedIntervals) {
         return samePathIntervals(studentIntervals, expectedIntervals, tolerance);
       }

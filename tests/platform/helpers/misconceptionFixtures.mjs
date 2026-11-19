@@ -268,6 +268,13 @@ export const MISCONCEPTION_FIXTURES = Object.freeze([
   formModeCase('radical form: the other notation', 'simplestRadicalForm', '\\sqrt{x}', 'x^{1/2}', ['radical-other-notation']),
   formModeCase('radical form: correct', 'simplestRadicalForm', '2\\sqrt{3}', '2\\sqrt{3}', []),
   formModeCase('radical form: a different value is not named', 'simplestRadicalForm', '2\\sqrt{3}', '3\\sqrt{2}', []),
+  // "Not in simplest form" only when it is true (the owner, 2026-11-19).
+  formModeCase('radical form: a power of a root is right (L3 CW 5)', 'simplestRadicalForm', '\\sqrt[3]{V^2}', '\\left(\\sqrt[3]{V}\\right)^{2}', []),
+  formModeCase('radical form: a unit fraction before a bracket is right (L2 CW 11)', 'simplestRadicalForm', '\\frac{\\sqrt{3}-1}{2}', '\\frac{1}{2}\\left(\\sqrt{3}-1\\right)', []),
+  formModeCase('radical form: a power of a root with a square left under it', 'simplestRadicalForm', 'x\\sqrt{x}', '\\left(\\sqrt{x}\\right)^{3}', ['radical-not-simplest-form']),
+  formModeCase('radical form: a decimal exponent is not named', 'simplestRadicalForm', 'w^{1/2}', 'w^{0.5}', []),
+  formModeCase('radical form: an exact decimal is not a calculator\'s, and not named', 'simplestRadicalForm', '\\frac{\\sqrt{2}}{2}', '0.5\\sqrt{2}', []),
+  formModeCase('radical form: a root left where the key has none is not simplified', 'simplestRadicalForm', '3x^4', '\\sqrt{9x^8}', ['radical-not-simplest-form']),
   formModeCase('factored form: left expanded', 'factoredForm', '(x+2)(x+3)', 'x^2+5x+6', ['polynomial-not-fully-factored']),
   formModeCase('factored form: only partly factored', 'factoredForm', '2(x-2)(x+2)', '2(x^2-4)', ['polynomial-not-fully-factored']),
   formModeCase('factored form: correct, in another order', 'factoredForm', '(x+2)(x+3)', '(x+3)(x+2)', []),

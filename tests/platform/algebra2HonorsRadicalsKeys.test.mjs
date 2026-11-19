@@ -457,12 +457,15 @@ test('L1 Warm-Up 2: the square takes either base, bxʰ or −bxʰ, in every vers
   }
 });
 
-// A "radical form" box. CW 5 teaches b^(x/y) = ʸ√(bˣ) = (ʸ√b)ˣ, and the
-// simplest-form grader takes one root with the power under it, worked out when
-// it is a number: (∛V)² and ⁴√(2³) were refused with "take every perfect power
-// out of the root", which neither has. Where the grader refuses the root raised
-// to the power, or the number's power left unworked, the label says so.
-test('a "radical form" box says the power goes under the root, where the grader refuses it outside', () => {
+// A "radical form" box. CW 5 teaches b^(x/y) = ʸ√(bˣ) = (ʸ√b)ˣ, and PR 15's
+// back-up step writes 7^(2/3) as ∛(7²). The simplest-form grader took only one
+// root with the power under it, worked out when it was a number: (∛V)² and
+// ⁴√(2³) were refused with "take every perfect power out of the root", which
+// neither has (2026-11-06 re-walk), so the labels said where the power goes.
+// The owner (2026-11-19): take the forms the lessons teach as equal. Every
+// version of every such box now takes the root raised to the power and the
+// number's power unworked, and refuses neither as "not in simplest form".
+test('a "radical form" box takes the power outside the root, and a number\'s power unworked, as CW 5 teaches', () => {
   // A key written as one root: root(n)(…) or ∛(…).
   const asRoot = (key) => {
     const general = /^root\((\d+)\)\((.+)\)$/.exec(key);
@@ -483,21 +486,32 @@ test('a "radical form" box says the power goes under the root, where the grader 
           const letterPower = /^([a-z])\^(\d+)$/i.exec(radicand);
           const number = /^\d+$/.test(radicand) ? Number(radicand) : null;
           const others = [];
-          if (letterPower) others.push(`\\left(\\sqrt[${index}]{${letterPower[1]}}\\right)^{${letterPower[2]}}`);
+          // …and, one power higher, another value, still wrong.
+          const wrong = [];
+          if (letterPower) {
+            others.push(`\\left(\\sqrt[${index}]{${letterPower[1]}}\\right)^{${letterPower[2]}}`);
+            wrong.push(`\\left(\\sqrt[${index}]{${letterPower[1]}}\\right)^{${Number(letterPower[2]) + 1}}`);
+          }
           if (number) {
             for (let base = 2; base * base <= number; base += 1) {
               const power = Math.round(Math.log(number) / Math.log(base));
               if (base ** power === number) {
                 others.push(`\\sqrt[${index}]{${base}^{${power}}}`, `\\left(\\sqrt[${index}]{${base}}\\right)^{${power}}`);
+                wrong.push(`\\left(\\sqrt[${index}]{${base}}\\right)^{${power + 1}}`);
                 break;
               }
             }
           }
-          const refused = others.filter((other) => !takes(version, field.id, other) && radicalFormMiss(other, key) === 'notSimplest');
-          if (!refused.length) return;
+          if (!others.length) return;
           checked.add(`${version.questionId} ${field.id}`);
-          assert.match(field.label, /power under the root/, `${version.questionId} ${field.id}: the grader refuses ${refused.join(' and ')} for ${key}, and "${field.label}" does not say where the power goes`);
-          if (number) assert.match(field.label, /worked out/, `${version.questionId} ${field.id}: ${refused[0]} is refused, so the label says the power is worked out`);
+          others.forEach((other) => {
+            assert.equal(takes(version, field.id, other), true, `${version.questionId} ${field.id}: ${other} for ${key}`);
+            assert.equal(radicalFormMiss(other, key), null, `${version.questionId} ${field.id}: ${other} is right, so no miss is named`);
+          });
+          wrong.forEach((other) => {
+            assert.equal(takes(version, field.id, other), false, `${version.questionId} ${field.id}: ${other} is another value`);
+            assert.notEqual(radicalFormMiss(other, key), 'notSimplest', `${version.questionId} ${field.id}: ${other} is not told "not in simplest form"`);
+          });
         }));
     });
   }

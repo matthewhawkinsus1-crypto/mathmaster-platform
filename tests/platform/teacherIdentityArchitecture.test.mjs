@@ -263,11 +263,12 @@ const KNOWN_GRADES_DOCUMENT_ACCESS = {
   // The signed-in student's own Path.
   'src/services/masteryStateService.js': { fetchStudentMasteryState: 1 },
   // A record's detail is stored beside its grades document (gradeEntryStorage.mjs).
-  // The gradebook's one-time deferred credit repair and a teacher's
-  // live-question correction write a changed tracker through here (moved from
-  // App.jsx's persistCurrentGraderCreditRepairs): its summaries on the grades
-  // document, its detail beside it.
-  'src/platform/grades/responseDetailStore.js': { writeTrackerSplit: 1 },
+  // The gradebook's one-time deferred credit repair writes a changed tracker
+  // through here (moved from App.jsx's persistCurrentGraderCreditRepairs): its
+  // summaries on the grades document, its detail beside it. A teacher's
+  // live-question correction writes each student's tracker whole on the grades
+  // document (one transaction over the class).
+  'src/platform/grades/responseDetailStore.js': { writeTrackerSplit: 1, writeTrackerWhole: 1 },
 };
 const KNOWN_FULL_RECORD_HELPER_CALLS = {
   'src/components/student/MyMathPathApp.jsx': { MyMathPathApp: 1 },

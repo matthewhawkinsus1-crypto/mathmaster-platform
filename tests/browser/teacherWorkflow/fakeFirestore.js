@@ -61,6 +61,16 @@ const resolveArrayTransform = (existing, value) => {
 
 export class FieldPath { constructor(...segments) { this.segments = segments.map(String); } }
 
+// Firestore's own error, named as the SDK names it. A transaction function
+// that rejects with code 'aborted' runs again in the SDK; this fake runs it once.
+export class FirestoreError extends Error {
+  constructor(code, message) {
+    super(message);
+    this.name = 'FirebaseError';
+    this.code = code;
+  }
+}
+
 const isPlain = (value) => value && typeof value === 'object' && !(value instanceof Timestamp) && !Array.isArray(value);
 const clone = (value) => {
   if (value instanceof Timestamp) return value;

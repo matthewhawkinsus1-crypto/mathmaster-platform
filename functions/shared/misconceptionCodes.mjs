@@ -326,6 +326,15 @@ export const MISCONCEPTION_REGISTRY = Object.freeze([
     teks: ['A2.7B'],
   }),
   // --- Radicals and factoring: the key's value, refused for its form ---------------
+  // simplestRadicalFormEquivalence.mjs radicalFormMiss decides which radical
+  // code a miss is (2026-11-19): 'radical-not-simplest-form' only when a step
+  // of simplifying is left in the answer, in the key's notation or as a root
+  // or rational exponent where the key has neither (⁵√(32x⁵y¹⁰) for 2xy²);
+  // 'radical-decimal-not-exact' only for a calculator's number, with no
+  // letter, root or fractional power in it; 'radical-other-notation' only
+  // where the key is written with radicals or rational exponents. The key's
+  // value in a form the field does not take (a decimal exponent, w^0.5) is no
+  // code at all.
   code({
     id: 'radical-not-simplest-form',
     concept: 'radical-simplest-form',

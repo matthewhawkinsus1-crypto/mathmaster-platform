@@ -215,16 +215,32 @@ const withoutMarkers = (record) => {
   return rest;
 };
 
+/*
+ * The credit a reader built before the split gives a record. It knows nothing
+ * of `stepCredit`, and it keeps reading the grades document while a release
+ * rolls out and in every browser tab opened before Hosting ships (nothing
+ * reloads one), where the gradebook, the Grade Center and Grade Transfer's
+ * TEAMS rows grade from it. A record whose steps earned more than its stored
+ * credit would read lower there from its summary, so it is not split.
+ */
+const creditWithoutStepCredit = (record) => {
+  if (!isPlainObject(record)) return getQuestionCredit(record);
+  const { stepCredit: _stepCredit, ...rest } = record;
+  return getQuestionCredit(rest);
+};
+
 /**
  * Whether a split is faithful for this record: joined back it is the record,
  * and its summary alone grades exactly as the record does (credit, card,
- * normalized attempts and credit). `extraChecks` adds the caller's own grading
- * views ([name, fn] pairs). A record that fails is left stored whole.
+ * normalized attempts and credit), for a reader built before the split too.
+ * `extraChecks` adds the caller's own grading views ([name, fn] pairs). A
+ * record that fails is left stored whole.
  */
 export const splitIsFaithful = (record, { summary, detail }, extraChecks = []) => {
   if (stable(withoutMarkers(mergeQuestionRecord(summary, detail))) !== stable(record)) return false;
   const views = [
     (x) => getQuestionCredit(x),
+    (x) => creditWithoutStepCredit(x),
     (x) => stable(getQuestionCardState(x)),
     (x) => { const n = normalizeQuestionRecord(x); return stable([n.status, n.attemptCount, n.totalAttempts, n.partialCredit, n.bestPartialCredit, n.variantIndex, n.timeSpent, n.lastAttemptAt]); },
     ...extraChecks,
@@ -233,3 +249,78 @@ export const splitIsFaithful = (record, { summary, detail }, extraChecks = []) =
     try { return stable(view(summary)) === stable(view(record)); } catch { return false; }
   });
 };
+
+/*
+ * WHEN A RECORD IS WRITTEN SPLIT: settings/serverGrading.splitGradeRecords.
+ *
+ * A browser tab opened before the split shipped reads the grades document
+ * alone, and nothing reloads it. Shown a summary, it loses the question's
+ * parts, steps and last response. So until those tabs have reloaded, a record
+ * is written whole, as it was before the split, except:
+ *
+ *   - the switch is on: every record is split. The operator turns it on a day
+ *     after Hosting ships (docs/handoffs/NOVEMBER_BUILD_2026-11.md, section 4);
+ *   - the record is already stored split (it carries a detailRef): it stays
+ *     split, so a document the split made room in does not fill again;
+ *   - the student's grades document is near Firestore's cap (`nearCap`, which
+ *     only the functions measure): the record is split, so their grades keep
+ *     saving.
+ *
+ * Even then a record is split only when it has a detail field to move, and a
+ * reader built before the split grades its summary exactly as the whole
+ * record (splitIsFaithful), the switch on or off: a tab left open across the
+ * switch still reads the summary alone. Otherwise it is written whole. A
+ * record written whole carries no detailRef or stepCredit, so no stored
+ * detail is ever joined to it.
+ */
+export const SPLIT_SWITCH_FIELD = 'splitGradeRecords';
+
+/** Whether the switch is on in settings/serverGrading's data. */
+export const splitSwitchOn = (settings) => isPlainObject(settings) && settings[SPLIT_SWITCH_FIELD] === true;
+
+/**
+ * A record as it is stored whole: without the split's markers, and without a
+ * field left undefined, as splitQuestionRecord drops it (Firestore refuses an
+ * undefined value). Anything that is not an object is returned as it is.
+ */
+export const wholeRecord = (record) => (isPlainObject(record)
+  ? Object.fromEntries(Object.entries(withoutMarkers(record)).filter(([, value]) => value !== undefined))
+  : record);
+
+/**
+ * How one record is stored: { summary, detail }, where `detail` is null for a
+ * record written whole. `extraChecks` are the caller's own grading views, as
+ * for splitIsFaithful.
+ */
+export const recordForStorage = (record, { splitAll = false, nearCap = false, extraChecks = [] } = {}) => {
+  if (!isPlainObject(record)) return { summary: record, detail: null };
+  const whole = wholeRecord(record);
+  // Nothing to move: split, it would only name a detail holding nothing, which
+  // a browser cannot tell from one that never loaded.
+  if (!hasInlineDetail(whole)) return { summary: whole, detail: null };
+  if (!splitAll && !nearCap && !isSplitSummary(record)) return { summary: whole, detail: null };
+  const halves = splitQuestionRecord(whole);
+  return splitIsFaithful(whole, halves, extraChecks) ? halves : { summary: whole, detail: null };
+};
+
+/**
+ * A whole tracker as it is stored: { summaries, details, hadSplit }. `hadSplit`
+ * says the tracker given had a record stored split, so its detail document
+ * must be replaced even when nothing is split now.
+ */
+export const trackerForStorage = (tracker, policy = {}) => {
+  const records = isPlainObject(tracker) ? tracker : {};
+  const summaries = {};
+  const details = {};
+  for (const [questionKey, record] of Object.entries(records)) {
+    const { summary, detail } = recordForStorage(record, policy);
+    summaries[questionKey] = summary;
+    if (detail) details[questionKey] = detail;
+  }
+  return { summaries, details, hadSplit: Object.values(records).some(isSplitSummary) };
+};
+
+/** A whole tracker with every record stored whole (wholeRecord): nothing for responseDetail. */
+export const trackerWhole = (tracker) => Object.fromEntries(
+  Object.entries(isPlainObject(tracker) ? tracker : {}).map(([questionKey, record]) => [questionKey, wholeRecord(record)]),
+);

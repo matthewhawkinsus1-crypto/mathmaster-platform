@@ -68,10 +68,11 @@ const fragments = (sentence) => {
 };
 
 // The same value, as the radicals grader reads it: the key itself, the key
-// left unsimplified, or the key in the other notation.
+// left unsimplified, the key in the other notation, or the key in a form the
+// box does not take (a decimal exponent).
 const sameValue = (written, key) => {
   try {
-    return sameSimplestRadicalForm(written, key) || ['notSimplest', 'notation'].includes(radicalFormMiss(written, key));
+    return sameSimplestRadicalForm(written, key) || ['notSimplest', 'notation', 'form'].includes(radicalFormMiss(written, key));
   } catch {
     return false;
   }

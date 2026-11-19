@@ -20,7 +20,7 @@ import {
   writeBatch,
 } from 'firebase/firestore';
 import { db } from './firebase';
-import { joinResponseDetail, writeTrackerSplit } from './platform/grades/responseDetailStore.js';
+import { joinResponseDetail, readSplitSwitch, writeTrackerSplit } from './platform/grades/responseDetailStore.js';
 import {
   buildResponseCheckpointAction,
   checkpointDocumentId,
@@ -2182,11 +2182,13 @@ function App() {
 
     if (!repairs.length) return 0;
 
-    // Only the assignments a repair changed are written, each split: its
-    // summaries on the grades document and its detail document replaced to
+    // Only the assignments a repair changed are written, each as the functions
+    // write it (settings/serverGrading.splitGradeRecords): its records on the
+    // grades document and, when any is split, its detail document replaced to
     // match (gradeEntryStorage.mjs). One student per batch (a detail document
     // can be large). A student whose saved work is not whole is skipped and
     // logged, never written from a summary.
+    const splitAll = await readSplitSwitch(db);
     const written = [];
     for (const repair of repairs) {
       const { student, gradesByAssignment } = repair;
@@ -2196,7 +2198,7 @@ function App() {
       const batch = writeBatch(db);
       try {
         changedIds.forEach((assignmentId) => writeTrackerSplit({
-          db, writer: batch, studentId: student.id, assignmentId, tracker: gradesByAssignment[assignmentId],
+          db, writer: batch, studentId: student.id, assignmentId, tracker: gradesByAssignment[assignmentId], splitAll,
         }));
       } catch (error) {
         console.error('Skipped a current-grader repair:', error);
