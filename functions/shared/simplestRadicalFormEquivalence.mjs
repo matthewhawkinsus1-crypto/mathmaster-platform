@@ -39,6 +39,20 @@
 //     (4√2/6).
 // A form this reader does not understand is never accepted here; the ordinary
 // grader still accepts the key exactly as written.
+//
+// THE FORMS THE LESSONS TEACH AS EQUAL ARE THE SAME ANSWER (the owner,
+// 2026-11-19), each judged by the rules above:
+//   - a power of a root is the root of the power: (∛V)² is ∛(V²), as
+//     b^(x/y) = ʸ√(bˣ) = (ʸ√b)ˣ (Radicals L3 CW 5), and a number's power under
+//     a root is that number, ⁴√(2³) is ⁴√8, as L3 PR 15's own back-up step
+//     writes 7^(2/3) as ∛(7²). (√x)³ is √(x³), which is not simplified;
+//   - a unit fraction in front of a bracket is the bracket over its
+//     denominator: ½(√3 − 1) is (√3 − 1)/2 (Radicals L2 CW 11), and so are
+//     −½(1 − √3) and −(1 − √3)/2. A whole number in front of a bracket is a
+//     product still to multiply out: −4(2 + √3) is the question retyped;
+//   - brackets that change nothing, ∛((V)²), are not there.
+// A decimal stays refused wherever it is (w^0.5 for w^(1/2)): a box that
+// compares form takes the exact notation.
 
 import { expandLatexShorthand } from './algebraicForm.mjs';
 
@@ -358,10 +372,39 @@ const isExactDecimal = (student, keyTree) => {
 
 // --- simplest form ---------------------------------------------------------
 
+/*
+ * WHY A FORM IS NOT TAKEN. "Not in simplest form" is said only when it is
+ * true (the owner, 2026-11-19), so each refusal below says which it is:
+ *   LEFT    a step of simplifying is left in it, one this reader can name: a
+ *           perfect power under a root, a root or a fraction in a
+ *           denominator, like terms, two numbers or two roots in one term, a
+ *           negative power, a fraction not in lowest terms, a product or a
+ *           power not worked out;
+ *   UNREAD  this reader does not take the form at all (a decimal exponent, a
+ *           letter dividing one term of a sum, bars round a root), which says
+ *           nothing about whether it is simplified.
+ */
+const LEFT = 'left';
+const UNREAD = 'unread';
+const worse = (problems) => (problems.includes(LEFT) ? LEFT : problems.find(Boolean) || null);
+
 const isNumber = (node) => node.t === 'num' || (node.t === 'group' && isNumber(node.arg));
+/** The node inside every pair of brackets that changes nothing: ((V)) is V. */
+const unwrap = (node) => (node.t === 'group' ? unwrap(node.arg) : node);
 const containsKind = (node, kinds) => {
   let found = false;
   walk(node, (child) => { if (kinds.includes(child.t)) found = true; });
+  return found;
+};
+// A power that is not a whole number: a root written as an exponent, or a
+// decimal or a letter in the exponent.
+const hasFractionalPower = (node) => {
+  let found = false;
+  walk(node, (child) => {
+    if (child.t !== 'pow') return;
+    const fraction = exponentFraction(child.exp);
+    if (!fraction || fraction.q !== 1) found = true;
+  });
   return found;
 };
 
@@ -378,57 +421,126 @@ const primeMultiplicities = (value) => {
   return counts;
 };
 
+// A whole number's whole power, worked out (2³ is 8), or null past 10¹²: a
+// root's radicand is factored, and that is as far as it is worth factoring.
+const MAX_WORKED_POWER = 1e12;
+const wholePower = (base, exponent) => {
+  const value = base ** exponent;
+  return Number.isSafeInteger(value) && value <= MAX_WORKED_POWER ? value : null;
+};
+
 /**
  * A radicand as a monomial: { coefficient, powers } with a positive whole
  * coefficient and whole exponents, or null when it is not one (a sum, a
- * fraction, a negative number).
+ * fraction, a negative number). Brackets that change nothing are read
+ * through, ∛((V)²) as ∛(V²), and a number's power is the number, ⁴√(2³) as
+ * ⁴√8.
  */
 const radicandMonomial = (node) => {
-  const factors = node.t === 'prod' && !node.den.length ? node.num : [node];
   let coefficient = 1;
   const powers = new Map();
-  for (const factor of factors) {
-    if (factor.t === 'num') {
-      coefficient *= factor.v;
-    } else if (factor.t === 'var') {
-      powers.set(factor.n, (powers.get(factor.n) || 0) + 1);
-    } else if (factor.t === 'pow' && factor.base.t === 'var') {
-      const fraction = exponentFraction(factor.exp);
-      if (!fraction || fraction.q !== 1 || fraction.p < 1) return null;
-      powers.set(factor.base.n, (powers.get(factor.base.n) || 0) + fraction.p);
-    } else {
-      return null;
+  const take = (factor) => {
+    const child = unwrap(factor);
+    if (child.t === 'prod' && !child.den.length) return child.num.every(take);
+    if (child.t === 'num') {
+      coefficient *= child.v;
+      return true;
     }
-  }
+    if (child.t === 'var') {
+      powers.set(child.n, (powers.get(child.n) || 0) + 1);
+      return true;
+    }
+    if (child.t !== 'pow') return false;
+    const base = unwrap(child.base);
+    const fraction = exponentFraction(child.exp);
+    if (!fraction || fraction.q !== 1 || fraction.p < 1) return false;
+    if (base.t === 'var') {
+      powers.set(base.n, (powers.get(base.n) || 0) + fraction.p);
+      return true;
+    }
+    const worked = base.t === 'num' && Number.isInteger(base.v) ? wholePower(base.v, fraction.p) : null;
+    if (worked === null) return false;
+    coefficient *= worked;
+    return true;
+  };
+  if (!take(node)) return null;
   return Number.isInteger(coefficient) && coefficient >= 1 ? { coefficient, powers } : null;
 };
 
-/** ⁿ√(c·x^a·…) is simplified: no perfect nth-power factor, smallest index. */
-const simplestRoot = (index, radicand) => {
-  if (containsKind(radicand, ['frac', 'root']) || (radicand.t === 'prod' && radicand.den.length)) return false;
-  const monomial = radicandMonomial(radicand.t === 'group' ? radicand.arg : radicand);
+/** The monomial to a whole power: (2x)³ is 8x³. Null when its number grows past what is factored. */
+const raiseMonomial = ({ coefficient, powers }, power) => {
+  const raised = wholePower(coefficient, power);
+  return raised === null ? null : { coefficient: raised, powers: new Map([...powers].map(([name, exponent]) => [name, exponent * power])) };
+};
+
+/** ⁿ√(c·x^a·…) is simplified: no perfect nth-power factor, smallest index. Why not, or null. */
+const monomialRootProblem = (index, monomial) => {
+  const exponents = [...primeMultiplicities(monomial.coefficient), ...monomial.powers.values()];
+  if (!exponents.length) return LEFT; // √1
+  if (exponents.some((exponent) => exponent >= index)) return LEFT;
+  return exponents.reduce((divisor, exponent) => gcd(divisor, exponent), index) === 1 ? null : LEFT;
+};
+
+/** Why ⁿ√(radicand) is not simplified, or null when it is. */
+const rootProblem = (index, radicand) => {
+  const inner = unwrap(radicand);
+  // A fraction under a root, or a root under a root (√(√x) is ⁴√x).
+  if (containsKind(inner, ['frac', 'root']) || (inner.t === 'prod' && inner.den.length)) return LEFT;
+  const monomial = radicandMonomial(inner);
+  if (monomial) return monomialRootProblem(index, monomial);
   // Only a monomial is judged further; a root of a sum, √(x + 1), has no
   // perfect-power factor to take out.
-  if (!monomial) return radicand.t === 'sum' || (radicand.t === 'group' && radicand.arg.t === 'sum');
-  const exponents = [...primeMultiplicities(monomial.coefficient), ...monomial.powers.values()];
-  if (!exponents.length) return false; // √1
-  if (exponents.some((exponent) => exponent >= index)) return false;
-  return exponents.reduce((divisor, exponent) => gcd(divisor, exponent), index) === 1;
+  if (inner.t === 'sum') return null;
+  // Not a monomial: a sign that comes out of the root (∛(−16)), a negative
+  // or fractional power under it, a power still to work out ((2x)², and a
+  // sum's power of the index or more), or a form this reader does not take.
+  const problems = [];
+  walk(inner, (child) => {
+    if (child.t === 'neg') problems.push(LEFT);
+    if (child.t !== 'pow') return;
+    const fraction = exponentFraction(child.exp);
+    const base = unwrap(child.base);
+    if (!fraction) problems.push(UNREAD);
+    else if (fraction.q !== 1 || fraction.p < 1) problems.push(LEFT);
+    else if (['prod', 'frac', 'pow'].includes(base.t) || (base.t === 'sum' && fraction.p >= index)) problems.push(LEFT);
+  });
+  return worse(problems) || UNREAD;
 };
 
 const keyOf = (node) => JSON.stringify(node);
+// A root as its index and radicand, the same however the radicand is written:
+// ∛(V²), (∛V)² and ∛((V)²) are like radicals.
+const rootKey = (index, monomial, radicand) => `${index}:${monomial
+  ? JSON.stringify([monomial.coefficient, [...monomial.powers].sort()])
+  : keyOf(unwrap(radicand))}`;
 
 /**
  * One term of a sum: its factors, read as a signed number, letters with whole
- * powers, letters with fractional powers, roots and absolute values. Null
- * when the term is not simplified.
+ * powers, letters with fractional powers, roots and absolute values.
+ * { info } when the term is simplified, { problem } (LEFT or UNREAD) when not.
  */
 const readTerm = (node) => {
   const info = { coefficient: 1, numbers: 0, denominator: 1, powers: new Map(), fractional: new Map(), roots: [], bars: [] };
+  // Every factor is read, so a step left in one is found after another this
+  // reader does not take (|√(12x)|·w^0.5 still has a square under its root).
+  const problems = [];
+  const refuse = (why) => {
+    problems.push(why);
+    return false;
+  };
+  const each = (parts, read) => parts.map(read).every(Boolean);
   // Each letter once, whole and fractional powers together: x·x^(1/12) is
   // x^(13/12) not yet combined (Codex on #520). A letter both outside and
   // under a root (6x√x) is a different thing, and simplest.
   const written = (name) => info.powers.has(name) || info.fractional.has(name);
+  // One root in a term: √3·√5 is √15, and √2·∛2 is ⁶√32.
+  const root = (index, monomial, radicand) => {
+    if (info.roots.length) return refuse(LEFT);
+    const why = monomial ? monomialRootProblem(index, monomial) : rootProblem(index, radicand);
+    if (why) return refuse(why);
+    info.roots.push(rootKey(index, monomial, radicand));
+    return true;
+  };
   const factor = (child, inDenominator) => {
     if (child.t === 'group') return factor(child.arg, inDenominator);
     if (child.t === 'neg') {
@@ -443,80 +555,105 @@ const readTerm = (node) => {
     if (child.t === 'frac' || child.t === 'prod') {
       const top = child.t === 'frac' ? [child.num] : child.num;
       const bottom = child.t === 'frac' ? [child.den] : child.den;
-      // Only a number may divide inside a term: 2√3/3, never √x/x² + 1.
-      if (inDenominator || !bottom.every(isNumber)) return false;
-      return top.every((part) => factor(part, false)) && bottom.every((part) => factor(part, true));
+      // Only a number may divide inside a term: 2√3/3, never √x/x² + 1. A
+      // root or a fraction below is still to be cleared; a letter below is a
+      // sum of fractions this reader does not take.
+      if (inDenominator) return refuse(LEFT);
+      if (!bottom.every(isNumber)) {
+        return refuse(bottom.some((part) => containsKind(part, ['root', 'frac']) || hasFractionalPower(part)) ? LEFT : UNREAD);
+      }
+      const above = each(top, (part) => factor(part, false));
+      return each(bottom, (part) => factor(part, true)) && above;
     }
-    if (inDenominator) return false;
+    if (inDenominator) return refuse(UNREAD);
     if (child.t === 'var') {
-      if (written(child.n)) return false;
+      if (written(child.n)) return refuse(LEFT);
       info.powers.set(child.n, 1);
       return true;
     }
-    if (child.t === 'root') {
-      if (info.roots.length || !simplestRoot(child.index, child.arg)) return false;
-      info.roots.push({ index: child.index, radicand: keyOf(child.arg) });
-      return true;
-    }
+    if (child.t === 'root') return root(child.index, radicandMonomial(child.arg), child.arg);
     if (child.t === 'abs') {
-      if (containsKind(child.arg, ['frac', 'root'])) return false;
+      // Bars round a root or a fraction are no form this reader takes; what
+      // is inside them may still have a step left.
+      if (containsKind(child.arg, ['frac', 'root'])) return refuse(simplestFormProblem(child.arg) === LEFT ? LEFT : UNREAD);
       info.bars.push(keyOf(child.arg));
       return true;
     }
     if (child.t === 'pow') {
       const fraction = exponentFraction(child.exp);
-      if (!fraction || fraction.p <= 0 || gcd(fraction.p, fraction.q) !== 1) return false;
-      const base = child.base.t === 'group' ? child.base.arg : child.base;
+      // A decimal or a letter in the exponent is no form this box takes
+      // (w^0.5: the decimal decision, 2026-11-19).
+      if (!fraction) return refuse(UNREAD);
+      if (fraction.p <= 0 || gcd(fraction.p, fraction.q) !== 1) return refuse(LEFT);
+      const base = unwrap(child.base);
       if (base.t === 'abs' && fraction.q === 1) return factor(base, false);
       if (fraction.q === 1) {
-        if (base.t !== 'var' || written(base.n)) return false;
-        info.powers.set(base.n, fraction.p);
-        return true;
+        if (base.t === 'var') {
+          if (written(base.n)) return refuse(LEFT);
+          info.powers.set(base.n, fraction.p);
+          return true;
+        }
+        // A power of a root is the root of the power: (∛V)² is ∛(V²), and
+        // (√x)³ is √(x³), whose square comes out (L3 CW 5).
+        if (base.t === 'root') {
+          const monomial = radicandMonomial(base.arg);
+          const raised = monomial && raiseMonomial(monomial, fraction.p);
+          if (raised) return root(base.index, raised, null);
+          const why = rootProblem(base.index, base.arg);
+          return refuse(why === LEFT || fraction.p >= base.index ? LEFT : UNREAD);
+        }
+        // A number's power, or a power of a product, a sum or a power, is
+        // still to be worked out: 2³, (2x)³, (√3 − 1)², (x²)³.
+        return refuse(['num', 'prod', 'frac', 'sum', 'pow'].includes(base.t) ? LEFT : UNREAD);
       }
       if (base.t === 'var') {
-        if (written(base.n)) return false;
+        if (written(base.n)) return refuse(LEFT);
         info.fractional.set(base.n, `${fraction.p}/${fraction.q}`);
         return true;
       }
       // A number to a fractional power is a root of it: 2^(1/3) is ∛2.
       if (base.t === 'num' && Number.isInteger(base.v) && base.v >= 2) {
-        if (info.roots.length) return false;
-        if (!simplestRoot(fraction.q, { t: 'num', v: base.v ** fraction.p })) return false;
-        info.roots.push({ index: fraction.q, radicand: keyOf({ t: 'num', v: base.v ** fraction.p }) });
-        return true;
+        const radicand = { t: 'num', v: base.v ** fraction.p };
+        return root(fraction.q, radicandMonomial(radicand), radicand);
       }
-      return false;
+      // 1 to any power is 1; a root or a power raised again is one power.
+      return refuse(['root', 'pow'].includes(base.t) || (base.t === 'num' && base.v === 1) ? LEFT : UNREAD);
     }
-    return false;
+    // A bracket inside a term is a product still to multiply out:
+    // √2(√3 − 1), (√3 + 1)(√3 − 1), −4(2 + √3).
+    if (child.t === 'sum') return refuse(LEFT);
+    return refuse(UNREAD);
   };
-  if (!factor(node, false) || info.numbers > 1) return null;
+  if (!factor(node, false)) return { problem: worse(problems) || UNREAD };
+  if (info.numbers > 1) return { problem: LEFT };
   if (info.denominator !== 1 && Number.isInteger(info.coefficient) && Number.isInteger(info.denominator)
-    && gcd(info.coefficient, info.denominator) !== 1) return null;
+    && gcd(info.coefficient, info.denominator) !== 1) return { problem: LEFT };
   info.signature = JSON.stringify([
-    [...info.powers].sort(), [...info.fractional].sort(),
-    info.roots.map((root) => `${root.index}:${root.radicand}`).sort(), [...info.bars].sort(),
+    [...info.powers].sort(), [...info.fractional].sort(), [...info.roots].sort(), [...info.bars].sort(),
   ]);
-  return info;
+  return { info };
 };
 
 const termsOf = (node) => {
-  const inner = node.t === 'group' ? node.arg : node;
+  const inner = unwrap(node);
   return inner.t === 'sum' ? inner.terms.map((term) => (term.sign < 0 ? { t: 'neg', arg: term.node } : term.node)) : [inner];
 };
 
 // A denominator: numbers, letters to whole powers, or a sum of such terms
-// (y − 1). Never a root, a fractional power or another fraction.
-const plainDenominator = (node) => {
-  let plain = true;
+// (y − 1). A root, a fractional power or another fraction in it is still to
+// be cleared; bars, or a decimal power, this reader does not take.
+const denominatorProblem = (node) => {
+  const problems = [];
   walk(node, (child) => {
-    if (['root', 'frac', 'abs'].includes(child.t)) plain = false;
-    if (child.t === 'prod' && child.den.length) plain = false;
+    if (['root', 'frac'].includes(child.t) || (child.t === 'prod' && child.den.length)) problems.push(LEFT);
+    if (child.t === 'abs') problems.push(UNREAD);
     if (child.t === 'pow') {
       const fraction = exponentFraction(child.exp);
-      if (!fraction || fraction.q !== 1 || fraction.p < 1) plain = false;
+      if (!fraction) problems.push(UNREAD);
+      else if (fraction.q !== 1 || fraction.p < 1) problems.push(LEFT);
     }
   });
-  return plain;
+  return worse(problems);
 };
 
 const product = (factors) => (factors.length === 1 ? factors[0] : { t: 'prod', num: factors, den: [] });
@@ -544,25 +681,78 @@ const quotientOf = (tree) => {
   return { numerator: signed(product(top)), denominator: product(bottom) };
 };
 
+/** ±(a + b): a sum, in its brackets or as a fraction's numerator, with its sign. */
+const signedSum = (node) => {
+  let sign = 1;
+  let inner = node;
+  while (inner.t === 'neg' || inner.t === 'group') {
+    if (inner.t === 'neg') sign = -sign;
+    inner = inner.arg;
+  }
+  return inner.t === 'sum' ? { sign, sum: inner } : null;
+};
+
+/*
+ * A UNIT FRACTION IN FRONT OF A BRACKET IS THE BRACKET OVER ITS DENOMINATOR:
+ * ½(√3 − 1) is (√3 − 1)/2 (Radicals L2 CW 11), and so are −½(1 − √3),
+ * (√3 − 1)·½ and −(1 − √3)/2. The numerator as { sign, sum, over }, the sum
+ * taken over `over` (1 when the fraction bar is the bracket's own), or null.
+ * A whole number in front stays a product to multiply out (readTerm).
+ */
+const bracketOverNumber = (numerator) => {
+  const whole = signedSum(numerator);
+  if (whole) return { ...whole, over: 1 };
+  let sign = 1;
+  let node = numerator;
+  while (node.t === 'neg' || node.t === 'group') {
+    if (node.t === 'neg') sign = -sign;
+    node = node.arg;
+  }
+  if (node.t !== 'prod' || node.den.length || node.num.length !== 2) return null;
+  const bracketAt = node.num.findIndex((factor) => signedSum(factor));
+  if (bracketAt < 0) return null;
+  const bracket = signedSum(node.num[bracketAt]);
+  const coefficient = exponentFraction(node.num[1 - bracketAt]);
+  if (!coefficient || Math.abs(coefficient.p) !== 1) return null;
+  return { sign: sign * bracket.sign * coefficient.p, sum: bracket.sum, over: coefficient.q };
+};
+
+/** Why this expression is not in simplest form, LEFT or UNREAD, or null when it is. */
+const simplestFormProblem = (tree) => {
+  const { numerator, denominator } = quotientOf(tree);
+  const cleared = denominator && denominatorProblem(denominator);
+  if (cleared) return cleared;
+  // ½(√3 − 1) and its spellings, read as (√3 − 1)/2; without a fraction
+  // (−(2 + √3)) the bracket is still to be multiplied out.
+  const bracket = bracketOverNumber(numerator);
+  const overNumber = bracket && bracket.over > 1;
+  if (overNumber && denominator) return LEFT; // ½(√3 − 1)/2: a fraction of a fraction
+  const aboveNodes = bracket && (overNumber || denominator)
+    ? termsOf(bracket.sum).map((term) => (bracket.sign < 0 ? { t: 'neg', arg: term } : term))
+    : termsOf(numerator);
+  const above = aboveNodes.map(readTerm);
+  const below = overNumber ? [readTerm({ t: 'num', v: bracket.over })] : denominator ? termsOf(denominator).map(readTerm) : null;
+  const problems = [...above, ...(below || [])].map((term) => term.problem).filter(Boolean);
+  if (problems.length) return worse(problems);
+  const terms = above.map((term) => term.info);
+  // Like terms combined.
+  if (new Set(terms.map((term) => term.signature)).size !== terms.length) return LEFT;
+  if (!below) return null;
+  // Not a complex fraction: nothing above or below has a fraction of its own.
+  const denominatorTerms = below.map((term) => term.info);
+  if ([...terms, ...denominatorTerms].some((term) => term.denominator !== 1)) return LEFT;
+  // In lowest terms: no number divides every coefficient and the denominator.
+  const coefficients = [...terms, ...denominatorTerms].map((term) => term.coefficient);
+  if (coefficients.every(Number.isInteger) && coefficients.reduce((divisor, value) => gcd(divisor, value), 0) !== 1) return LEFT;
+  // …and no letter divides every term above and below.
+  return [...denominatorTerms[0].powers.keys()].some((name) => (
+    [...terms, ...denominatorTerms].every((term) => term.powers.has(name)))) ? LEFT : null;
+};
+
 /** Is this expression written in simplest form? */
 export const isSimplestRadicalForm = (value) => {
   const tree = typeof value === 'string' ? parseRadicalExpression(value) : value;
-  if (!tree) return false;
-  const { numerator, denominator } = quotientOf(tree);
-  if (denominator && !plainDenominator(denominator)) return false;
-  const terms = termsOf(numerator).map(readTerm);
-  if (terms.some((term) => !term)) return false;
-  if (new Set(terms.map((term) => term.signature)).size !== terms.length) return false;
-  if (!denominator) return true;
-  // Not a complex fraction: nothing above or below has a fraction of its own.
-  const denominatorTerms = termsOf(denominator).map(readTerm);
-  if (denominatorTerms.some((term) => !term) || [...terms, ...denominatorTerms].some((term) => term.denominator !== 1)) return false;
-  // In lowest terms: no number divides every coefficient and the denominator.
-  const coefficients = [...terms, ...denominatorTerms].map((term) => term.coefficient / term.denominator);
-  if (coefficients.every(Number.isInteger) && coefficients.reduce((divisor, value) => gcd(divisor, value), 0) !== 1) return false;
-  // …and no letter divides every term above and below.
-  return ![...denominatorTerms[0].powers.keys()].some((name) => (
-    [...terms, ...denominatorTerms].every((term) => term.powers.has(name))));
+  return Boolean(tree) && simplestFormProblem(tree) === null;
 };
 
 /**
@@ -579,6 +769,20 @@ export const sameSimplestRadicalForm = (student, key) => {
   return isSimplestRadicalForm(studentTree) && sameValue(studentTree, keyTree);
 };
 
+// A calculator's display: a number with no letter, no root and no power but
+// a whole one. 0.5√2 and 2^0.5 are exact, whatever else they are.
+const isPlainNumber = (node) => {
+  let plain = true;
+  walk(node, (child) => {
+    if (child.t === 'var' || child.t === 'root') plain = false;
+    if (child.t === 'pow') {
+      const fraction = exponentFraction(child.exp);
+      if (!fraction || fraction.q !== 1) plain = false;
+    }
+  });
+  return plain;
+};
+
 /**
  * WHY AN ANSWER WITH THE KEY'S VALUE WAS REFUSED, so the student is told the
  * real reason instead of a bare "Not quite" (walkthrough 2026-10-23,
@@ -587,15 +791,20 @@ export const sameSimplestRadicalForm = (student, key) => {
  *   'decimal'      a calculator's decimal for an exact key (within 0.5%);
  *   'notation'     the key's value in the other notation (radicals for an
  *                  exponent key, or the other way round);
- *   'notSimplest'  the key's value and notation, not yet simplified.
+ *   'notSimplest'  the key's value and notation, with a step of simplifying
+ *                  left in it (LEFT above): only then is "not in simplest
+ *                  form" true (the owner, 2026-11-19);
+ *   'form'         the key's value and notation in a form this box does not
+ *                  take (w^0.5, 0.5√2: the decimal decision). It names no
+ *                  misconception, so the student is told nothing about form.
  */
 export const radicalFormMiss = (student, key) => {
   if (sameSimplestRadicalForm(student, key)) return null;
   const studentTree = parseRadicalExpression(student);
   const keyTree = parseRadicalExpression(key);
   if (!studentTree || !keyTree) return null;
-  if (hasDecimal(student) && !hasDecimal(key)) {
-    if (lettersOf(keyTree).length || lettersOf(studentTree).length) return null;
+  if (hasDecimal(student) && !hasDecimal(key) && isPlainNumber(studentTree)) {
+    if (lettersOf(keyTree).size) return null;
     const typed = evaluate(studentTree, {});
     const exact = evaluate(keyTree, {});
     return Number.isFinite(typed) && Number.isFinite(exact) && Math.abs(typed - exact) <= 0.005 * Math.max(1, Math.abs(exact)) ? 'decimal' : null;
@@ -604,7 +813,10 @@ export const radicalFormMiss = (student, key) => {
   const studentNotation = notationOf(studentTree);
   const keyNotation = notationOf(keyTree);
   if (studentNotation.radical !== keyNotation.radical || studentNotation.exponent !== keyNotation.exponent) return 'notation';
-  return 'notSimplest';
+  // A decimal is refused for being one (0.5(√3 − 1), whose ½(√3 − 1) is
+  // right), so its form is not the reason given.
+  if (hasDecimal(student) && !hasDecimal(key)) return 'form';
+  return simplestFormProblem(studentTree) === LEFT ? 'notSimplest' : 'form';
 };
 
 export default sameSimplestRadicalForm;

@@ -17,6 +17,7 @@ import { fileURLToPath } from 'node:url';
 import { executableSource } from './helpers/sourceContract.mjs';
 import { formSpecificComparatorLoaded, matchesFieldAnswer } from '../../functions/shared/answerUtils.mjs';
 import { gradeServerResponse } from '../../functions/shared/serverGrading/serverResponseGrading.mjs';
+import { gradeMultiAnswerResponse } from '../../functions/shared/ordinaryResponseGrading.mjs';
 import { buildGradingTrace } from '../../functions/shared/responseInspector.mjs';
 import { validateQuestionGradingContracts } from '../../src/platform/grading/gradingContract.js';
 
@@ -109,6 +110,38 @@ test('Pre-Flight: the new modes are allowed, and a key not in the form it claims
   assert.match(contract(factored('x^2+7x+12')).errors.join(' '), /factoredForm.*not written as a product of factors/);
   assert.match(contract(simplest('\\sqrt{48}')).errors.join(' '), /simplestRadicalForm.*not in simplest form/);
   assert.match(contract({ ...factored('(x+1)(x+2)'), gradingMode: 'factoredish' }).errors.join(' '), /unsupported gradingMode "factoredish".*factoredForm.*simplestRadicalForm/);
+});
+
+// The forms the lessons teach as equal (the owner, 2026-11-19): (∛V)² for
+// ∛(V²), ½(√3 − 1) for (√3 − 1)/2, ∛((V)²). The student's screen
+// (gradeMultiAnswerResponse, which MultiAnswerGrader runs), the server's
+// dispatch and Pre-Flight read them through the one shared comparator, so a
+// form the screen marks right the server records right, and content may list
+// it as an accepted answer (2026-11-06 re-walk: Pre-Flight refused ½(√3 − 1)).
+test('the taught forms: the screen and the server agree, and Pre-Flight lets content accept them', () => {
+  const question = {
+    type: 'multiAnswer',
+    prompt: 'Write each in simplest radical form.',
+    answerFields: [simplest('∛(V^2)'), { ...simplest('(√3-1)/2'), id: 't' }],
+  };
+  const screen = (s, t) => gradeMultiAnswerResponse(question, { s, t }).parts.map((part) => part.isCorrect);
+  const server = (s, t) => gradeServerResponse({ question, response: fieldsResponse({ s, t }) }).parts.map((part) => part.isCorrect);
+  [
+    ['\\left(\\sqrt[3]{V}\\right)^{2}', '\\frac{1}{2}\\left(\\sqrt{3}-1\\right)', [true, true]],
+    ['\\sqrt[3]{\\left(V\\right)^{2}}', '-\\frac{1}{2}\\left(1-\\sqrt{3}\\right)', [true, true]],
+    ['\\sqrt[3]{V}^{2}', '((\\sqrt{3}-1))/2', [true, true]],
+    ['V^{\\frac{2}{3}}', '0.5\\left(\\sqrt{3}-1\\right)', [false, false]],
+    ['\\left(\\sqrt[3]{V}\\right)^{3}', '\\frac{1}{2}\\left(2\\sqrt{3}-2\\right)', [false, false]],
+  ].forEach(([s, t, verdicts]) => {
+    assert.deepEqual(screen(s, t), verdicts, `the screen: ${s}; ${t}`);
+    assert.deepEqual(server(s, t), verdicts, `the server: ${s}; ${t}`);
+  });
+  const contract = (field) => validateQuestionGradingContracts({ type: 'multiAnswer', prompt: 'Simplify.', answerFields: [field] });
+  assert.deepEqual(contract({ ...simplest('(√3-1)/2'), acceptedAnswers: ['\\frac{1}{2}(\\sqrt{3}-1)'] }).errors, []);
+  assert.deepEqual(contract({ ...simplest('∛(V^2)'), acceptedAnswers: ['\\left(\\sqrt[3]{V}\\right)^{2}', '\\sqrt[3]{\\left(V\\right)^{2}}'] }).errors, []);
+  assert.deepEqual(contract(simplest('\\frac{1}{2}\\left(\\sqrt{3}-1\\right)')).errors, [], 'a key written with the fraction in front');
+  assert.match(contract({ ...simplest('2\\sqrt{2}'), acceptedAnswers: ['\\sqrt{8}'] }).errors.join(' '), /not in simplest form/);
+  assert.match(contract({ ...simplest('w^{1/2}'), acceptedAnswers: ['w^{0.5}'] }).errors.join(' '), /not in simplest form/, 'a decimal stays refused');
 });
 
 test('the response inspector names the comparator a form-specific field used', () => {

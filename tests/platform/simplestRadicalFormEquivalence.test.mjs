@@ -13,6 +13,7 @@ import test from 'node:test';
 import {
   isSimplestRadicalForm,
   parseRadicalExpression,
+  radicalFormMiss,
   sameSimplestRadicalForm as same,
 } from '../../functions/shared/simplestRadicalFormEquivalence.mjs';
 
@@ -164,6 +165,121 @@ test('every printed lesson answer is itself in simplest form', () => {
     '\\sqrt[3]{2}', '\\sqrt[3]{2x^2}', '\\sqrt[3]{4x}', '1', '\\frac{y+2y^{1/2}+1}{y-1}', '\\frac{x-2x^{1/2}+1}{x-1}',
     '11h^2', '-4ay^3', '\\frac{1}{2}b^2', '|m-4|',
   ].forEach((key) => assert.equal(isSimplestRadicalForm(key), true, key));
+});
+
+// THE FORMS THE LESSONS TEACH AS EQUAL (the owner, 2026-11-19; 2026-11-06
+// re-walk of the Algebra II Honors Radicals lessons). Each was refused with
+// "Equal, but not in simplest form", which none of them is.
+test('a power of a root is the root of the power: (ⁿ√b)ᵐ for ⁿ√(bᵐ), and the reverse (L3 CW 5)', () => {
+  // L3 PR 7, PR 3 and PR 9, as the math editor and a keyboard write them.
+  assert.equal(same('\\left(\\sqrt[3]{V}\\right)^{2}', '∛(V^2)'), true);
+  assert.equal(same('\\sqrt[3]{V}^{2}', '∛(V^2)'), true);
+  assert.equal(same('(∛V)^2', 'root(3)(V^2)'), true);
+  assert.equal(same('\\left(\\sqrt[5]{y}\\right)^{3}', 'root(5)(y^3)'), true);
+  assert.equal(same('\\left(\\sqrt[6]{x}\\right)^{5}', 'root(6)(x^5)'), true);
+  assert.equal(same('\\left(\\sqrt[3]{2x}\\right)^{2}', '\\sqrt[3]{4x^2}'), true, 'the number under the root is raised too');
+  assert.equal(same('3\\left(\\sqrt[4]{y}\\right)^{3}', '3\\sqrt[4]{y^3}'), true);
+  // A number's power under the root is the number (L3 PR 15's back-up step
+  // writes 7^(2/3) as ∛(7²)), whichever side of the root the power is on.
+  assert.equal(same('\\sqrt[4]{2^{3}}', 'root(4)(8)'), true);
+  assert.equal(same('\\left(\\sqrt[4]{2}\\right)^{3}', 'root(4)(8)'), true);
+  assert.equal(same('\\left(\\sqrt[4]{11}\\right)^{3}', 'root(4)(1331)'), true);
+  assert.equal(same('\\sqrt[3]{7^2}', '∛(49)'), true);
+  // The reverse: a key written as the root raised to the power.
+  assert.equal(same('\\sqrt[3]{V^2}', '\\left(\\sqrt[3]{V}\\right)^{2}'), true);
+  assert.equal(same('\\sqrt[4]{8}', '\\left(\\sqrt[4]{2}\\right)^{3}'), true);
+  ['\\left(\\sqrt[3]{V}\\right)^{2}', '\\sqrt[4]{2^{3}}', '\\left(\\sqrt[4]{2}\\right)^{3}'].forEach((form) => assert.equal(isSimplestRadicalForm(form), true, form));
+});
+
+test('…only where it is still simplified: the power is judged under the root', () => {
+  assert.equal(same('\\left(\\sqrt{x}\\right)^{3}', 'x\\sqrt{x}'), false, '√(x³) has a square to take out');
+  assert.equal(same('\\left(\\sqrt[3]{4x}\\right)^{2}', '2\\sqrt[3]{2x^2}'), false, '∛(16x²) has a cube to take out');
+  assert.equal(same('\\left(\\sqrt[6]{x}\\right)^{4}', '\\sqrt[3]{x^2}'), false, '⁶√(x⁴) is ∛(x²): the index is not the smallest');
+  assert.equal(same('\\left(\\sqrt{2}\\right)^{2}', '2'), false);
+  assert.equal(same('\\sqrt{2^{3}}', '2\\sqrt{2}'), false, '√8 has a square to take out');
+  assert.equal(same('\\left(\\sqrt[3]{V}\\right)^{2}+\\sqrt[3]{V^2}', '2\\sqrt[3]{V^2}'), false, 'like radicals, however each is written');
+  assert.equal(same('\\left(\\sqrt[3]{V}\\right)^{2}\\sqrt[3]{V}', 'V'), false, 'two roots in one term');
+  assert.equal(same('\\left(2\\sqrt[3]{V}\\right)^{2}', '4\\sqrt[3]{V^2}'), false, 'a power of a product is still to work out');
+  assert.equal(same('\\left(V^{\\frac{1}{3}}\\right)^{2}', 'V^{2/3}'), false, 'a power of a power is one power');
+  assert.equal(same('\\left(\\sqrt[3]{V}\\right)^{2}', 'V^{2/3}'), false, 'the key\'s notation still decides');
+  assert.equal(same('\\left(\\sqrt[3]{V}\\right)^{3}', '\\sqrt[3]{V^2}'), false, 'another value');
+});
+
+test('a unit fraction in front of a bracket is the bracket over its denominator: ½(√3 − 1) for (√3 − 1)/2 (L2 CW 11)', () => {
+  const key = '(√3-1)/2';
+  [
+    '\\frac{1}{2}\\left(\\sqrt{3}-1\\right)', '1/2(\\sqrt{3}-1)', '\\left(\\frac{1}{2}\\right)\\left(\\sqrt{3}-1\\right)',
+    '(\\sqrt{3}-1)\\cdot\\frac{1}{2}', '-\\frac{1}{2}\\left(1-\\sqrt{3}\\right)', '-\\frac{1-\\sqrt{3}}{2}', '-(1-\\sqrt{3})/2',
+  ].forEach((form) => assert.equal(same(form, key), true, form));
+  assert.equal(same('\\frac{1}{2}\\left(3+\\sqrt{5}\\right)', '(3+√5)/2'), true);
+  assert.equal(same('\\frac{1}{39}\\left(25\\sqrt{3}-30\\right)', '(25√3-30)/39'), true);
+  // The reverse: a key written with the fraction in front.
+  assert.equal(same('\\frac{\\sqrt{3}-1}{2}', '\\frac{1}{2}\\left(\\sqrt{3}-1\\right)'), true);
+  assert.equal(same('\\frac{\\sqrt{3}}{2}-\\frac{1}{2}', '\\frac{1}{2}\\left(\\sqrt{3}-1\\right)'), true);
+  assert.equal(isSimplestRadicalForm('\\frac{1}{2}\\left(\\sqrt{3}-1\\right)'), true);
+});
+
+test('…but a whole number in front of a bracket is a product still to multiply out, and lowest terms still count', () => {
+  assert.equal(same('-4(2+\\sqrt{3})', '-8-4\\sqrt{3}'), false, 'the question retyped (Radical Expressions Honors CW 6)');
+  assert.equal(same('2(\\sqrt{3}-1)', '2\\sqrt{3}-2'), false);
+  assert.equal(same('\\frac{7}{2}(3-\\sqrt{7})', '(21-7√7)/2'), false);
+  assert.equal(same('7(3-\\sqrt{7})/2', '(21-7√7)/2'), false);
+  assert.equal(same('-(1-\\sqrt{3})', '\\sqrt{3}-1'), false, 'a bracket with no fraction to stand for');
+  assert.equal(same('\\frac{1}{2}(2\\sqrt{3}-2)', '\\sqrt{3}-1'), false, 'not in lowest terms');
+  assert.equal(same('\\frac{1}{4}(2\\sqrt{3}-2)', '(√3-1)/2'), false, 'not in lowest terms');
+  assert.equal(same('\\frac{1}{2}(\\sqrt{3}-1)/2', '(√3-1)/4'), false, 'a fraction of a fraction');
+  assert.equal(same('\\frac{1}{2}\\left(\\frac{\\sqrt{3}}{2}-1\\right)', '(√3-2)/4'), false, 'a fraction inside the bracket');
+  assert.equal(same('\\frac{1}{2}(\\sqrt{3}+\\sqrt{3})', '\\sqrt{3}'), false, 'like terms in the bracket');
+  assert.equal(same('\\sqrt{2}(\\sqrt{3}-1)', '\\sqrt{6}-\\sqrt{2}'), false, 'a root in front is still to multiply out');
+  assert.equal(same('\\frac{1}{2}(\\sqrt{3}-1)', '(√3-2)/2'), false, 'another value');
+});
+
+test('brackets that change nothing are not there: ∛((V)²)', () => {
+  assert.equal(same('\\sqrt[3]{\\left(V\\right)^{2}}', 'root(3)(V^2)'), true);
+  assert.equal(same('\\sqrt[3]{\\left(\\left(V\\right)^{2}\\right)}', 'root(3)(V^2)'), true);
+  assert.equal(same('\\sqrt[3]{(2)(V^2)}', '∛(2V^2)'), true);
+  assert.equal(same('((\\sqrt{3}-1))/2', '(√3-1)/2'), true);
+  assert.equal(same('\\left(\\left(V\\right)\\right)^{\\frac{2}{3}}', 'V^{2/3}'), true);
+  assert.equal(same('\\sqrt{\\left(\\left(2\\right)^{2}x\\right)}', '2\\sqrt{x}'), false, 'a square under the root, in brackets or not');
+});
+
+test('a decimal stays refused where the box compares form: w^0.5 for w^(1/2) (the decimal decision, 2026-11-19)', () => {
+  assert.equal(same('w^{0.5}', 'w^{1/2}'), false);
+  assert.equal(same('w^{0.5}', 'w^(1/2)'), false);
+  assert.equal(same('0.5(\\sqrt{3}-1)', '(√3-1)/2'), false, 'a decimal coefficient in front of a bracket');
+  assert.equal(same('\\sqrt[4]{2^{0.75}}', '\\sqrt[4]{2^{3/4}}'), false);
+});
+
+test('"not in simplest form" is said only when it is true', () => {
+  // Equal, with a step of simplifying left in it.
+  assert.equal(radicalFormMiss('\\sqrt{8}', '2\\sqrt{2}'), 'notSimplest');
+  assert.equal(radicalFormMiss('\\left(\\sqrt{x}\\right)^{3}', 'x\\sqrt{x}'), 'notSimplest');
+  assert.equal(radicalFormMiss('\\left(\\sqrt[6]{x}\\right)^{4}', '\\sqrt[3]{x^2}'), 'notSimplest');
+  assert.equal(radicalFormMiss('-4(2+\\sqrt{3})', '-8-4\\sqrt{3}'), 'notSimplest');
+  assert.equal(radicalFormMiss('\\frac{1}{2}(2\\sqrt{3}-2)', '\\sqrt{3}-1'), 'notSimplest');
+  assert.equal(radicalFormMiss('3\\sqrt{5}-6\\sqrt{5}', '-3\\sqrt{5}'), 'notSimplest');
+  assert.equal(radicalFormMiss('\\frac{2}{\\sqrt{3}}', '\\frac{2\\sqrt{3}}{3}'), 'notSimplest');
+  assert.equal(radicalFormMiss('y^{\\frac{10}{14}}', 'y^{5/7}'), 'notSimplest');
+  assert.equal(radicalFormMiss('\\left|\\sqrt{12x}\\right|', '2\\sqrt{3x}'), 'notSimplest', 'bars round a root this reader does not take, with a square left under it');
+  // The forms the lessons teach are right: nothing to say.
+  assert.equal(radicalFormMiss('\\left(\\sqrt[3]{V}\\right)^{2}', '∛(V^2)'), null);
+  assert.equal(radicalFormMiss('\\sqrt[4]{2^{3}}', 'root(4)(8)'), null);
+  assert.equal(radicalFormMiss('\\frac{1}{2}\\left(\\sqrt{3}-1\\right)', '(√3-1)/2'), null);
+  assert.equal(radicalFormMiss('\\sqrt[3]{\\left(V\\right)^{2}}', 'root(3)(V^2)'), null);
+  // Refused for another reason: never "not in simplest form".
+  assert.equal(radicalFormMiss('w^{0.5}', 'w^(1/2)'), 'form', 'a decimal exponent: a form the box does not take');
+  assert.equal(radicalFormMiss('0.5(\\sqrt{3}-1)', '(√3-1)/2'), 'form', 'a decimal, whose ½(√3 − 1) is right');
+  assert.equal(radicalFormMiss('\\left|\\sqrt[5]{3}\\right|', '\\sqrt[5]{3}'), 'form', 'bars round a root: a form this reader does not take');
+  assert.equal(radicalFormMiss('\\sqrt{3}', '2\\sqrt{2}'), null, 'a different value');
+  assert.equal(radicalFormMiss('\\left(\\sqrt[3]{V}\\right)^{3}', '∛(V^2)'), null, 'a different value');
+  assert.equal(radicalFormMiss('\\frac{1}{2}(\\sqrt{3}-1)', '(√3-2)/2'), null, 'a different value');
+});
+
+test('"a decimal approximation" is said only of a calculator\'s number', () => {
+  assert.equal(radicalFormMiss('3.46', '2\\sqrt{3}'), 'decimal');
+  assert.equal(radicalFormMiss('-6.7082', '-3\\sqrt{5}'), 'decimal');
+  assert.equal(radicalFormMiss('0.5\\sqrt{2}', '\\frac{\\sqrt{2}}{2}'), 'form', '0.5√2 is exact: a decimal, not an approximation');
+  assert.equal(radicalFormMiss('2^{0.5}', '\\sqrt{2}'), 'notation', '2^0.5 is exact, written as a power');
 });
 
 test('unreadable input is refused, never guessed', () => {

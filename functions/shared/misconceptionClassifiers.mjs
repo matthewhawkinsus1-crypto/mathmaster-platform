@@ -899,6 +899,9 @@ const multiAnswerNotSimplifiedFindings = ({ question, grading }) => {
  * form (gradingMode 'simplestRadicalForm' or 'factoredForm'). The comparators
  * say why (radicalFormMiss, factoredFormMiss), so the message names the form,
  * not a bare "Not quite" (walkthrough 2026-10-23, Polynomials and Radicals).
+ * radicalFormMiss's 'form', the key's value in a form the box does not take
+ * (a decimal exponent), has no code: it is no misconception, and "not in
+ * simplest form" would not be true of it (the owner, 2026-11-19).
  */
 const FORM_MISS_CODES = Object.freeze({
   decimal: 'radical-decimal-not-exact',

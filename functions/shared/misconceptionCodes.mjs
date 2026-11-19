@@ -332,7 +332,7 @@ export const MISCONCEPTION_REGISTRY = Object.freeze([
     domain: 'nonlinear',
     label: 'Right value, radical not simplified',
     teacherMeaning: 'The answer has the key\'s value in the key\'s notation, but it is not in simplest form: a perfect power left under a root, like terms not combined, or a root in a denominator.',
-    evidenceRequired: 'multiAnswer field graded with gradingMode "simplestRadicalForm": the field was graded wrong, and the submitted expression has the key\'s value in the key\'s notation (simplestRadicalFormEquivalence.mjs radicalFormMiss).',
+    evidenceRequired: 'multiAnswer field graded with gradingMode "simplestRadicalForm": the field was graded wrong, and the submitted expression has the key\'s value in the key\'s notation with a step of simplifying left in it (simplestRadicalFormEquivalence.mjs radicalFormMiss "notSimplest"). A form the field does not take, such as a decimal exponent, is not this code.',
     teks: ['A2.7G'],
   }),
   code({
@@ -341,7 +341,7 @@ export const MISCONCEPTION_REGISTRY = Object.freeze([
     domain: 'nonlinear',
     label: 'Decimal approximation for an exact radical answer',
     teacherMeaning: 'A calculator\'s decimal was given where the question asks for the exact value in radical or exponent form.',
-    evidenceRequired: 'multiAnswer field graded with gradingMode "simplestRadicalForm": the field was graded wrong, the key has no decimal and no letters, and the submitted decimal is within 0.5% of its value.',
+    evidenceRequired: 'multiAnswer field graded with gradingMode "simplestRadicalForm": the field was graded wrong, the key has no decimal and no letters, and the submitted answer is a decimal number (no letter, root or fractional power in it) within 0.5% of its value.',
     teks: ['A2.7G'],
   }),
   code({
