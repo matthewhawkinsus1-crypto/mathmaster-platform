@@ -32,6 +32,13 @@
  * releasePlan.mjs#DEPLOY_LAST_FUNCTIONS) deploys only when every function
  * shipped and both checks passed. Otherwise it is held, even with
  * --continue-after-function-failure, which is about rules and Hosting.
+ * An early group (`early`, releasePlan.mjs#DEPLOY_EARLY_FUNCTIONS) holds the
+ * functions that read what later groups write: if one of its functions does
+ * not deploy, every later functions group is held, with or without that flag.
+ *
+ * `onProgress(state)` is called after every step with what has happened so
+ * far and the steps not yet reached (`remaining`), so the caller can keep a
+ * report that a run cut off part-way still leaves behind.
  */
 
 import {
@@ -61,6 +68,7 @@ export const executeReleasePlan = async ({
   pauseSecondsBetweenGroups = 45,
   continueAfterFunctionFailure = false,
   now = () => Date.now(),
+  onProgress = () => {},
 }) => {
   const results = [];
   const failedFunctions = [];
@@ -69,6 +77,9 @@ export const executeReleasePlan = async ({
   const queue = steps.map((step) => ({ ...step }));
   let stoppedBeforeTargets = null;
   let previousWasFunctions = false;
+  // The early function that did not deploy, once one has not: later groups wait on it.
+  let earlyFailure = null;
+  let earlyHoldLogged = false;
   // null when the plan has no verify step; otherwise passed | failed | skipped.
   let verification = null;
   // The same, for the browser-access step.
@@ -81,12 +92,35 @@ export const executeReleasePlan = async ({
     if (queue.some((next) => next.target === ACCESS_FUNCTIONS) && !access) access = { status: 'skipped', reason };
   };
 
+  const report = () => {
+    try {
+      onProgress({
+        results: [...results],
+        failedFunctions: [...failedFunctions],
+        heldFunctions: [...heldFunctions],
+        verification,
+        access,
+        remaining: queue.map((next) => ({ ...next })),
+      });
+    } catch {
+      // A report that cannot be written never stops a release.
+    }
+  };
+
   while (queue.length) {
+    report();
     const step = queue.shift();
     const isFunctions = step.target === RELEASE_TARGETS.FUNCTIONS;
     const isVerify = step.target === VERIFY_FUNCTIONS;
     const isAccess = step.target === ACCESS_FUNCTIONS;
     const functionsUnproven = failedFunctions.length > 0 || verification?.status === 'failed' || access?.status === 'failed';
+
+    if (isFunctions && !step.early && earlyFailure) {
+      if (!earlyHoldLogged) log(`Holding every later functions group: ${earlyFailure} did not deploy, and it reads what they write.`);
+      earlyHoldLogged = true;
+      heldFunctions.push(...step.group);
+      continue;
+    }
 
     if (isFunctions && step.afterChecks
       && (failedFunctions.length > 0 || verification?.status !== 'passed' || access?.status !== 'passed')) {
@@ -209,20 +243,25 @@ export const executeReleasePlan = async ({
     if (isFunctions && step.group.length > 1) {
       const halves = bisect(step.group);
       log(`${step.label}: still failing (${lastFailure}); splitting into ${halves.map((half) => half.length).join(' + ')} to find the function that is really broken.`);
-      queue.unshift(...halves.map((group, index) => ({ target: step.target, group, label: `${step.label}.${index + 1}` })));
+      queue.unshift(...halves.map((group, index) => ({
+        target: step.target, group, label: `${step.label}.${index + 1}`, ...(step.early ? { early: true } : {}),
+      })));
       continue;
     }
     if (isFunctions) {
       failedFunctions.push({ name: step.group[0], failure: lastFailure });
+      if (step.early && !earlyFailure) earlyFailure = step.group[0];
       continue;
     }
     // A rules / index / Hosting step that will not deploy ends the release.
     skipVerification(`${step.target} failed`);
     stoppedBeforeTargets = queue.map((next) => next.target).filter((target) => target !== VERIFY_FUNCTIONS && target !== ACCESS_FUNCTIONS);
     log(`${step.label} failed (${lastFailure}); stopping.`);
+    report();
     return { ok: false, results, failedFunctions, heldFunctions, verification, access, failedStep: step.target, stoppedBeforeTargets };
   }
 
+  report();
   return {
     ok: failedFunctions.length === 0 && heldFunctions.length === 0 && verification?.status !== 'failed' && access?.status !== 'failed' && !stoppedBeforeTargets,
     results,

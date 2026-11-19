@@ -212,7 +212,14 @@ It diffs against the gitSha of the live `mathmaster-build.json` (or
 indexes → functions (exact names, groups of 8, paced, retried, split to isolate
 a broken one) → path-admin → rules → Hosting via the wrapper, stops before rules
 and Hosting if a function did not ship, and writes `release-reports/*.json` with
-the retry command and rollback steps. Function names come from the real entry
+the retry command and rollback steps. The report is written before the first
+step and after every step, so a run cut off part-way leaves the command that
+finishes it (`resumeCommand`); each rollback step is runnable as written, or
+says it is not available (a functions rollback past the grades split, #561).
+The two Classroom grade triggers and the Response Inspector ship right after the
+Live Challenge heartbeat, before the functions that write what they read; if
+one of them does not deploy, no later function group does
+(`DEPLOY_EARLY_FUNCTIONS`). Function names come from the real entry
 point (`scripts/lib/functionsInventory.mjs`), not a grep of `index.js` — the grep
 missed eight. Planning logic: `scripts/lib/releasePlan.mjs`,
 `scripts/lib/releaseExecutor.mjs` (tested in `tests/platform/releasePlan.test.mjs`).
