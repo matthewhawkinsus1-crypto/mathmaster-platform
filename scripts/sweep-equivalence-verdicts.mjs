@@ -54,6 +54,20 @@
  * so it needs the whole history: on a shallow clone it stops (exit 2) unless
  * --allow-shallow says to read only what the clone holds.
  *
+ * THE INTERVAL BOXES ON A GRAPH (scripts/lib/graphIntervalSweep.mjs; the
+ * owner's interval rule, 2026-11-19). Graph Analysis and the analysis parts
+ * of Function Graph and Function Investigation key each box from the function
+ * drawn and grade it with gradeAnalysisPart, not with the field graders
+ * above. Every such question in the corpus, every lesson in
+ * teacher-import-jsons, both graph-reading Question Families and a grid of
+ * every function family is graded the same way, base against this tree: right
+ * answers (the key, its spellings, a closed end at a turning point, pieces
+ * joined by "and" or commas where the box asks where a function rises, falls
+ * or has a sign) and near misses (a bracket, an end, a piece, the other
+ * kind's answer, "or", a domain written as a list). It fails like the field
+ * sweep: on any right answer refused (always), and with --check-wrong on a
+ * near miss accepted or one of the rule's own forms still refused.
+ *
  * Read-only: it writes only the --out file.
  */
 import { readFileSync, readdirSync, statSync, writeFileSync } from 'node:fs';
@@ -64,6 +78,14 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 import { extraBankDocuments, extraBankPaths } from './lib/extraPathBanks.mjs';
 import { editorTypedSpellings } from './lib/editorTypedSpelling.mjs';
 import { typedNearMissesOf, typedSpellingsOf } from './lib/typedAnswerSpellings.mjs';
+import {
+  createGraphQuestionCorpus,
+  graphGradersFrom,
+  offerGraphReadingFamilies,
+  offerSyntheticGraphs,
+  offerTeacherImports,
+  sweepGraphIntervals,
+} from './lib/graphIntervalSweep.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const argOf = (name, fallback) => {
@@ -148,9 +170,13 @@ const addField = (source, raw, questionChoices, question = null) => {
   fields.push(field);
 };
 
+// The graph questions met on the way (the interval boxes on a graph, below).
+const graphCorpus = createGraphQuestionCorpus();
+
 const visit = (node, source, questionChoices = null, question = null) => {
   if (!node || typeof node !== 'object') return;
   if (Array.isArray(node)) { node.forEach((entry) => visit(entry, source, questionChoices, question)); return; }
+  graphCorpus.offer(node, source);
   const choices = Array.isArray(node.choices) && node.choices.length ? node.choices : questionChoices;
   // The nearest object with a prompt is the question a field belongs to.
   const asked = typeof node.prompt === 'string' || typeof node.stem === 'string' ? node : question;
@@ -228,6 +254,11 @@ const walkJson = (dir, skip = () => false) => {
 walkJson(path.join(ROOT, 'docs/assignments'));
 walkJson(path.join(ROOT, 'drafts'));
 walkJson(path.join(ROOT, 'seed'), (full) => full.includes(`${path.sep}pathQuestionBank`));
+// Graph questions only: the lessons as a teacher imports them, every version
+// of the graph-reading families, and a grid of every function family.
+const graphLessons = await offerTeacherImports(ROOT, graphCorpus);
+await offerGraphReadingFamilies(ROOT, graphCorpus);
+offerSyntheticGraphs(graphCorpus);
 
 /*
  * Π AND ROOT KEYS THE BANK BARELY HAS (student pass 3, H-13 review). The math
@@ -1027,7 +1058,20 @@ counts.typedSpellingsRefusedOnBase = [...typedClasses.values()].reduce((total, e
 counts.typedSpellingsRefused = typedRefused.length;
 
 counts.editorParityRefused = editorParityRefused.length;
-if (OUT) writeFileSync(OUT, `${JSON.stringify({ counts, typedSpellingClasses: Object.fromEntries(typedClasses), changes, typedRefused, typedMissesAccepted, editorRefused, editorTypedRefused, editorParityRefused, oldKeysRefused, oldKeyNotes, oldKeyReasked }, null, 2)}\n`);
+
+// The interval boxes on a graph, base against this tree (graphIntervalSweep.mjs).
+const graph = sweepGraphIntervals({ corpus: graphCorpus, base: await graphGradersFrom(path.resolve(BASE)), current: await graphGradersFrom(ROOT) });
+Object.assign(counts, graph.counts, { graphLessons: graphLessons.lessons, graphLessonsUnreadable: graphLessons.failed });
+const graphAnalysis = {
+  builtByClass: graph.builtByClass,
+  movedByClass: graph.movedByClass,
+  unexpectedClasses: graph.unexpectedClasses,
+  rightRefusedByClass: graph.rightRefusedByClass,
+  ruleFormsRefused: graph.ruleFormsRefused,
+  rightRefused: graph.rightRefused,
+  changes: graph.changes,
+};
+if (OUT) writeFileSync(OUT, `${JSON.stringify({ counts, typedSpellingClasses: Object.fromEntries(typedClasses), changes, typedRefused, typedMissesAccepted, editorRefused, editorTypedRefused, editorParityRefused, oldKeysRefused, oldKeyNotes, oldKeyReasked, graphAnalysis }, null, 2)}\n`);
 console.log(JSON.stringify({ ...counts, stackedPiOrRootSpellings: stackedSpellings.size, editorSpelledKeys: editorSpellingKeys.size }));
 const show = (title, list) => {
   if (!list.length) return;
@@ -1097,5 +1141,26 @@ if (oldKeyNotes.length) {
   console.log(`\nOLD KEYS NOT ALIGNED WITH TODAY'S DRAW (${oldKeyNotes.length}; review each)`);
   oldKeyNotes.slice(0, 40).forEach((note) => console.log(`  ${note}`));
 }
-if (counts.rightToWrong > 0 || (CHECK_WRONG && (counts.nearMissNowRight > 0 || editorRefused.length > 0 || editorTypedRefused.length > 0 || stackedWrongAccepted.length > 0
-  || gapRefused.length > 0 || gapWrongAccepted.length > 0 || oldKeysRefused.length > 0))) process.exit(1);
+
+// The interval boxes on a graph: what was built, what moved (by the class it
+// was built as), and a few of each; the whole list is in --out.
+console.log(`\nINTERVAL BOXES ON A GRAPH: ${counts.graphQuestions} questions (${counts.graphLessons} lessons read), ${counts.graphParts} boxes, ${counts.graphGraded} answers graded`);
+const classLine = (entries) => Object.entries(entries).map(([name, count]) => `${name} ${count}`).join(', ') || 'none';
+console.log(`  built right: ${classLine(graph.builtByClass.right)}`);
+console.log(`  built wrong: ${classLine(graph.builtByClass.wrong)}`);
+console.log(`  moved: ${classLine(graph.movedByClass)} (right → wrong ${counts.graphRightToWrong}, a near miss now right ${counts.graphNearMissNowRight}, a near miss now refused ${counts.graphNearMissNowRefused})`);
+console.log(`  right answers this tree refuses: ${classLine(graph.rightRefusedByClass)}`);
+const graphShown = new Map();
+graph.changes.forEach((change) => {
+  const group = `${change.before} → ${change.after}, built ${change.built} as ${change.responseClass}`;
+  const lines = graphShown.get(group) || [];
+  if (lines.length < 12) lines.push(`    ${change.kind.padEnd(10)} ${JSON.stringify(change.response)}  key ${JSON.stringify(change.key)}  ${JSON.stringify(change.spec)}  ${change.source}`);
+  graphShown.set(group, lines);
+});
+graphShown.forEach((lines, group) => { console.log(`  ${group}:`); lines.forEach((line) => console.log(line)); });
+if (graph.unexpectedClasses.length) console.log(`  MOVED IN A CLASS THE RULE DOES NOT COVER (must be empty): ${graph.unexpectedClasses.join(', ')}`);
+if (graph.ruleFormsRefused.length) console.log(`  ONE OF THE RULE'S FORMS STILL REFUSED (must be empty): ${graph.ruleFormsRefused.join(', ')}`);
+
+if (counts.rightToWrong > 0 || counts.graphRightToWrong > 0 || (CHECK_WRONG && (counts.nearMissNowRight > 0 || editorRefused.length > 0 || editorTypedRefused.length > 0 || stackedWrongAccepted.length > 0
+  || gapRefused.length > 0 || gapWrongAccepted.length > 0 || oldKeysRefused.length > 0
+  || counts.graphNearMissNowRight > 0 || graph.unexpectedClasses.length > 0 || graph.ruleFormsRefused.length > 0))) process.exit(1);
