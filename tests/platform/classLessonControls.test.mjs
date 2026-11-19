@@ -7,6 +7,7 @@ import { buildDolClose, buildDolDateMove, buildDolExtension, buildDolWindowOpeni
 import { describeClassLesson, LESSON_GROUP, nextClassDateKey, projectClassLessons } from '../../src/platform/teacher/classLessonControls.js';
 import { classGradeProgress, classLiveProgress, PROGRESS_STATE } from '../../src/platform/teacher/assignmentProgress.js';
 import { normalizeTeacherRosterSummary } from '../../src/platform/teacher/teacherRosterSummary.js';
+import { teacherControlsSource } from './helpers/appScreens.mjs';
 
 /*
  * "Current instruction should dominate the default interface; historical
@@ -145,8 +146,16 @@ test('TT28: before release, a lesson that opens early by prerequisite shows its 
   assert.equal(classworkOf(unreleased(locked)), null);
   assert.equal(classworkOf(unreleased({ prerequisiteAssignmentId: 'prev', assignmentType: 'quiz', ...locked })), null);
   // The App handler takes the same path: it refuses only a lesson nobody can be in yet.
+  // Since the App split the handler is createWarmupSectionControls', which App
+  // calls through the teacher kit (the helper holds that seam) and hands to
+  // the teacher's screen by name. It is the factory's last handler.
   const app = readFileSync(new URL('../../src/App.jsx', import.meta.url), 'utf8');
-  const toggle = app.slice(app.indexOf('const handleToggleSectionAccessForClass = async'), app.indexOf('const handleLoadDeliveredRigor = async'));
+  assert.match(app, /\n {8}handleToggleSectionAccessForClass=\{handleToggleSectionAccessForClass\}\n/);
+  const sectionControls = teacherControlsSource('createWarmupSectionControls');
+  const toggleStart = sectionControls.indexOf('const handleToggleSectionAccessForClass = async');
+  const toggleEnd = sectionControls.indexOf('\n  return [', toggleStart);
+  assert.ok(toggleStart >= 0 && toggleEnd > toggleStart, 'the factory declares the section toggle');
+  const toggle = sectionControls.slice(toggleStart, toggleEnd);
   assert.match(toggle, /const beforeRelease = state\.status === 'scheduled' && opensEarlyByPrerequisite\(assignment\);\s*if \(state\.status === 'scheduled' && !beforeRelease\) \{/);
   assert.match(toggle, /const current = beforeRelease\s*\? earlySectionAccessState\(\{ assignment, activityRole, classId, classPeriod, nowValue: Date\.now\(\) \}\)\s*: state;\s*const nextState = current\.isOpen \? 'closed' : 'open';/);
 });

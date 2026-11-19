@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import { functionsBackendSource } from './helpers/functionsBackendSource.mjs';
+import { teacherControlsSource } from './helpers/appScreens.mjs';
 
 /*
  * THE REAL "WOULD SHORTEN" REVIEW WORKFLOW.
@@ -16,6 +17,16 @@ import { functionsBackendSource } from './helpers/functionsBackendSource.mjs';
 const appSource = fs.readFileSync(new URL('../../src/App.jsx', import.meta.url), 'utf8');
 const panelSource = fs.readFileSync(new URL('../../src/components/teacher/AttendanceHistoryPanel.jsx', import.meta.url), 'utf8');
 const functionsSource = functionsBackendSource();
+// Since the App split KEEP and APPLY SHORTER are createAttendanceExtensionControls',
+// which App calls through the teacher kit (the helper holds that seam), and
+// App hands both to the teacher's screen by name.
+const attendanceControls = () => teacherControlsSource('createAttendanceExtensionControls');
+const between = (source, startNeedle, endNeedle) => {
+  const start = source.indexOf(startNeedle);
+  const end = source.indexOf(endNeedle, start + 1);
+  assert.ok(start >= 0 && end > start, `could not find ${startNeedle} … ${endNeedle}`);
+  return source.slice(start, end);
+};
 
 test('Attendance History surfaces an open review with both explicit actions, discoverable without hunting', () => {
   assert.match(panelSource, /openAttendanceCorrectionReviewsForStudent/);
@@ -26,20 +37,16 @@ test('Attendance History surfaces an open review with both explicit actions, dis
 });
 
 test('KEEP records an auditable resolution and writes nothing to the assignment', () => {
-  const region = appSource.slice(
-    appSource.indexOf('const handleKeepAttendanceExtension'),
-    appSource.indexOf('const handleApplyShorterAttendanceExtension'),
-  );
+  const region = between(attendanceControls(), 'const handleKeepAttendanceExtension', 'const handleApplyShorterAttendanceExtension');
+  assert.match(appSource, /\n {8}handleKeepAttendanceExtension=\{handleKeepAttendanceExtension\}\n/);
   assert.match(region, /resolution: 'kept'/);
   assert.match(region, /recordStudentSupportEvent\(/);
   assert.doesNotMatch(region, /applyStudentAttendanceExtension\(/);
 });
 
 test('APPLY SHORTER records the resolution event BEFORE calling the callable, and marks the request explicitly', () => {
-  const region = appSource.slice(
-    appSource.indexOf('const handleApplyShorterAttendanceExtension'),
-    appSource.indexOf('const ATTENDANCE_EVENT_KINDS'),
-  );
+  const region = between(attendanceControls(), 'const handleApplyShorterAttendanceExtension', 'const ATTENDANCE_EVENT_KINDS');
+  assert.match(appSource, /\n {8}handleApplyShorterAttendanceExtension=\{handleApplyShorterAttendanceExtension\}\n/);
   const resolutionIndex = region.indexOf("resolution: 'shortened'");
   const callableIndex = region.indexOf('applyStudentAttendanceExtension({');
   assert.ok(resolutionIndex >= 0 && callableIndex >= 0 && resolutionIndex < callableIndex,

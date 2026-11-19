@@ -39,7 +39,7 @@ import {
 import { MAX_STUDENTS_PER_CHANGE } from '../../functions/shared/studentAssignmentOverrideStore.mjs';
 import { executableSource, region } from './helpers/sourceContract.mjs';
 import { CLASS_ID, LEGACY_V6_DOL_OBJECT, legacyAssignment } from '../fixtures/studentAssignmentOverrideLegacyFixtures.mjs';
-import { appAndTeacherWorkspaceSource } from './helpers/appScreens.mjs';
+import { appAndTeacherWorkspaceSource, appSurfaceSource, teacherControlsSeam, teacherControlsSource } from './helpers/appScreens.mjs';
 
 const DELETE = Symbol('deleteField');
 const students = (count, classId = 'class-a', prefix = 's') => Array.from({ length: count }, (_, index) => ({ id: `${prefix}${index + 1}`, classId }));
@@ -174,15 +174,25 @@ test('a removed field is deleted, and only with the deleteField sentinel', () =>
 /* --------------------------------------------- App.jsx: the wiring itself */
 
 const app = appAndTeacherWorkspaceSource();
+// Since the App split the class's and the student's DOL controls are
+// createDolClassControls', which App calls through the teacher kit (the helper
+// holds App's arguments to the factory's parameters, name for name).
+const dolControls = () => teacherControlsSource('createDolClassControls');
 const code = executableSource(app);
 
 test('App: the per-student grant goes to the callable, and is imported next to where it is used', () => {
-  assert.match(app, /import \{ setStudentAssignmentControls \} from '\.\/services\/studentAssignmentControlsService\.js';/);
+  const controls = dolControls();
+  assert.match(controls, /import \{ setStudentAssignmentControls \} from '\.\.\/\.\.\/\.\.\/services\/studentAssignmentControlsService\.js';/);
+  for (const input of ['teacherKit', 'studentControlsGateRef', 'activeClass']) {
+    assert.ok(teacherControlsSeam('createDolClassControls').parameters.includes(input), `the controls are handed ${input}`);
+  }
+  // The gate outlives a render: it is App's ref, handed in.
+  assert.match(app, /const studentControlsGateRef = useRef\(null\);/);
   // The helpers are teacher-only, so App takes them from the teacher kit (kept
   // out of every student's first load) and the kit re-exports each one.
-  assert.match(app, /const \{ controlsRequestKey, createControlsRequestGate, planStudentDolGrant, runStudentControlsCalls \} = teacherKit;/);
+  assert.match(controls, /const \{ controlsRequestKey, createControlsRequestGate, planStudentDolGrant, runStudentControlsCalls \} = teacherKit;/);
   assert.match(readFileSync('src/app/teacher/teacherKit.js', 'utf8'), /export \{[^}]*\bplanStudentDolGrant\b[^}]*\brunStudentControlsCalls\b[^}]*\} from '\.\.\/\.\.\/platform\/assessment\/dolAttemptGrantClient\.js';/);
-  const handler = executableSource(region(app, 'const handleGrantDOLAttemptForStudents = async', 'const handleDolControlForClass', 'per-student DOL grant'));
+  const handler = executableSource(region(controls, 'const handleGrantDOLAttemptForStudents = async', 'const handleDolControlForClass', 'per-student DOL grant'));
   assert.match(handler, /studentControlsGateRef\.current\.pending\(requestKey\)/, 'a click while the first is in flight is ignored');
   assert.match(handler, /studentControlsGateRef\.current\.run\(requestKey,/);
   assert.match(handler, /runStudentControlsCalls\(\{ call: setStudentAssignmentControls, calls \}\)/);
@@ -194,6 +204,10 @@ test('App: no browser write carries the whole `dol` map or a student\'s grant', 
   assert.doesNotMatch(code, /updateDoc\([^;]*\{\s*dol\s*[,:}]/, 'no `{ dol }` / `{ dol: … }` whole-map update');
   assert.doesNotMatch(code, /updateDoc\(doc\(db, 'assignments', [^)]*\), patch\);/, 'a patch carrying `dol` is never written whole');
   assert.doesNotMatch(code, /attemptGrantsByStudentId/, 'the browser never names a student\'s grant map');
-  const patched = code.match(/classDolFieldPatch\(/g) || [];
+  // (Each of those three is refused in every module App's code moved into by
+  // appSplitForbiddenPatterns.test.mjs. The writes are counted across App, the
+  // teacher's screen and those modules: three are createDolClassControls'.)
+  const patched = executableSource(appSurfaceSource()).match(/classDolFieldPatch\(/g) || [];
+  assert.equal((executableSource(dolControls()).match(/classDolFieldPatch\(/g) || []).length, 3, 'opening, the class grant, close/extend/move/restore');
   assert.equal(patched.length, 5, 'opening, the class grant, close/extend/move/restore, the setup editor and the date editor');
 });

@@ -1,9 +1,17 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
-import { appAndTeacherWorkspaceSource } from './helpers/appScreens.mjs';
+import { appAndTeacherWorkspaceSource, teacherControlsSource } from './helpers/appScreens.mjs';
+import { region } from './helpers/sourceContract.mjs';
 
 const src = appAndTeacherWorkspaceSource();
+// Since the App split automatic publishing is createClassroomPublishingControls',
+// which App calls through the teacher kit (the helper holds that seam) for the
+// autoPublishAssignmentPackageToClassroom the publish above offers each assignment to.
+const autoPublish = () => region(
+  teacherControlsSource('createClassroomPublishingControls'),
+  'const autoPublishAssignmentPackageToClassroom = async', 'const handleRepairClassroomAssignmentPost', 'automatic Classroom publish',
+);
 
 test('Preflight assignment creation automatically publishes V5 Classroom packages', () => {
   assert.match(src, /autoPublishAssignmentPackageToClassroom/);
@@ -13,14 +21,14 @@ test('Preflight assignment creation automatically publishes V5 Classroom package
 });
 
 test('automatic publishing generates and stores authored notes PDF', () => {
-  assert.match(src, /generateLessonNotesPdfBlob/);
-  assert.match(src, /storeLessonNotesPdf/);
-  assert.match(src, /publishClassroomMaterial/);
+  assert.match(autoPublish(), /generateLessonNotesPdfBlob/);
+  assert.match(autoPublish(), /storeLessonNotesPdf/);
+  assert.match(autoPublish(), /publishClassroomMaterial/);
 });
 
 test('automatic publishing resolves destinations from saved Classroom mappings', () => {
-  assert.match(src, /listClassroomCourseMappings/);
-  assert.match(src, /mappedCourseIdsForAssignment/);
+  assert.match(autoPublish(), /listClassroomCourseMappings/);
+  assert.match(autoPublish(), /mappedCourseIdsForAssignment/);
 });
 
 test('assigning a library item later goes back through Preflight so the destination copy can auto-publish', () => {

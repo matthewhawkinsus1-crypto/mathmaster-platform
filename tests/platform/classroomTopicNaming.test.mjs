@@ -16,6 +16,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { region, executableSource } from './helpers/sourceContract.mjs';
+import { teacherControlsSeam, teacherControlsSource } from './helpers/appScreens.mjs';
 
 const {
   CLASSROOM_TOPIC_STYLE_OPTIONS,
@@ -104,10 +105,21 @@ test('App.jsx: automatic publishing sends the resolved topic to BOTH posts, from
   const app = read('src/App.jsx');
   // Only a teacher publishes to Classroom: the resolver comes with the teacher
   // kit (src/app/teacher/teacherKit.js), never with a student's first load.
-  const kit = await import('../../src/app/teacher/teacherKit.js');
-  assert.equal(kit.automaticClassroomTopicName, automaticClassroomTopicName);
+  // The kit now also carries the teacher's control factories, which import
+  // Firebase, so node can no longer load it: that it hands on this very
+  // resolver is read from its re-export (a re-export is the same binding).
+  const kit = executableSource(read('src/app/teacher/teacherKit.js'));
+  assert.match(kit, /^export \{(?:[^}]*,)?\s*automaticClassroomTopicName\s*(?:,[^}]*)?\} from '\.\.\/\.\.\/platform\/classroom\/classroomTopicNaming\.js';$/m);
+  assert.equal((kit.match(/\bautomaticClassroomTopicName\b/g) || []).length, 1, 'the kit names one resolver');
   assert.doesNotMatch(app, /from '\.\/platform\/classroom\/classroomTopicNaming\.js'/);
-  const publish = executableSource(region(app, 'const autoPublishAssignmentPackageToClassroom = async', 'const summary = response?.summary', 'automatic Classroom publish'));
+  // Since the App split automatic publishing is createClassroomPublishingControls',
+  // which App calls through the teacher kit and hands requireTeacherKit and the
+  // teacher (the helper holds App's arguments to the factory's parameters).
+  const publishing = teacherControlsSource('createClassroomPublishingControls');
+  for (const input of ['requireTeacherKit', 'user']) {
+    assert.ok(teacherControlsSeam('createClassroomPublishingControls').parameters.includes(input), `the controls are handed ${input}`);
+  }
+  const publish = executableSource(region(publishing, 'const autoPublishAssignmentPackageToClassroom = async', 'const summary = response?.summary', 'automatic Classroom publish'));
   // The name is built from the teacher's saved style, read first (TT07: a
   // second device names topics the same way); the resolver still names it.
   assert.match(publish, /const \{ automaticClassroomTopicName, [\w, ]*teacherClassroomTopicStyle[\w, ]* \} = requireTeacherKit\(\);/);
