@@ -605,7 +605,7 @@ export const diagnoseResponse = ({
       currentFingerprint: replay?.answerKey ?? answerKeyFingerprint(question),
       currentTrace: replay?.gradingTrace ?? null,
     })
-    : { known: false, changed: false, details: [] };
+    : { known: false, changed: false, unsettled: false, details: [] };
   if (keyChange.changed) reasons.push(answerKeyChangeReason(keyChange, { replayAvailable: replay?.available === true }));
   if (replay?.discrepancy) {
     reasons.push({
@@ -628,7 +628,9 @@ export const diagnoseResponse = ({
       explanation: 'The response was not persisted before the assignment closed.',
     });
   }
-  if (question && replay?.available === true && !keyChange.changed) {
+  // Only against a key known to be the one graded: an older fingerprint that
+  // cannot say whether a box's key changed settles nothing (unsettled).
+  if (question && replay?.available === true && !keyChange.changed && !keyChange.unsettled) {
     const graded = { question, response: submitted, original: evidence.automaticResult, current: replay.currentResult };
     const totalParts = gradedPartCount(evidence.automaticResult);
     const misread = findParserChanges(graded);
