@@ -1,5 +1,5 @@
 /*
- * WHAT IS FORBIDDEN IN APP.JSX IS FORBIDDEN IN EVERY HOOK APP CALLS.
+ * WHAT IS FORBIDDEN IN APP.JSX IS FORBIDDEN IN EVERY MODULE APP'S CODE MOVED INTO.
  *
  * Some sixty checks in this suite refuse a pattern in all of App.jsx with
  * `assert.doesNotMatch(app, /…/)`: a write the browser must never make, a
@@ -12,7 +12,8 @@
  * Rather than repoint each of those checks by hand (and miss the next one
  * written), this reads every test file's own source, finds each pattern it
  * refuses in the whole of App.jsx, and refuses the same pattern in every hook
- * App imports from src/app. A hook's relative imports are read as App would
+ * App imports from src/app and every control factory it calls through the
+ * teacher kit (src/app/teacher/controls). A module's relative imports are read as App would
  * have written them (`../../platform/x.js` as `./platform/x.js`), so a check
  * that names an import path still bites.
  *
@@ -25,7 +26,7 @@ import { createRequire } from 'node:module';
 import { readFileSync, readdirSync } from 'node:fs';
 import { posix } from 'node:path';
 import { executableSource } from './helpers/sourceContract.mjs';
-import { appHookPaths } from './helpers/appScreens.mjs';
+import { appHookPaths, appModulePaths } from './helpers/appScreens.mjs';
 
 const require = createRequire(import.meta.url);
 const read = (path) => readFileSync(new URL(`../../${path}`, import.meta.url), 'utf8');
@@ -136,7 +137,7 @@ test('this suite refuses patterns in the whole of App.jsx, and App calls hooks t
 });
 
 test('no hook App calls contains a pattern a test refuses in App.jsx', () => {
-  const hooks = [...new Set(Object.values(appHookPaths()))].map((path) => {
+  const hooks = appModulePaths().map((path) => {
     const source = asWrittenInApp(path, read(path));
     return { path, raw: source, executable: executableSource(source) };
   });

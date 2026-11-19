@@ -61,3 +61,18 @@ export { describeFeedbackRelease, releaseHoldReport } from './feedbackReleaseHol
 export { createWeeklyPathProgressRefresh } from '../../platform/path/weeklyPathProgressRefresh.js';
 export { followWeeklyPathProgress } from './weeklyPathProgress.js';
 export { readReleaseControls } from './feedbackReleaseControls.js';
+// A teacher's controls: the handlers behind the teacher's screen, which App
+// builds each render from its own state once this kit is here (./controls/*).
+export { createExportJsonDialogControls } from './controls/exportJsonDialogControls.js';
+export { createAssignmentDeleteControls } from './controls/assignmentDeleteControls.js';
+export { createAssignmentLibraryControls } from './controls/assignmentLibraryControls.js';
+export { createClassSettingsControls } from './controls/classSettingsControls.js';
+export { createWarmupSectionControls } from './controls/warmupSectionControls.js';
+export { createGradebookNavigation } from './controls/gradebookNavigation.js';
+export { createDolClassControls } from './controls/dolClassControls.js';
+export { createAssignmentPreflightControls } from './controls/assignmentPreflightControls.js';
+export { createTeacherScratchpadControls } from './controls/teacherScratchpadControls.js';
+export { createTeacherWorksheetControls } from './controls/teacherWorksheetControls.js';
+export { createAttendanceExtensionControls } from './controls/attendanceExtensionControls.js';
+export { createClassroomPublishingControls } from './controls/classroomPublishingControls.js';
+export { createPathPacingControls } from './controls/pathPacingControls.js';

@@ -17,7 +17,7 @@ import {
 } from '../../functions/shared/attemptPolicy.mjs';
 import { dolTeacherRecoveryActiveAt, resolveDolWindow } from '../../functions/shared/sectionDeadline.mjs';
 import { region } from './helpers/sourceContract.mjs';
-import { appHookSource } from './helpers/appScreens.mjs';
+import { appHookSource, teacherControlsSeam, teacherControlsSource } from './helpers/appScreens.mjs';
 
 // ASSESSMENT RECOVERY — REOPEN, EXTRA ATTEMPTS, AND THE RECORD OF BOTH (Job 6).
 //
@@ -138,9 +138,14 @@ test('the teacher controls and the server are wired to the one model', () => {
   const kit = fs.readFileSync('src/app/teacher/teacherKit.js', 'utf8');
   const kitExport = kit.match(/export \{([^}]*)\} from '\.\.\/\.\.\/platform\/assessment\/assessmentRecovery\.js'/);
   assert.ok(kitExport, 'the teacher kit re-exports the assessment recovery model');
+  // Since the App split the class's DOL controls are createDolClassControls',
+  // which App calls through the teacher kit and hands requireTeacherKit (the
+  // helper holds App's arguments to the factory's parameters, name for name).
+  const dolControls = teacherControlsSource('createDolClassControls');
+  assert.ok(teacherControlsSeam('createDolClassControls').parameters.includes('requireTeacherKit'), 'the controls are handed the kit');
   for (const name of ['buildDolAttemptGrant', 'buildDolWindowOpening', 'buildDolClose', 'buildDolExtension', 'buildDolDateMove', 'buildDolScheduleRestore']) {
     assert.match(kitExport[1], new RegExp(`\\b${name}\\b`), `${name} comes from the recovery model`);
-    assert.match(app, new RegExp(`requireTeacherKit\\(\\)\\.${name}\\(`), `App calls ${name} through the teacher kit`);
+    assert.match(dolControls, new RegExp(`requireTeacherKit\\(\\)\\.${name}\\(`), `App calls ${name} through the teacher kit`);
   }
   // Since the App split the student's reopened / extra-attempt notice is
   // useTimedSectionReminders', which App calls with the student, the
@@ -153,19 +158,20 @@ test('the teacher controls and the server are wired to the one model', () => {
   }
   assert.match(fs.readFileSync('src/platform/assessment/assessmentRecovery.js', 'utf8'), /export \{[^}]*\bsummarizeStudentRecovery\b[^}]*\} from '\.\/studentRecoverySummary\.js';/, 'the summary is part of the one model');
   // Close / Extend / Move / Back-to-schedule are built by the model, never hand-written.
-  const dolControl = region(app, 'const handleDolControlForClass = async', 'const openAssignmentHub');
+  // (The last handler of the factory: it runs to the factory's return.)
+  const dolControl = region(dolControls, 'const handleDolControlForClass = async', '\n  return [');
   assert.match(dolControl, /buildDolClose\(\{/);
   assert.match(dolControl, /buildDolExtension\(\{/);
   assert.match(dolControl, /buildDolDateMove\(\{/);
   assert.match(dolControl, /buildDolScheduleRestore\(\{/);
   assert.doesNotMatch(dolControl, /(closedByClassId|recoveryByClassId|instructionDatesByClassId)\s*[:=]/);
-  assert.match(region(app, 'const handleUnlockDOLForClass = async', 'const handleGrantDOLAttemptForClass'), /buildDolWindowOpening\(\{/);
-  assert.match(region(app, 'const handleGrantDOLAttemptForClass = async', 'const handleGrantDOLAttemptForStudents'), /buildDolAttemptGrant\(\{[\s\S]*?scope: \{ type: 'class', classId \}/);
+  assert.match(region(dolControls, 'const handleUnlockDOLForClass = async', 'const handleGrantDOLAttemptForClass'), /buildDolWindowOpening\(\{/);
+  assert.match(region(dolControls, 'const handleGrantDOLAttemptForClass = async', 'const handleGrantDOLAttemptForStudents'), /buildDolAttemptGrant\(\{[\s\S]*?scope: \{ type: 'class', classId \}/);
   // The per-student grant is for the SELECTED students only — now a request to
   // the server (setStudentAssignmentControls), which changes each student's
   // private record; the browser writes no assignment for it
   // (platform/assessment/dolAttemptGrantClient.js, tests/platform/dolAttemptGrantCutover.test.mjs).
-  const perStudent = region(app, 'const handleGrantDOLAttemptForStudents = async', 'const handleDolControlForClass');
+  const perStudent = region(dolControls, 'const handleGrantDOLAttemptForStudents = async', 'const handleDolControlForClass');
   assert.match(perStudent, /planStudentDolGrant\(\{[\s\S]*?students: chosen/);
   assert.match(perStudent, /runStudentControlsCalls\(\{ call: setStudentAssignmentControls, calls \}\)/);
   assert.doesNotMatch(perStudent, /updateDoc\(|buildDolAttemptGrant\(/);

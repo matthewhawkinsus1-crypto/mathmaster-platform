@@ -59,6 +59,7 @@ import { buildNeedsAttentionQueue } from '../../src/platform/teacher/needsAttent
 import { publicStudentLabel } from '../../src/platform/liveSpotlight.js';
 import { normalizeSchedule, DEFAULT_CLASS_SCHEDULE } from '../../src/assignmentLifecycle.js';
 import { executableSource, region } from './helpers/sourceContract.mjs';
+import { teacherControlsSource } from './helpers/appScreens.mjs';
 
 const read = (path) => readFileSync(new URL(`../../${path}`, import.meta.url), 'utf8');
 
@@ -329,8 +330,13 @@ test('App.jsx builds the teacher identity index from the compact roster only, im
 });
 
 test('App.jsx names a Path recommendation from the roster and stores a real name or null', () => {
-  assert.match(app, /import \{[^}]*\brosterStudentLabel\b[^}]*\brosterStudentNameForStorage\b[^}]*\} from '\.\/platform\/teacher\/teacherRosterSummary\.js';/);
-  const handler = executableSource(region(app, 'const handlePersonalPathRecommendation = async', '// A student\'s own individualized', 'Path recommendation handler'));
+  // Since the App split, createPathPacingControls (the teacher kit) owns this handler and its
+  // import; teacherControlsSource checks App calls it and passes each parameter by name,
+  // and the roster's identity index is one of them.
+  const pathPacingControls = teacherControlsSource('createPathPacingControls');
+  assert.match(pathPacingControls, /import \{[^}]*\brosterStudentLabel\b[^}]*\brosterStudentNameForStorage\b[^}]*\} from '\.\.\/\.\.\/\.\.\/platform\/teacher\/teacherRosterSummary\.js';/);
+  assert.match(pathPacingControls, /export function createPathPacingControls\([^)]*[(,\s]teacherStudentIdentityIndex[,\s)]/);
+  const handler = executableSource(region(pathPacingControls, 'const handlePersonalPathRecommendation = async', '\n  return [', 'Path recommendation handler'));
   assert.match(handler, /rosterStudentLabel\(\{ studentId: id, index: teacherStudentIdentityIndex, historicalName: studentName \}\)/);
   assert.match(handler, /rosterStudentNameForStorage\(\{ studentId: id, index: teacherStudentIdentityIndex, historicalName: studentName \}\)/);
   assert.match(handler, /studentName: storedStudentName,/);
@@ -338,8 +344,11 @@ test('App.jsx names a Path recommendation from the roster and stores a real name
 });
 
 test('attendance correction reviews in App.jsx store the roster name or null', () => {
-  const keep = executableSource(region(app, 'const handleKeepAttendanceExtension = async', 'const handleApplyShorterAttendanceExtension', 'keep extension'));
-  const shorten = executableSource(region(app, 'const handleApplyShorterAttendanceExtension = async', 'await applyStudentAttendanceExtension(', 'shorten extension'));
+  // Since the App split, createAttendanceExtensionControls (the teacher kit) owns both handlers;
+  // teacherControlsSource checks App calls it and takes them by name.
+  const attendanceControls = teacherControlsSource('createAttendanceExtensionControls');
+  const keep = executableSource(region(attendanceControls, 'const handleKeepAttendanceExtension = async', 'const handleApplyShorterAttendanceExtension', 'keep extension'));
+  const shorten = executableSource(region(attendanceControls, 'const handleApplyShorterAttendanceExtension = async', 'await applyStudentAttendanceExtension(', 'shorten extension'));
   for (const handler of [keep, shorten]) {
     assert.match(handler, /studentName: rosterStudentNameForStorage\(\{/);
     assert.doesNotMatch(handler, /student\.displayName \|\| student\.name/);

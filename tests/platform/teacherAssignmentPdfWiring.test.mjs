@@ -1,8 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
+import { teacherControlsSource } from './helpers/appScreens.mjs';
 
-const app = fs.readFileSync('src/App.jsx', 'utf8');
 const dialog = fs.readFileSync('src/components/teacher/TeacherAssignmentPdfDialog.jsx', 'utf8');
 // The assignment cards and the dialog mount are the teacher's screen, its own
 // module since G2; App keeps the export handlers.
@@ -24,7 +24,11 @@ test('teacher print dialog offers all three resolved-question output modes', () 
 });
 
 test('personalized teacher and key exports require an exact roster student', () => {
-  assert.match(app, /requiresStudent = requireTeacherKit\(\)\.assignmentNeedsStudentForWorksheet\(assignment\)/);
+  // Since the App split, createTeacherWorksheetControls (the teacher kit) owns the export
+  // handlers; teacherControlsSource checks App calls it and passes each parameter by name.
+  const worksheetControls = teacherControlsSource('createTeacherWorksheetControls');
+  assert.match(worksheetControls, /export function createTeacherWorksheetControls\([^)]*[(,\s]requireTeacherKit[,\s)]/);
+  assert.match(worksheetControls, /requiresStudent = requireTeacherKit\(\)\.assignmentNeedsStudentForWorksheet\(assignment\)/);
   assert.match(dialog, /requiresStudent/);
   assert.match(dialog, /exact MathMaster version/i);
 });

@@ -5,8 +5,15 @@ import fs from 'node:fs';
 import { getDOLInstructionDateKey } from '../../src/assignmentLifecycle.js';
 import { describeDolControl } from '../../src/platform/teacher/classLessonControls.js';
 import { dolTeacherRecoveryActiveAt, resolveDolWindow } from '../../functions/shared/sectionDeadline.mjs';
+import { region } from './helpers/sourceContract.mjs';
+import { teacherControlsSource } from './helpers/appScreens.mjs';
 
-const app = fs.readFileSync('src/App.jsx', 'utf8');
+// Since the App split the teacher's DOL handlers are createDolClassControls'
+// (src/app/teacher/controls/dolClassControls.js), which App calls through the
+// teacher kit. The block is what it was in App: from the unlock handler to the
+// end of the DOL handlers, which is now the factory's return.
+const dolControls = teacherControlsSource('createDolClassControls');
+const dolUnlockBlock = () => region(dolControls, 'const handleUnlockDOLForClass', '\n  return [', 'the DOL handlers from the unlock on');
 const lifecycle = fs.readFileSync('src/assignmentLifecycle.js', 'utf8');
 const teacherHome = fs.readFileSync('src/TeacherHome.jsx', 'utf8');
 const classesWorkspace = fs.readFileSync('src/ClassesWorkspace.jsx', 'utf8');
@@ -30,9 +37,7 @@ test('DOL instructional date prefers real class identity over shared lesson date
 });
 
 test('teacher DOL release repairs stale date for only the selected class', () => {
-  const start = app.indexOf('const handleUnlockDOLForClass');
-  const end = app.indexOf('const handleToggleWarmupForClass', start);
-  const block = app.slice(start, end);
+  const block = dolUnlockBlock();
   assert.match(block, /needsOpenToday = \['notToday', 'unscheduled'\]/);
   assert.doesNotMatch(block, /DOL is not scheduled today/);
   // The unlock — including today's date for THIS class — is built by the
@@ -103,9 +108,7 @@ test('teacher can explicitly recover a DOL after the regular cutoff without rewr
     timeZone: 'America/Chicago',
   }), false);
 
-  const handlerStart = app.indexOf('const handleUnlockDOLForClass');
-  const handlerEnd = app.indexOf('const handleToggleWarmupForClass', handlerStart);
-  const handlerBlock = app.slice(handlerStart, handlerEnd);
+  const handlerBlock = dolUnlockBlock();
   assert.match(handlerBlock, /Reopen DOL/);
   assert.match(handlerBlock, /buildDolWindowOpening\(\{[\s\S]*?recovery: recoveryNow,/);
   // What the handler writes on recovery: a class-scoped window with a close

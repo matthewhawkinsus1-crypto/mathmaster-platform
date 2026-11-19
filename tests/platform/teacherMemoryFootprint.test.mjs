@@ -149,7 +149,9 @@ test('leaving heavy teacher screens releases their cached history arrays', () =>
   const actionState = between(
     app,
     'const actionGradeScope = useMemo',
-    '/*\n   * A per-student extension',
+    // The state stays in App; what followed it (the attendance-extension handlers) is
+    // createAttendanceExtensionControls since the App split, called where the code was.
+    'teacherKit.createAttendanceExtensionControls(',
     'action center state',
   );
   assert.match(actionState, /setActionGradeSnapshots\(\[\]\)/);

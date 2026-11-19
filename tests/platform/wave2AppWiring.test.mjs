@@ -6,7 +6,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { executableSource, region } from './helpers/sourceContract.mjs';
-import { appHookSource } from './helpers/appScreens.mjs';
+import { appHookSource, appSurfaceSource, teacherControlsSource } from './helpers/appScreens.mjs';
 import { describeDolClose } from '../../src/platform/assessment/dolCloseCopy.js';
 
 const app = readFileSync(new URL('../../src/App.jsx', import.meta.url), 'utf8');
@@ -94,7 +94,11 @@ test('R2-m4: the copy the workspace now shows for each DOL state', () => {
 test('I item 4: getSectionAccessState is the signed-in student\'s binding everywhere in App', () => {
   // Both imports, beside the binding that calls them.
   const lifecycleImport = region(imports, 'import {\n  CLASS_PERIODS,', "} from './assignmentLifecycle';", 'the assignmentLifecycle import');
-  assert.match(lifecycleImport, /\n {2}getSectionAccessState as getSectionAccessStateForAnyone,\n/);
+  // Since the App split the plain function's one caller, the teacher's section toggle, is
+  // createWarmupSectionControls' (the teacher kit), so its import is that module's;
+  // teacherControlsSource checks App calls the factory and takes the toggle by name.
+  const sectionControls = executableSource(teacherControlsSource('createWarmupSectionControls'));
+  assert.match(sectionControls, /import \{[^}]*\bgetSectionAccessState as getSectionAccessStateForAnyone,[^}]*\} from '\.\.\/\.\.\/\.\.\/assignmentLifecycle';/);
   assert.match(lifecycleImport, /\n {2}sectionAccessForStudent,\n/);
   assert.doesNotMatch(lifecycleImport, /\n {2}getSectionAccessState,\n/, 'the plain name is never imported: it would shadow the binding');
   const binding = code.match(/const getSectionAccessState = useMemo\(\s*\(\) => sectionAccessForStudent\(user\?\.role === 'student' \? classworkGradesByAssignment : null\),\s*\[user\?\.role, classworkGradesByAssignment\],\s*\);/);
@@ -118,9 +122,10 @@ test('I item 4: getSectionAccessState is the signed-in student\'s binding everyw
   assert.equal(proofs.length, 2, 'both capture proofs ask the binding');
   // The plain function is used exactly once: the teacher's own section
   // toggle, which must never read a student's grades.
-  const plain = [...code.matchAll(/\bgetSectionAccessStateForAnyone\(/g)];
+  // Counted across App and every module its code moved into, so a second use cannot hide.
+  const plain = [...executableSource(appSurfaceSource()).matchAll(/\bgetSectionAccessStateForAnyone\(/g)];
   assert.equal(plain.length, 1);
-  const toggle = region(code, 'const handleToggleSectionAccessForClass = async', 'if (!state.enabled)', 'the teacher section toggle');
+  const toggle = region(sectionControls, 'const handleToggleSectionAccessForClass = async', 'if (!state.enabled)', 'the teacher section toggle');
   assert.match(toggle, /const state = getSectionAccessStateForAnyone\(\{ assignment, activityRole, classId, classPeriod, nowValue: Date\.now\(\) \}\);/);
 });
 

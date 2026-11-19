@@ -277,7 +277,9 @@ test('App: every save the device refuses is kept for its assignment, and every s
     ['const handleResponseCheckpoint = useCallback(', 'const handleGradeSubmit = async (', 'const queued = await enqueueResponseCheckpoint(checkpoint);', "setStudentPersistenceStatus('queued');"],
     ['const handleGradeSubmit = async (', 'const handleStepGrade = async (', "kind: 'ordinarySubmission'", 'setTracker(updatedTracker);'],
     ['const handleStepGrade = async (', 'const handleRequestNewQuestion = async (', "kind: 'stepSubmission'", 'setTracker(updatedTracker);'],
-    ['const handleRequestNewQuestion = async (', 'const V5_COMPILER_PLUMBING_ERROR', "kind: 'questionReplacement'", 'setTracker(updatedTracker);'],
+    // Since the App split what follows it in App is its call of
+    // createAssignmentPreflightControls, which holds V5_COMPILER_PLUMBING_ERROR.
+    ['const handleRequestNewQuestion = async (', 'const [V5_COMPILER_PLUMBING_ERROR', "kind: 'questionReplacement'", 'setTracker(updatedTracker);'],
   ];
   for (const [start, end, enqueue, stored] of sites) {
     const handler = executableSource(region(app, start, end, start));

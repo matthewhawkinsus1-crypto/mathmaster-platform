@@ -8,6 +8,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
+import { region } from './helpers/sourceContract.mjs';
+import { teacherControlsSeam, teacherControlsSource } from './helpers/appScreens.mjs';
 
 const pickerSource = readFileSync('src/components/teacher/MarkingPeriodSettings.jsx', 'utf8');
 const appSource = readFileSync('src/App.jsx', 'utf8');
@@ -42,9 +44,12 @@ test('Grades scopes the picker to the class already selected in the class bar', 
 });
 
 test('the app bulk handler accepts picker ids instead of only the Assignments-tab selection', () => {
-  const start = appSource.indexOf('const handleMoveSelectedAssignmentsToGradingPeriod');
-  const end = appSource.indexOf('const openStoredAssignmentForPreflight', start);
-  const handler = appSource.slice(start, end);
+  // Since the App split the bulk handler is createAssignmentLibraryControls'
+  // (the teacher kit), which App hands the Assignments-tab selection it
+  // defaults to.
+  const library = teacherControlsSource('createAssignmentLibraryControls');
+  assert.ok(teacherControlsSeam('createAssignmentLibraryControls').parameters.includes('selectedAssignmentIds'));
+  const handler = region(library, 'const handleMoveSelectedAssignmentsToGradingPeriod', '\n  };', 'the bulk move handler');
   assert.match(handler, /assignmentIds = selectedAssignmentIds/);
   assert.match(handler, /return applyBulkAssignmentPatch\(\s*assignmentIds,/);
 });

@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
-import { appAndTeacherWorkspaceSource } from './helpers/appScreens.mjs';
+import { appAndTeacherWorkspaceSource, teacherControlsSource } from './helpers/appScreens.mjs';
 
 test('assignment creation persists canonical V5 sections and policy metadata', () => {
   const source = appAndTeacherWorkspaceSource();
@@ -34,9 +34,14 @@ test('question edits and duplication pass through canonical V5 reconstruction', 
 });
 
 test('preflight stores and passes the canonical V5 object without a Bundle V3 adapter', () => {
+  // Since the App split opening Preflight is createAssignmentPreflightControls',
+  // which App calls through the teacher kit (the helper holds that seam). What
+  // is refused in App below is refused in every module its code moved into by
+  // appSplitForbiddenPatterns.test.mjs.
   const source = appAndTeacherWorkspaceSource();
-  assert.match(source, /const assignmentV5 = inspected\.assignmentV5/);
-  assert.match(source, /Number\(assignmentV5\.schemaVersion\) !== 5/);
+  const preflightControls = teacherControlsSource('createAssignmentPreflightControls');
+  assert.match(preflightControls, /const assignmentV5 = inspected\.assignmentV5/);
+  assert.match(preflightControls, /Number\(assignmentV5\.schemaVersion\) !== 5/);
   // Pre-Flight is mounted by the teacher's screen (its own module since G2).
   const teacherWorkspace = fs.readFileSync('src/app/teacher/TeacherWorkspace.jsx', 'utf8');
   assert.match(teacherWorkspace, /assignmentV5=\{assignmentPreflight\.assignmentV5\}/);

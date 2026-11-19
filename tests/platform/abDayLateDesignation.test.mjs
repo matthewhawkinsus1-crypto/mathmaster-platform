@@ -27,6 +27,7 @@ import {
 import { lateDayTypeNotice, setScheduleDayTypeOverride } from '../../src/assignmentLifecycle.js';
 import { executableSource, region } from './helpers/sourceContract.mjs';
 import { functionsBackendSource } from './helpers/functionsBackendSource.mjs';
+import { teacherControlsSeam, teacherControlsSource } from './helpers/appScreens.mjs';
 
 const read = (relative) => readFileSync(new URL(`../../${relative}`, import.meta.url), 'utf8');
 
@@ -142,11 +143,19 @@ test('the A/B day picker warns when today\'s A/B day is set after some of its pe
 
 test('the save stamps changed dates with the server\'s clock, the picker shows the notice, and the panel names the reason', () => {
   const app = executableSource(read('src/App.jsx'));
-  const save = region(app, 'const handleSaveClassSchedule = async () => {', '\n  };', 'the bell schedule save');
+  // Since the App split the save is createClassSettingsControls', which App
+  // calls through the teacher kit with the schedule on screen (the helper
+  // holds App's arguments to the factory's parameters, name for name).
+  const settingsSeam = teacherControlsSeam('createClassSettingsControls');
+  const classSettings = executableSource(teacherControlsSource('createClassSettingsControls'));
+  assert.ok(settingsSeam.parameters.includes('classSchedule'), 'the save is handed the schedule on screen');
+  assert.ok(settingsSeam.returned.includes('handleSaveClassSchedule'), 'App takes the save from the factory');
+  assert.match(app, /\n {8}handleSaveClassSchedule=\{handleSaveClassSchedule\}\n/, 'and hands it to the teacher\'s screen');
+  const save = region(classSettings, 'const handleSaveClassSchedule = async () => {', '\n  };', 'the bell schedule save');
   assert.match(save, /const saved = await getDoc\(scheduleRef\);/);
   assert.match(save, /const normalized = withDayTypeSetAt\(saved\.exists\(\) \? saved\.data\(\) : null, normalizeSchedule\(classSchedule\), serverTimestamp\(\)\);/);
   assert.match(save, /await setDoc\(scheduleRef, normalized\);/);
-  assert.match(app, /import \{[^}]*\bwithDayTypeSetAt,[^}]*\} from '\.\/assignmentLifecycle';/);
+  assert.match(classSettings, /import \{[^}]*\bwithDayTypeSetAt\b[^}]*\} from '\.\.\/\.\.\/\.\.\/assignmentLifecycle';/);
 
   const settings = executableSource(read('src/components/teacher/ClassScheduleSettings.jsx'));
   assert.match(settings, /import \{[^}]*\blateDayTypeNotice,[^}]*\} from '\.\.\/\.\.\/assignmentLifecycle\.js';/);

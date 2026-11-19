@@ -85,7 +85,9 @@ test('App.jsx: a step or a new problem it could not queue is answered with the r
   assert.match(stepFailure, /setStudentPersistenceStatus\('volatile'\);\s*return STEP_NOT_QUEUED;/);
   assert.doesNotMatch(stepFailure, /return null;/);
   assert.doesNotMatch(stepFailure, /toast(?:Warning|Error|Info|Success)\(/, 'one announcement: the solver\'s');
-  const replace = region(app, 'const handleRequestNewQuestion = async (', 'const V5_COMPILER_PLUMBING_ERROR');
+  // Since the App split what follows it in App is its call of
+  // createAssignmentPreflightControls, which holds V5_COMPILER_PLUMBING_ERROR.
+  const replace = region(app, 'const handleRequestNewQuestion = async (', 'const [V5_COMPILER_PLUMBING_ERROR');
   const replaceQueue = replace.indexOf("kind: 'questionReplacement'");
   const replaceFailure = replace.slice(replace.indexOf('} catch (error) {', replaceQueue), replace.indexOf('setTracker(updatedTracker);', replaceQueue));
   assert.match(replaceFailure, /setStudentPersistenceStatus\('volatile'\);\s*return REPLACEMENT_NOT_QUEUED;/);

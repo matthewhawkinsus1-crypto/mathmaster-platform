@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
-import { appAndTeacherWorkspaceSource } from './helpers/appScreens.mjs';
+import { appAndTeacherWorkspaceSource, teacherControlsSource } from './helpers/appScreens.mjs';
 
 const app = appAndTeacherWorkspaceSource();
 const modal = fs.readFileSync('src/components/teacher/LessonPreflightModal.jsx', 'utf8');
@@ -9,9 +9,14 @@ const modal = fs.readFileSync('src/components/teacher/LessonPreflightModal.jsx',
 const teacherWorkspace = fs.readFileSync('src/app/teacher/TeacherWorkspace.jsx', 'utf8');
 
 test('assignment intake opens Preflight with canonical V5 rather than a Lesson Bundle adapter', () => {
+  // Since the App split opening Preflight is createAssignmentPreflightControls',
+  // which App calls through the teacher kit (the helper holds that seam). What
+  // is refused in App here is refused in every module its code moved into by
+  // appSplitForbiddenPatterns.test.mjs.
+  const preflightControls = teacherControlsSource('createAssignmentPreflightControls');
   assert.doesNotMatch(app, /buildPreflightBundle/);
   assert.doesNotMatch(app, /normalizeLessonBundle/);
-  assert.match(app, /const assignmentV5 = inspected\.assignmentV5/);
+  assert.match(preflightControls, /const openAssignmentPreflight = [\s\S]*?const assignmentV5 = inspected\.assignmentV5/);
   assert.match(teacherWorkspace, /assignmentV5=\{assignmentPreflight\.assignmentV5\}/);
   assert.doesNotMatch(teacherWorkspace, /buildPreflightBundle|normalizeLessonBundle/);
 });

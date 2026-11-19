@@ -181,3 +181,14 @@ test('the codemod refuses a move that could not behave the same', () => {
   const local = COMPONENT.replace('tickRef.current += 1;', 'tickRef.current += LOCAL;');
   assert.match(plan({ statements: ['~unusedAfter('] }, local).problems.join('\n'), /uses LOCAL, declared at the top of src\/App\.jsx/);
 });
+
+test('the codemod can leave handlers to an object that may not be there yet, by position, and refuses a hook among them', () => {
+  const from = { object: 'kit', fallback: 'NO_CONTROLS', positional: true };
+  const source = COMPONENT.replace('const handler = () => late.current;', 'const handler = () => late.current;\n  const other = () => helper(count, setCount);');
+  const result = plan({ hook: 'createTickControls', file: 'src/app/teacher/controls/tickControls.js', from, statements: ['handler', 'other'] }, source.replace('onClick={handler}', 'onClick={handler} onOther={other}'));
+  assert.deepEqual(result.problems, []);
+  assert.equal(result.hookImport, null, 'the source does not import it: the object hands it out');
+  assert.match(result.moduleText, /export function createTickControls\(count, setCount, late\) \{\n {2}const handler = \(\) => late\.current;\n {2}const other = \(\) => helper\(count, setCount\);\n {2}return \[handler, other\];\n\}\n$/);
+  assert.match(result.rewritten, /\n {2}const \[handler, other\] = kit \? kit\.createTickControls\(count, setCount, late\) : NO_CONTROLS;\n/);
+  assert.match(plan({ hook: 'createTickControls', file: 'src/app/teacher/controls/tickControls.js', from, statements: ['late', 'handler'] }).problems.join('\n'), /calls a hook, and createTickControls would be called only when kit is there/);
+});
