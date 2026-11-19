@@ -275,6 +275,20 @@ test('"not in simplest form" is said only when it is true', () => {
   assert.equal(radicalFormMiss('\\frac{1}{2}(\\sqrt{3}-1)', '(√3-2)/2'), null, 'a different value');
 });
 
+test('"the other notation" is said only where the key has one: a root left where the key has none is not simplified', () => {
+  // Radicals L1 CW 5, CW 3 and CW 7 retyped: the key has no root at all, so
+  // "write it with radicals or with rational exponents" was no help.
+  assert.equal(radicalFormMiss('\\sqrt[5]{32x^{5}y^{10}}', '2xy^2'), 'notSimplest');
+  assert.equal(radicalFormMiss('\\sqrt{9x^8}', '3x^4'), 'notSimplest');
+  assert.equal(radicalFormMiss('\\sqrt[6]{t^{6}}', '|t|'), 'notSimplest');
+  assert.equal(radicalFormMiss('49^{-\\frac{1}{2}}', '1/7'), 'notSimplest');
+  assert.equal(radicalFormMiss('x^{\\frac{4}{2}}', 'x^2'), 'notSimplest');
+  // A key in one notation: the other is still named.
+  assert.equal(radicalFormMiss('\\sqrt{x}', 'x^{1/2}'), 'notation');
+  assert.equal(radicalFormMiss('x^{\\frac{1}{2}}', '\\sqrt{x}'), 'notation');
+  assert.equal(radicalFormMiss('\\sqrt[3]{x}', '\\frac{x^{1/3}}{x}'), null, 'a different value');
+});
+
 test('"a decimal approximation" is said only of a calculator\'s number', () => {
   assert.equal(radicalFormMiss('3.46', '2\\sqrt{3}'), 'decimal');
   assert.equal(radicalFormMiss('-6.7082', '-3\\sqrt{5}'), 'decimal');

@@ -332,7 +332,7 @@ export const MISCONCEPTION_REGISTRY = Object.freeze([
     domain: 'nonlinear',
     label: 'Right value, radical not simplified',
     teacherMeaning: 'The answer has the key\'s value in the key\'s notation, but it is not in simplest form: a perfect power left under a root, like terms not combined, or a root in a denominator.',
-    evidenceRequired: 'multiAnswer field graded with gradingMode "simplestRadicalForm": the field was graded wrong, and the submitted expression has the key\'s value in the key\'s notation with a step of simplifying left in it (simplestRadicalFormEquivalence.mjs radicalFormMiss "notSimplest"). A form the field does not take, such as a decimal exponent, is not this code.',
+    evidenceRequired: 'multiAnswer field graded with gradingMode "simplestRadicalForm": the field was graded wrong, and the submitted expression has the key\'s value with a step of simplifying left in it: in the key\'s notation, or with a root or rational exponent where the key has neither (simplestRadicalFormEquivalence.mjs radicalFormMiss "notSimplest"). A form the field does not take, such as a decimal exponent, is not this code.',
     teks: ['A2.7G'],
   }),
   code({
@@ -350,7 +350,7 @@ export const MISCONCEPTION_REGISTRY = Object.freeze([
     domain: 'nonlinear',
     label: 'Right value, the other notation',
     teacherMeaning: 'The answer has the key\'s value but in the other notation: radicals where the key uses rational exponents, or the other way round.',
-    evidenceRequired: 'multiAnswer field graded with gradingMode "simplestRadicalForm": the field was graded wrong, and the submitted expression has the key\'s value in the other notation.',
+    evidenceRequired: 'multiAnswer field graded with gradingMode "simplestRadicalForm": the field was graded wrong, the key is written with radicals or with rational exponents, and the submitted expression has the key\'s value in the other notation.',
     teks: ['A2.7G'],
   }),
   code({

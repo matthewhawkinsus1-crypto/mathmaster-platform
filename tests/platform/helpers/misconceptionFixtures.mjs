@@ -274,6 +274,7 @@ export const MISCONCEPTION_FIXTURES = Object.freeze([
   formModeCase('radical form: a power of a root with a square left under it', 'simplestRadicalForm', 'x\\sqrt{x}', '\\left(\\sqrt{x}\\right)^{3}', ['radical-not-simplest-form']),
   formModeCase('radical form: a decimal exponent is not named', 'simplestRadicalForm', 'w^{1/2}', 'w^{0.5}', []),
   formModeCase('radical form: an exact decimal is not a calculator\'s, and not named', 'simplestRadicalForm', '\\frac{\\sqrt{2}}{2}', '0.5\\sqrt{2}', []),
+  formModeCase('radical form: a root left where the key has none is not simplified', 'simplestRadicalForm', '3x^4', '\\sqrt{9x^8}', ['radical-not-simplest-form']),
   formModeCase('factored form: left expanded', 'factoredForm', '(x+2)(x+3)', 'x^2+5x+6', ['polynomial-not-fully-factored']),
   formModeCase('factored form: only partly factored', 'factoredForm', '2(x-2)(x+2)', '2(x^2-4)', ['polynomial-not-fully-factored']),
   formModeCase('factored form: correct, in another order', 'factoredForm', '(x+2)(x+3)', '(x+3)(x+2)', []),

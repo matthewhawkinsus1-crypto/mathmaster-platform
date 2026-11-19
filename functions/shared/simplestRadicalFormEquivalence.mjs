@@ -793,7 +793,10 @@ const isPlainNumber = (node) => {
  *                  exponent key, or the other way round);
  *   'notSimplest'  the key's value and notation, with a step of simplifying
  *                  left in it (LEFT above): only then is "not in simplest
- *                  form" true (the owner, 2026-11-19);
+ *                  form" true (the owner, 2026-11-19). So is the key's value
+ *                  with a root or a rational exponent where the key has
+ *                  neither (⁵√(32x⁵y¹⁰) for 2xy²): it comes out entirely, and
+ *                  "the other notation" would not be true;
  *   'form'         the key's value and notation in a form this box does not
  *                  take (w^0.5, 0.5√2: the decimal decision). It names no
  *                  misconception, so the student is told nothing about form.
@@ -812,10 +815,14 @@ export const radicalFormMiss = (student, key) => {
   if (!sameValue(studentTree, keyTree)) return null;
   const studentNotation = notationOf(studentTree);
   const keyNotation = notationOf(keyTree);
-  if (studentNotation.radical !== keyNotation.radical || studentNotation.exponent !== keyNotation.exponent) return 'notation';
   // A decimal is refused for being one (0.5(√3 − 1), whose ½(√3 − 1) is
   // right), so its form is not the reason given.
-  if (hasDecimal(student) && !hasDecimal(key)) return 'form';
+  const decimal = hasDecimal(student) && !hasDecimal(key);
+  if (studentNotation.radical !== keyNotation.radical || studentNotation.exponent !== keyNotation.exponent) {
+    if (keyNotation.radical || keyNotation.exponent) return 'notation';
+    return decimal ? 'form' : 'notSimplest';
+  }
+  if (decimal) return 'form';
   return simplestFormProblem(studentTree) === LEFT ? 'notSimplest' : 'form';
 };
 
