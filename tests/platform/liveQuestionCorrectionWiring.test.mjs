@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import { assignmentQuestionEditorSource } from './helpers/splitComponentSource.mjs';
 import { executableSource, region } from './helpers/sourceContract.mjs';
-import { appAndTeacherWorkspaceSource } from './helpers/appScreens.mjs';
+import { appAndTeacherWorkspaceSource, positionalHookSeam, positionalHookSource } from './helpers/appScreens.mjs';
 
 const app = appAndTeacherWorkspaceSource();
 
@@ -60,10 +60,18 @@ test('current grader corrections remain automatic without making teacher login r
   const teacherHydration = app.slice(teacherHydrationStart, teacherHydrationEnd);
   assert.doesNotMatch(teacherHydration, /persistCurrentGraderCreditRepairs/);
 
-  assert.match(app, /teacherTab === 'grades' && !teacherGraderRepairRanRef\.current/);
+  // Since the App split, useTeacherRosterData owns the live grades listener
+  // that runs the repair; App calls it once with the repair, its ran-once ref
+  // and the assignments ref (positionalHookSource holds App's arguments to the
+  // hook's parameters, name for name).
+  const rosterData = positionalHookSource('useTeacherRosterData');
+  for (const input of ['teacherTab', 'teacherGraderRepairRanRef', 'assignmentsRef', 'persistCurrentGraderCreditRepairs']) {
+    assert.ok(positionalHookSeam('useTeacherRosterData').parameters.includes(input), `App hands useTeacherRosterData ${input}`);
+  }
+  assert.match(rosterData, /teacherTab === 'grades' && !teacherGraderRepairRanRef\.current/);
   // The current assignment list, read through the ref so the live grades
   // listener does not depend on (and resubscribe for) every assignment write.
-  assert.match(app, /persistCurrentGraderCreditRepairs\(studentData, (?:assignments|assignmentsRef\.current)\)/);
+  assert.match(rosterData, /persistCurrentGraderCreditRepairs\(studentData, (?:assignments|assignmentsRef\.current)\)/);
 
   // The teacher of record's gradebook is the one place the correction is
   // written. A student's sign-in used to re-grade and write its own records;

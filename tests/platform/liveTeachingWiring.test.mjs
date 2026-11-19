@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import { region } from './helpers/sourceContract.mjs';
+import { positionalHookSeam, positionalHookSource } from './helpers/appScreens.mjs';
 
 /*
  * Classroom Live, Phase 2 (Live Teaching / Teacher Exemplar) is wired across
@@ -60,10 +61,19 @@ test('ending Live Teaching clears the session', () => {
 });
 
 test('navigating the exemplar keeps the Live Teaching session synced to the REAL current question, not a manual counter', () => {
-  const start = app.indexOf("// As the teacher moves through the exemplar with real student navigation");
-  const end = app.indexOf('useEffect(', app.indexOf('useEffect(', start) + 1);
+  // Since the App split, useLiveTeachingPreviewSync owns this effect; App
+  // calls it once and hands it the real position (positionalHookSource holds
+  // App's arguments to the hook's parameters, name for name).
+  const previewSync = positionalHookSource('useLiveTeachingPreviewSync');
+  const { parameters } = positionalHookSeam('useLiveTeachingPreviewSync');
+  for (const input of ['isTeacherPreview', 'liveTeachingSession', 'setLiveTeachingSession', 'currentQuestionIndex', 'activeQuestionRole']) {
+    assert.ok(parameters.includes(input), `App hands useLiveTeachingPreviewSync ${input}`);
+  }
+  const start = previewSync.indexOf("// As the teacher moves through the exemplar with real student navigation");
+  const end = previewSync.indexOf('useEffect(', previewSync.indexOf('useEffect(', start) + 1);
   assert.ok(start >= 0);
-  const body = app.slice(start, end);
+  assert.ok(end > start, 'the sync effect ends where the next effect starts');
+  const body = previewSync.slice(start, end);
   assert.match(body, /if \(!isTeacherPreview \|\| !liveTeachingSession\?\.active\) return;/);
   assert.match(body, /advanceLiveTeachingSession\(session, \{/);
   assert.match(body, /storageQuestionIndex: currentQuestionIndex,/);
@@ -90,10 +100,16 @@ test('the "Restart Preview Fresh" header control defers to the Live Teaching bar
 });
 
 test('App.jsx wires the Live Teaching session, actions, and pace helper through imports', () => {
-  const sessionImport = region(app, "import {\n  advanceLiveTeachingSession,", "} from './platform/teacher/liveTeachingSession.js';", 'Live Teaching imports');
-  for (const capability of ['advanceLiveTeachingSession', 'endLiveTeachingSession', 'startLiveTeachingSession']) {
+  const sessionImport = region(app, "import {\n  updateWalkthroughTimer,", "} from './platform/teacher/liveTeachingSession.js';", 'Live Teaching imports');
+  for (const capability of ['endLiveTeachingSession', 'startLiveTeachingSession']) {
     assert.match(sessionImport, new RegExp(`\\b${capability}\\b`));
   }
+  // Since the App split, useLiveTeachingPreviewSync owns the effect that
+  // advances the session, so that module is the one that imports the helper.
+  assert.match(
+    positionalHookSource('useLiveTeachingPreviewSync'),
+    /^import \{[^}]*\badvanceLiveTeachingSession\b[^}]*\} from '\.\.\/\.\.\/platform\/teacher\/liveTeachingSession\.js';$/m,
+  );
   assert.match(app, /import \{ describeClassworkPace \} from '\.\/platform\/teacher\/classworkModel\.js';/);
 });
 

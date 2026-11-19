@@ -21,6 +21,7 @@ import {
 import { register } from 'node:module';
 
 import { executableSource, region } from './helpers/sourceContract.mjs';
+import { positionalHookSeam, positionalHookSource } from './helpers/appScreens.mjs';
 import { firestoreClient, resetFirestoreClient } from './helpers/firestoreClientStub.mjs';
 
 const MINUTE = WEEKLY_PATH_PROGRESS_FRESH_MS;
@@ -384,10 +385,23 @@ test('App keeps one refresh from the teacher kit and follows the screen through 
   assert.match(kit, /export \{ createWeeklyPathProgressRefresh \} from '\.\.\/\.\.\/platform\/path\/weeklyPathProgressRefresh\.js';/);
   assert.match(kit, /export \{ followWeeklyPathProgress \} from '\.\/weeklyPathProgress\.js';/);
   assert.doesNotMatch(app, /weeklyPathProgressRefresh\.js'|app\/teacher\/weeklyPathProgress\.js'/, 'App imports neither');
-  assert.match(app, /const weeklyPathProgress = useMemo\(\(\) => \(teacherKit \? teacherKit\.createWeeklyPathProgressRefresh\(\) : null\), \[teacherKit\]\);/);
+  // Since the App split, useTeacherLearningPaths owns the refresh and the
+  // effect that follows the screen; App calls it once, with the kit, the
+  // preview flag and the setters of the state it fills (positionalHookSource
+  // holds App's arguments to the hook's parameters, name for name).
+  const learningPaths = executableSource(positionalHookSource('useTeacherLearningPaths'));
+  for (const input of [
+    'user', 'teacherKit', 'teacherPreviewRuntimeActive', 'teacherTab', 'activeClass', 'classes', 'weeklyGoalsByClass',
+    'setWeeklyPathCompletionsByStudent', 'setWeeklyPathGoalSnapshotsByStudent', 'setWeeklyPathTruncated',
+    'setWeeklyPathProgressLoadedFor', 'setWeeklyPathProgressLoading',
+  ]) {
+    assert.ok(positionalHookSeam('useTeacherLearningPaths').parameters.includes(input), `App hands useTeacherLearningPaths ${input}`);
+  }
+  assert.equal((learningPaths.match(/createWeeklyPathProgressRefresh\(/g) || []).length, 1, 'one refresh');
+  assert.match(learningPaths, /const weeklyPathProgress = useMemo\(\(\) => \(teacherKit \? teacherKit\.createWeeklyPathProgressRefresh\(\) : null\), \[teacherKit\]\);/);
   // A change of account (or none) forgets what the last one was shown.
-  assert.match(app, /useEffect\(\(\) => \(\) => weeklyPathProgress\?\.forget\(\), \[weeklyPathProgress, user\?\.uid\]\);/);
-  const effect = region(app, "if (user?.role !== 'teacher' || teacherPreviewRuntimeActive || !weeklyPathProgress) return undefined;", '}, [user?.role, user?.uid, teacherTab, activeClass.classId, classes, weeklyGoalsByClass, teacherPreviewRuntimeActive, weeklyPathProgress, teacherKit]);', 'the weekly Path completion effect');
+  assert.match(learningPaths, /useEffect\(\(\) => \(\) => weeklyPathProgress\?\.forget\(\), \[weeklyPathProgress, user\?\.uid\]\);/);
+  const effect = region(learningPaths, "if (user?.role !== 'teacher' || teacherPreviewRuntimeActive || !weeklyPathProgress) return undefined;", '}, [user?.role, user?.uid, teacherTab, activeClass.classId, classes, weeklyGoalsByClass, teacherPreviewRuntimeActive, weeklyPathProgress, teacherKit]);', 'the weekly Path completion effect');
   assert.match(effect, /return teacherKit\.followWeeklyPathProgress\(weeklyPathProgress, \{\s*uid: user\.uid,\s*teacherTab,\s*activeClassId: activeClass\.classId,\s*classes,\s*weeklyGoalsByClass,/);
   // App's own Path client, which the kit uses and does not import (a first-load split).
   assert.match(effect, /path: \{ completions: fetchTeacherWeeklyPathCompletions, weeklyGoalFor: storedWeeklyGoalForClassContext, weekKeyFor \},/);

@@ -13,15 +13,14 @@
  */
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
 
 import { buildWeeklyGoal, weeklyPlanClassInputs } from '../../src/platform/path/weeklyPathGoal.js';
 import { INSTRUCTIONAL_BAND } from '../../src/platform/profile/studentLearningProfile.js';
 import { buildWeeklyPathPlan } from '../../src/platform/path/weeklyPathPlan.js';
 import { buildStudentPathOptions } from '../../src/platform/path/studentPathOptions.js';
 import { executableSource, region } from './helpers/sourceContract.mjs';
+import { positionalHookSeam, positionalHookSource } from './helpers/appScreens.mjs';
 
-const read = (path) => readFileSync(new URL(`../../${path}`, import.meta.url), 'utf8');
 const NOW = Date.parse('2026-10-07T15:00:00Z');
 
 test('the class settings become the same planner inputs the student\'s Path uses', () => {
@@ -81,12 +80,23 @@ test('a teacher who picked ACT previews ACT practice, as the student\'s week has
 });
 
 test('the teacher\'s Weekly Path table and profile drawer build the week through the same helper', () => {
-  const app = executableSource(read('src/App.jsx'));
-  const table = region(app, 'const teacherWeeklyGoalsByStudent = useMemo(() => {', '\n  }, [', 'teacher weekly table');
+  // Since the App split two hooks own these: useTeacherLearningPaths the
+  // table's goals, useTeacherAnalytics the drawer's plan. App calls each once
+  // with the class settings, and takes the goals and the plan from them
+  // (positionalHookSource holds the two sides to the same names in order).
+  const learningPaths = executableSource(positionalHookSource('useTeacherLearningPaths'));
+  const analytics = executableSource(positionalHookSource('useTeacherAnalytics'));
+  const tableSeam = positionalHookSeam('useTeacherLearningPaths');
+  const drawerSeam = positionalHookSeam('useTeacherAnalytics');
+  assert.ok(tableSeam.parameters.includes('weeklyGoalsByClass') && tableSeam.returned.includes('teacherWeeklyGoalsByStudent'), 'App hands the table\'s hook the class settings and takes its goals');
+  assert.ok(drawerSeam.parameters.includes('weeklyGoalsByClass') && drawerSeam.returned.includes('profileDrawerPlan'), 'App hands the drawer\'s hook the class settings and takes its plan');
+  const table = region(learningPaths, 'const teacherWeeklyGoalsByStudent = useMemo(() => {', '\n  }, [', 'teacher weekly table');
   assert.match(table, /buildWeeklyPathPlan\(\{[^}]*\.\.\.weeklyPlanClassInputs\(\{ config, honors \}\),/);
-  const drawer = region(app, 'return buildWeeklyPathPlan({\n      options,\n      courseId: context.courseId,', '\n  }, [', 'profile drawer plan');
+  const drawer = region(analytics, 'return buildWeeklyPathPlan({\n      options,\n      courseId: context.courseId,', '\n  }, [', 'profile drawer plan');
   assert.match(drawer, /\.\.\.weeklyPlanClassInputs\(\{\s*config: storedWeeklyGoalForClassContext\(weeklyGoalsByClass, \{/);
-  assert.match(app, /profileDrawerLearningProfile, weeklyGoalsByClass\]\);/, 'and the drawer follows a settings change');
-  // The calls above need their import (AGENTS.md).
-  assert.match(app, /import \{[^}]*\bweeklyPlanClassInputs\b[^}]*\} from '\.\/platform\/path\/weeklyPathGoal\.js';/);
+  assert.match(analytics, /profileDrawerLearningProfile, weeklyGoalsByClass\]\);/, 'and the drawer follows a settings change');
+  // The calls above need their import (AGENTS.md), in the module that makes each.
+  for (const hook of [learningPaths, analytics]) {
+    assert.match(hook, /import \{[^}]*\bweeklyPlanClassInputs\b[^}]*\} from '\.\.\/\.\.\/platform\/path\/weeklyPathGoal\.js';/);
+  }
 });

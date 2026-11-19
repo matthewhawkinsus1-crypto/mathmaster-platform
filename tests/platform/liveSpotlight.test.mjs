@@ -12,7 +12,7 @@ import {
   SPOTLIGHT_MAX_FRAME_BYTES,
 } from '../../src/platform/liveSpotlight.js';
 
-import { appHookSource } from './helpers/appScreens.mjs';
+import { appHookSource, positionalHookSource } from './helpers/appScreens.mjs';
 
 const require = createRequire(import.meta.url);
 const spotlightCleanup = require('../../functions/lib/liveSpotlight.js');
@@ -158,7 +158,12 @@ test('Spotlight wiring remains separate from presence, drafts, grades, attempts,
   assert.ok(publishStart !== -1 && publishEnd > publishStart, 'the publishing region');
   assert.doesNotMatch(spotlight.slice(publishStart, publishEnd), /gradesByAssignment|assignmentActivity|evidence|passback|attemptCount/);
   const callAt = app.indexOf('useStudentSpotlight({');
-  const supportAt = app.indexOf('// Persistent support/intervention');
+  // Since the App split the support-history effect and its comment are
+  // useTeacherActionCenterData's first lines, so the region now ends at that
+  // hook's call in App, which is where the comment was.
+  const actionCenterData = positionalHookSource('useTeacherActionCenterData');
+  assert.match(actionCenterData, /\n\) \{\n  \/\/ Persistent support\/intervention/, 'the support history opens the hook that follows');
+  const supportAt = app.indexOf('useTeacherActionCenterData(', callAt);
   assert.ok(callAt !== -1 && supportAt > callAt, 'the hook is called where the code was');
   assert.doesNotMatch(app.slice(callAt, supportAt), /gradesByAssignment|assignmentActivity|evidence|passback|attemptCount/);
   assert.match(monitor, /activeTeacherSpotlightQueries\(db, \{[\s\S]*teacherEmail, classId: activeClassId, studentIds: spotlightStudentIds/);

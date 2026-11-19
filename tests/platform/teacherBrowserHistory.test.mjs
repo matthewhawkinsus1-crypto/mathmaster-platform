@@ -15,6 +15,7 @@ import {
   writeTeacherRouteState,
 } from '../../src/platform/teacher/teacherBrowserHistory.js';
 import { region, executableSource } from './helpers/sourceContract.mjs';
+import { positionalHookSeam, positionalHookSource } from './helpers/appScreens.mjs';
 
 /*
  * A browser history stack, small enough to read. `entries[0]` is the website
@@ -250,7 +251,16 @@ test('App describes every teacher screen and panel as a route and follows the wr
 });
 
 test('App restores the teacher screen on popstate and never acts underneath an open dialog', () => {
-  const restoreBlock = region(appSource, 'teacherHistoryRestoreRef.current = (event) => {', "window.addEventListener('popstate', restoreTeacherFromBrowserHistory)", 'teacher popstate restore');
+  // Since the App split, useLiveTeachingTimer owns the effect that listens for
+  // popstate and runs the handler App keeps in teacherHistoryRestoreRef: the
+  // handler ends at that hook's call, and the hook hands it every popstate,
+  // for a teacher only, and stops listening on cleanup.
+  const restoreBlock = region(appSource, 'teacherHistoryRestoreRef.current = (event) => {', '\n  useLiveTeachingTimer(', 'teacher popstate restore');
+  assert.ok(positionalHookSeam('useLiveTeachingTimer').parameters.includes('teacherHistoryRestoreRef'), 'App hands the hook the handler\'s ref');
+  assert.match(
+    executableSource(positionalHookSource('useLiveTeachingTimer')),
+    /const restoreTeacherFromBrowserHistory = \(event\) => teacherHistoryRestoreRef\.current\?\.\(event\);\s*window\.addEventListener\('popstate', restoreTeacherFromBrowserHistory\);/,
+  );
   assert.match(restoreBlock, /readTeacherHistoryEntry\(event\.state\)/);
   assert.match(restoreBlock, /setTeacherTab\(route\.tab\)/);
   assert.match(restoreBlock, /setAdminTab\(route\.adminTab\)/);
