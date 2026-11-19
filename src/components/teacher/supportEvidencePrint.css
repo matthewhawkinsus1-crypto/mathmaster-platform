@@ -2,17 +2,18 @@
  * Printing the support evidence report (SupportEvidenceReportView), split out
  * of supportEvidence.css, which now loads with the teacher's workspace.
  *
- * These rules were never the report's alone. `body *` hides every page in
- * print, and they have reached every signed-in page since the report was
- * built: a student or a teacher who prints any screen but this report (or the
- * case review, caseReview.css) gets a blank page. So they stay where they were,
- * linked before App.css on every first load (src/app/shell/leadingStyles.js),
- * and printing is what it was. Scoping them to the open report would let other
- * pages print, which changes what students print: the owner's call.
+ * The rule that hides the rest of a printed page holds only while the report
+ * is open (body:has(.se-report)). Written as `body *`, it reached every
+ * signed-in page from the report's first day: a student or a teacher who
+ * printed any screen but this report (or the case review, caseReview.css) got
+ * a blank page, and App.css's own print rules for class lists never showed.
+ * The owner's call (2026-11-19): other pages print. A secure test in progress
+ * does not (App.css, "PRINT"). The sheet still links before App.css on every
+ * first load (src/app/shell/leadingStyles.js).
  */
 @media print {
-  /* Print the report and nothing else, on as many pages as it needs. */
-  body * { visibility: hidden !important; }
+  /* With the report open: the report and nothing else, on as many pages as it needs. */
+  body:has(.se-report) * { visibility: hidden !important; }
   .se-report, .se-report * { visibility: visible !important; }
   .se-report-overlay { position: static !important; overflow: visible !important; padding: 0 !important; background: none !important; }
   .se-report { position: absolute; left: 0; top: 0; width: 100% !important; box-shadow: none !important; border-radius: 0 !important; padding: 0 !important; }
