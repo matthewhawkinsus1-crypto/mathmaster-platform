@@ -127,6 +127,18 @@ export default class QuestionModuleBoundary extends Component {
       return this.props.children;
     }
 
+    /*
+     * A HOST THAT ANSWERS FOR ITS ITEMS TAKES THE FAILURE (a secure Test,
+     * SecureExamQuestionPlayer through QuestionEngine's `moduleFailuresToHost`).
+     * Rethrown, it reaches the engine's QuestionResolutionBoundary, which
+     * carries that host's words: the saved answers are kept, Try again, and no
+     * copyable report. This panel's "your grade is not affected" is a promise a
+     * secure Test cannot keep, since an item that cannot be shown cannot be
+     * answered, and its "Start this question fresh" would set aside the very
+     * answer the Test is saving. The diagnostic is recorded there, once.
+     */
+    if (this.props.failuresToHost) throw this.state.error;
+
     // A tool's code that could not be fetched is not a broken question: the
     // tab outlived a deploy (chunkLoadRecovery.js). Telling the student the
     // question was set up wrong, and to tell their teacher, sent teachers

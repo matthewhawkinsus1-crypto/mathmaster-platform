@@ -334,7 +334,7 @@ const secureToolTrayEntitlement = (rawStudentSupportProfile) => {
   return { tools: entitlement.tools, language: entitlement.language, showExamples: false, promptTermsOnly: true };
 };
 
-const ToolItem = ({ question, policy, calculatorPolicy, supportProfile, rawStudentSupportProfile = null, graphReadOut = false, draftKey, initialResponsePayload, busy, closed, closedMessage, feedback, attempt, executionScope, navigationMode = false, calculatorInToolbar = false, mainLandmark = true, onSubmit, onDraftChange }) => {
+const ToolItem = ({ question, policy, calculatorPolicy, supportProfile, rawStudentSupportProfile = null, graphReadOut = false, draftKey, initialResponsePayload, busy, closed, closedMessage, feedback, attempt, executionScope, navigationMode = false, calculatorInToolbar = false, mainLandmark = true, itemFailure = null, onSubmit, onDraftChange }) => {
   const Landmark = mainLandmark ? 'main' : 'div';
   const latestRawRef = useRef(initialResponsePayload?.raw || null);
   const onSubmitRef = useRef(onSubmit);
@@ -493,6 +493,14 @@ const ToolItem = ({ question, policy, calculatorPolicy, supportProfile, rawStude
           assignmentLocked={Boolean(closed)}
           assignmentLockedMessage={closedMessage || null}
           executionScope={executionScope}
+          // The host's words for an item that cannot be drawn (`itemFailure`,
+          // see the export below): a tool that throws inside the engine meets
+          // them too, and not the engine's own panel.
+          {...(itemFailure ? {
+            moduleFailuresToHost: true,
+            resolutionTechnicalDetails: itemFailure.technicalDetails !== false,
+            resolutionSavedWorkNote: itemFailure.savedWorkNote || '',
+          } : {})}
           onGrade={async () => null}
         />
       </Suspense>
@@ -528,6 +536,12 @@ export default function RichQuestionRuntime({
   // The item is the page's <main>, as every student surface has it. A teacher's page has one
   // already and passes false: the item is then a plain <div> (see ITS LANDMARK, above).
   mainLandmark = true,
+  // { savedWorkNote, technicalDetails }: what the host says when an item
+  // cannot be drawn, as its own QuestionResolutionBoundary says it (a secure
+  // Test: SecureExamQuestionPlayer). A tool item's engine says the same, in
+  // place of its own panel, which promises the grade and offers to start the
+  // question fresh.
+  itemFailure = null,
   onSubmit,
   onDraftChange,
 }) {
@@ -588,6 +602,7 @@ export default function RichQuestionRuntime({
         navigationMode={navigationMode}
         calculatorInToolbar={calculatorInToolbar}
         mainLandmark={mainLandmark}
+        itemFailure={itemFailure}
         onSubmit={onSubmit}
         onDraftChange={onDraftChange}
       />

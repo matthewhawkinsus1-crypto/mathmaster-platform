@@ -61,6 +61,9 @@
 //     landmark, without "your grade is not affected" or a copyable report, and
 //     the rest of the Test still works: Try again, Next, Previous with the
 //     answer kept, the review and Submit;
+//   - a tool that throws inside the question engine says the same, not the
+//     engine's own panel ("your grade is not affected", "Start this question
+//     fresh", a copyable report), and Try again draws the tool again;
 //   - no sideways scroll, and every control in these screens at least 44px.
 
 import { spawn } from 'node:child_process';
@@ -878,6 +881,59 @@ const brokenItemJourney = async (context, device) => {
   await page.close();
 };
 
+/* -------------- a tool that throws inside the question engine -------------- */
+
+// The probe's own throw, and React's and the boundaries' reports of it.
+const EXPECTED_TOOL_FAILURE = /reading 'map'|QuestionResolutionBoundary|Question module crashed|above error occurred|CrashProbe/;
+
+const toolThrowsJourney = async (context, device) => {
+  const { page, errors } = await openPage(context, 'toolThrows', device);
+  const label = (name) => `${device.id} toolThrows ${name}`;
+  const position = () => page.locator('[data-secure-navigator-toggle]').textContent({ timeout: 3000 }).then((text) => text.replace('▾', '').trim(), () => null);
+  await page.getByRole('button', { name: 'Start Test' }).click();
+  await page.waitForSelector('[data-secure-navigator-toggle]');
+  await page.getByRole('radio').nth(2).check();
+  await waitSaved(page);
+  await next(page);
+  await page.waitForFunction(() => document.querySelector('[data-question-resolution-failure]')
+    || /could not be displayed/.test(document.body.innerText)
+    || !document.querySelector('[data-secure-navigator-toggle]'), null, { timeout: 15000 }).catch(() => {});
+  const kept = (await position()) === 'Question 2 of 3';
+  check(kept, label('the Test keeps its header and the question list'));
+  let text = await bodyText(page);
+  check(/This question did not load/.test(text) && /let your teacher know/.test(text) && /Your saved answers are kept exactly as they are\./.test(text),
+    label('the item says what the Test can promise'), text.replace(/\s+/g, ' ').slice(0, 220));
+  check(!/could not be displayed|grade is not affected/.test(text), label('not the engine\'s own panel, which promises the grade'));
+  check(!/Start this question fresh/.test(text), label('no "Start this question fresh", which would set aside the answer the Test is saving'));
+  check(!/Copy details for your teacher|Technical details/.test(text), label('no copyable report on a secure Test'));
+  const landmarks = await page.evaluate(() => ({ mains: document.querySelectorAll('main').length, inMain: Boolean(document.querySelector('[data-question-resolution-failure]')?.closest('main')) }));
+  check(landmarks.mains === 1 && landmarks.inMain, label('the panel is inside the page\'s one main landmark'), JSON.stringify(landmarks));
+  const moves = await page.evaluate(() => ['previous', 'next', 'review'].filter((name) => document.querySelector(`[data-secure-nav="${name}"]`)));
+  check(moves.length === 3, label('Previous, Next and the review are still there'), moves.join(','));
+  await noVerdict(page, label('the tool that threw'));
+  await shot(page, device, 'tool-throws-01');
+
+  // Try again draws the tool again, and once it can be drawn, it is.
+  await page.evaluate(() => { window.__mmCrash = false; });
+  await page.locator('[data-question-resolution-failure]').getByRole('button', { name: 'Try again' }).click();
+  await page.locator('[data-probe-tool]').waitFor({ timeout: 8000 }).catch(() => {});
+  check(await page.locator('[data-probe-tool]').count() === 1 && (await position()) === 'Question 2 of 3', label('Try again draws the tool once it can be drawn'));
+  text = await bodyText(page);
+  check(!/This question did not load/.test(text), label('the panel is gone'));
+
+  // The rest of the Test still works, and the first item keeps its answer.
+  await next(page);
+  await atQuestion(page, 'Question 3 of 3');
+  await previous(page);
+  await atQuestion(page, 'Question 2 of 3');
+  await previous(page);
+  await atQuestion(page, 'Question 1 of 3');
+  check(await page.getByRole('radio').nth(2).isChecked(), label('the first item keeps its answer'));
+  const unexpected = errors.filter((message) => !EXPECTED_TOOL_FAILURE.test(message));
+  check(unexpected.length === 0, label('no other console errors'), unexpected.slice(0, 3).join(' | '));
+  await page.close();
+};
+
 /* --------------------------- time runs out ------------------------------ */
 
 const timeoutJourney = async (context, device) => {
@@ -1188,7 +1244,7 @@ for (const device of DEVICES) {
     return route.abort();
   });
   const only = (process.env.SECURE_NAV_JOURNEYS || '').split(',').map((name) => name.trim()).filter(Boolean);
-  const journeys = [practiceJourney, courseJourney, toolTriesJourney, supportsJourney, backtrackJourney, darkJourney, timeoutJourney, brokenItemJourney, toolGoneJourney, legacyJourney, dashboardJourney]
+  const journeys = [practiceJourney, courseJourney, toolTriesJourney, supportsJourney, backtrackJourney, darkJourney, timeoutJourney, brokenItemJourney, toolThrowsJourney, toolGoneJourney, legacyJourney, dashboardJourney]
     .filter((journey) => !only.length || only.includes(journey.name.replace(/Journey$/, '')));
   for (const journey of journeys) {
     try {

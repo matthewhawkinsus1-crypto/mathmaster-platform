@@ -363,11 +363,19 @@ test('a browser harness that swaps a registry tool swaps one the catalogue names
   assert.ok(swapped.some(({ file }) => file.endsWith('moduleRecoveryLockMain.jsx')), 'the module recovery harness swaps a registry tool');
   for (const { file, text, id } of swapped) {
     assert.ok(Object.prototype.hasOwnProperty.call(TOOL_CATALOG, id), `${file} puts a tool in the registry as "${id}", which the catalogue does not name, so it is drawn as no tool`);
-    // Each question literal the harness writes, one to a line: its type and toolId.
-    const questions = text.split('\n')
-      .map((line) => line.match(/\{\s*type:\s*'([^']+)'(.*)$/))
-      .filter(Boolean)
-      .map(([, type, rest]) => ({ type, ...(rest.match(/toolId:\s*'([^']+)'/) ? { toolId: rest.match(/toolId:\s*'([^']+)'/)[1] } : {}) }));
+    // Each question literal the harness writes, one to a line: an engine
+    // question's type and toolId, or a secure item's questionType, which the
+    // secure runtime draws as the tool it names (questionFromToolPayload, by
+    // the payload's pathToolId: secureExamCrashProbe.jsx).
+    const questions = text.split('\n').flatMap((line) => {
+      const engine = line.match(/\{\s*type:\s*'([^']+)'(.*)$/);
+      if (engine) {
+        const toolId = engine[2].match(/toolId:\s*'([^']+)'/)?.[1];
+        return [{ type: engine[1], ...(toolId ? { toolId } : {}) }];
+      }
+      const secure = line.match(/\bquestionType:\s*'([^']+)'/);
+      return secure ? [{ type: secure[1] }] : [];
+    });
     assert.ok(questions.length > 0, `${file}: no question it mounts was found`);
     for (const question of questions) {
       const kind = drawnQuestionKind(question);
