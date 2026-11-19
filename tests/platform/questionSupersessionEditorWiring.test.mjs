@@ -92,7 +92,9 @@ test('the card shows that a question was replaced, by which question, and why In
   assert.match(cards, alert, 'a refused Include is announced where the teacher pressed it');
   // …in full: the announcement scrolls itself clear of the dialog's footer.
   assert.match(cards, /<p\b[^>]*\bref=\{inclusionAlertRef\}[^>]*\brole="alert"/);
-  assert.match(editorBase, /useEffect\(\(\) => \{\s*if \(inclusionNotice\) inclusionAlertRef\.current\?\.scrollIntoView/);
+  // Revealed, and kept in view while Pre-Flight's findings land
+  // (questionEditorRefusalStaysInView.test.mjs).
+  assert.match(editorBase, /useEffect\(\(\) => \{\s*if \(!inclusionNotice\) return undefined;\s*return keepRevealedWhileFindingsLand\(\{\s*target: \(\) => inclusionAlertRef\.current,/);
   assert.match(cards, /inclusionNotice\?\.questionId === question\.questionId/);
   // And the teacher can jump to the version the notice names.
   assert.match(cards, /onClick=\{\(\) => showQuestion\(supersessionSummary\.showQuestion\.index\)\}/);
