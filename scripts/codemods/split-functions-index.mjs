@@ -55,7 +55,7 @@ export const DOMAIN_RULES = [
   ['authoring', /WithAI|ContentUpgrade|ContentVersion|QuestionRepair|AssignmentRepair(?!er)|assignmentAiSelfTest|manageAssignmentLifecycle|EvidenceSummary/],
   ['rewards', /Reward|ClassPoint|PracticePass/],
   ['accounts', /SignIn|signIn|Passcode|Account|JoinCode|Class(?:es)?$|saveClass|setClassStatus|listClasses|migrateClasses|setStudentClass|TeacherAccess|RepairerAccess|AdminAudit|Preproduction|permanentlyDelete|resolveSignedInRole|assignStudentToTeacher|backfillRecordAuthorization|migrateAssignmentPrivacy|setAssignmentReadScope|StudentAssignmentControls|StudentAssignmentOverrides|AssignmentOverrideStorage|absorbSharedStudentControls|setStudentSisId|setStudentName/],
-  ['platform', /Presence|Spotlight|platformBuildInfo/],
+  ['platform', /Presence|Spotlight|platformBuildInfo|PlatformHealth|ClientCrashes/],
   ['grading', /./],
 ];
 
@@ -80,7 +80,7 @@ const DOMAIN_TITLES = {
   authoring: 'AUTHORING: AI authoring and repair, content versions and upgrades, the assignment lifecycle',
   liveChallenge: 'LIVE CHALLENGE: rooms, rounds, standings, dry runs, and the Graph Feature, Inequality, Systems and Line Graph games',
   testCycle: 'TEST CYCLES AND SECURE EXAMS: secure sessions, proctoring, corrections, release, the teacher\'s Test Cycle panel',
-  platform: 'PLATFORM: which build is live, student presence and spotlight frames',
+  platform: 'PLATFORM: which build is live, crash counts for the owner, student presence and spotlight frames',
 };
 
 export const domainOfExport = (name) => DOMAIN_RULES.find(([, pattern]) => pattern.test(name))[0];
