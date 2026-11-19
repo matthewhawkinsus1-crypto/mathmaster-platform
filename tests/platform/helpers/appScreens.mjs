@@ -137,17 +137,17 @@ export const teacherControlsSource = (factoryName) => {
  *                                                checking App calls it once and
  *                                                the two sides line up
  */
-/** The seam of a hook App calls by position: what App passes and takes, and what the hook declares and returns. */
-export const positionalHookSeam = (hookName) => {
-  const source = appHookSource(hookName);
-  const path = appHookPaths()[hookName];
-  const call = new RegExp(`^ {2}(?:const \\[([^\\]]*)\\] = )?${hookName}\\(([^)]*)\\);$`, 'm').exec(read(APP_PATH));
-  if (!call) throw new Error(`App.jsx must call ${hookName}(…) by position, as a statement of its own or into one array of names.`);
-  const declared = new RegExp(`^export function ${hookName}\\(([^)]*)\\) \\{$`, 'm').exec(source);
-  if (!declared) throw new Error(`${path} must declare ${hookName}(…) with its parameters by position.`);
+const positionalSeam = (name, path, source) => {
+  const call = new RegExp(`^ {2}(?:const \\[([^\\]]*)\\] = )?${name}\\(([^)]*)\\);$`, 'm').exec(read(APP_PATH));
+  if (!call) throw new Error(`App.jsx must call ${name}(…) by position, as a statement of its own or into one array of names.`);
+  const declared = new RegExp(`^export function ${name}\\(([^)]*)\\) \\{$`, 'm').exec(source);
+  if (!declared) throw new Error(`${path} must declare ${name}(…) with its parameters by position.`);
   const returned = /\n {2}return \[([^\]]*)\];\n\}\n$/.exec(source);
   return { path, source, passed: nameList(call[2]), taken: nameList(call[1] || ''), parameters: nameList(declared[1]), returned: nameList(returned ? returned[1] : '') };
 };
+
+/** The seam of a hook App calls by position: what App passes and takes, and what the hook declares and returns. */
+export const positionalHookSeam = (hookName) => positionalSeam(hookName, appHookPaths()[hookName], appHookSource(hookName));
 
 /** The module of a hook App calls by position. Throws when the seam does not line up. */
 export const positionalHookSource = (hookName) => {
@@ -162,8 +162,48 @@ export const positionalHookNames = () => Object.entries(appHookPaths())
   .filter(([name, path]) => new RegExp(`^export function ${name}\\(\\s*[A-Za-z_$]`, 'm').test(read(path)))
   .map(([name]) => name);
 
-/** Every module App's own code moved into: the hooks it calls and the teacher's control factories. */
-export const appModulePaths = () => [...new Set([...Object.values(appHookPaths()), ...Object.values(teacherControlPaths())])];
+/*
+ * APP'S PLAIN FUNCTIONS (the App split, slice 5).
+ *
+ * Navigation (startAssignment, the dashboard's screens, the teacher's preview)
+ * holds no state and runs no effects, and a student needs it at once, so it is
+ * neither a hook nor behind the teacher kit: App imports a factory from src/app
+ * and builds the functions on every render, as it did when they were inline,
+ *
+ *   const [a, b] = createStudentNavigation(x, y);
+ *
+ *   appFactorySource('createStudentNavigation')   that factory's module, after
+ *                                                 checking App imports it, calls
+ *                                                 it once and the seam lines up
+ */
+/** { factoryName: repo path } for every factory App imports from src/app. */
+export const appFactoryPaths = () => {
+  const paths = {};
+  for (const [, names, path] of read(APP_PATH).matchAll(HOOK_IMPORT)) {
+    for (const name of names.split(',').map((entry) => entry.trim())) if (/^create[A-Z]/.test(name)) paths[name] = `src/${path}`;
+  }
+  return paths;
+};
+
+/** The seam of a factory App imports and calls by position. */
+export const appFactorySeam = (factoryName) => {
+  const path = appFactoryPaths()[factoryName];
+  if (!path) throw new Error(`App.jsx does not import ${factoryName} from src/app: its code is not running, so its text proves nothing.`);
+  const calls = read(APP_PATH).replace(/^import .*$/gm, '').match(new RegExp(`\\b${factoryName}\\(`, 'g')) || [];
+  if (calls.length !== 1) throw new Error(`App.jsx calls ${factoryName} ${calls.length} times; it is called once, at the top level of App.`);
+  return positionalSeam(factoryName, path, read(path));
+};
+
+/** The module of a factory App calls by position. Throws when the seam does not line up. */
+export const appFactorySource = (factoryName) => {
+  const seam = appFactorySeam(factoryName);
+  const problem = teacherControlsSeamProblem(factoryName, seam);
+  if (problem) throw new Error(problem);
+  return seam.source;
+};
+
+/** Every module App's own code moved into: the hooks it calls, the factories it imports and the teacher's control factories. */
+export const appModulePaths = () => [...new Set([...Object.values(appHookPaths()), ...Object.values(appFactoryPaths()), ...Object.values(teacherControlPaths())])];
 
 /** App.jsx, the teacher workspace and every module App's code moved into: where a forbidden pattern is refused. */
 export const appSurfaceSource = () => [APP_PATH, TEACHER_WORKSPACE_PATH, ...appModulePaths()].map(read).join('\n');

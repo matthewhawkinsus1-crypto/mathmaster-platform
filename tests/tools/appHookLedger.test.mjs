@@ -201,3 +201,22 @@ test('the codemod can seam a hook by position, which leaves no names in the bund
   assert.match(result.moduleText, /\n {2}return \[tickRef\];\n\}\n$/);
   assert.match(result.rewritten, /\n {2}const \[tickRef\] = useTick\(user, setCount\);\n {2}const double = count \* 2;\n/);
 });
+
+test('the codemod can call plain functions from below a statement that stays, and refuses a hook or an early reader there', () => {
+  const source = COMPONENT.replace('  const late = useRef(null);', '  const early = () => late.current;\n  const late = useRef(null);').replace('onClick={handler}', 'onClick={handler} onEarly={early}');
+  const spec = { hook: 'createTick', file: 'src/app/student/tick.js', positional: true };
+  // Where it sits, the function could not be passed `late`: it is declared below.
+  assert.match(plan({ ...spec, statements: ['early'] }, source).problems.join('\n'), /input late .* is declared after the call site/);
+  const result = plan({ ...spec, statements: ['early'], callAfter: 'late' }, source);
+  assert.deepEqual(result.problems, []);
+  assert.match(result.rewritten, /\n {2}const late = useRef\(null\);\n {2}const \[early\] = createTick\(late\);\n {2}const handler/);
+  assert.doesNotMatch(result.rewritten, /const early = \(\) =>/);
+  assert.match(result.moduleText, /export function createTick\(late\) \{\n {2}const early = \(\) => late\.current;\n {2}return \[early\];\n\}\n$/);
+  // A hook may not move down: hook order would change.
+  assert.match(plan({ ...spec, statements: ['tickRef'], callAfter: 'late' }, source).problems.join('\n'), /calls a hook, so it cannot be called from further down/);
+  // The statement it follows must stay, and be below everything moved.
+  assert.match(plan({ ...spec, statements: ['early'], callAfter: 'count' }, source).problems.join('\n'), /callAfter must be below every moved statement/);
+  // Something that reads the result during render above the new call site.
+  const eager = source.replace('  const late = useRef(null);', '  const now = early();\n  const late = useRef(null);').replace('onEarly={early}', 'onEarly={early} now={now}');
+  assert.match(plan({ ...spec, statements: ['early'], callAfter: 'late' }, eager).problems.join('\n'), /reads output early during render, above the call site/);
+});

@@ -443,7 +443,8 @@ export const planExtraction = (spec, read) => {
     at = statement.textEnd;
   }
   if (after) {
-    rewritten += `${source.slice(at, after.textEnd)}\n  ${call}\n`;
+    const kept = source.slice(at, after.textEnd);
+    rewritten += `${kept}${kept.endsWith('\n') ? '' : '\n'}  ${call}\n`;
     at = after.textEnd;
   }
   rewritten += source.slice(at);
