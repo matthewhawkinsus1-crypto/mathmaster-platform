@@ -15,25 +15,33 @@ import GradedEntryMark, { gradedEntryInputProps } from './components/common/Grad
 const BOX = draftShape.nullable(draftShape.cell());
 const LINE_DRAFT = draftNormalizer(draftShape.record({ slope: BOX, intercept: BOX }));
 
+// The equation GraphLine shows: the authored LaTeX, or one written from an
+// authored m and b. A question that gives only a graph has neither, and showed
+// "y = undefinedx - NaN" in its equation box; it now shows no equation.
+export const graphLineEquation = ({ m, b, equationLatex } = {}) => {
+  const authored = m !== null && m !== '' && b !== null && b !== '' && Number.isFinite(Number(m)) && Number.isFinite(Number(b));
+  const generated = authored ? `y = ${m}x ${Number(b) >= 0 ? '+' : '-'} ${Math.abs(Number(b))}` : '';
+  return { authored, generated, displayed: equationLatex || generated };
+};
+
 export default function GraphLine({ question, onStateChange, onUndoStateChange, feedback, draftKey }) {
   const { m, b, prompt, equationLatex, showEquation = true, showGraph = false } = question;
   const idBase = useId();
   const history = useUndoHistory({ slope: '', intercept: '' }, 60, draftKey ? `${draftKey}:line` : null, { normalize: LINE_DRAFT });
   const { slope, intercept } = history.value;
-  const generatedEquation = `y = ${m}x ${b >= 0 ? '+' : '-'} ${Math.abs(b)}`;
-  const displayedEquation = equationLatex || generatedEquation;
+  const { authored: authoredLine, generated: generatedEquation, displayed: displayedEquation } = graphLineEquation({ m, b, equationLatex });
   const graph = useMemo(() => {
     if (question.graph) return question.graph;
     if (question.visual?.type === 'graph') return question.visual;
-    if (showGraph) return { xMin: -10, xMax: 10, yMin: -10, yMax: 10, functions: [{ type: 'line', m, b }], ariaLabel: `Graph of ${generatedEquation}` };
+    if (showGraph && authoredLine) return { xMin: -10, xMax: 10, yMin: -10, yMax: 10, functions: [{ type: 'line', m, b }], ariaLabel: `Graph of ${generatedEquation}` };
     return null;
-  }, [question.graph, question.visual, showGraph, m, b, generatedEquation]);
+  }, [question.graph, question.visual, showGraph, authoredLine, m, b, generatedEquation]);
   // The student's raw work. The verdict, parts and partial credit come ONLY
   // from the shared grader the server also runs, through the exact bytes the
   // server will read (functions/shared/serverGrading/tools/graphing.mjs).
   const work = useMemo(() => ({ slope, intercept }), [slope, intercept]);
   const grading = useMemo(() => gradeToolCheck(graphingGrader, question, work), [question, work]);
-  const questionDetails = `${prompt || `Identify the slope and y-intercept for ${generatedEquation}`} Responses: m=${slope}, b=${intercept}.`;
+  const questionDetails = `${prompt || (generatedEquation ? `Identify the slope and y-intercept for ${generatedEquation}` : 'Identify the slope and the y-intercept.')} Responses: m=${slope}, b=${intercept}.`;
 
   useEffect(() => {
     onStateChange(answerStateFromSharedGrading(grading, { questionDetails }));
@@ -49,7 +57,7 @@ export default function GraphLine({ question, onStateChange, onUndoStateChange, 
     <div>
       <h2 style={{ color: 'var(--mm-text-strong)', marginTop: 0 }}>Graphing Lines</h2>
       <QuestionPrompt>{prompt || 'Identify the slope $m$ and the y-intercept $b$.'}</QuestionPrompt>
-      {showEquation && <div style={{ fontSize: 'calc(27 * var(--mm-px))', fontWeight: 'bold', margin: '26px auto', color: 'var(--mm-primary)', background: 'var(--mm-surface-sunken)', padding: '18px 24px', borderRadius: '10px', width: 'fit-content', maxWidth: '100%', boxSizing: 'border-box' }}><MathDisplay value={displayedEquation} format={equationLatex ? 'latex' : 'ascii-math'} ariaLabel={`Equation ${generatedEquation}`} /></div>}
+      {showEquation && displayedEquation && <div style={{ fontSize: 'calc(27 * var(--mm-px))', fontWeight: 'bold', margin: '26px auto', color: 'var(--mm-primary)', background: 'var(--mm-surface-sunken)', padding: '18px 24px', borderRadius: '10px', width: 'fit-content', maxWidth: '100%', boxSizing: 'border-box' }}><MathDisplay value={displayedEquation} format={equationLatex ? 'latex' : 'ascii-math'} ariaLabel={generatedEquation ? `Equation ${generatedEquation}` : null} /></div>}
       <QuestionVisual question={question} includeGraph={false} />
       {graph && <GraphDisplay graph={graph} title="Graphing question" />}
       <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'center', gap: '30px' }}>
