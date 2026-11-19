@@ -6,7 +6,6 @@ import './App.css';
 import {
   collection,
   deleteDoc,
-  deleteField,
   doc,
   FieldPath,
   getDoc,
@@ -38,7 +37,7 @@ import { openWorkspaceDraft, readLatestWorkspaceResume, writeWorkspaceDraft } fr
 import { createHeldDraftReads } from './platform/persistence/heldDraftRead.js';
 import { readWorkspaceDeliveryPins, readWorkspaceDraftEntries, selectRestorableDraftEntries } from '../functions/shared/workspaceDraftSchema.mjs';
 import { canonicalResponseSavedAt } from './platform/persistence/canonicalResponseTime.js';
-import { applyWarmupTeacherControl, resolveAuthoritativeClose, resolveWarmupInstructionDateKey } from '../functions/shared/sectionDeadline.mjs';
+import { resolveAuthoritativeClose } from '../functions/shared/sectionDeadline.mjs';
 import useEngagementLedger from './platform/supportEvidence/useEngagementLedger.js';
 import StudentSupportTools from './components/student/StudentSupportTools.jsx';
 import { CLOSED_WORK, EXIT_TICKET, EXIT_TICKET_SPELLED_OUT, exitTicketInSentence } from './platform/student/studentWords.js';
@@ -51,7 +50,6 @@ import { describeDolClose, DOL_OPEN_NOTICE } from './platform/assessment/dolClos
 import { extraTimeFrom } from './platform/assessment/extraTimeWords.js';
 // The DOL grant helpers (platform/assessment/dolAttemptGrantClient.js) are
 // teacher-only: they come from the teacher kit (app/teacher/teacherKit.js).
-import { setStudentAssignmentControls } from './services/studentAssignmentControlsService.js';
 import { PRESENCE_FLUSH_MS, applyKeyedChanges, createKeyedUpdateBuffer } from './platform/performance/coalescedKeyedUpdates.js';
 import { teacherAdmin } from './auth/authService';
 import {
@@ -68,11 +66,6 @@ import {
 } from './platform/student/practiceScratchpadCache.js';
 import {
   getAssignmentByLaunchId,
-  listClassroomCourseMappings,
-  publishAssignmentToClassrooms,
-  publishClassroomMaterial,
-  repairClassroomAssignmentPublications,
-  storeLessonNotesPdf,
 } from './classroomApi';
 
 // Whether a question can come back as a different question is the one piece
@@ -139,7 +132,6 @@ import {
   CLASS_PERIODS,
   DEFAULT_CLASS_SCHEDULE,
   assignmentIsForStudent,
-  earlySectionAccessState,
   formatDateTime,
   formatRemainingTime,
   getAssignmentLifecycle,
@@ -148,11 +140,8 @@ import {
   getWarmupState,
   // The plain function, under another name: App binds `getSectionAccessState`
   // to the signed-in student's own grades below (sectionAccessForStudent).
-  getSectionAccessState as getSectionAccessStateForAnyone,
   getSectionVariantMode,
-  localDateKey,
   normalizeSchedule,
-  opensEarlyByPrerequisite,
   prerequisiteAccess,
   recordAssignmentActivity,
   sectionAccessForStudent,
@@ -163,7 +152,6 @@ import {
   studentDueDateLines,
   studentExtraTimeDolOpen,
   studentRequiredQuestions,
-  withDayTypeSetAt,
 } from './assignmentLifecycle';
 import { HEARTBEAT_INTERVAL_MS, buildLiveStatus, encodeQuestionStates } from './livePresence';
 import { helpRequestAfterClose, helpRequestFields, nextHelpRequest } from './platform/supports/helpRequest.js';
@@ -260,12 +248,11 @@ import {
 } from './platform/teacher/liveTeachingSession.js';
 import { validatePersistedWalkthroughSession, walkthroughEligibility } from './platform/assignments/assignmentAvailability.js';
 import { describeClassworkPace } from './platform/teacher/classworkModel.js';
-import { assignmentFolderMatches, normalizeFolderPath, normalizeFolderPaths, renameFolderPath } from './assignmentFolders';
+import { normalizeFolderPaths } from './assignmentFolders';
 
 import {
   getStoredAssignmentQuestions,
   prepareAssignmentForRuntime,
-  getStoredSectionVariantModes,
 } from './platform/contract/storedAssignmentV5.js';
 import {
   contentVersionOf,
@@ -283,7 +270,6 @@ import { buildStudentPathOptions } from './platform/path/studentPathOptions.js';
 import { resolveAssignmentPathLaunch } from './platform/path/assignmentPathLaunch.js';
 import { LEVEL as NAV_LEVEL, normalizeOrigin, resolveBack } from './platform/student/navigationModel.js';
 import { OPEN_NOTICE, describeOpenNotice, teacherClosedState } from './platform/student/studentOpenGate.js';
-import { fetchStudentEvidenceEvents } from './platform/history/evidencePersistence.js';
 import { splitGrade, splitGradesBySection } from './platform/teacher/gradeEvidence.js';
 import { projectTeacherOverridesForDisplay } from './platform/grading/canonicalGradeProjection.js';
 import { projectSectionRecoveriesForDisplay } from './platform/grading/sectionRecoveryGrades.js';
@@ -322,7 +308,6 @@ import {
   activityTitleForRole,
   assignmentFeedbackWasReleased,
   assignmentHasHeldTeacherFeedback,
-  assignmentUsesTeacherReleasePolicy,
   calculateDOLSectionScore,
   captureTimedSectionAccess,
   createEmptyAssignmentTracker,
@@ -375,7 +360,6 @@ import {
   STUDENT_SELF_NEUTRAL_LABEL,
   buildStudentIdentityIndex,
   compareStudentsByName,
-  formatStudentLabel,
   formatStudentName,
   resolveStudentDisplayName,
 } from './platform/studentName';
@@ -383,8 +367,6 @@ import {
 // is the only name a Classroom-linked legacy student has on Home and Live.
 import {
   normalizeTeacherRosterSummary,
-  rosterStudentLabel,
-  rosterStudentNameForStorage,
 } from './platform/teacher/teacherRosterSummary.js';
 import { evidenceRowsToEvents } from './platform/profile/legacyEvidenceAdapter.js';
 import { buildStudentLearningProfile } from './platform/profile/studentLearningProfile.js';
@@ -393,7 +375,6 @@ import { adaptLegacyMasteryToPhase5 } from './platform/profile/legacyMasteryAdap
 import StudentDashboardView from './components/student/StudentDashboardView.jsx';
 import { isTestCycleAssignment } from './platform/assessment/testCycle.js';
 import { isSecureExamActive, useSecureExamActive } from './platform/assessment/secureExamPresence.js';
-import { getAssignmentEvidenceSummary, manageAssignmentLifecycle } from './services/assessmentLifecycleService.js';
 import StudentGlobalNav, { STUDENT_DESTINATION } from './components/student/StudentGlobalNav.jsx';
 import SectionRecoveryPanel from './components/student/SectionRecoveryPanel.jsx';
 // Showing and announcing a Recovery list is light; DECIDING one runs the
@@ -429,25 +410,18 @@ import {
 } from './platform/student/studentGradeCenterModel.js';
 import {
   GRADING_PERIOD_SETTINGS_DOC,
-  gradingPeriodAssignmentPatch,
   normalizeGradingPeriodSettings,
 } from './platform/student/gradingPeriods.js';
 import {
   ROUTE_EVENTS, buildRouteEvent, fetchClassPacing, fetchSkillOverrides, fetchWeeklyGoalSettings, fetchTeacherWeeklyPathCompletions,
-  interventionAsOverride, logRouteEvent, overridesForClassContext, saveClassPacing, saveSkillOverrides, saveWeeklyGoalSettings,
-  setStudentPathIntervention, storedPacingForClassContext, storedWeeklyGoalForClassContext,
+  interventionAsOverride, logRouteEvent, overridesForClassContext,
+  storedPacingForClassContext, storedWeeklyGoalForClassContext,
   studentWeeklyPath,
 } from './platform/path/pathStore.js';
 import { buildWeeklyPathPlan } from './platform/path/weeklyPathPlan.js';
 import { forgetSessionPathCoverage } from './platform/path/pathCoverageService.js';
 import { buildTeacherWeeklyView, buildWeeklyGoal, dueAtFor, weekKeyFor, weeklyPlanClassInputs } from './platform/path/weeklyPathGoal.js';
-import {
-  blobToBase64,
-  generateLessonNotesPdfBlob,
-} from './platform/resources/pdfLoaders.js';
-import { PRINT_OUTPUT_MODES } from './platform/resources/printOutputModes.js';
-import { buildAssignmentWorksheetModel, buildTeacherAssignmentWorksheetModel, downloadAssignmentWorksheetPdf } from './platform/resources/pdfLoaders.js';
-import { defaultAssignmentDateInputs } from './platform/assignments/assignmentDateDefaults.js';
+import { buildAssignmentWorksheetModel, downloadAssignmentWorksheetPdf } from './platform/resources/pdfLoaders.js';
 // The teacher-only logic App runs (needs attention, the Action Center,
 // Assignment Review's publishing intent, worksheets, Classroom publishing)
 // loads for a teacher, never with a student's Home (app/teacher/teacherKit.js).
@@ -455,11 +429,9 @@ import { loadTeacherKit, loadedTeacherKit, prefetchTeacherWorkspace } from './ap
 import { classIdsForTeacher, resolveStudentCourseContext, studentsInClass, unplaceableStudents } from '../functions/shared/classModel.mjs';
 // Only the event kinds and the live rapid-correct summary: the rest of
 // teacher/studentSupportSignals.js is the teacher's (first-load budget).
-import { SUPPORT_EVENT_KIND, SUPPORT_EVENT_STAGE } from './platform/teacher/supportEventKinds.js';
 import { summarizeRapidCorrectness } from './platform/teacher/rapidCorrectness.js';
 import { localDateKeyOf } from './platform/attendance/classMeetings.js';
-import { buildNonInstructionalSet } from './platform/path/curriculumCalendar.js';
-import { schoolYearNonInstructionalRanges } from './curriculum/calendars/schoolYear2026-2027.js';
+import { SCHOOL_NON_INSTRUCTIONAL_KEYS } from './app/shell/schoolCalendarKeys.js';
 // buildAttendanceCorrectionReviewEvent was called by "Keep current extension"
 // and "Apply shorter extension" without being imported — a ReferenceError that
 // made every attendance correction review impossible to resolve.
@@ -467,11 +439,8 @@ import { schoolYearNonInstructionalRanges } from './curriculum/calendars/schoolY
 // teacher-only, so they come from the teacher kit (app/teacher/teacherKit.js):
 // every call below is requireTeacherKit().name( or teacherKit.name(.
 import { loadTeacherGradeTransferState } from './platform/gradeTransfer/gradeTransferStore.js';
-import { LIVE_ATTENDANCE_EVENT_KIND } from './platform/teacher/liveAttendanceEventKind.js';
 // From the shared day rules, not ./platform/attendance/attendanceHistory.js:
 // App reads only this name, and that module is a teacher's history screen.
-import { ATTENDANCE_HISTORY_EVENT_KIND } from '../functions/shared/attendanceDay.mjs';
-import { applyStudentAttendanceExtension } from './platform/attendance/extensionClient.js';
 // The periods' course profiles alone, not courseRigor.js: its Honors checks
 // load with the teacher's screens (PF01, platform/rigor/courseProfiles.js).
 import {
@@ -512,10 +481,10 @@ import { useLiveChallengeInvite } from './app/student/useLiveChallengeInvite.js'
 import { useDraftSaveHealth } from './app/student/useDraftSaveHealth.js';
 import { useStudentClassPoints } from './app/student/useStudentClassPoints.js';
 
-// Built once: the district instructional calendar is static reference data,
-// not per-render or per-teacher state (see the identical constant in
-// LiveClassMonitor.jsx, which needs the same calendar for the same reason).
-const SCHOOL_NON_INSTRUCTIONAL_KEYS = buildNonInstructionalSet(schoolYearNonInstructionalRanges());
+// What a teacher's controls are before the teacher kit has loaded, and for a
+// student always: none. Only the teacher's screen reads them, and it waits for
+// the kit (app/teacher/teacherKit.js).
+const NO_TEACHER_CONTROLS = Object.freeze([]);
 // An assignment with no records yet: one object, so what is worked out from
 // it is not worked out again on every render.
 const NO_RECORDS = Object.freeze({});
@@ -2253,129 +2222,11 @@ function App() {
     setStudentDashboardMode('mathPath');
   };
 
-  const handleSavePacing = async (next) => {
-    setPacingByClass(next);
-    setPacingBusy(true);
-    try {
-      await saveClassPacing(next);
-    } catch (error) {
-      toastError('Pacing not saved', 'The change is showing locally but did not reach the server.');
-      console.error(error);
-    } finally {
-      setPacingBusy(false);
-    }
-  };
-
-  const handleSaveWeeklyGoal = async (classId, config) => {
-    if (!classId) return;
-    // Optimistic locally, then persisted. A teacher adjusting a control must
-    // see it move immediately; a failed write says so rather than silently
-    // reverting under them.
-    const next = { ...weeklyGoalsByClass, [classId]: config };
-    setWeeklyGoalsByClass(next);
-    setWeeklyGoalBusy(true);
-    try {
-      await saveWeeklyGoalSettings(next);
-    } catch (error) {
-      toastError('Weekly goal not saved', 'The change is showing locally but did not reach the server.');
-      console.error(error);
-    } finally {
-      setWeeklyGoalBusy(false);
-    }
-  };
-
-  const handleSaveOverrides = async (next) => {
-    setSkillOverrides(next);
-    setPacingBusy(true);
-    try {
-      await saveSkillOverrides(next);
-    } catch (error) {
-      toastError('Override not saved', 'The change is showing locally but did not reach the server.');
-      console.error(error);
-    } finally {
-      setPacingBusy(false);
-    }
-  };
-
-  const handlePersonalPathRecommendation = async ({
-    studentId,
-    studentName = null,
-    teksCode = null,
-    clear = false,
-    classId = null,
-    classPeriod = null,
-    assignmentId = null,
-    assignmentTitle = null,
-  } = {}) => {
-    const id = String(studentId || '').trim();
-    if (!id) return null;
-    // Named from the roster by id. The caller's name is only a historical hint:
-    // a Live tile whose student has no name on file passes none, and the id is
-    // never promoted to a name — the toast labels it as an id instead.
-    const studentLabel = rosterStudentLabel({ studentId: id, index: teacherStudentIdentityIndex, historicalName: studentName });
-    const storedStudentName = rosterStudentNameForStorage({ studentId: id, index: teacherStudentIdentityIndex, historicalName: studentName });
-    setPathInterventionBusyStudentId(id);
-    try {
-      const result = await setStudentPathIntervention({
-        studentId: id,
-        teksCode,
-        durationHours: 48,
-        clear,
-      });
-
-      if (clear) {
-        toastSuccess(
-          'Personal Path recommendation cleared',
-          `${studentLabel} is back to the normal adaptive Path priorities.`,
-        );
-        return result;
-      }
-
-      // The intervention and the support history are different records on
-      // purpose. The student sees only "teacher recommended this skill"; the
-      // private teacher history preserves when/where the action happened.
-      if (user?.email) {
-        requireTeacherKit().recordStudentSupportEvent({
-          db,
-          teacherEmail: user.email,
-          event: {
-            kind: SUPPORT_EVENT_KIND.TEACHER_INTERVENTION,
-            stage: SUPPORT_EVENT_STAGE.ACTION_TAKEN,
-            studentId: id,
-            studentName: storedStudentName,
-            classId,
-            classPeriod,
-            assignmentId,
-            assignmentTitle,
-            source: 'liveMonitor',
-            summary: `Teacher recommended ${teksCode} as a temporary personal My Math Path priority for 48 hours.`,
-            evidence: {
-              teksCode,
-              durationHours: 48,
-              interventionType: 'personalPathRecommendation',
-            },
-          },
-        }).catch((error) => {
-          console.error('Path recommendation applied but support history did not save:', error);
-        });
-      }
-
-      toastSuccess(
-        'Path recommendation updated',
-        `${teksCode} is now a personal priority for ${studentLabel} for 48 hours. Normal prerequisite and content safeguards still apply.`,
-      );
-      return result;
-    } catch (error) {
-      console.error(error);
-      toastError(
-        clear ? 'Could not clear Path recommendation' : 'Could not update Path recommendation',
-        error.message,
-      );
-      return null;
-    } finally {
-      setPathInterventionBusyStudentId(null);
-    }
-  };
+  const [handleSavePacing, handleSaveWeeklyGoal, handleSaveOverrides, handlePersonalPathRecommendation] = teacherKit ? teacherKit.createPathPacingControls(
+    toastError, toastSuccess, user, requireTeacherKit, setPacingByClass, setSkillOverrides,
+    setPathInterventionBusyStudentId, setPacingBusy, setWeeklyGoalsByClass, weeklyGoalsByClass, setWeeklyGoalBusy,
+    teacherStudentIdentityIndex,
+  ) : NO_TEACHER_CONTROLS;
 
   // A student's own individualized (extra-time) deadlines are derived from
   // their pinned support profile and injected IN MEMORY by
@@ -2398,199 +2249,7 @@ function App() {
     return fetchedAssignments;
   };
 
-  /**
-   * Publish one already-saved MathMaster assignment to every Google Classroom
-   * course mapped to one of its assigned class periods.
-   *
-   * MathMaster assignment creation is authoritative. Classroom is a downstream
-   * publication target, so a Classroom failure never rolls back the assignment.
-   */
-  const autoPublishAssignmentPackageToClassroom = async (assignment) => {
-    const { automaticClassroomTopicName, classroomPostingMode, mappedCourseIdsForAssignment, shouldAutoPublishClassroomPackage, teacherClassroomTopicStyle } = requireTeacherKit();
-    if (!shouldAutoPublishClassroomPackage(assignment)) {
-      return { status: 'skipped', reason: 'not-auto-publishable', published: 0, failed: 0 };
-    }
-
-    const mappingResult = await listClassroomCourseMappings();
-    const mappings = Array.isArray(mappingResult?.mappings) ? mappingResult.mappings : [];
-    const courseIds = mappedCourseIdsForAssignment(assignment, mappings);
-    if (!courseIds.length) {
-      return {
-        status: 'needs-mapping',
-        reason: 'No Google Classroom course is mapped to the assignment’s MathMaster class period.',
-        published: 0,
-        failed: 0,
-      };
-    }
-
-    const classroom = assignment.classroomPackage || {};
-    // One name for both posts, so the resources and the assignment land in the
-    // same topic — renamed "Week of …" when the teacher chose week topics. The
-    // style is the teacher's saved choice, so a second device names topics the
-    // same way (TT07); with it unreadable, this browser's own choice stands.
-    const topicStyle = await teacherClassroomTopicStyle({ db, uid: user?.uid });
-    const topicName = automaticClassroomTopicName(assignment, { style: topicStyle });
-    const notesPdf = assignment.lessonResources?.notesPdf || null;
-    const resourceLinks = Array.isArray(classroom.additionalLinks)
-      ? classroom.additionalLinks
-        .map((link) => ({ title: String(link?.title || '').trim(), url: String(link?.url || '').trim() }))
-        .filter((link) => link.title && /^https?:\/\//i.test(link.url))
-      : [];
-
-    const hasAuthoredNotes = notesPdf?.enabled === true
-      && Array.isArray(notesPdf?.sections)
-      && notesPdf.sections.length > 0;
-    if (notesPdf?.enabled && !hasAuthoredNotes) {
-      console.warn('Lesson notes are enabled but contain no authored sections; skipping the notes PDF so an empty handout can never reach Google Classroom.');
-    }
-    if (hasAuthoredNotes) {
-      let notesUrl = notesPdf?.asset?.url || null;
-      if (!notesUrl) {
-        const generated = await generateLessonNotesPdfBlob({ assignment, notesPdf });
-        const stored = await storeLessonNotesPdf({
-          assignmentId: assignment.id,
-          fileName: notesPdf.fileName,
-          title: notesPdf.title,
-          pageCount: generated.pageCount,
-          base64: await blobToBase64(generated.blob),
-        });
-        notesUrl = stored?.url || null;
-      }
-      if (notesUrl) {
-        resourceLinks.unshift({
-          title: notesPdf.title || `${assignment.title} — Student Notes`,
-          url: notesUrl,
-        });
-      }
-    }
-
-    const dedupedLinks = [
-      ...new Map(resourceLinks.map((item) => [item.url, item])).values(),
-    ];
-    const postingMode = classroomPostingMode(assignment);
-
-    if (
-      classroom?.resourcesPost?.enabled !== false
-      && postingMode === 'separateMaterial'
-      && dedupedLinks.length
-    ) {
-      const materialResult = await publishClassroomMaterial({
-        courseIds,
-        materialKey: `assignment:${assignment.id}:resources`,
-        title: classroom?.resourcesPost?.title || `${assignment.title} — Notes & Resources`,
-        description: classroom?.resourcesPost?.description || `Reference materials for ${assignment.title}.`,
-        topicName,
-        materials: dedupedLinks,
-      });
-      const failedMaterials = (materialResult?.results || []).filter((item) => item.status === 'failed');
-      if (failedMaterials.length) {
-        console.warn('Some Classroom resource posts failed:', failedMaterials);
-      }
-    }
-
-    const response = await publishAssignmentToClassrooms({
-      courseIds,
-      assignmentId: assignment.id,
-      classroomTitle: classroom?.assignmentPost?.title || assignment.title,
-      maxPoints: Number(classroom?.assignmentPost?.maxPoints) || 100,
-      gradePassbackEnabled: classroom?.gradePassback?.enabled !== false,
-      topicName,
-      instructions: classroom?.assignmentPost?.instructions
-        || `Complete “${assignment.title}” in MathMaster.`,
-      materials: (
-        classroom?.resourcesPost?.enabled !== false
-        && postingMode === 'attachToAssignment'
-      ) ? dedupedLinks : [],
-    });
-
-    const summary = response?.summary || {};
-    const published = Number(summary.published || 0) + Number(summary.alreadyPublished || 0);
-    const failed = Number(summary.failed || 0);
-    return {
-      status: failed ? (published ? 'partial' : 'failed') : 'published',
-      published,
-      failed,
-      courseIds,
-      results: response?.results || [],
-    };
-  };
-
-  /**
-   * The students this signed-in user may see.
-   *
-   * A teacher's roster is the students in the classes they are teacher of
-   * record for — not the whole school. The scope is applied here, once, so
-   * every teacher surface downstream (gradebook, standards, analytics, exams,
-   * Path inspection) inherits it rather than each re-deriving it and
-   * disagreeing. The root administrator sees everyone.
-   */
-  const handleRepairClassroomAssignmentPost = async (assignment) => {
-    if (!assignment?.id) return;
-    try {
-      const response = await repairClassroomAssignmentPublications({
-        assignmentId: assignment.id,
-      });
-      const summary = response?.summary || {};
-      const checked = Number(summary.checked || 0);
-      const reposted = Number(summary.reposted || 0);
-      const healthy = Number(summary.healthy || 0);
-      const failed = Number(summary.failed || 0);
-      const queuedGrades = Number(summary.queuedGrades || 0);
-      const ignoredPriorDestinations = Number(summary.ignoredPriorDestinations || 0);
-      const repostedCourses = (response?.results || [])
-        .filter((item) => item.status === 'reposted')
-        .map((item) => item.courseName || item.courseId)
-        .filter(Boolean);
-      const healthyCourses = (response?.results || [])
-        .filter((item) => item.status === 'healthy')
-        .map((item) => item.courseName || item.courseId)
-        .filter(Boolean);
-
-      if (!checked) {
-        toastWarning(
-          'No current Classroom destination found',
-          'MathMaster could not find a Google Classroom course mapped to the class currently assigned this work. Open Google Classroom Manager and verify the class-to-course mapping.',
-        );
-        return;
-      }
-      if (reposted > 0) {
-        toastSuccess(
-          'Google Classroom assignment reposted',
-          assignment.title + ': recreated ' + reposted + ' missing Classroom post' + (reposted === 1 ? '' : 's')
-            + (repostedCourses.length ? ' in ' + repostedCourses.join(', ') : '')
-            + ' and queued ' + queuedGrades + ' linked student grade record' + (queuedGrades === 1 ? '' : 's')
-            + ' for passback review. Existing MathMaster work was preserved.'
-            + (ignoredPriorDestinations > 0
-              ? ' MathMaster ignored ' + ignoredPriorDestinations + ' older publication record' + (ignoredPriorDestinations === 1 ? '' : 's') + ' from other course mappings.'
-              : ''),
-        );
-      } else if (healthy > 0 && failed === 0) {
-        toastInfo(
-          'Current Classroom post is healthy',
-          assignment.title + ': Google Classroom confirmed the current mapped assignment post'
-            + (healthy === 1 ? '' : 's')
-            + (healthyCourses.length ? ' in ' + healthyCourses.join(', ') : '')
-            + ' ' + (healthy === 1 ? 'is' : 'are') + ' still available. Nothing was duplicated. If you still cannot see the post, choose Force New Classroom Post from this assignment menu and select the exact Google Classroom.'
-            + (ignoredPriorDestinations > 0
-              ? ' MathMaster ignored ' + ignoredPriorDestinations + ' older publication record' + (ignoredPriorDestinations === 1 ? '' : 's') + ' from other course mappings.'
-              : ''),
-        );
-      }
-      if (failed > 0) {
-        const details = (response?.results || [])
-          .filter((item) => ['failed', 'changed'].includes(item.status))
-          .map((item) => (item.courseName || item.courseId) + ': ' + (item.error || 'repair failed'))
-          .join(' | ');
-        toastError(
-          'Classroom repost needs attention',
-          details || (failed + ' Classroom destination' + (failed === 1 ? '' : 's') + ' could not be repaired.'),
-        );
-      }
-    } catch (error) {
-      console.error(error);
-      toastError('Could not check/repost Classroom assignment', error.message);
-    }
-  };
+  const [autoPublishAssignmentPackageToClassroom, handleRepairClassroomAssignmentPost] = teacherKit ? teacherKit.createClassroomPublishingControls(toastError, toastInfo, toastSuccess, toastWarning, user, requireTeacherKit) : NO_TEACHER_CONTROLS;
 
   const repairGradesByAssignmentWithCurrentGrader = ({
     repairAssignmentTrackerForCurrentGrader,
@@ -4687,251 +4346,12 @@ function App() {
     });
   }, [user?.role, user?.email, classes, teacherWorkspaceMode, teacherPreviewRuntimeActive, teacherTab, teacherKit]);
 
-  /*
-   * A per-student extension is never written as a client-side whole-map
-   * replace, for two reasons at once: (1) two teachers (or two tabs)
-   * granting extensions to two different students of the same assignment
-   * from the same stale snapshot must not let the second write erase the
-   * first, and (2) firestore.rules blocks a direct client write to
-   * `studentOverrides` entirely (see that rule's comment) — only the
-   * `applyStudentAttendanceExtension` Cloud Function may write it, because
-   * only it can independently re-verify the caller is this student's own
-   * teacher of record and that the write never shortens a cutoff already on
-   * file. This function's job is just to shape the browser's already-computed
-   * proposal for that callable.
-   */
-  const applyStudentOverridePatch = async ({ assignmentId, studentId, classId, patch }) => {
-    const entry = patch?.studentOverrides?.[studentId];
-    if (!entry?.lateDueAt) return;
-    const proposedLateDueAtMs = entry.lateDueAt instanceof Date
-      ? entry.lateDueAt.getTime()
-      : new Date(entry.lateDueAt).getTime();
-    await applyStudentAttendanceExtension({
-      classId, studentId, assignmentId, proposedLateDueAtMs, extension: entry.extension || {},
-    });
-  };
-
-  /*
-   * ONE RECONCILIATION PATH FOR EVERY ATTENDANCE EVENT.
-   *
-   * Live Classroom's same-day quick-mark and an Attendance History
-   * correction are both, underneath, "a teacher just recorded an attendance
-   * mark" — so both go through this same function rather than two separate
-   * ones that could drift apart. A Present/Late correction runs through here
-   * too: it may remove an absence an earlier extension was based on, which
-   * is exactly the "would shorten" case extensionReconciliation.js has to
-   * catch. Recording the (append-only) event and reconciling any extension it
-   * touches happen together, so a teacher never sees a corrected mark that
-   * has not yet been reflected in the student's deadline.
-   */
-  const reconcileAttendanceExtensions = async (event, record) => {
-    const { fetchAttendanceForClassDateRange } = requireTeacherKit();
-    const classPeriod = classes.find((entry) => entry.classId === event.classId)?.period || null;
-    const affectedAssignments = assignments
-      .filter((assignment) => assignmentIsForStudent(assignment, { classId: event.classId }))
-      .filter((assignment) => {
-        const release = localDateKeyOf(assignment?.releaseAt || assignment?.releaseDate) || '0000-00-00';
-        const due = localDateKeyOf(assignment?.dueAt || assignment?.dueDate);
-        return due && event.evidence?.dateKey >= release && event.evidence?.dateKey <= due;
-      });
-    const windowStarts = affectedAssignments
-      .map((assignment) => localDateKeyOf(assignment?.releaseAt || assignment?.releaseDate))
-      .filter(Boolean);
-    const windowEnds = affectedAssignments
-      .map((assignment) => localDateKeyOf(assignment?.dueAt || assignment?.dueDate))
-      .filter(Boolean);
-    const attendanceHistory = affectedAssignments.length
-      ? await fetchAttendanceForClassDateRange({
-        db,
-        teacherEmail: user.email,
-        classId: event.classId,
-        fromDateKey: windowStarts.sort()[0] || event.evidence?.dateKey,
-        toDateKey: windowEnds.sort().at(-1) || event.evidence?.dateKey,
-      })
-      : [];
-    const results = requireTeacherKit().reconcileAssignmentExtensionsForCorrection({
-      assignments: affectedAssignments,
-      studentId: event.studentId,
-      classId: event.classId,
-      classPeriod,
-      schedule: classSchedule,
-      nonInstructionalKeys: SCHOOL_NON_INSTRUCTIONAL_KEYS,
-      // The generic support subscription is capped at 750 records. Extension
-      // decisions use the complete indexed attendance range instead.
-      supportEvents: attendanceHistory.some((entry) => entry.id === record.id)
-        ? attendanceHistory : [...attendanceHistory, record],
-      correctionDateKey: event.evidence?.dateKey,
-    });
-
-    let reviewCount = 0;
-    await Promise.all(results.map(async ({ assignment, resolution }) => {
-      if (resolution.reviewNeeded) { reviewCount += 1; return; }
-      const patch = requireTeacherKit().buildStudentExtensionPatch({
-        assignment, studentId: event.studentId, resolution, actorEmail: user.email,
-      });
-      if (patch) await applyStudentOverridePatch({ assignmentId: assignment.id, studentId: event.studentId, classId: event.classId, patch });
-    }));
-    return reviewCount;
-  };
-
   const [attendanceReviewBusyKey, setAttendanceReviewBusyKey] = useState(null);
 
-  /*
-   * "KEEP CURRENT EXTENSION" — the review is resolved, nothing is written to
-   * the assignment. Recording the resolution is what makes the open item on
-   * Attendance History disappear (openAttendanceCorrectionReviewsForStudent
-   * checks for exactly this event).
-   */
-  const handleKeepAttendanceExtension = async ({ student, assignment, resolution, classId, classPeriod, reviewKey }) => {
-    if (user?.role !== 'teacher' || !user.email) return;
-    setAttendanceReviewBusyKey(reviewKey);
-    try {
-      await requireTeacherKit().recordStudentSupportEvent({
-        db, teacherEmail: user.email,
-        event: requireTeacherKit().buildAttendanceCorrectionReviewEvent({
-          studentId: student.id || student.studentId,
-          studentName: rosterStudentNameForStorage({
-            studentId: student.id || student.studentId,
-            index: teacherStudentIdentityIndex,
-            historicalName: formatStudentName(student, { lastFirst: false, fallbackToNeutral: false }),
-          }),
-          assignmentId: assignment.id, assignmentTitle: assignment.title, classId, classPeriod,
-          existing: resolution.existing, proposed: resolution.proposed, resolution: 'kept', actorEmail: user.email,
-        }),
-      });
-      toastSuccess('Extension kept', 'The existing extension stays in place; the review is resolved.');
-    } catch (error) {
-      console.error(error);
-      toastError('Could not resolve the review', error.message);
-    } finally {
-      setAttendanceReviewBusyKey(null);
-    }
-  };
-
-  /*
-   * "APPLY SHORTER EXTENSION" — the one deliberate exception to "never
-   * shorten automatically". The review-resolution event is recorded FIRST
-   * (audited, teacher-authorized), and the callable independently re-checks
-   * that exact record exists before it will accept a shortened cutoff — see
-   * applyStudentAttendanceExtension's own comment in functions/index.js.
-   */
-  const handleApplyShorterAttendanceExtension = async ({ student, assignment, resolution, classId, classPeriod, reviewKey }) => {
-    if (user?.role !== 'teacher' || !user.email) return;
-    const studentId = student.id || student.studentId;
-    setAttendanceReviewBusyKey(reviewKey);
-    try {
-      await requireTeacherKit().recordStudentSupportEvent({
-        db, teacherEmail: user.email,
-        event: requireTeacherKit().buildAttendanceCorrectionReviewEvent({
-          studentId,
-          studentName: rosterStudentNameForStorage({
-            studentId,
-            index: teacherStudentIdentityIndex,
-            historicalName: formatStudentName(student, { lastFirst: false, fallbackToNeutral: false }),
-          }),
-          assignmentId: assignment.id, assignmentTitle: assignment.title, classId, classPeriod,
-          existing: resolution.existing, proposed: resolution.proposed, resolution: 'shortened', actorEmail: user.email,
-        }),
-      });
-      await applyStudentAttendanceExtension({
-        classId, studentId, assignmentId: assignment.id,
-        proposedLateDueAtMs: resolution.proposed.dueAt instanceof Date
-          ? resolution.proposed.dueAt.getTime() : new Date(resolution.proposed.dueAt).getTime(),
-        extension: {
-          dateKey: resolution.proposed.dateKey,
-          meetingsGranted: resolution.proposed.meetingsGranted,
-          meetingsRequested: resolution.proposed.meetingsRequested,
-          undetermined: resolution.proposed.undetermined,
-          resolved: resolution.proposed.resolved,
-          sourceAbsenceDates: resolution.proposed.sourceAbsenceDates,
-        },
-        allowShorten: true,
-        existingDateKey: resolution.existing?.dateKey,
-        proposedDateKey: resolution.proposed?.dateKey,
-      });
-      toastSuccess('Extension shortened', 'The student’s extension now matches the corrected attendance.');
-    } catch (error) {
-      console.error(error);
-      toastError('Could not apply the shorter extension', error.message);
-    } finally {
-      setAttendanceReviewBusyKey(null);
-    }
-  };
-
-  const ATTENDANCE_EVENT_KINDS = [LIVE_ATTENDANCE_EVENT_KIND, ATTENDANCE_HISTORY_EVENT_KIND];
-
-  const handleRecordStudentSupportEvent = async (event) => {
-    if (user?.role !== 'teacher' || !user.email) return null;
-    const isAttendanceEvent = ATTENDANCE_EVENT_KINDS.includes(event?.kind);
-    try {
-      const record = await requireTeacherKit().recordStudentSupportEvent({
-        db,
-        teacherEmail: user.email,
-        event,
-      });
-
-      if (isAttendanceEvent) {
-        let reviewCount;
-        try {
-          reviewCount = await reconcileAttendanceExtensions(event, record);
-        } catch (reconciliationError) {
-          console.error('Attendance extension reconciliation is pending:', reconciliationError);
-          // The attendance fact is already safely append-only. Persist a
-          // second append-only audit/retry record containing everything a
-          // worker or teacher retry needs; never delete the attendance fact.
-          try {
-            await requireTeacherKit().recordStudentSupportEvent({
-              db,
-              teacherEmail: user.email,
-              event: {
-                kind: SUPPORT_EVENT_KIND.ATTENDANCE_EXTENSION_RECONCILIATION_PENDING,
-                stage: SUPPORT_EVENT_STAGE.SYSTEM_SIGNAL,
-                studentId: event.studentId,
-                studentName: event.studentName,
-                classId: event.classId,
-                classPeriod: event.classPeriod,
-                dateKey: event.evidence?.dateKey,
-                relatedEventId: record.id,
-                summary: 'Attendance saved; deadline reconciliation needs retry.',
-                evidence: {
-                  dateKey: event.evidence?.dateKey,
-                  attendanceEventId: record.id,
-                  retryable: true,
-                  error: String(reconciliationError?.message || reconciliationError).slice(0, 300),
-                },
-              },
-            });
-          } catch (auditError) {
-            console.error('Could not persist attendance reconciliation retry audit:', auditError);
-          }
-          toastError(
-            'Attendance saved; extension update pending',
-            'The attendance record is safe. Deadline reconciliation needs a retry and was added to the support audit trail.',
-          );
-          return record;
-        }
-        toastSuccess(
-          event.kind === ATTENDANCE_HISTORY_EVENT_KIND ? 'Attendance correction saved' : 'Attendance recorded',
-          reviewCount > 0
-            ? `${reviewCount} extension${reviewCount === 1 ? '' : 's'} would have shortened — review before changing.`
-            : 'The prior mark stays in the record; any earned extension was reconciled.',
-        );
-        return record;
-      }
-
-      const label = event?.kind === SUPPORT_EVENT_KIND.PARENT_FOLLOW_UP
-        ? 'Parent follow-up recorded'
-        : event?.stage === SUPPORT_EVENT_STAGE.DISMISSED
-          ? 'Signal dismissal recorded'
-          : 'Student support note recorded';
-      toastSuccess(label, 'The event was added to the append-only student support history.');
-      return record;
-    } catch (error) {
-      console.error(error);
-      toastError(isAttendanceEvent ? 'Could not save the attendance record' : 'Could not save support note', error.message);
-      return null;
-    }
-  };
+  const [handleKeepAttendanceExtension, handleApplyShorterAttendanceExtension, handleRecordStudentSupportEvent] = teacherKit ? teacherKit.createAttendanceExtensionControls(
+    toastError, toastSuccess, user, classes, assignments, requireTeacherKit, classSchedule,
+    teacherStudentIdentityIndex, setAttendanceReviewBusyKey,
+  ) : NO_TEACHER_CONTROLS;
 
   // Teachers stream presence only while the live grid is on screen. Subscribe
   // to roster-owned documents individually rather than the whole collection:
@@ -5288,71 +4708,10 @@ function App() {
     }
   };
 
-  const teacherWorksheetStudentsFor = (assignment) => (
-    requireTeacherKit().eligibleStudentsForTeacherWorksheet(assignment, allStudents)
-      .slice()
-      .sort(compareStudentsByName)
-  );
-
-  const exportTeacherAssignmentWorksheetPdf = async (assignment, student = null, outputMode = PRINT_OUTPUT_MODES.STUDENT) => {
-    if (user?.role !== 'teacher' || !getStoredAssignmentQuestions(assignment).length) return;
-    setTeacherWorksheetBusy(true);
-    try {
-      const masteryProfile = student ? teacherMasteryProfilesByStudentId?.[student.id] || null : null;
-      // No name on file prints a blank name line, never a placeholder or id.
-      const selectedStudent = student
-        ? { ...student, displayName: formatStudentName(student, { fallbackToNeutral: false }) }
-        : null;
-      const selectedStudentProfile = selectedStudent
-        ? {
-            ...(selectedStudent.profile || {}),
-            courseLevel: selectedStudent.profile?.courseLevel || selectedStudent.courseLevel || null,
-            adaptiveInstruction: masteryProfile?.adaptiveInstruction
-              || selectedStudent.profile?.adaptiveInstruction,
-          }
-        : null;
-      const model = await buildTeacherAssignmentWorksheetModel({
-        assignment,
-        student: selectedStudent,
-        learningProfile: selectedStudent ? teacherLearningProfiles?.[selectedStudent.id] || null : null,
-        studentProfile: selectedStudentProfile,
-        outputMode,
-      });
-      const result = await downloadAssignmentWorksheetPdf({ model });
-      const outputLabel = outputMode === PRINT_OUTPUT_MODES.TEACHER
-        ? 'Teacher copy'
-        : outputMode === PRINT_OUTPUT_MODES.ANSWER_KEY ? 'Answer key' : 'Student worksheet';
-      toastSuccess(
-        `${outputLabel} ready`,
-        selectedStudent
-          ? `${formatStudentLabel(student)} · ${result.pageCount} page${result.pageCount === 1 ? '' : 's'} exported.`
-          : `${result.pageCount} page${result.pageCount === 1 ? '' : 's'} exported from the shared assignment version.`,
-      );
-      setTeacherWorksheetDialog(null);
-    } catch (error) {
-      console.error('Could not export teacher assignment PDF:', error);
-      toastError('Could not export PDF', error?.message || 'MathMaster could not build the printable assignment.');
-    } finally {
-      setTeacherWorksheetBusy(false);
-    }
-  };
-
-  const beginTeacherWorksheetExport = async (assignment) => {
-    if (!getStoredAssignmentQuestions(assignment).length) {
-      toastInfo('Nothing to export', 'This assignment does not currently contain printable questions.');
-      return;
-    }
-    const requiresStudent = requireTeacherKit().assignmentNeedsStudentForWorksheet(assignment);
-    const students = teacherWorksheetStudentsFor(assignment);
-    if (requiresStudent && !students.length) {
-      toastInfo(
-        'Student version needed',
-        'This assignment uses personalized or adaptive sections, but no roster student is available for its current audience. Assign it to a class or add a student first.',
-      );
-      return;
-    }
-    setTeacherWorksheetDialog({ assignmentId: assignment.id, requiresStudent });
-  };
+  const [teacherWorksheetStudentsFor, exportTeacherAssignmentWorksheetPdf, beginTeacherWorksheetExport] = teacherKit ? teacherKit.createTeacherWorksheetControls(
+    toastError, toastInfo, toastSuccess, user, allStudents, requireTeacherKit, setTeacherWorksheetDialog,
+    setTeacherWorksheetBusy, teacherMasteryProfilesByStudentId, teacherLearningProfiles,
+  ) : NO_TEACHER_CONTROLS;
 
   const startAssignment = (assignmentId, requestedQuestionIndex = 0, options = {}) => {
     assignmentOpenSpanRef.current?.finish({ status: 'superseded' });
@@ -6386,47 +5745,7 @@ function App() {
     }
   };
 
-  const openTeacherScratchpad = async (studentId, assignmentId, questionIndex) => {
-    const scratchpadId = getScratchpadDocumentId(assignmentId, questionIndex);
-    setTeacherScratchpadLoading(true);
-    setTeacherScratchpadDialog({
-      studentId,
-      assignmentId,
-      questionIndex,
-      dataUrl: '',
-      missing: false,
-    });
-    try {
-      // A teacher reviewing three pages of working must see three pages. Reading
-      // only page one would show the first third of a solution and silently call
-      // it the whole answer.
-      const record = await loadScratchpadRecord(async (id) => {
-        const snapshot = await getDoc(doc(db, 'grades', studentId, 'scratchpads', id));
-        return snapshot.exists() ? snapshot.data() : null;
-      }, scratchpadId);
-      const pages = (record?.pages || []).filter(Boolean);
-      setTeacherScratchpadDialog({
-        studentId,
-        assignmentId,
-        questionIndex,
-        dataUrl: pages[0] || '',
-        pages,
-        missing: !pages.length,
-      });
-    } catch (error) {
-      console.error('Could not load student work:', error);
-      setTeacherScratchpadDialog({
-        studentId,
-        assignmentId,
-        questionIndex,
-        dataUrl: '',
-        missing: true,
-        error: error.message,
-      });
-    } finally {
-      setTeacherScratchpadLoading(false);
-    }
-  };
+  const [openTeacherScratchpad] = teacherKit ? teacherKit.createTeacherScratchpadControls(setTeacherScratchpadDialog, setTeacherScratchpadLoading, getScratchpadDocumentId, loadScratchpadRecord) : NO_TEACHER_CONTROLS;
 
   /*
    * A RESPONSE CHECKPOINT IS A DRAFT, NOT A GRADE.
@@ -7127,86 +6446,7 @@ function App() {
     void reconcileAndReportStudentOutbox().catch((error) => console.error('Question replacement remains queued for retry:', error));
   };
 
-  const V5_COMPILER_PLUMBING_ERROR = /missing a type\/toolId|refers to a table in its prompt, but the question contains none|refers to a graph in its prompt, but the question contains none|needs `functionSpec\.type`|needs `analysisRequests`|needs a `graph` object with functions, points or segments|cannot yet build that interactive graph from an upstream response/i;
-
-  // The teacher sets classes, dates, folder and publishing here — the JSON never
-  // carries them, so there are no manual fallbacks to merge any more.
-  const openAssignmentPreflight = (inspected, sourceName, draftOverrides = {}, reviewOptions = {}) => {
-    try {
-      const assignmentV5 = inspected.assignmentV5;
-      if (!assignmentV5 || Number(assignmentV5.schemaVersion) !== 5) {
-        throw new Error('Assignment Review requires a current MathMaster assignment.');
-      }
-      const sections = Array.isArray(assignmentV5.sections) ? assignmentV5.sections : [];
-      const dolQuestionFromRole = inspected.questions.findIndex((question) => (
-        resolveQuestionActivityRole({ question, assignment: assignmentV5 }) === 'dol'
-      ));
-      const publishingIntent = requireTeacherKit().normalizeLessonPublishingIntentV5({
-        classroom: assignmentV5.classroomIntegration,
-        lessonResources: { notesPdf: assignmentV5.outputProfiles?.lessonNotesPdf },
-      }, assignmentV5.assignment, []);
-      const defaultDates = defaultAssignmentDateInputs();
-      const initialDraft = {
-        title: assignmentV5.assignment?.title || '',
-        folder: assignmentV5.assignment?.folder || '',
-        dueAt: defaultDates.dueAt,
-        lateDueAt: defaultDates.lateDueAt,
-        releaseAt: '',
-        sectionVariantModes: getStoredSectionVariantModes(assignmentV5),
-        sectionAccessDefaults: { classwork: 'open', practice: 'open' },
-        // Practice keeps Guided Notes off by default: the owner's decision (FB20, 2026-10-23).
-        guidedNotesBySection: { classwork: 'automatic', practice: 'off' },
-        assignedClassPeriods: [],
-        assignedClassIds: [],
-        warmupEnabled: sections.some((section) => section.role === 'warmup'),
-        warmupMinutesBeforeStart: 7,
-        warmupInstructionDate: '',
-        warmupInstructionDatesByClassPeriod: {},
-        dolEnabled: sections.some((section) => section.role === 'dol'),
-        dolMinutesBeforeEnd: 10,
-        dolCloseMinutesBeforeEnd: 5,
-        dolInstructionDate: '',
-        dolInstructionDatesByClassPeriod: {},
-        dolQuestionIndex: dolQuestionFromRole >= 0 ? dolQuestionFromRole : null,
-        publicationStrategy: 'hybrid',
-        includeWarmupInClassroom: false,
-        homeworkDueAt: '',
-        instructionalPurpose: assignmentV5.assignment?.instructionalPurpose || 'lesson',
-        gradingPurpose: assignmentV5.assignment?.gradingPurpose || null,
-        variantPolicy: assignmentV5.variantPolicy,
-        differentiationPolicy: assignmentV5.differentiationPolicy,
-        supportPolicy: assignmentV5.supportPolicy,
-        toolPolicy: assignmentV5.toolPolicy,
-        deliveryPolicy: assignmentV5.deliveryPolicy,
-        gradingPolicy: assignmentV5.gradingPolicy,
-        evidencePolicy: assignmentV5.evidencePolicy,
-        outputProfiles: assignmentV5.outputProfiles,
-        classroomIntegration: assignmentV5.classroomIntegration,
-        provenance: assignmentV5.provenance,
-        preflight: assignmentV5.preflight,
-        ...draftOverrides,
-      };
-      setAssignmentPreflight({
-        assignmentV5,
-        initialDraft,
-        questions: inspected.questions,
-        authoringWarnings: inspected.authoringWarnings || [],
-        sourceLabel: `${sourceName || 'Imported assignment'}`,
-        mode: reviewOptions.mode === 'update' ? 'update' : 'create',
-        existingAssignmentId: reviewOptions.existingAssignmentId || null,
-        allowQuestionRepair: reviewOptions.allowQuestionRepair !== false,
-        sourceContentLineage: reviewOptions.sourceContentLineage || null,
-        // When this review started from an Incomplete draft, remember which one.
-        // Publishing has to close that draft, or the same assignment sits in the
-        // Library and in Incomplete Assignments at once, and the stale copy is
-        // the one still holding the pre-repair question JSON.
-        incompleteDraftId: reviewOptions.incompleteDraftId || null,
-      });
-      return true;
-    } catch (error) {
-      return { error: error.message };
-    }
-  };
+  const [V5_COMPILER_PLUMBING_ERROR, openAssignmentPreflight] = teacherKit ? teacherKit.createAssignmentPreflightControls(requireTeacherKit, setAssignmentPreflight) : NO_TEACHER_CONTROLS;
 
   // Students in the class the teacher is working in.
   //
@@ -7507,221 +6747,6 @@ function App() {
     }));
   }, [activeClass.classId, activeClass.classPeriod]);
 
-  const handleViewClassGradebook = (classOrPeriod, student = null) => {
-    const studentClassId = student?.classId || '';
-    const classRecord = classes.find((entry) => entry.classId === studentClassId)
-      || classes.find((entry) => entry.classId === classOrPeriod)
-      || classes.find((entry) => entry.period === classOrPeriod)
-      || null;
-    const resolvedClassId = classRecord?.classId || studentClassId || '';
-    const resolvedPeriod = classRecord?.period || student?.classPeriod || String(classOrPeriod || '');
-    setGradebookFilter({
-      classId: resolvedClassId,
-      classPeriod: resolvedPeriod,
-      assignmentId: null,
-      student,
-    });
-    // Opening a class's gradebook IS choosing that class. Leaving the workspace
-    // context pointed somewhere else would put the class bar and the table it
-    // sits above in open disagreement.
-    if (resolvedClassId) setActiveClass({ classId: resolvedClassId, classPeriod: resolvedPeriod || null });
-    setTeacherTab('grades');
-  };
-
-  const handleReleaseAssignmentFeedback = async (assignment) => {
-    if (!assignment?.id || !assignmentUsesTeacherReleasePolicy(assignment) || assignmentFeedbackWasReleased(assignment)) return;
-    // One release opens worked solutions in EVERY class this is assigned to:
-    // name everyone who has not finished, by class, before it goes
-    // (app/teacher/feedbackReleaseHold.js; coordinator QA M3). Only a teacher
-    // releases feedback, so all three come from the teacher kit.
-    const { describeFeedbackRelease, readReleaseControls, releaseHoldReport } = requireTeacherKit();
-    // Every assigned class's extensions, not only the classes on screen.
-    const privateRecords = await readReleaseControls({
-      db, assignment, email: user?.email || '', isRootAdmin: user?.isRootAdmin === true,
-    });
-    const release = describeFeedbackRelease({
-      title: assignment.title,
-      ...releaseHoldReport({ assignment, privateRecords, students: allStudents, classes, nowValue: Date.now() }),
-    });
-    const proceedWithRelease = await confirmAction({
-      title: release.title,
-      message: release.message,
-      confirmLabel: release.confirmLabel,
-    });
-    if (!proceedWithRelease) return;
-    setFeedbackReleaseBusyId(assignment.id);
-    try {
-      const releasedAt = new Date().toISOString();
-      await updateDoc(doc(db, 'assignments', assignment.id), {
-        feedbackReleased: true,
-        feedbackReleasedAt: releasedAt,
-        updatedAt: releasedAt,
-      });
-      toastSuccess('Feedback released', `Students in ${assignment.title} can now see their results.`);
-    } catch (error) {
-      console.error(error);
-      toastError('Could not release assessment feedback', error.message);
-    } finally {
-      setFeedbackReleaseBusyId(null);
-    }
-  };
-
-  const resolveTeacherClassContext = (value) => {
-    const supplied = value && typeof value === 'object' ? value : {};
-    const classId = String(supplied?.classId || '').trim() || null;
-    const classRecord = classId ? classes.find((entry) => entry.classId === classId) || null : null;
-    const classPeriod = classRecord?.period || String(supplied?.classPeriod || '').trim() || null;
-    return {
-      classId,
-      classPeriod,
-      label: classRecord?.name || classPeriod || 'this class',
-      key: classId || '',
-    };
-  };
-
-  const handleUnlockDOLForClass = async (assignment, classContext) => {
-    const { classId, classPeriod, label: classLabel, key: classKey } = resolveTeacherClassContext(classContext);
-    if (!assignment?.id || !classId || !classPeriod || !classKey) return;
-    const state = getDOLState({ assignment, schedule: classSchedule, classId, classPeriod, nowValue: Date.now() });
-    if (!state.enabled) {
-      toastWarning('No timed DOL', 'This assignment does not have an enabled DOL section.');
-      return;
-    }
-    const needsOpenToday = ['notToday', 'unscheduled'].includes(state.status);
-    if (!state.window) {
-      toastWarning('Bell schedule needed', `Set today’s A/B day and bell times for ${classPeriod} before controlling its DOL.`);
-      return;
-    }
-    if (state.status === 'active') {
-      toastInfo('DOL is already open', `${assignment.title} is already available to ${classLabel}.`);
-      return;
-    }
-
-    const actionNowMs = Date.now();
-    const durationMinutes = Math.max(1, Number(assignment?.dol?.minutesBeforeEnd || 10));
-    const closeMinutesBeforeEnd = Math.max(0, Number(assignment?.dol?.closeMinutesBeforeEnd ?? 5));
-    const derivedRegularEndMs = Math.max(
-      state.window.start.getTime(),
-      state.window.end.getTime() - closeMinutesBeforeEnd * 60_000,
-    );
-    const canRestart = state.status === 'ended' && state.canRestart === true;
-    // Once the normal DOL cutoff passes, a teacher can still deliberately
-    // reopen the DOL. This is stored as an audited recovery window instead of
-    // pretending the original bell-time window never ended.
-    // After a teacher "Close now" the DOL grade was finalized exactly as at a
-    // normal end, so reopening is always an audited recovery window — the only
-    // kind of window the server lets reopen a final DOL grade.
-    const reopenAfterTeacherClose = state.status === 'ended' && state.teacherClosed === true;
-    const recoveryAfterCutoff = reopenAfterTeacherClose || ((state.status === 'ended' || needsOpenToday)
-      && actionNowMs >= (state.regularEndsAt?.getTime?.() || derivedRegularEndMs));
-    const beforeClass = state.status === 'beforeClass' || actionNowMs < state.window.start.getTime();
-
-    const proceed = await confirmAction({
-      title: recoveryAfterCutoff
-        ? `Reopen the DOL for ${classLabel}?`
-        : canRestart
-          ? `Restart the DOL for ${classLabel}?`
-          : needsOpenToday
-            ? `Open the DOL today for ${classLabel}?`
-            : `Unlock the DOL early for ${classLabel}?`,
-      message: reopenAfterTeacherClose
-        ? `You closed this DOL for ${classLabel}. MathMaster will open a new ${durationMinutes}-minute teacher window for ${classLabel} only. Work in it counts, existing attempts stay intact, and both the close and the reopen stay on record.`
-        : recoveryAfterCutoff
-        ? `The normal DOL window has ended. MathMaster will open a new ${durationMinutes}-minute teacher recovery window for ${classLabel} only. Existing attempts and work history stay intact, and the exception is recorded on the assignment.`
-        : canRestart
-          ? `The earlier DOL timer ended, but instructional DOL time remains. Restart it now for ${classLabel} only. The timer will still stop before the normal DOL cutoff.`
-          : needsOpenToday
-            ? beforeClass
-              ? `This lesson was saved for another instructional day. MathMaster will set today as the DOL date for ${classLabel} only, then open it when class begins with its ${durationMinutes}-minute timer.`
-              : `This lesson was saved for another instructional day. MathMaster will set today as the DOL date for ${classLabel} only and open it now with its ${durationMinutes}-minute timer. Other classes stay unchanged.`
-            : beforeClass
-              ? `The DOL will open when ${classLabel} begins and its ${durationMinutes}-minute timer will start then.`
-              : `The DOL will open immediately for ${classLabel} and its ${durationMinutes}-minute timer will start now. Other classes stay locked.`,
-      confirmLabel: recoveryAfterCutoff ? 'Reopen DOL' : canRestart ? 'Restart DOL' : needsOpenToday ? 'Open DOL Today' : 'Unlock DOL',
-    });
-    if (!proceed) return;
-
-    const busyKey = `${assignment.id}:${classKey}`;
-    setDolUnlockBusyKey(busyKey);
-    try {
-      const writeNow = Date.now();
-      const openedAt = new Date(writeNow).toISOString();
-      const dateKey = localDateKey(writeNow);
-      const currentRegularEndMs = state.regularEndsAt?.getTime?.() || derivedRegularEndMs;
-      // Re-evaluate after confirmation. If the regular cutoff passed while the
-      // dialog was open, safely convert the action into a recovery window.
-      const recoveryNow = reopenAfterTeacherClose || ((state.status === 'ended' || needsOpenToday) && writeNow >= currentRegularEndMs);
-
-      // Built by the recovery model so every opening lands in the append-only
-      // audit (who, class, before, after, when) — see assessmentRecovery.js.
-      // The builder makes today this class's DOL date (instructionDatesByClassId,
-      // this class only) and first keeps the date it replaces
-      // (scheduledInstructionDatesByClassId), so the teacher can return to it.
-      const opening = requireTeacherKit().buildDolWindowOpening({
-        assignment,
-        classId,
-        classPeriod,
-        recovery: recoveryNow,
-        durationMinutes,
-        dateKey,
-        teacherId: user?.id || null,
-        now: writeNow,
-      });
-
-      // Only the class's DOL fields this opening changed; never a student's grant.
-      await updateDoc(doc(db, 'assignments', assignment.id), { ...requireTeacherKit().classDolFieldPatch(assignment.dol, opening.dol, { deleteValue: deleteField() }), updatedAt: openedAt });
-      if (recoveryNow) {
-        toastSuccess('DOL reopened', `${assignment.title} has a fresh ${durationMinutes}-minute recovery window for ${classLabel}. Existing work and attempt history were preserved.`);
-      } else if (canRestart) {
-        toastSuccess('DOL restarted', `${assignment.title} is open again for ${classLabel} only and will still stop before the normal pack-up window.`);
-      } else {
-        toastSuccess('DOL unlocked', `${assignment.title} is released for ${classLabel} only. Its timer starts when the unlock takes effect.`);
-      }
-    } catch (error) {
-      console.error(error);
-      toastError('Could not open DOL', error.message);
-    } finally {
-      setDolUnlockBusyKey(null);
-    }
-  };
-
-  const handleGrantDOLAttemptForClass = async (assignment, classContext) => {
-    const { classId, label: classLabel, key: classKey } = resolveTeacherClassContext(classContext);
-    if (!assignment?.id || !classId || !classKey) return;
-    const currentBonus = resolveTeacherGrantedExtraAttempts({
-      assignment,
-      activityRole: 'dol',
-      classId,
-    });
-    const proceed = await confirmAction({
-      title: `Grant one more DOL attempt to ${classLabel}?`,
-      message: `Every student in ${classLabel} will receive one additional attempt on each DOL question in this assignment. Existing attempts, scores, and response history are preserved. The class bonus will become ${currentBonus + 1}.`,
-      confirmLabel: 'Grant +1 Attempt',
-    });
-    if (!proceed) return;
-
-    const busyKey = `${assignment.id}:${classKey}`;
-    setDolAttemptGrantBusyKey(busyKey);
-    try {
-      const nowMs = Date.now();
-      const changedAt = new Date(nowMs).toISOString();
-      const { dol } = requireTeacherKit().buildDolAttemptGrant({
-        assignment,
-        scope: { type: 'class', classId },
-        teacherId: user?.id || null,
-        now: nowMs,
-      });
-      // The class grant only (`dol.attemptGrantsByClassId`, its audit entry).
-      await updateDoc(doc(db, 'assignments', assignment.id), { ...requireTeacherKit().classDolFieldPatch(assignment.dol, dol, { deleteValue: deleteField() }), updatedAt: changedAt });
-      toastSuccess('Extra DOL attempt granted', `${classLabel} now has ${Math.min(20, currentBonus + 1)} teacher-granted extra DOL attempt${Math.min(20, currentBonus + 1) === 1 ? '' : 's'}.`);
-    } catch (error) {
-      console.error(error);
-      toastError('Could not grant DOL attempt', error.message);
-    } finally {
-      setDolAttemptGrantBusyKey(null);
-    }
-  };
-
   /*
    * ONE MORE DOL ATTEMPT FOR SELECTED STUDENTS — an absent student, a device
    * that died mid-DOL. Adds to any class grant; prior attempts and scores are
@@ -7734,448 +6759,29 @@ function App() {
    * in flight at a time, so a double-click grants once.
    */
   const studentControlsGateRef = useRef(null);
-  const handleGrantDOLAttemptForStudents = async (assignment, students = []) => {
-    const chosen = (students || []).filter((student) => student?.id);
-    if (!assignment?.id || !chosen.length) return;
-    if (!teacherKit) {
-      toastError('Could not grant DOL attempt', 'The teacher workspace has not finished loading. Try again in a moment.');
-      return;
-    }
-    const { controlsRequestKey, createControlsRequestGate, planStudentDolGrant, runStudentControlsCalls } = teacherKit;
-    if (!studentControlsGateRef.current) studentControlsGateRef.current = createControlsRequestGate();
-    const requestKey = controlsRequestKey({ assignmentId: assignment.id, studentIds: chosen.map((student) => student.id), kind: 'dolAttempts' });
-    // The first click is still on its way to the server: nothing to confirm twice.
-    if (studentControlsGateRef.current.pending(requestKey)) return;
-    const names = chosen.map((student) => formatStudentName(student)).join(', ');
-    const proceed = await confirmAction({
-      title: chosen.length === 1 ? `Grant one more DOL attempt to ${names}?` : `Grant one more DOL attempt to ${chosen.length} students?`,
-      message: `${chosen.length === 1 ? names : names} will receive one additional attempt on each DOL question in ${assignment.title}. Existing attempts, scores, and response history are preserved, and the grant is recorded.`,
-      confirmLabel: 'Grant +1 Attempt',
-    });
-    if (!proceed) return;
-    const busyKey = `${assignment.id}:students:${chosen.map((student) => student.id).join('+')}`;
-    setDolAttemptGrantBusyKey(busyKey);
-    try {
-      const { duplicate, promise } = studentControlsGateRef.current.run(requestKey, async () => {
-        const { calls, unplaced } = planStudentDolGrant({
-          assignmentId: assignment.id,
-          students: chosen,
-          fallbackClassId: activeClass?.classId || null,
-        });
-        const outcome = await runStudentControlsCalls({ call: setStudentAssignmentControls, calls });
-        return { ...outcome, unplaced };
-      });
-      if (duplicate) return;
-      const { students: granted, failures, unplaced } = await promise;
-      const nameOf = (studentId) => formatStudentName(chosen.find((student) => student.id === studentId) || { id: studentId });
-      if (granted.length) {
-        const only = granted.length === 1 ? granted[0] : null;
-        toastSuccess('Extra DOL attempt granted', only
-          ? `${nameOf(only.studentId)} now has ${only.dolExtraAttempts} extra ${only.dolExtraAttempts === 1 ? 'attempt' : 'attempts'} of their own on each DOL question.`
-          : `${granted.length} students have one more attempt on each DOL question.`);
-      }
-      if (failures.length || unplaced.length) {
-        const refused = failures.flatMap((failure) => failure.studentIds.map((studentId) => `${nameOf(studentId)} — ${failure.message}`));
-        const noClass = unplaced.map((studentId) => `${nameOf(studentId)} — not in a class`);
-        toastError('Some DOL attempts were not granted', [...refused, ...noClass].slice(0, 6).join(' · '));
-      }
-    } catch (error) {
-      console.error(error);
-      toastError('Could not grant DOL attempt', error.message);
-    } finally {
-      setDolAttemptGrantBusyKey(null);
-    }
-  };
 
-  /*
-   * CLOSE NOW · +5 MIN · NOT TODAY · BACK TO THE SCHEDULED DAY — for one class.
-   *
-   * Real periods get interrupted (fire drills, assemblies, classwork that runs
-   * long). Each action is built by the audited recovery model, asks first, and
-   * touches only this class. When each is offered is decided in
-   * platform/teacher/classLessonControls.js:
-   *   - close / extend only while the DOL is open (a close is a normal end);
-   *   - move / back-to-scheduled only before it opens (a date change never
-   *     closes or finalizes anything, and the original day is always kept).
-   */
-  const handleDolControlForClass = async (assignment, classContext, control = {}) => {
-    const { classId, classPeriod, label: classLabel, key: classKey } = resolveTeacherClassContext(classContext);
-    if (!assignment?.id || !classId || !classKey) return;
-    const action = String(control?.action || '');
-    const nowMs = Date.now();
-    const state = getDOLState({ assignment, schedule: classSchedule, classId, classPeriod, nowValue: nowMs });
-    const todayKey = localDateKey(nowMs);
-    const teacherId = user?.id || null;
-    const clockOf = (ms) => new Date(ms).toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' });
-    const dayOf = (key) => {
-      if (!key) return 'another day';
-      const [year, month, day] = String(key).split('-').map(Number);
-      return new Date(year, month - 1, day, 12).toLocaleDateString(undefined, { weekday: 'long', month: 'short', day: 'numeric' });
-    };
-    const ranToday = ['active', 'ended'].includes(state.status) && state.instructionDateKey === todayKey;
+  const [
+    handleReleaseAssignmentFeedback, resolveTeacherClassContext, handleUnlockDOLForClass,
+    handleGrantDOLAttemptForClass, handleGrantDOLAttemptForStudents, handleDolControlForClass,
+  ] = teacherKit ? teacherKit.createDolClassControls(
+    confirmAction, toastError, toastInfo, toastSuccess, toastWarning, user, classes, activeClass, allStudents,
+    teacherKit, requireTeacherKit, classSchedule, setFeedbackReleaseBusyId, setDolUnlockBusyKey,
+    setDolAttemptGrantBusyKey, setDolControlBusyKey, studentControlsGateRef,
+  ) : NO_TEACHER_CONTROLS;
 
-    let confirmation;
-    let build;
-    let success;
-    if (action === 'close') {
-      if (state.status !== 'active') {
-        toastInfo('The DOL is not open', `${assignment.title} is not open for ${classLabel} right now.`);
-        return;
-      }
-      // RT05 (the owner, 2026-10-23): the close ends the class's window; a
-      // student on extra time keeps their own remaining time (sectionDeadline.mjs
-      // resolveDolWindow), and the teacher is told so before pressing it.
-      confirmation = {
-        title: `Close the DOL now for ${classLabel}?`,
-        message: `Students in ${classLabel} stop working on the DOL now, exactly as if its timer had run out: answers so far are kept and graded. A student on extra time keeps their own remaining time. Other classes are unaffected, and you can reopen it afterwards.`,
-        confirmLabel: 'Close DOL',
-      };
-      build = () => requireTeacherKit().buildDolClose({ assignment, classId, dateKey: todayKey, teacherId, now: Date.now() });
-      success = ['DOL closed', `${assignment.title} · ${classLabel}`];
-    } else if (action === 'extend') {
-      if (state.status !== 'active') {
-        toastInfo('The DOL is not open', 'Only an open DOL can be given more time. Use Reopen after it ends.');
-        return;
-      }
-      const minutes = Math.max(1, Math.min(30, Number(control?.minutes) || 5));
-      const classEndMs = state.window?.end?.getTime?.() ?? null;
-      const proposedMs = Math.min(classEndMs ?? Number.POSITIVE_INFINITY, Math.max(state.endsAt.getTime(), nowMs) + minutes * 60_000);
-      confirmation = {
-        title: `Give ${classLabel} ${minutes} more minutes on the DOL?`,
-        message: `The DOL stays open for ${classLabel} until ${clockOf(proposedMs)}${classEndMs !== null && proposedMs >= classEndMs ? ' — the end of the period' : ''}. Work in the extra time counts. Other classes are unaffected.`,
-        confirmLabel: `Extend to ${clockOf(proposedMs)}`,
-      };
-      build = () => requireTeacherKit().buildDolExtension({ assignment, classId, dateKey: todayKey, currentEndsAtMs: state.endsAt.getTime(), minutes, capAtMs: classEndMs, teacherId, now: Date.now() });
-      success = ['DOL extended', `${assignment.title} · ${classLabel} · open until ${clockOf(proposedMs)}`];
-    } else if (action === 'move') {
-      const toDateKey = String(control?.toDateKey || '');
-      if (!/^\d{4}-\d{2}-\d{2}$/.test(toDateKey)) {
-        toastWarning('Choose a day', 'Pick the day this class should take the DOL.');
-        return;
-      }
-      if (ranToday) {
-        toastWarning('The DOL already ran today', `Students in ${classLabel} have already had today’s DOL window, so its day stays as it is.`);
-        return;
-      }
-      confirmation = {
-        title: `Move ${classLabel}’s DOL to ${dayOf(toDateKey)}?`,
-        message: `The DOL will not open for ${classLabel} ${state.instructionDateKey === todayKey ? 'today' : `on ${dayOf(state.instructionDateKey)}`}; it runs at the end of class on ${dayOf(toDateKey)} instead. Nothing is closed or graded, other classes keep their day, and the original day is kept so you can move it back.`,
-        confirmLabel: 'Move DOL',
-      };
-      build = () => requireTeacherKit().buildDolDateMove({ assignment, classId, classPeriod, toDateKey, todayKey, teacherId, now: Date.now() });
-      success = ['DOL moved', `${assignment.title} · ${classLabel} · ${dayOf(toDateKey)}`];
-    } else if (action === 'restore') {
-      const saved = requireTeacherKit().scheduledDolDateFor(assignment, classId);
-      if (!saved) {
-        toastInfo('Already on schedule', `${assignment.title} is on its scheduled day for ${classLabel}.`);
-        return;
-      }
-      if (ranToday) {
-        toastWarning('The DOL already ran today', `Students in ${classLabel} have used today’s DOL window, so the day change stays on record.`);
-        return;
-      }
-      confirmation = {
-        title: `Put ${classLabel}’s DOL back on its scheduled day?`,
-        message: saved.resolvedDateKey
-          ? `The DOL returns to ${dayOf(saved.resolvedDateKey)} and its automatic timing for ${classLabel}. Other classes are unaffected.`
-          : `The DOL returns to having no scheduled day for ${classLabel}. Other classes are unaffected.`,
-        confirmLabel: 'Back to schedule',
-      };
-      build = () => requireTeacherKit().buildDolScheduleRestore({ assignment, classId, todayKey, teacherId, now: Date.now() });
-      success = ['DOL back on schedule', `${assignment.title} · ${classLabel}`];
-    } else {
-      return;
-    }
+  const [
+    handleViewClassGradebook, openAssignmentHub, loadClassGradeRecords, openGradeExport, openGradebookFor,
+    openLiveFor, handleLoadDeliveredRigor,
+  ] = teacherKit ? teacherKit.createGradebookNavigation(
+    setTeacherTab, classes, activeClass, setActiveClass, allStudents, setAssignmentHubTarget, setGradeExportScope,
+    setLiveFocus, setGradebookProgressFilter, setClassEvidenceByStudentId, classEvidenceLoading,
+    setClassEvidenceLoading, setGradebookFilter,
+  ) : NO_TEACHER_CONTROLS;
 
-    const proceed = await confirmAction(confirmation);
-    if (!proceed) return;
-    const busyKey = `${assignment.id}:${classKey}`;
-    setDolControlBusyKey(busyKey);
-    try {
-      const { dol } = build();
-      await updateDoc(doc(db, 'assignments', assignment.id), { ...requireTeacherKit().classDolFieldPatch(assignment.dol, dol, { deleteValue: deleteField() }), updatedAt: new Date().toISOString() });
-      toastSuccess(success[0], success[1]);
-    } catch (error) {
-      console.error(error);
-      toastError('Could not change the DOL', error.message);
-    } finally {
-      setDolControlBusyKey(null);
-    }
-  };
-
-  /*
-   * THE ASSIGNMENT'S WORLD IS ONE CLICK FROM ANYWHERE IT APPEARS.
-   * Each hand-off below arrives with its context already chosen: the class,
-   * the assignment, the student. Nothing asks the teacher to choose again.
-   */
-  const openAssignmentHub = (assignmentId, classId = null) => {
-    if (!assignmentId) return;
-    setAssignmentHubTarget({ assignmentId, classId: classId || activeClass.classId || null });
-  };
-
-  /*
-   * Home and the class page run on the lightweight live roster (no grade
-   * records) so they stay fast during class. When a teacher asks an
-   * assignment's hub "who has finished?", read just that class's grade
-   * documents once — the same per-student documents, and the same teacher-of-
-   * record rule, the Gradebook's live query uses — instead of sending them to
-   * the Gradebook. Read-only.
-   */
-  const loadClassGradeRecords = async (classId) => {
-    const roster = studentsInClass({ students: allStudents, classes, classId });
-    const snapshots = await Promise.all(roster.map((student) => getDoc(doc(db, 'grades', student.id))));
-    // Whole records: each record's detail is stored apart (gradeEntryStorage.mjs).
-    const records = await Promise.all(snapshots
-      .filter((snapshot) => snapshot.exists())
-      .map(async (snapshot) => ({ id: snapshot.id, data: await joinResponseDetail(db, snapshot.id, snapshot.data() || {}) })));
-    return records.map(({ id, data }) => ({ id, ...data, profile: normalizeStudentProfile(data?.profile || data) }));
-  };
-
-  const openGradeExport = ({ classIds = [], assignmentId = null } = {}) => {
-    setGradeExportScope({ classIds: (classIds || []).filter(Boolean), assignmentId: assignmentId || null, nonce: Date.now() });
-    setAssignmentHubTarget(null);
-    setTeacherTab('gradeTransfer');
-  };
-
-  const openGradebookFor = (classId, assignmentId = null, studentId = null) => {
-    const classRecord = classes.find((entry) => entry.classId === classId) || null;
-    const student = studentId ? allStudents.find((entry) => entry.id === studentId) || { id: studentId } : null;
-    setGradebookFilter({
-      classId: classRecord?.classId || classId || '',
-      classPeriod: classRecord?.period || '',
-      assignmentId: assignmentId || null,
-      student,
-    });
-    if (classRecord?.classId) setActiveClass({ classId: classRecord.classId, classPeriod: classRecord.period || null });
-    setGradebookProgressFilter('all');
-    setAssignmentHubTarget(null);
-    setTeacherTab('grades');
-  };
-
-  const openLiveFor = (classContext, assignmentId = null) => {
-    if (classContext?.classId) setActiveClass({ classId: classContext.classId, classPeriod: classContext.classPeriod || null });
-    setLiveFocus({ classId: classContext?.classId || null, classPeriod: classContext?.classPeriod || null, assignmentId: assignmentId || null, nonce: Date.now() });
-    setAssignmentHubTarget(null);
-    setTeacherTab('home');
-  };
-
-  const handleToggleWarmupForClass = async (assignment, classContext, control = {}) => {
-    const { classId, classPeriod, label: classLabel, key: classKey } = resolveTeacherClassContext(classContext);
-    if (!assignment?.id || !classId || !classPeriod || !classKey) return;
-    const state = getWarmupState({ assignment, schedule: classSchedule, classId, classPeriod, nowValue: Date.now() });
-    if (!state.enabled) {
-      toastWarning('No Warm-Up section', 'This assignment does not have an authored Warm-Up section.');
-      return;
-    }
-    if (!state.window) {
-      toastWarning('Bell schedule needed', `Set today’s A/B day and bell times for ${classPeriod} before controlling its Warm-Up.`);
-      return;
-    }
-
-    const requestedAction = String(control?.action || '').trim();
-    const needsOpenToday = ['notToday', 'unscheduled'].includes(state.status);
-    const action = ['close', 'reopen', 'timer'].includes(requestedAction)
-      ? requestedAction
-      : state.status === 'active'
-        ? 'close'
-        : 'reopen';
-    const requestedTimerMinutes = Number(control?.autoCloseMinutes);
-    const timerMinutes = Number.isFinite(requestedTimerMinutes)
-      ? Math.max(1, Math.min(60, Math.round(requestedTimerMinutes)))
-      : 5;
-    const nowMs = Date.now();
-
-    // A stale instructional date must not hide the teacher's live control, but
-    // it also must not let a teacher reopen yesterday's class after the bell.
-    if (nowMs > state.window.end.getTime()) {
-      toastWarning('Class period ended', 'The Warm-Up cannot be reopened after this class period has ended.');
-      return;
-    }
-    if (state.opensAt && nowMs < state.opensAt.getTime()) {
-      toastInfo('Warm-Up has not opened yet', `It opens ${state.minutesBeforeStart} minutes before ${classLabel} begins.`);
-      return;
-    }
-    if (state.status === 'ended') {
-      toastWarning('Class period ended', 'The Warm-Up is already read-only because this class period has ended.');
-      return;
-    }
-
-    const timerClosesAt = action === 'timer'
-      ? new Date(Math.min(state.window.end.getTime(), nowMs + timerMinutes * 60000))
-      : null;
-
-    if (action === 'timer' && timerClosesAt.getTime() <= nowMs) {
-      toastWarning('Warm-Up timer unavailable', 'This class period is ending, so there is no time left to reopen the Warm-Up.');
-      return;
-    }
-    if (action === 'reopen' && state.status === 'active') {
-      toastInfo('Warm-Up is already open', `${assignment.title} is already available to ${classLabel}.`);
-      return;
-    }
-    if (action === 'close' && state.status === 'closed') {
-      toastInfo('Warm-Up is already closed', `${assignment.title} is already read-only for ${classLabel}.`);
-      return;
-    }
-
-    const closesAtLabel = timerClosesAt?.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' });
-    const openVerb = needsOpenToday ? 'Open' : 'Reopen';
-    const proceed = await confirmAction({
-      title: action === 'timer'
-        ? `${needsOpenToday ? 'Open' : state.status === 'closed' ? 'Reopen' : 'Keep'} the Warm-Up open with a timer for ${classLabel}?`
-        : `${action === 'close' ? 'Close' : openVerb} the Warm-Up${needsOpenToday ? ' today' : ''} for ${classLabel}?`,
-      message: action === 'close'
-        ? 'Students in this class will keep their saved work for review, but they will not be able to make new Warm-Up submissions. Other classes are unaffected.'
-        : action === 'reopen'
-          ? needsOpenToday
-            ? 'MathMaster will make today the Warm-Up instructional date for this class only. Students can continue immediately; other classes and their dates are unaffected.'
-            : 'Students in this class will be able to continue the Warm-Up until you close it again or the class period ends.'
-          : `Students in this class will be able to work until ${closesAtLabel}. The Warm-Up will then close automatically and saved work will remain available for review. Other classes are unaffected.`,
-      confirmLabel: action === 'close'
-        ? 'Close Warm-Up'
-        : action === 'reopen'
-          ? needsOpenToday ? 'Open Warm-Up Today' : 'Reopen Warm-Up'
-          : needsOpenToday
-            ? `Open for ${timerMinutes} min`
-            : state.status === 'closed'
-              ? `Reopen for ${timerMinutes} min`
-              : `Set ${timerMinutes}-min timer`,
-    });
-    if (!proceed) return;
-
-    const busyKey = `${assignment.id}:${classKey}`;
-    setWarmupControlBusyKey(busyKey);
-    try {
-      // The Close / Reopen / Timer record itself is shared and tested
-      // (applyWarmupTeacherControl): a reopen pins today's date to this real
-      // class id, lifts a manual close, and stays open until this class ends
-      // unless the teacher chose a timer. Student work is never touched.
-      const changedAtMs = Date.now();
-      const dateKey = localDateKey(changedAtMs);
-      const { warmup, changedAt } = applyWarmupTeacherControl({
-        assignment,
-        classId,
-        action,
-        nowMs: changedAtMs,
-        dateKey,
-        windowEndMs: state.window.end.getTime(),
-        // The close the confirmation showed the teacher.
-        timerClosesAtMs: timerClosesAt ? timerClosesAt.getTime() : null,
-        teacherIdentity: user?.email || user?.id || 'teacher',
-      });
-      // Opening a Warm-Up on another day moves this class's Warm-Up day. Keep
-      // the day it replaces (once, on the first override) so the class page can
-      // say "originally …" — the same rule the DOL follows.
-      const scheduledWarmupDateKey = resolveWarmupInstructionDateKey({ assignment, classId, classPeriod });
-      if (action !== 'close' && scheduledWarmupDateKey !== dateKey && !assignment.warmup?.scheduledInstructionDatesByClassId?.[classId]) {
-        warmup.scheduledInstructionDatesByClassId = {
-          ...(assignment.warmup?.scheduledInstructionDatesByClassId || {}),
-          [classId]: {
-            classDateKey: assignment.warmup?.instructionDatesByClassId?.[classId] || null,
-            resolvedDateKey: scheduledWarmupDateKey || null,
-            savedAt: changedAt,
-          },
-        };
-      }
-      await updateDoc(doc(db, 'assignments', assignment.id), { warmup, updatedAt: changedAt });
-
-      if (action === 'timer') {
-        toastSuccess(
-          needsOpenToday ? 'Warm-Up opened for today with timer' : state.status === 'closed' ? 'Warm-Up reopened with timer' : 'Warm-Up timer set',
-          `${assignment.title} · ${classLabel} · closes automatically at ${closesAtLabel}`,
-        );
-      } else {
-        toastSuccess(
-          action === 'close' ? 'Warm-Up closed' : needsOpenToday ? 'Warm-Up opened for today' : 'Warm-Up reopened',
-          `${assignment.title} · ${classLabel}`,
-        );
-      }
-    } catch (error) {
-      console.error(error);
-      toastError(
-        action === 'timer' ? 'Could not set Warm-Up timer' : `Could not ${action} Warm-Up`,
-        error.message,
-      );
-    } finally {
-      setWarmupControlBusyKey(null);
-    }
-  };
-
-  const handleToggleSectionAccessForClass = async (assignment, classContext, activityRole) => {
-    const { classId, classPeriod, label: classLabel, key: classKey } = resolveTeacherClassContext(classContext);
-    if (!assignment?.id || !classId || !classPeriod || !classKey || !['classwork', 'practice'].includes(activityRole)) return;
-    // The teacher's own control: the plain rule, never a student's grades.
-    const state = getSectionAccessStateForAnyone({ assignment, activityRole, classId, classPeriod, nowValue: Date.now() });
-    if (!state.enabled) {
-      toastWarning('Section not found', `This assignment does not have an authored ${activityRole} section.`);
-      return;
-    }
-    if (state.practiceOnly) {
-      toastInfo('Assignment is in Practice Mode', 'After the final cutoff, all sections stay available for ungraded review and practice.');
-      return;
-    }
-    // Before release, a lesson that opens early by prerequisite already has
-    // students in it (TT28): its sections are the teacher's to open or close
-    // for them, read as they read them. Any other unreleased lesson waits.
-    const beforeRelease = state.status === 'scheduled' && opensEarlyByPrerequisite(assignment);
-    if (state.status === 'scheduled' && !beforeRelease) {
-      toastWarning('Assignment has not opened yet', 'Section controls become active when the assignment is released.');
-      return;
-    }
-    if (!state.lifecycle?.isOpen && !beforeRelease) {
-      toastWarning('Assignment is not open', 'This section cannot be changed while the graded assignment is closed.');
-      return;
-    }
-    const current = beforeRelease
-      ? earlySectionAccessState({ assignment, activityRole, classId, classPeriod, nowValue: Date.now() })
-      : state;
-
-    const nextState = current.isOpen ? 'closed' : 'open';
-    const label = activityRole === 'classwork' ? 'Classwork' : 'Practice';
-    const who = beforeRelease ? `Students in ${classLabel} who opened this lesson early (their prerequisite met)` : `Students in ${classLabel}`;
-    const proceed = await confirmAction({
-      title: `${nextState === 'open' ? 'Open' : 'Close'} ${label} for ${classLabel}?`,
-      message: nextState === 'open'
-        ? `${who} will be able to work in the ${label} section.${beforeRelease ? ' Everyone else in the class gets it open when the lesson is released.' : ''} Other classes are unaffected.`
-        : `${who} will keep saved ${label} work for review, but new graded responses in that section will be locked until you reopen it. Other classes are unaffected.`,
-      confirmLabel: `${nextState === 'open' ? 'Open' : 'Close'} ${label}`,
-    });
-    if (!proceed) return;
-
-    const busyKey = `${assignment.id}:${classKey}:${activityRole}`;
-    setSectionAccessBusyKey(busyKey);
-    try {
-      const changedAt = new Date().toISOString();
-      const sectionAccess = { ...(assignment.sectionAccess || {}) };
-      const config = { ...(sectionAccess[activityRole] || {}) };
-      const entry = { state: nextState, changedAt, changedBy: user?.email || user?.id || 'teacher' };
-      config.overridesByClassId = { ...(config.overridesByClassId || {}), [classId]: entry };
-      sectionAccess[activityRole] = { ...config, defaultState: config.defaultState === 'closed' ? 'closed' : 'open' };
-      await updateDoc(doc(db, 'assignments', assignment.id), { sectionAccess, updatedAt: changedAt });
-      toastSuccess(`${label} ${nextState}`, `${assignment.title} · ${classLabel}`);
-    } catch (error) {
-      console.error(error);
-      toastError(`Could not ${nextState === 'open' ? 'open' : 'close'} ${label}`, error.message);
-    } finally {
-      setSectionAccessBusyKey(null);
-    }
-  };
-
-  const handleLoadDeliveredRigor = async (studentIds = []) => {
-    const ids = (Array.isArray(studentIds) ? studentIds : []).filter(Boolean);
-    if (!ids.length || classEvidenceLoading) return;
-    setClassEvidenceLoading(true);
-    try {
-      // Settled, not all: one student with an unreadable history must not cost
-      // the teacher the answer for the other twenty-nine.
-      const results = await Promise.allSettled(ids.map((id) => fetchStudentEvidenceEvents(id)));
-      setClassEvidenceByStudentId(Object.fromEntries(results.map((result, index) => [
-        ids[index],
-        result.status === 'fulfilled' ? result.value : [],
-      ])));
-    } finally {
-      setClassEvidenceLoading(false);
-    }
-  };
+  const [handleToggleWarmupForClass, handleToggleSectionAccessForClass] = teacherKit ? teacherKit.createWarmupSectionControls(
+    confirmAction, toastError, toastInfo, toastSuccess, toastWarning, user, classSchedule, setWarmupControlBusyKey,
+    setSectionAccessBusyKey, resolveTeacherClassContext,
+  ) : NO_TEACHER_CONTROLS;
 
   // A class change invalidates the loaded evidence. Showing one class's
   // delivered rigor under another class's name is worse than showing none.
@@ -8183,359 +6789,26 @@ function App() {
     setClassEvidenceByStudentId({});
   }, [activeClass.classId]);
 
-  const handleGoToClassFromHome = (classContext) => {
-    const supplied = classContext && typeof classContext === 'object' ? classContext : { classPeriod: classContext };
-    const classPeriod = supplied.classPeriod || null;
-    const requestedClassId = supplied.classId || null;
-    const matches = (classesRef.current || []).filter((entry) => entry?.status !== 'archived' && entry?.period === classPeriod);
-    const resolvedClassId = requestedClassId || (matches.length === 1 ? matches[0].classId : null);
-    setActiveClass({ classId: resolvedClassId, classPeriod });
-    setHomeNavigationPeriod(classPeriod);
-    setTeacherTab('classesWorkspace');
-  };
+  const [
+    handleGoToClassFromHome, handleChangeClassPeriod, handleSupportProfileSaved, handleSaveClassSchedule,
+    handleUpdateCourseProfile, handleSaveCourseProfiles,
+  ] = teacherKit ? teacherKit.createClassSettingsControls(
+    toastError, toastSuccess, setTeacherTab, classesRef, setActiveClass, setHomeNavigationPeriod, setAllStudents,
+    setTeacherRosterSummaries, classSchedule, setClassSchedule, courseProfiles, setCourseProfiles,
+    setCourseProfilesSaving, fetchTeacherRosterSummaries,
+  ) : NO_TEACHER_CONTROLS;
 
-  const handleChangeClassPeriod = async (studentId, newClassId) => {
-    try {
-      // Class membership is a server-owned relationship. Updating only the
-      // legacy period field can leave classId/teacher authorization disagreeing.
-      await teacherAdmin.setStudentClass({ studentId, classId: newClassId || null });
-      await fetchTeacherRosterSummaries();
-    } catch (error) {
-      console.error(error);
-      toastError('Could not change class', error?.message || 'Class membership could not be updated.');
-    }
-  };
-
-  // A support profile is saved ONLY as an immutable, dated revision plus its
-  // student-readable projection, in one batch (SupportProfileEditor →
-  // supportEvidenceStore.saveSupportProfileRevision). This keeps the
-  // teacher's in-memory copies in step with what was written. There is no
-  // longer a path that rewrites `grades.profile` from a flat patch: with a
-  // versioned plan that write would be silently overridden, and it would lose
-  // the history the evidence report depends on.
-  const handleSupportProfileSaved = (studentId, projection) => {
-    const nextProfile = normalizeStudentProfile(projection);
-    // `timingProfile` is the stored projection itself (the D7 DOL window).
-    const timingProfile = projection && typeof projection === 'object' ? projection : null;
-    setAllStudents((current) => current.map((entry) => entry.id === studentId ? { ...entry, profile: nextProfile, timingProfile } : entry));
-    setTeacherRosterSummaries((current) => current.map((entry) => entry.id === studentId ? { ...entry, profile: nextProfile, timingProfile } : entry));
-  };
-
-  const handleSaveClassSchedule = async () => {
-    const scheduleRef = doc(db, 'settings', 'classSchedule');
-    // TC01 (the owner, 2026-10-23): each date whose A/B day this save changes
-    // is stamped with the server's clock, so a Test day whose A/B day is set
-    // only after its class met is never read as missed.
-    const saved = await getDoc(scheduleRef);
-    const normalized = withDayTypeSetAt(saved.exists() ? saved.data() : null, normalizeSchedule(classSchedule), serverTimestamp());
-    await setDoc(scheduleRef, normalized);
-    setClassSchedule(normalized);
-    toastSuccess('A/B schedule saved', 'DOL windows now use the selected A/B day and any date-specific bell schedule.');
-  };
-
-  const handleUpdateCourseProfile = (period, patch) => {
-    setCourseProfiles((current) => normalizeCourseProfiles({
-      ...current,
-      [period]: { ...(current?.[period] || {}), ...patch },
-    }, CLASS_PERIODS));
-  };
-
-  const handleSaveCourseProfiles = async () => {
-    setCourseProfilesSaving(true);
-    try {
-      const normalized = normalizeCourseProfiles(courseProfiles, CLASS_PERIODS);
-      await setDoc(doc(db, 'settings', 'courseProfiles'), { profiles: normalized, updatedAt: new Date().toISOString() });
-      setCourseProfiles(normalized);
-      toastSuccess('Course settings saved', 'Honors preflight now follows these class designations.');
-    } catch (error) {
-      console.error(error);
-      toastError('Could not save course settings', error.message);
-    } finally {
-      setCourseProfilesSaving(false);
-    }
-  };
-
-  const saveAssignmentFolderPaths = async (paths) => {
-    const normalized = normalizeFolderPaths(paths);
-    await setDoc(doc(db, 'settings', 'assignmentFolders'), { paths: normalized });
-    setAssignmentFolderPaths(normalized);
-    return normalized;
-  };
-
-  // Batches every assignment doc whose folder equals or is nested under
-  // `path` through `updateAssignmentFolder`, chunked below the per-batch
-  // write ceiling, mirroring deleteAssignmentPermanently's write pattern.
-  const batchUpdateAssignmentsInFolder = async (path, updateAssignmentFolder) => {
-    const affected = assignments.filter((assignment) => assignmentFolderMatches(assignment, path));
-    if (!affected.length) return;
-    const chunkSize = 400;
-    for (let startIndex = 0; startIndex < affected.length; startIndex += chunkSize) {
-      const batch = writeBatch(db);
-      affected.slice(startIndex, startIndex + chunkSize).forEach((assignment) => {
-        batch.update(doc(db, 'assignments', assignment.id), { folder: updateAssignmentFolder(assignment) });
-      });
-      await batch.commit();
-    }
-    await fetchAssignments();
-  };
-
-  const handleCreateFolder = async (path) => {
-    await saveAssignmentFolderPaths([...assignmentFolderPaths, path]);
-  };
-
-  const handleRenameFolder = async (oldPath, newPath) => {
-    await saveAssignmentFolderPaths(assignmentFolderPaths.map((existing) => renameFolderPath(existing, oldPath, newPath)));
-    await batchUpdateAssignmentsInFolder(oldPath, (assignment) => renameFolderPath(assignment.folder, oldPath, newPath));
-  };
-
-  const handleDeleteFolder = async (path) => {
-    await saveAssignmentFolderPaths(assignmentFolderPaths.filter((existing) => existing !== path && !existing.startsWith(`${path}/`)));
-    await batchUpdateAssignmentsInFolder(path, () => null);
-  };
-
-  const handleMoveAssignmentToFolder = async (assignmentId, folderPath) => {
-    await updateDoc(doc(db, 'assignments', assignmentId), { folder: folderPath ? normalizeFolderPath(folderPath) : null });
-    await fetchAssignments();
-  };
-
-  /*
-   * ARCHIVE AND PAUSE GO THROUGH THE SERVER, AND SAY WHAT THEY DO.
-   *
-   * Both used to be a silent client toggle the server never read, so an
-   * "archived" Test was still open to students. They are now audited server
-   * actions (manageAssignmentLifecycle) that the Test Cycle and secure exam
-   * callables enforce, and each says, before it happens, what students will
-   * and will not lose.
-   */
-  const handleToggleArchiveAssignment = async (assignment) => {
-    const archiving = !assignment.archived;
-    const proceed = await confirmAction({
-      title: `${archiving ? 'Archive' : 'Unarchive'} “${assignment.title}”?`,
-      message: archiving
-        ? 'Students will no longer see it or be able to open it, including any secure Test or Retest. Their work and recorded grades are kept, and you can unarchive it at any time from the Archived view.'
-        : 'It returns to your active lists and becomes available to students again according to its dates.',
-      confirmLabel: archiving ? 'Archive' : 'Unarchive',
-    });
-    if (!proceed) return;
-    try {
-      await manageAssignmentLifecycle({ assignmentId: assignment.id, action: archiving ? 'archive' : 'unarchive' });
-      await fetchAssignments();
-      toastSuccess(archiving ? 'Archived' : 'Unarchived', `“${assignment.title}”`);
-    } catch (error) {
-      toastError(`Could not ${archiving ? 'archive' : 'unarchive'} the assignment`, error.message);
-    }
-  };
-
-  const handleTogglePauseAssignment = async (assignment) => {
-    const pausing = !assignment.unpublished;
-    const proceed = await confirmAction({
-      title: `${pausing ? 'Pause' : 'Resume'} “${assignment.title}” for students?`,
-      message: pausing
-        ? 'Students will not see it or be able to open it — including starting or continuing a secure Test — until you resume it. Nothing they have done is lost, and it stays in your lists marked Paused.'
-        : 'Students will see it again and can continue where they left off.',
-      confirmLabel: pausing ? 'Pause for students' : 'Resume for students',
-    });
-    if (!proceed) return;
-    try {
-      await manageAssignmentLifecycle({ assignmentId: assignment.id, action: pausing ? 'unpublish' : 'publish' });
-      await fetchAssignments();
-      toastSuccess(pausing ? 'Paused for students' : 'Visible to students again', `“${assignment.title}”`);
-    } catch (error) {
-      toastError(`Could not ${pausing ? 'pause' : 'resume'} the assignment`, error.message);
-    }
-  };
-
-  const toggleAssignmentSelected = (assignmentId) => {
-    setSelectedAssignmentIds((current) => {
-      const next = new Set(current);
-      if (next.has(assignmentId)) next.delete(assignmentId);
-      else next.add(assignmentId);
-      return next;
-    });
-  };
-
-  const clearAssignmentSelection = () => setSelectedAssignmentIds(new Set());
-
-  /**
-   * One batched write for the whole selection rather than N sequential
-   * updateDoc calls, matching how folder renames already work. Chunked at 400
-   * because a Firestore batch caps at 500 operations.
-   */
-  const applyBulkAssignmentPatch = async (assignmentIds, patch, describe) => {
-    const ids = Array.from(assignmentIds || []);
-    if (!ids.length) return false;
-    setBulkBusy(true);
-    try {
-      for (let start = 0; start < ids.length; start += 400) {
-        const batch = writeBatch(db);
-        ids.slice(start, start + 400).forEach((assignmentId) => {
-          batch.update(doc(db, 'assignments', assignmentId), patch);
-        });
-        await batch.commit();
-      }
-      await fetchAssignments();
-      clearAssignmentSelection();
-      toastSuccess(describe(ids.length));
-      return true;
-    } catch (error) {
-      console.error(error);
-      toastError('Bulk update failed', error.message);
-      return false;
-    } finally {
-      setBulkBusy(false);
-    }
-  };
-
-  const handleBulkArchive = async (shouldArchive) => {
-    const count = selectedAssignmentIds.size;
-    const verb = shouldArchive ? 'Archive' : 'Unarchive';
-    const proceed = await confirmAction({
-      title: `${verb} ${count} assignment${count === 1 ? '' : 's'}?`,
-      message: shouldArchive
-        ? 'Archived assignments are hidden from the default list and from students, but nothing is deleted and no student records change. You can unarchive them at any time.'
-        : 'These assignments will reappear in the default list and become visible to students again according to their existing dates.',
-      confirmLabel: verb,
-    });
-    if (!proceed) return;
-    // One audited server action per assignment (archive is enforced on the
-    // server now, so it cannot be a client batch write).
-    setBulkBusy(true);
-    const ids = Array.from(selectedAssignmentIds || []);
-    const failures = [];
-    for (const assignmentId of ids) {
-      try {
-        // eslint-disable-next-line no-await-in-loop
-        await manageAssignmentLifecycle({ assignmentId, action: shouldArchive ? 'archive' : 'unarchive' });
-      } catch (error) {
-        failures.push(`${assignments.find((item) => item.id === assignmentId)?.title || assignmentId}: ${error.message}`);
-      }
-    }
-    await fetchAssignments();
-    clearAssignmentSelection();
-    setBulkBusy(false);
-    if (failures.length) toastError(`${failures.length} could not be ${shouldArchive ? 'archived' : 'unarchived'}`, failures.slice(0, 3).join(' · '));
-    const done = ids.length - failures.length;
-    if (done) toastSuccess(`${shouldArchive ? 'Archived' : 'Unarchived'} ${done} assignment${done === 1 ? '' : 's'}`);
-  };
-
-  const handleBulkMoveToFolder = async (rawFolder) => {
-    const folder = normalizeFolderPath(rawFolder);
-    await applyBulkAssignmentPatch(
-      selectedAssignmentIds,
-      { folder: folder || null },
-      (count) => `Moved ${count} assignment${count === 1 ? '' : 's'} to ${folder || 'Uncategorized'}`,
-    );
-  };
-
-  /*
-   * MARKING PERIODS — TEACHER WRITES.
-   *
-   * Two documents, and they never touch each other's business:
-   *   settings/gradingPeriods  the period list and which one is current
-   *   assignments/{id}         a {id,label,order} stamp, written only here
-   *
-   * Nothing in this group reads or writes `assignment.archived`. Closing a
-   * marking period is a reporting-window decision; archiving an assignment is
-   * a filing decision, and conflating them would let one quietly do the other.
-   */
-  const persistGradingPeriodSettings = async (next, successMessage) => {
-    const normalized = normalizeGradingPeriodSettings(next);
-    setGradingPeriodBusy(true);
-    try {
-      await setDoc(doc(db, 'settings', GRADING_PERIOD_SETTINGS_DOC), {
-        periods: normalized.periods,
-        currentPeriodId: normalized.currentPeriodId,
-        updatedAt: new Date().toISOString(),
-      });
-      setGradingPeriodSettings(normalized);
-      if (successMessage) toastSuccess(successMessage);
-      return normalized;
-    } catch (error) {
-      console.error(error);
-      toastError('Could not save marking periods', error.message);
-      return gradingPeriodSettings;
-    } finally {
-      setGradingPeriodBusy(false);
-    }
-  };
-
-  const handleCreateGradingPeriod = (period) => persistGradingPeriodSettings(
-    {
-      periods: [...gradingPeriodSettings.periods, period],
-      // The first period a school creates becomes current, so creating one
-      // never leaves students looking at a Grade Center with no current group.
-      currentPeriodId: gradingPeriodSettings.currentPeriodId || period.id,
-    },
-    `Added ${period.label}`,
-  );
-
-  const handleSetCurrentGradingPeriod = (periodId) => persistGradingPeriodSettings(
-    { ...gradingPeriodSettings, currentPeriodId: periodId },
-    'Current marking period updated',
-  );
-
-  const handleSetGradingPeriodArchived = (periodId, archived) => persistGradingPeriodSettings(
-    {
-      ...gradingPeriodSettings,
-      periods: gradingPeriodSettings.periods.map((period) => (
-        period.id === periodId ? { ...period, archived } : period
-      )),
-    },
-    archived
-      ? 'Marking period closed. Students keep every grade in it; it simply collapses by default.'
-      : 'Marking period reopened',
-  );
-
-  const handleMoveSelectedAssignmentsToGradingPeriod = async (
-    period,
-    assignmentIds = selectedAssignmentIds,
-  ) => {
-    const label = period?.label || 'the default current period';
-    return applyBulkAssignmentPatch(
-      assignmentIds,
-      gradingPeriodAssignmentPatch(period),
-      (count) => `Moved ${count} assignment${count === 1 ? '' : 's'} to ${label}`,
-    );
-  };
-
-  // Switching an assignment's Warm-Up into a Live Challenge. Written with dotted
-  // field paths so the rest of the warmup object — the window, the instruction
-  // dates, the per-class closures — is untouched.
-  const handleLinkWarmupChallenge = async (assignmentId, options = {}) => {
-    if (!assignmentId) return;
-    await updateDoc(doc(db, 'assignments', assignmentId), {
-      'warmup.liveChallenge.enabled': true,
-      'warmup.liveChallenge.roundCount': Math.max(3, Math.min(20, Number(options.roundCount) || 5)),
-      'warmup.liveChallenge.roundSeconds': Math.max(15, Math.min(120, Number(options.roundSeconds) || 30)),
-      'warmup.liveChallenge.standardCode': String(options.standardCode || 'mixed'),
-    });
-  };
-
-  const beginEditAssignmentDates = (assignment) => {
-    const toLocalInput = (value) => {
-      const date = value ? new Date(value) : null;
-      if (!date || Number.isNaN(date.getTime())) return '';
-      const offset = date.getTimezoneOffset() * 60000;
-      return new Date(date.getTime() - offset).toISOString().slice(0, 16);
-    };
-    const existingIds = Array.isArray(assignment.assignedClassIds)
-      ? assignment.assignedClassIds.filter(Boolean)
-      : [];
-    const existingPeriods = [...new Set(classes
-      .filter((entry) => existingIds.includes(entry.classId) && entry?.status !== 'archived')
-      .map((entry) => entry.period)
-      .filter(Boolean))];
-    const defaultDates = defaultAssignmentDateInputs();
-    setEditingAssignmentId(assignment.id);
-    setEditingAssignmentDates({
-      dueAt: toLocalInput(assignment.dueAt || assignment.dueDate) || defaultDates.dueAt,
-      lateDueAt: toLocalInput(assignment.lateDueAt || assignment.lateDueDate) || defaultDates.lateDueAt,
-      dolInstructionDate: assignment.dol?.instructionDate
-        || (assignment.releaseAt ? toLocalInput(assignment.releaseAt).slice(0, 10) : localDateKey(Date.now())),
-      assignedClassPeriods: existingPeriods,
-      assignedClassIds: existingIds,
-    });
-  };
+  const [
+    saveAssignmentFolderPaths, handleCreateFolder, handleRenameFolder, handleDeleteFolder,
+    handleMoveAssignmentToFolder, handleToggleArchiveAssignment, handleTogglePauseAssignment,
+    toggleAssignmentSelected, clearAssignmentSelection, handleBulkArchive, handleBulkMoveToFolder,
+    handleCreateGradingPeriod, handleSetCurrentGradingPeriod, handleSetGradingPeriodArchived,
+    handleMoveSelectedAssignmentsToGradingPeriod, handleLinkWarmupChallenge, beginEditAssignmentDates,
+  ] = teacherKit ? teacherKit.createAssignmentLibraryControls(
+    confirmAction, toastError, toastSuccess, classes, assignments, setEditingAssignmentId, setEditingAssignmentDates,
+    assignmentFolderPaths, setAssignmentFolderPaths, gradingPeriodSettings, setGradingPeriodSettings,
+    setGradingPeriodBusy, selectedAssignmentIds, setSelectedAssignmentIds, setBulkBusy, fetchAssignments,
+  ) : NO_TEACHER_CONTROLS;
 
   // The Student Support Evidence Report replaced the pop-up "IEP Support
   // Report", which listed every assignment in the library and printed
@@ -8545,81 +6818,11 @@ function App() {
     setSupportReportStudentId(student.id);
   };
 
-  const openDeleteDialog = (assignment) => {
-    setDeleteDialog(assignment);
-    setDeleteStep(1);
-    setDeleteTitleConfirmation('');
-    setDeleteAcknowledged(false);
-    setDeleteClassroomAcknowledged(false);
-    setDeleteError('');
-    setDeleteEvidence(null);
-    // Asked of the server, which can see every student's work; the teacher's
-    // own roster snapshot cannot, and guessing low here is how evidence goes.
-    getAssignmentEvidenceSummary({ assignmentId: assignment.id })
-      .then((summary) => setDeleteEvidence(summary))
-      .catch((error) => setDeleteEvidence({ error: error.message || 'Could not check this assignment for student work.' }));
-  };
-
-  const closeDeleteDialog = () => {
-    if (isDeleting) return;
-    setDeleteDialog(null);
-    setDeleteStep(1);
-    setDeleteTitleConfirmation('');
-    setDeleteAcknowledged(false);
-    setDeleteError('');
-  };
-
-  /*
-   * DELETE IS A SERVER DECISION.
-   *
-   * This used to read every grade document in the school from the teacher's
-   * browser (which the rules refuse for an ordinary teacher, so delete simply
-   * failed) and, for the administrator, delete the assignment and strip each
-   * student's work for it — evidence and grades included, with Test Cycle
-   * records and secure sessions left orphaned. The server now refuses a delete
-   * once any student has worked on the assignment, and offers Archive, which
-   * hides it and keeps everything.
-   */
-  const deleteAssignmentPermanently = async () => {
-    if (!deleteDialog || !deleteAcknowledged) return;
-    setIsDeleting(true);
-    setDeleteError('');
-    try {
-      await manageAssignmentLifecycle({
-        assignmentId: deleteDialog.id,
-        action: 'delete',
-        confirmTitle: deleteTitleConfirmation.trim(),
-        acknowledgeClassroom: deleteClassroomAcknowledged,
-      });
-      await fetchAssignments();
-      toastSuccess('Assignment deleted', `“${deleteDialog.title}” was deleted. No student had worked on it.`);
-      setDeleteDialog(null);
-      setDeleteStep(1);
-      setDeleteTitleConfirmation('');
-      setDeleteAcknowledged(false);
-      setDeleteError('');
-    } catch (error) {
-      console.error(error);
-      setDeleteError(error.message || 'The assignment could not be deleted.');
-    } finally {
-      setIsDeleting(false);
-    }
-  };
-
-  const archiveFromDeleteDialog = async () => {
-    if (!deleteDialog) return;
-    setIsDeleting(true);
-    try {
-      await manageAssignmentLifecycle({ assignmentId: deleteDialog.id, action: 'archive' });
-      await fetchAssignments();
-      toastSuccess('Assignment archived', `“${deleteDialog.title}” is hidden from students. Their work and grades are kept, and you can unarchive it from the Archived view.`);
-      setDeleteDialog(null);
-    } catch (error) {
-      setDeleteError(error.message || 'The assignment could not be archived.');
-    } finally {
-      setIsDeleting(false);
-    }
-  };
+  const [openDeleteDialog, closeDeleteDialog, deleteAssignmentPermanently, archiveFromDeleteDialog] = teacherKit ? teacherKit.createAssignmentDeleteControls(
+    toastSuccess, deleteDialog, setDeleteDialog, setDeleteEvidence, deleteClassroomAcknowledged,
+    setDeleteClassroomAcknowledged, setDeleteStep, deleteTitleConfirmation, setDeleteTitleConfirmation,
+    deleteAcknowledged, setDeleteAcknowledged, isDeleting, setIsDeleting, setDeleteError, fetchAssignments,
+  ) : NO_TEACHER_CONTROLS;
 
   /*
    * THE PACK-UP LINE (student pass 3, NAV-24): the last five minutes of the
@@ -9180,20 +7383,7 @@ function App() {
     );
   };
 
-  const closeExportJsonDialog = () => {
-    setExportJsonAssignment(null);
-    setExportJsonCopied(false);
-  };
-
-  const copyExportJsonToClipboard = async (text) => {
-    try {
-      await navigator.clipboard.writeText(text);
-      setExportJsonCopied(true);
-    } catch (error) {
-      console.error(error);
-      setExportJsonCopied(false);
-    }
-  };
+  const [closeExportJsonDialog, copyExportJsonToClipboard] = teacherKit ? teacherKit.createExportJsonDialogControls(setExportJsonAssignment, setExportJsonCopied) : NO_TEACHER_CONTROLS;
 
   const renderExportJsonDialog = () => {
     if (!exportJsonAssignment) return null;
