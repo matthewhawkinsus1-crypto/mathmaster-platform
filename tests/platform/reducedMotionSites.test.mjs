@@ -72,11 +72,18 @@ const SAYS_NOTHING = {
 // above; they ask scrollMotion() now. Named so a reverted one fails here, not
 // only in the scan.
 test('the teacher screens\' scrolls follow the reduced-motion preference', () => {
-  for (const [file, count] of [['App.jsx', 1], ['AssignmentQuestionEditorBase.jsx', 2], ['TeacherHome.jsx', 1], ['components/teacher/LessonPreflightModal.jsx', 2]]) {
+  for (const [file, count] of [['App.jsx', 1], ['AssignmentQuestionEditorBase.jsx', 1], ['TeacherHome.jsx', 1], ['components/teacher/LessonPreflightModal.jsx', 2]]) {
     const source = read(file);
     assert.equal(source.match(/behavior: scrollMotion\(\)/g)?.length || 0, count, file);
     assert.doesNotMatch(source, /behavior: 'smooth'/, file);
   }
+  // The editor's refused Include is revealed by keepRevealedWhileFindingsLand
+  // with the preference, and brought back without motion.
+  assert.match(read('AssignmentQuestionEditorBase.jsx'), /keepRevealedWhileFindingsLand\(\{[^}]*motion: scrollMotion\(\),/);
+  const keep = read('components/teacher/keepRevealedWhileFindingsLand.js');
+  assert.match(keep, /reveal\(motion\);/);
+  assert.match(keep, /reveal\('auto'\)/);
+  assert.doesNotMatch(keep, /smooth/);
 });
 
 test('the scan can tell a moving file from a still one, and a guarded one from an unguarded one', () => {

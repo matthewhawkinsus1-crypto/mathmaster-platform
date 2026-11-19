@@ -62,7 +62,9 @@ test('printing expands every section and prints only the report', () => {
   const print = region(printCss, '@media print {', '\n}\n', 'print css');
   // Linked with every page, so the report prints the same whatever loaded it.
   assert.match(executableSource(leadingStyles), /^import '\.\.\/\.\.\/components\/teacher\/supportEvidencePrint\.css';$/m);
-  assert.match(print, /body \* \{ visibility: hidden !important; \}/);
+  // With the report open, the rest of the page is hidden in print; without it,
+  // every page prints (printingOtherPages.test.mjs).
+  assert.match(print, /body:has\(\.se-report\) \* \{ visibility: hidden !important; \}/);
   assert.match(print, /\.se-report, \.se-report \* \{ visibility: visible !important; \}/);
   assert.match(print, /\.se-report__controls, \.se-report \[data-screen-only\] \{ display: none !important; \}/);
   assert.match(view, /<details className="se-report__card" open=\{expanded \|\| undefined\}/);

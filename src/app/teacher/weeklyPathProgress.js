@@ -18,9 +18,10 @@ import { weeklyPathProgressClassId } from '../../platform/path/weeklyPathProgres
 /**
  * One screen's weekly Path completion, kept by `refresh` (one per page). The
  * screen is App's teacher tab, its chosen class and the teacher's classes;
- * `path` is { completions, weeklyGoalFor, weekKeyFor } (platform/path/
+ * `path` is { completions, weeklyGoalFor, weekKeyFor, weekStartsOnFor } (platform/path/
  * pathStore.js fetchTeacherWeeklyPathCompletions and
- * storedWeeklyGoalForClassContext, weeklyPathGoal.js weekKeyFor); `set` is
+ * storedWeeklyGoalForClassContext, weeklyPathGoal.js weekKeyFor and
+ * weekStartsOnFor); `set` is
  * App's state: completions, goals, truncated, loadedFor, loading. Returns
  * stop(), or nothing when the screen shows no class's completion.
  */
@@ -45,7 +46,7 @@ export const followWeeklyPathProgress = (refresh, { uid, teacherTab, activeClass
     classId,
     classPeriod: classRecord?.period || '',
   }) || {};
-  const weekStartsOn = config.weekStartsOn || 1;
+  const weekStartsOn = path.weekStartsOnFor(config);
   return refresh.watch({
     id: `${uid}|${classId}`,
     // The week as of each call, not App's UI clock: Monday's rollover is right

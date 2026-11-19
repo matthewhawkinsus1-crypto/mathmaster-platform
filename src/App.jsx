@@ -422,7 +422,7 @@ import {
 } from './platform/path/pathStore.js';
 import { buildWeeklyPathPlan } from './platform/path/weeklyPathPlan.js';
 import { forgetSessionPathCoverage } from './platform/path/pathCoverageService.js';
-import { buildTeacherWeeklyView, buildWeeklyGoal, dueAtFor, weekKeyFor, weeklyPlanClassInputs } from './platform/path/weeklyPathGoal.js';
+import { buildTeacherWeeklyView, buildWeeklyGoal, dueAtFor, weekKeyFor, weekStartsOnFor, weeklyPlanClassInputs } from './platform/path/weeklyPathGoal.js';
 import { buildAssignmentWorksheetModel, downloadAssignmentWorksheetPdf } from './platform/resources/pdfLoaders.js';
 // The teacher-only logic App runs (needs attention, the Action Center,
 // Assignment Review's publishing intent, worksheets, Classroom publishing)
@@ -1760,7 +1760,7 @@ function App() {
       activeClassId: activeClass.classId,
       classes,
       weeklyGoalsByClass,
-      path: { completions: fetchTeacherWeeklyPathCompletions, weeklyGoalFor: storedWeeklyGoalForClassContext, weekKeyFor },
+      path: { completions: fetchTeacherWeeklyPathCompletions, weeklyGoalFor: storedWeeklyGoalForClassContext, weekKeyFor, weekStartsOnFor },
       set: {
         completions: setWeeklyPathCompletionsByStudent,
         goals: setWeeklyPathGoalSnapshotsByStudent,
@@ -6498,7 +6498,7 @@ function App() {
     const config = storedWeeklyGoalForClassContext(weeklyGoalsByClass, {
       classId: activeClass.classId, classPeriod: record?.period || '',
     }) || {};
-    return weekKeyFor(now, config.weekStartsOn || 1);
+    return weekKeyFor(now, weekStartsOnFor(config));
   }, [classesById, activeClass.classId, weeklyGoalsByClass, Math.floor(now / 3_600_000)]);
 
   const weeklyPathWeekComplete = useMemo(() => {
@@ -6507,7 +6507,7 @@ function App() {
       classId: activeClass.classId, classPeriod: record?.period || '',
     }) || {};
     return now > dueAtFor(now, {
-      weekStartsOn: config.weekStartsOn || 1,
+      weekStartsOn: weekStartsOnFor(config),
       dueDayOfWeek: config.dueDayOfWeek ?? 0,
     });
   }, [classesById, activeClass.classId, weeklyGoalsByClass, Math.floor(now / 3_600_000)]);

@@ -59,7 +59,9 @@ test('Classroom passback uses the assignment zero and bypasses test-cycle anti-l
   const functions = functionsBackendSource();
   assert.match(functions, /const assignmentGradeOverride = activeAssignmentGradeOverride\(authoritativeOverrides\)/);
   assert.match(functions, /grade: assignmentGradeOverride\.score/);
-  assert.match(functions, /isTestCycleAssignment && priorAudit\.status === "synced" && !assignmentGradeOverride/);
+  // A grade Classroom holds: synced, or saved with its return refused
+  // (classroomReleasePolicyOneRule.test.mjs).
+  assert.match(functions, /isTestCycleAssignment && \["synced", CLASSROOM_GRADED_NOT_RETURNED\]\.includes\(priorAudit\.status\) && !assignmentGradeOverride/);
 });
 
 
