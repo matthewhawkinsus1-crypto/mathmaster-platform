@@ -334,7 +334,11 @@ test('the phone work bar is one flexible row with a short Start over caption', (
 test('with Submit in the phone bar it is still one row: the tools show icons, keeping their names', () => {
   const css = read('src/components/student/MathToolMobileLayout.css');
   const primary = '\\.portrait-action-bar\\[data-has-primary="true"\\]';
-  assert.match(css, new RegExp(`${primary} \\{\\s*flex-wrap: nowrap;`));
+  // One row wherever its controls fit at their narrowest (each tool its 28px basis or what it shows), which at 100%
+  // text is every phone from 320px; more rows only where they do not, at a large text size
+  // (phoneActionBarReflow.test.mjs; the arithmetic is workBarPrimaryLabel.test.mjs's).
+  assert.match(css, new RegExp(`${primary} \\{\\s*flex-wrap: wrap;`));
+  assert.match(css, new RegExp(`${primary} > \\.mathmaster-work-bar-tool \\{\\s*flex: 1000 0 28px;`));
   // Hidden visually, not removed: the word is the button's accessible name.
   assert.match(css, new RegExp(`${primary} \\.mathmaster-action-label \\{\\s*position: absolute;[\\s\\S]*?clip: rect\\(0 0 0 0\\);`));
   assert.doesNotMatch(css, new RegExp(`${primary} \\.mathmaster-action-label \\{\\s*display: none`));
