@@ -57,6 +57,10 @@
 //   - nothing says right, wrong or correct while any question can be answered;
 //   - a student whose plan grants a glossary on a test gets Vocabulary on a
 //     Rich Tool item, terms and definitions without worked examples (H-16);
+//   - an item that cannot be drawn says so inside the page's one main
+//     landmark, without "your grade is not affected" or a copyable report, and
+//     the rest of the Test still works: Try again, Next, Previous with the
+//     answer kept, the review and Submit;
 //   - no sideways scroll, and every control in these screens at least 44px.
 
 import { spawn } from 'node:child_process';
@@ -681,6 +685,81 @@ const courseJourney = async (context, device) => {
   await page.close();
 };
 
+/* --------------- an item that cannot be drawn keeps the Test --------------- */
+
+// One item that threw while it was drawn replaced the whole Test screen: the
+// header, the question list, Next and Submit. The item now says it did not
+// load, and the student keeps the Test. React reports the error the boundary
+// caught, and the boundary records it: those two console errors are expected.
+const EXPECTED_ITEM_FAILURE = /Question could not be prepared|QuestionResolutionBoundary|reading 'id'/;
+const brokenItemJourney = async (context, device) => {
+  const { page, errors } = await openPage(context, 'brokenItem', device);
+  const label = (name) => `${device.id} brokenItem ${name}`;
+  const position = () => page.locator('[data-secure-navigator-toggle]').textContent({ timeout: 3000 }).then((text) => text.replace('▾', '').trim(), () => null);
+  await page.getByRole('button', { name: 'Start Test' }).click();
+  await page.waitForSelector('[data-secure-navigator-toggle]');
+  await page.getByRole('radio').nth(2).check();
+  await waitSaved(page);
+  await next(page);
+  const panel = page.locator('[data-question-resolution-failure]');
+  await page.waitForFunction(() => document.querySelector('[data-question-resolution-failure]') || !document.querySelector('[data-secure-navigator-toggle]'), null, { timeout: 15000 }).catch(() => {});
+  const kept = (await position()) === 'Question 2 of 3';
+  check(kept, label('the Test keeps its header and the question list'), kept ? '' : `on screen: ${(await bodyText(page)).replace(/\s+/g, ' ').slice(0, 160)}`);
+  const said = await panel.count() === 1;
+  check(said, label('the item says it did not load'));
+  if (!kept || !said) {
+    await shot(page, device, 'broken-01-lost');
+    await page.close();
+    return;
+  }
+  let text = await bodyText(page);
+  check(/This question did not load/.test(text) && /let your teacher know/.test(text) && /Your saved answers are kept exactly as they are\./.test(text), label('it says what to do and that the saved answers are kept'));
+  check(!/grade is not affected/.test(text), label('it promises nothing about the grade'));
+  check(!/Copy details for your teacher|Technical details/.test(text), label('no copyable report on a secure Test'));
+  const landmarks = await page.evaluate(() => ({ mains: document.querySelectorAll('main').length, inMain: Boolean(document.querySelector('[data-question-resolution-failure]')?.closest('main')) }));
+  check(landmarks.mains === 1 && landmarks.inMain, label('the panel is the page\'s one main landmark'), JSON.stringify(landmarks));
+  const moves = await page.evaluate(() => ['previous', 'next', 'review'].filter((name) => document.querySelector(`[data-secure-nav="${name}"]`)));
+  check(moves.length === 3, label('Previous, Next and the review are still there'), moves.join(','));
+  const small = await panel.locator('button').evaluateAll((buttons, minTap) => buttons
+    .map((button) => ({ text: button.textContent.trim(), rect: button.getBoundingClientRect() }))
+    .filter(({ rect }) => Math.min(rect.width, rect.height) < minTap)
+    .map(({ text, rect }) => `${text} ${Math.round(rect.width)}x${Math.round(rect.height)}`), MIN_TAP);
+  check(small.length === 0, label(`its buttons at least ${MIN_TAP}px`), small.join(', '));
+  await layout(page, label('the item that did not load'));
+  await noVerdict(page, label('the item that did not load'));
+  await shot(page, device, 'broken-01-item');
+
+  // Try again draws the item afresh; it still cannot be drawn, and the Test stays.
+  await panel.getByRole('button', { name: 'Try again' }).click();
+  await wait(300);
+  check(await panel.count() === 1 && (await position()) === 'Question 2 of 3', label('Try again: the item says so again, the Test stays'));
+
+  // The next item is drawn as usual, and the first keeps its answer.
+  await next(page);
+  await atQuestion(page, 'Question 3 of 3');
+  check(await panel.count() === 0, label('the next item starts clean'));
+  await typedAnswer(page).fill('6');
+  await waitSaved(page);
+  await previous(page);
+  await atQuestion(page, 'Question 2 of 3');
+  await panel.waitFor({ timeout: 8000 });
+  await previous(page);
+  await atQuestion(page, 'Question 1 of 3');
+  check(await page.getByRole('radio').nth(2).isChecked(), label('the first item keeps its answer'));
+
+  // The review counts the item as unanswered, and the Test can be submitted.
+  await page.locator('[data-secure-nav="review"]').click();
+  await page.waitForSelector('[data-secure-review="submit"]');
+  text = await bodyText(page);
+  check(/You answered 2 of 3 questions/.test(text), label('the review counts what was answered'), text.match(/You answered[^.]*\./)?.[0] || '');
+  await page.getByRole('button', { name: 'Submit test' }).click();
+  await page.waitForSelector('[data-secure-finished]');
+  check(/Test submitted/.test(await bodyText(page)), label('the Test is submitted'));
+  const unexpected = errors.filter((message) => !EXPECTED_ITEM_FAILURE.test(message));
+  check(unexpected.length === 0, label('no other console errors'), unexpected.slice(0, 3).join(' | '));
+  await page.close();
+};
+
 /* --------------------------- time runs out ------------------------------ */
 
 const timeoutJourney = async (context, device) => {
@@ -991,7 +1070,7 @@ for (const device of DEVICES) {
     return route.abort();
   });
   const only = (process.env.SECURE_NAV_JOURNEYS || '').split(',').map((name) => name.trim()).filter(Boolean);
-  const journeys = [practiceJourney, courseJourney, toolTriesJourney, supportsJourney, backtrackJourney, darkJourney, timeoutJourney, legacyJourney, dashboardJourney]
+  const journeys = [practiceJourney, courseJourney, toolTriesJourney, supportsJourney, backtrackJourney, darkJourney, timeoutJourney, brokenItemJourney, legacyJourney, dashboardJourney]
     .filter((journey) => !only.length || only.includes(journey.name.replace(/Journey$/, '')));
   for (const journey of journeys) {
     try {

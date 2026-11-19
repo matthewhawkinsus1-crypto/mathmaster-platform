@@ -223,6 +223,11 @@ export function QuestionResolutionFailure({
   // Only to report the saved draft's envelope version (see
   // recordQuestionResolutionDiagnostic); never shown or stored.
   draftKey = null,
+  // The host's own sentence about the student's work, where neither default
+  // is true there. On a secure Test an item that cannot be shown cannot be
+  // answered, so "your grade is not affected" would be a promise MathMaster
+  // cannot keep; what it can say is that the saved answers are untouched.
+  savedWorkNote = '',
 }) {
   const recovery = failure?.recovery || QUESTION_RESOLUTION_RECOVERY.NEEDS_REPAIR;
   const signatureContext = { ...context, executionScope };
@@ -235,9 +240,9 @@ export function QuestionResolutionFailure({
 
   const teacherView = TEACHER_SCOPES.has(executionScope);
   const technicalMessage = `${failure?.classification || 'unclassified'} · ${describeContext(signatureContext)}`;
-  const savedWork = hasRecordedWork
+  const savedWork = savedWorkNote || (hasRecordedWork
     ? 'Your recorded answers, tries and grade for this question are kept exactly as they are.'
-    : 'Nothing you did caused this, and your grade is not affected.';
+    : 'Nothing you did caused this, and your grade is not affected.');
   const next = nextButton(onNextQuestion, nextQuestionLabel);
   // A reload that already happened and did not help is offered as a retry:
   // reloading again in a loop would strand the student on a spinner.
@@ -342,7 +347,7 @@ export default class QuestionResolutionBoundary extends Component {
     const { error } = this.state;
     if (!error) return this.props.children;
     const chunk = isChunkLoadError(error);
-    return (
+    const panel = (
       <QuestionResolutionFailure
         failure={{
           classification: chunk ? 'chunk-load' : QUESTION_RESOLUTION_FAILURE.RESOLUTION_EXCEPTION,
@@ -357,7 +362,14 @@ export default class QuestionResolutionBoundary extends Component {
         hasRecordedWork={this.props.hasRecordedWork}
         technicalDetails={this.props.technicalDetails !== false}
         draftKey={this.props.draftKey || null}
+        savedWorkNote={this.props.savedWorkNote || ''}
       />
     );
+    // Where the children were the page's <main> (a secure item, TT27), the
+    // panel takes its place, so the page keeps its main landmark.
+    const Landmark = this.props.fallbackLandmark || null;
+    return Landmark
+      ? <Landmark style={{ width: 'min(820px, 100%)', margin: '0 auto', padding: '28px 18px 64px', boxSizing: 'border-box' }}>{panel}</Landmark>
+      : panel;
   }
 }
