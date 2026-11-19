@@ -307,8 +307,9 @@ const intervalTextToPathIntervals = (value) => {
  */
 const INTERVAL_LIST_KINDS = new Set(['increasing', 'decreasing', 'constant', 'positive', 'negative']);
 const LIST_SPACE = String.raw`(?:\s|\\[,:;!]|\\quad|\\qquad|~)*`;
+const LIST_AND = String.raw`(?:and|\\land|\\wedge|∧)`;
 const INTERVAL_LIST_JOIN = new RegExp(
-  String.raw`([)\]])${LIST_SPACE}(?:,${LIST_SPACE}(?:and${LIST_SPACE})?|(?:and|\\land|\\wedge|∧)${LIST_SPACE})(?=[([])`,
+  String.raw`([)\]])${LIST_SPACE}(?:,${LIST_SPACE}(?:${LIST_AND}${LIST_SPACE})?|${LIST_AND}${LIST_SPACE})(?=[([])`,
   'gi',
 );
 const listedIntervalsAsUnion = (value) => {

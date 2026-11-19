@@ -118,6 +118,7 @@ test('L2 Day 1 DOL 1: 1/x\'s decreasing pieces may be joined by ∪, "and" or a 
     // What the math editor holds when "and" is typed between them (its
     // inline shortcut makes ∧ of it), as a word, and with \left…\right.
     '(-\\infty,0)\\land(0,\\infty)',
+    '(-\\infty,0),\\land(0,\\infty)',
     '(-\\infty,0)\\text{ and }(0,\\infty)',
     '\\left(-\\infty,0\\right),\\left(0,\\infty\\right)',
     '(-\\infty,0)and(0,\\infty)',
