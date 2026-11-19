@@ -33,6 +33,47 @@ const withoutTimeOnTask = (record) => {
   return rest;
 };
 
+/*
+ * A RECORD THAT ONLY MOVED INTO THE SPLIT HAS NOT CHANGED EITHER.
+ *
+ * After a student's submission, every record of theirs still stored whole is
+ * moved into the split (lib/gradeDetailStore.js splitInlineRecords): its detail
+ * fields leave the grades document and the summary gains `detailRef` and, when
+ * steps earned any, `stepCredit`. That rewrites the tracker of every assignment
+ * the student has, and it moves no grade: a summary grades exactly as its
+ * record (shared/gradeEntryStorage.mjs). Read as a change, it sent both
+ * triggers through every assignment, and the section trigger, whose evidence
+ * fingerprint is taken over the stored records, sent every synced column to
+ * Classroom again.
+ *
+ * So a record is unchanged when the stored one had no `detailRef`, the new one
+ * has, and every field outside the detail list is the same. DETAIL_FIELDS is
+ * gradeEntryStorage.mjs's list (an ES module this synchronous code cannot
+ * import); tests/platform/classroomTimeOnTask.test.mjs holds the two equal.
+ */
+const DETAIL_FIELDS = Object.freeze([
+  "partGrades",
+  "stepGrades",
+  "supportUsage",
+  "lastResponseKey",
+  "questionDetails",
+  "algebraState",
+  "familyDelivery",
+  "familyDeliveryVerification",
+  "liveCorrectionHistory",
+]);
+const SPLIT_MARKERS = ["detailRef", "stepCredit"];
+const movedIntoSplit = (was, now) => {
+  if (typeof now.detailRef !== "string" || !now.detailRef) return false;
+  if (Object.prototype.hasOwnProperty.call(was, "detailRef")) return false;
+  if (DETAIL_FIELDS.some((field) => Object.prototype.hasOwnProperty.call(now, field))) return false;
+  const summaryOf = (record) => Object.fromEntries(Object.keys(record)
+    .filter((field) => !DETAIL_FIELDS.includes(field) && !SPLIT_MARKERS.includes(field) && record[field] !== undefined)
+    .sort()
+    .map((field) => [field, record[field]]));
+  return JSON.stringify(summaryOf(withoutTimeOnTask(was))) === JSON.stringify(summaryOf(withoutTimeOnTask(now)));
+};
+
 function trackerChangedBeyondTimeOnTask(before, after) {
   if (JSON.stringify(after) === JSON.stringify(before)) return false;
   if (!isRecordObject(before) || !isRecordObject(after)) return true;
@@ -44,7 +85,7 @@ function trackerChangedBeyondTimeOnTask(before, after) {
       if (JSON.stringify(was) !== JSON.stringify(now)) return true;
       continue;
     }
-    if (JSON.stringify(withoutTimeOnTask(was)) !== JSON.stringify(withoutTimeOnTask(now))) return true;
+    if (JSON.stringify(withoutTimeOnTask(was)) !== JSON.stringify(withoutTimeOnTask(now)) && !movedIntoSplit(was, now)) return true;
   }
   return false;
 }
@@ -55,4 +96,4 @@ function trackerWithoutTimeOnTask(tracker) {
   return Object.fromEntries(Object.entries(tracker).map(([key, record]) => [key, withoutTimeOnTask(record)]));
 }
 
-module.exports = { trackerChangedBeyondTimeOnTask, trackerWithoutTimeOnTask };
+module.exports = { DETAIL_FIELDS, trackerChangedBeyondTimeOnTask, trackerWithoutTimeOnTask };
