@@ -13,6 +13,10 @@
  *       // a name a statement declares, the line a statement starts on, a range of
  *       // lines, or text exactly one statement contains
  *   "callAt": "first" | "last" | "<selector>"        // where the hook is called (default first)
+ *   "positional": true
+ *       // optional: pass the inputs as plain arguments and return one array, so the
+ *       // seam leaves no property names in the bundle (a test must then hold the
+ *       // two sides to the same names in the same order)
  *   "from": { "object": "teacherKit", "fallback": "NO_TEACHER_CONTROLS" }
  *       // optional: the function is not imported by the source but reached through
  *       // an object of the component's scope that may not be there yet, as
@@ -404,7 +408,7 @@ export const planExtraction = (spec, read) => {
   const body = moved.map(movedText).join('').replace(/^\n+/, '');
   const header = spec.header ? `/*\n${spec.header.trim().split('\n').map((line) => (line ? ` * ${line}` : ' *')).join('\n')}\n */\n` : '';
   // By position, the seam leaves no property names in the bundle (see "from" above).
-  const [openIn, closeIn, openOut, closeOut] = spec.from?.positional ? ['', '', '[', ']'] : ['{ ', ' }', '{ ', ' }'];
+  const [openIn, closeIn, openOut, closeOut] = (spec.from?.positional || spec.positional) ? ['', '', '[', ']'] : ['{ ', ' }', '{ ', ' }'];
   const parameters = inputList.length ? wrapList(openIn, inputList, closeIn, '') : '';
   const returns = outputList.length ? `  return ${wrapList(openOut, outputList, closeOut, '  ')};\n` : '';
   const moduleText = `${header}${importLines.join('\n')}${importLines.length ? '\n\n' : ''}export function ${spec.hook}(${parameters}) {\n${body}${returns}}\n`;

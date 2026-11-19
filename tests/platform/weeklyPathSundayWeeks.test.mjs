@@ -22,6 +22,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { buildWeeklyGoal, normalizeWeeklyGoalConfig, weekKeyFor, weekStartsOnFor } from '../../src/platform/path/weeklyPathGoal.js';
 import { executableSource } from './helpers/sourceContract.mjs';
+import { positionalHookSource } from './helpers/appScreens.mjs';
 
 const repo = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
 const read = (file) => readFileSync(path.join(repo, file), 'utf8');
@@ -76,10 +77,11 @@ test('no screen turns a stored Sunday into Monday', () => {
     .map((file) => path.relative(repo, file));
   assert.deepEqual(offenders, []);
   // The four places, as each now reads it.
-  const app = executableSource(read('src/App.jsx'));
+  // The gradebook's week and the kit's reading left App.jsx for its teacher hooks (the App split, slice 4).
+  const app = executableSource(positionalHookSource('useTeacherAnalytics'));
   assert.match(app, /return weekKeyFor\(now, weekStartsOnFor\(config\)\);/, 'App: the gradebook\'s week');
   assert.match(app, /weekStartsOn: weekStartsOnFor\(config\),\s*dueDayOfWeek: config\.dueDayOfWeek \?\? 0,/, 'App: whether that week has finished');
-  assert.match(app, /weekKeyFor, weekStartsOnFor \},/, 'App hands the teacher kit the reading');
+  assert.match(executableSource(positionalHookSource('useTeacherLearningPaths')), /weekKeyFor, weekStartsOnFor \},/, 'App hands the teacher kit the reading');
   assert.match(executableSource(read('src/app/teacher/weeklyPathProgress.js')), /const weekStartsOn = path\.weekStartsOnFor\(config\);/, 'the teacher\'s completions');
   assert.match(executableSource(read('src/app/student/useStudentWeeklyPathProgress.js')), /const currentWeekKey = weekKeyFor\(now, settings\.weekStartsOn\);/, 'the student\'s card');
 });

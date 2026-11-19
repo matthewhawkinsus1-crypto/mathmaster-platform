@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import { region } from './helpers/sourceContract.mjs';
-import { appHookSource, appSurfaceSource } from './helpers/appScreens.mjs';
+import { appHookSource, appSurfaceSource, positionalHookSource } from './helpers/appScreens.mjs';
 import { functionsBackendSource } from './helpers/functionsBackendSource.mjs';
 
 const read = (path) => fs.readFileSync(path, 'utf8');
@@ -146,7 +146,8 @@ test('support history is append-only and session summaries are server-owned in F
 });
 
 test('the teacher subscribes to persistent support history and archived session summaries', () => {
-  const app = read('src/App.jsx');
+  // The two subscriptions are effects of useTeacherActionCenterData since the App split.
+  const app = positionalHookSource('useTeacherActionCenterData');
   const store = read('src/platform/teacher/studentSupportStore.js');
   assert.match(app, /subscribeStudentSupportEvents/);
   assert.match(app, /subscribeStudentSessionSummaries/);
@@ -190,7 +191,8 @@ test('recent support/session listeners are bounded and backed by declared Firest
   assert.match(store, /where\('classId', '==', classId\)/);
   assert.match(store, /fetchStudentSupportHistory/);
   assert.match(store, /where\('studentId', '==', student\)/);
-  assert.match(app, /classIds: classes/);
+  // The session-summary listener is useTeacherActionCenterData's since the App split.
+  assert.match(positionalHookSource('useTeacherActionCenterData'), /classIds: classes/);
   assert.match(app, /profileSupportHistory/);
   assert.match(firebase, /firestore\.indexes\.json/);
   assert.match(indexes, /studentSupportEvents/);

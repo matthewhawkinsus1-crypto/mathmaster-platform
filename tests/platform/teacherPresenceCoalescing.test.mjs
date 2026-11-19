@@ -1,9 +1,9 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import fs from 'node:fs';
 import { PRESENCE_FLUSH_MS, applyKeyedChanges, createKeyedUpdateBuffer } from '../../src/platform/performance/coalescedKeyedUpdates.js';
 import { HEARTBEAT_INTERVAL_MS } from '../../src/livePresence.js';
 import { region } from './helpers/sourceContract.mjs';
+import { positionalHookSource } from './helpers/appScreens.mjs';
 
 // ONE DASHBOARD RENDER PER SECOND, NOT ONE PER HEARTBEAT (Job 5).
 //
@@ -94,8 +94,10 @@ test('unchanged batches keep identity; a missing document removes the student; c
 });
 
 test('the teacher presence effect batches snapshots and tears the buffer down with the listeners', () => {
-  const app = fs.readFileSync('src/App.jsx', 'utf8');
-  assert.match(app, /import \{ PRESENCE_FLUSH_MS, applyKeyedChanges, createKeyedUpdateBuffer \} from '\.\/platform\/performance\/coalescedKeyedUpdates\.js'/);
+  // The presence effect is useTeacherPresence since the App split; the buffer
+  // is imported where it is called.
+  const app = positionalHookSource('useTeacherPresence');
+  assert.match(app, /import \{ PRESENCE_FLUSH_MS, applyKeyedChanges, createKeyedUpdateBuffer \} from '\.\.\/\.\.\/platform\/performance\/coalescedKeyedUpdates\.js'/);
   const effect = region(app, 'const presenceBuffer = createKeyedUpdateBuffer({', '}, [user?.role, teacherPresenceScreen, presenceRosterKey, teacherPreviewRuntimeActive]);', 'the presence effect');
   assert.match(effect, /presenceBuffer\.set\(studentId, snapshot\.exists\(\) \? snapshot\.data\(\) : null\)/);
   assert.doesNotMatch(effect.slice(0, effect.indexOf('return () =>')), /setPresenceById\(\(current\) => \{/, 'no per-snapshot state update');

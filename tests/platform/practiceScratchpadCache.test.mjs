@@ -11,6 +11,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { executableSource, region } from './helpers/sourceContract.mjs';
+import { positionalHookSeam, positionalHookSource } from './helpers/appScreens.mjs';
 import {
   EMPTY_SCRATCHPAD_CACHE,
   SCRATCHPAD_CACHE_BUDGET_BYTES,
@@ -223,8 +224,16 @@ test('the store is never edited in place, and the empty store cannot be', () => 
 
 const appSource = readFileSync(new URL('../../src/App.jsx', import.meta.url), 'utf8');
 const app = executableSource(appSource);
+// Since the App split, useLiveTeachingPreviewSync owns the effect that
+// releases the preview's scratchpads.
+const previewSync = executableSource(positionalHookSource('useLiveTeachingPreviewSync'));
 
 test('App imports the store it calls (a missing import is a ReferenceError nothing else catches)', () => {
+  assert.match(
+    previewSync,
+    /import \{[^}]*\bEMPTY_SCRATCHPAD_CACHE\b[^}]*\} from '\.\.\/\.\.\/platform\/student\/practiceScratchpadCache\.js';/,
+    'EMPTY_SCRATCHPAD_CACHE is used in useLiveTeachingPreviewSync and must be imported there',
+  );
   const imported = app.match(/import \{([^}]*)\} from '\.\/platform\/student\/practiceScratchpadCache\.js';/);
   assert.ok(imported, 'App.jsx imports practiceScratchpadCache.js');
   for (const name of ['EMPTY_SCRATCHPAD_CACHE', 'readCachedScratchpadPage', 'storeCachedScratchpad', 'touchCachedScratchpad']) {
@@ -251,9 +260,13 @@ test('both in-memory scratchpad maps are budgeted stores, read and written only 
 
   // Every write replaces the store with one the store built: the empty store,
   // a touch, or a budgeted save. A hand-built map would bypass the budget.
-  const writes = [...app.matchAll(/\bset(Practice|Preview)Scratchpads\(/g)];
+  // (Since the App split one of those writes, the release on leaving the
+  // preview, is useLiveTeachingPreviewSync's: its writes are held the same.)
+  const written = `${app}\n${previewSync}`;
+  const writes = [...written.matchAll(/\bset(Practice|Preview)Scratchpads\(/g)];
+  assert.ok(previewSync.match(/\bsetPreviewScratchpads\(/), 'the hook\'s write is among those checked');
   for (const match of writes) {
-    const argument = app.slice(match.index + match[0].length, match.index + match[0].length + 80);
+    const argument = written.slice(match.index + match[0].length, match.index + match[0].length + 80);
     assert.match(
       argument,
       /^(?:EMPTY_SCRATCHPAD_CACHE\)|\(current\) => (?:storeCachedScratchpad|touchCachedScratchpad)\(current, )/,
@@ -289,7 +302,13 @@ test('saving stores the open question\'s scratchpad through the budget, in the r
 });
 
 test('leaving "View as Student" releases its scratchpads, unless Live Teaching can resume into them', () => {
-  const release = region(app, 'const previewScratchpadsReachable =', '}, [previewScratchpadsReachable]);', 'preview scratchpad release');
+  // Since the App split, useLiveTeachingPreviewSync owns the release; App
+  // calls it once with the flag, the session and the store's setter
+  // (positionalHookSource holds App's arguments to the hook's parameters).
+  for (const input of ['isTeacherPreview', 'liveTeachingSession', 'setPreviewScratchpads']) {
+    assert.ok(positionalHookSeam('useLiveTeachingPreviewSync').parameters.includes(input), `App hands useLiveTeachingPreviewSync ${input}`);
+  }
+  const release = region(previewSync, 'const previewScratchpadsReachable =', '}, [previewScratchpadsReachable]);', 'preview scratchpad release');
   assert.match(release, /^const previewScratchpadsReachable = isTeacherPreview \|\| Boolean\(liveTeachingSession\?\.active\);/);
   assert.match(release, /useEffect\(\(\) => \{\s*if \(!previewScratchpadsReachable\) setPreviewScratchpads\(EMPTY_SCRATCHPAD_CACHE\);\s*$/);
   // The flag it reads is the same one that gates every preview write.

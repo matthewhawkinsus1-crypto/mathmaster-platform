@@ -22,7 +22,7 @@ import path from 'node:path';
 import { register } from 'node:module';
 import { chainTo, firstLoadGraph, repo } from './helpers/firstLoadGraph.mjs';
 import { executableSource, region } from './helpers/sourceContract.mjs';
-import { appModulePaths, teacherControlPaths, teacherControlsSeam, teacherControlsSource } from './helpers/appScreens.mjs';
+import { appModulePaths, positionalHookSeam, positionalHookSource, teacherControlPaths, teacherControlsSeam, teacherControlsSource } from './helpers/appScreens.mjs';
 
 // Since the App split the kit also exports a teacher's control factories,
 // which import src/firebase.js as App.jsx did: node imports the kit through
@@ -166,22 +166,29 @@ test('App loads the kit for a teacher, never hands it to one who has left, and s
 
 // Both projections are computed with the kit, and recomputed when it arrives.
 test('the needs-attention queue and the Action Center wait for the kit, and rebuild when it arrives', () => {
-  const queue = region(appCode, 'const needsAttentionQueue = useMemo(() => {', '\n  ]);', 'needs-attention memo');
+  // Since the App split the queue is a memo of useTeacherAnalytics and the
+  // Action Center's three are memos of useTeacherActionCenterData; App hands
+  // each hook the kit it holds in state.
+  const analyticsCode = executableSource(positionalHookSource('useTeacherAnalytics'));
+  const actionCenterCode = executableSource(positionalHookSource('useTeacherActionCenterData'));
+  assert.ok(positionalHookSeam('useTeacherAnalytics').passed.includes('teacherKit'));
+  assert.ok(positionalHookSeam('useTeacherActionCenterData').passed.includes('teacherKit'));
+  const queue = region(analyticsCode, 'const needsAttentionQueue = useMemo(() => {', '\n  ]);', 'needs-attention memo');
   assert.match(queue, /if \(!teacherKit \|\| !\['home', 'classesWorkspace'\]\.includes\(teacherTab\)\) return \[\];/);
   assert.match(queue, /return teacherKit\.buildNeedsAttentionQueue\(\{/);
   assert.match(queue, /\bteacherKit,\s*$/, 'the memo depends on the kit');
-  const items = region(appCode, 'const teacherActionItems = useMemo(() => {', '\n  const currentTeacherActionOpenCount', 'action items memo');
+  const items = region(actionCenterCode, 'const teacherActionItems = useMemo(() => {', '\n  const currentTeacherActionOpenCount', 'action items memo');
   assert.match(items, /if \(!teacherKit \|\| teacherWorkspaceMode !== 'teacher' \|\| teacherTab !== 'actionCenter'\) return \[\];/);
   assert.match(items, /return teacherKit\.buildTeacherActionItems\(\{/);
   assert.match(items, /\}, \[teacherKit, /, 'the memo depends on the kit');
   // The Action Center's grade-transfer units (their saved state loads with the
   // first load's grade-transfer store, which rewards use too).
-  const scope = region(appCode, 'const actionGradeScope = useMemo(() => {', '\n  const actionReturnCheckIns', 'grade-transfer scope memo');
+  const scope = region(actionCenterCode, 'const actionGradeScope = useMemo(() => {', '\n  const actionReturnCheckIns', 'grade-transfer scope memo');
   assert.match(scope, /if \(!teacherKit \|\| teacherWorkspaceMode !== 'teacher' \|\| teacherTab !== 'actionCenter'\) \{\s*return \{ units: \[\], authorizedClassIds: \[\] \};/);
   assert.match(scope, /return teacherKit\.projectGradeTransferUnits\(\{/);
   assert.match(scope, /\}, \[teacherKit, /, 'the memo depends on the kit');
   // Its return check-ins, and the attendance correction helpers, are the kit's too.
-  const returns = region(appCode, 'const actionReturnCheckIns = useMemo(() => {', '\n  const teacherActionItems', 'return check-ins memo');
+  const returns = region(actionCenterCode, 'const actionReturnCheckIns = useMemo(() => {', '\n  const teacherActionItems', 'return check-ins memo');
   assert.match(returns, /if \(!teacherKit \|\| teacherWorkspaceMode !== 'teacher' \|\| teacherTab !== 'actionCenter'\) return \[\];/);
   assert.match(returns, /teacherKit\.resolveReturnCheckIns\(\{/);
   assert.match(returns, /\}, \[teacherKit, /, 'the memo depends on the kit');

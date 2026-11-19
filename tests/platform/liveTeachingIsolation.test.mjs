@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import { executableSource, region } from './helpers/sourceContract.mjs';
+import { positionalHookSeam, positionalHookSource } from './helpers/appScreens.mjs';
 
 /*
  * Live Teaching (Classroom Live, Phase 2) MUST be exactly as isolated as the
@@ -71,21 +72,37 @@ test('the Live Teaching session record itself holds no student response data —
 test('Teacher Preview suspends high-churn teacher reads while keeping cached dashboard state intact', () => {
   assert.match(app, /const teacherPreviewRuntimeActive = user\?\.role === 'teacher' && activeView === 'teacherPreview';/);
 
+  // Since the App split, three hooks own these reads. App calls each once and
+  // hands it the same flag (positionalHookSource holds App's arguments to the
+  // hook's parameters, name for name): useTeacherRosterData the grade stream,
+  // useTeacherPresence the presence listeners, useTeacherActionCenterData the
+  // support, parent-contact and session-summary streams.
+  const hookThatPausesInPreview = (hookName) => {
+    const source = positionalHookSource(hookName);
+    assert.ok(
+      positionalHookSeam(hookName).parameters.includes('teacherPreviewRuntimeActive'),
+      `App hands ${hookName} teacherPreviewRuntimeActive`,
+    );
+    return source;
+  };
+
+  // In App the region ran to the comment that followed the roster effects;
+  // in the hook they run to the end of the module.
   const gradeStream = region(
-    app,
+    hookThatPausesInPreview('useTeacherRosterData'),
     "const needsFullStudentData = teacherWorkspaceMode === 'teacher'",
-    "// Classes are the authoritative record",
+    null,
     'teacher live grade stream',
   );
   assert.match(gradeStream, /&& !teacherPreviewRuntimeActive/);
   assert.match(gradeStream, /onSnapshot\(/);
 
+  // The presence effect is the last thing in its hook (in App it ended at
+  // the useStudentGradeDocument call that still follows the hook's call).
   const livePresence = region(
-    app,
+    hookThatPausesInPreview('useTeacherPresence'),
     '// Teachers stream presence only while the live grid is on screen.',
-    // Since the App split the receipt listener that followed (and its comment)
-    // is useStudentGradeDocument's: the presence effect ends at that call.
-    'const { studentRosterMembership } = useStudentGradeDocument({',
+    null,
     'teacher live presence subscriptions',
   );
   assert.match(livePresence, /if \(teacherPreviewRuntimeActive\) return undefined;/);
@@ -105,9 +122,10 @@ test('Teacher Preview suspends high-churn teacher reads while keeping cached das
     'subscribeParentContacts',
     'subscribeStudentSessionSummaries',
   ]) {
-    const at = app.lastIndexOf(marker);
+    const actionCenterData = hookThatPausesInPreview('useTeacherActionCenterData');
+    const at = actionCenterData.lastIndexOf(marker);
     assert.ok(at >= 0, marker + ' must remain wired');
-    const before = app.slice(Math.max(0, at - 450), at);
+    const before = actionCenterData.slice(Math.max(0, at - 450), at);
     assert.match(before, /teacherPreviewRuntimeActive/, marker + ' must pause during Teacher Preview');
   }
 });

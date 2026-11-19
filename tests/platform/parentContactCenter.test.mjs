@@ -5,6 +5,7 @@ import { readFile } from 'node:fs/promises';
 import { buildStudentProgressBrief, contactsCsv, groupContactsByStudent, progressBriefText, projectProgressBriefGrades, validateContactDraft } from '../../src/platform/teacher/parentContactCenter.js';
 import { resolveContactEvents } from '../../src/platform/teacher/parentContactStore.js';
 import { importsComponent } from './helpers/componentImport.mjs';
+import { appHookPaths, positionalHookSource } from './helpers/appScreens.mjs';
 
 test('contact history groups canonical student IDs and always resolves the current roster name', () => {
   const contacts = [
@@ -103,9 +104,16 @@ test('runtime wiring imports the contact center and store next to their calls', 
   assert.ok(importsComponent('src/app/teacher/TeacherWorkspace.jsx', 'ParentContactCenter', 'src/components/teacher/ParentContactCenter.jsx'));
   assert.match(teacherWorkspace, /import \{ fetchAllParentContactsForExport, recordParentContact, recordParentContactResolution \} from '..\/..\/platform\/teacher\/parentContactStore\.js'/);
   assert.doesNotMatch(app, /^import [^;]*from '\.\/platform\/teacher\/parentContactStore\.js'/m);
-  assert.match(app, /import\('\.\/platform\/teacher\/parentContactStore\.js'\)[\s\S]{0,200}subscribeParentContacts\(\{ db, teacherEmail: user\.email, onChange: setParentContacts/);
-  assert.match(app, /if \(stopped\) return;\s*const unsubscribe = subscribeParentContacts\(/);
-  assert.match(app, /release = \(\) => unsubscribe\(\);[\s\S]{0,200}return \(\) => \{ stopped = true; release\?\.\(\); \};/);
+  // The listener is useTeacherActionCenterData's since the App split. App's
+  // hooks ride in every first load as App does, so none of them may import
+  // the store statically either.
+  for (const hookPath of Object.values(appHookPaths())) {
+    assert.doesNotMatch(readFileSync(new URL(`../../${hookPath}`, import.meta.url), 'utf8'), /^import [^;]*from '[./]*\/platform\/teacher\/parentContactStore\.js'/m, hookPath);
+  }
+  const listener = positionalHookSource('useTeacherActionCenterData');
+  assert.match(listener, /import\('\.\.\/\.\.\/platform\/teacher\/parentContactStore\.js'\)[\s\S]{0,200}subscribeParentContacts\(\{ db, teacherEmail: user\.email, onChange: setParentContacts/);
+  assert.match(listener, /if \(stopped\) return;\s*const unsubscribe = subscribeParentContacts\(/);
+  assert.match(listener, /release = \(\) => unsubscribe\(\);[\s\S]{0,200}return \(\) => \{ stopped = true; release\?\.\(\); \};/);
   assert.match(teacherWorkspace, /teacherTab === 'parentContacts'[\s\S]{0,500}<ParentContactCenter/);
 });
 

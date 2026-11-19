@@ -20,7 +20,7 @@ import {
   writeBatch,
 } from 'firebase/firestore';
 import { db } from './firebase';
-import { joinResponseDetail, needsResponseDetail, subscribeResponseDetailRoster, withResponseDetail, writeTrackerSplit } from './platform/grades/responseDetailStore.js';
+import { joinResponseDetail, writeTrackerSplit } from './platform/grades/responseDetailStore.js';
 import {
   buildResponseCheckpointAction,
   checkpointDocumentId,
@@ -50,7 +50,6 @@ import { describeDolClose, DOL_OPEN_NOTICE } from './platform/assessment/dolClos
 import { extraTimeFrom } from './platform/assessment/extraTimeWords.js';
 // The DOL grant helpers (platform/assessment/dolAttemptGrantClient.js) are
 // teacher-only: they come from the teacher kit (app/teacher/teacherKit.js).
-import { PRESENCE_FLUSH_MS, applyKeyedChanges, createKeyedUpdateBuffer } from './platform/performance/coalescedKeyedUpdates.js';
 import { teacherAdmin } from './auth/authService';
 import {
   buildScratchpadWrites,
@@ -96,11 +95,6 @@ import {
   teacherControlsScopeKey,
 } from './platform/teacher/teacherClassControls.js';
 import useTeacherClassControls from './platform/teacher/useTeacherClassControls.js';
-import {
-  GENERATION_SEATS_VERSION,
-  generationSeatPlanSignature,
-  planGenerationSeatWrites,
-} from './platform/generation/generationSeatReconciler.js';
 import { mergePracticeTrackers } from './platform/student/practiceTrackerMerge.js';
 import {
   normalizeQuestionRecord,
@@ -177,7 +171,6 @@ import {
   normalizeStudentProfile,
 } from './studentSupport';
 
-import { TEXAS_MATH_ACTIVE_COURSES, getTexasStandardsForCourse } from './texasStandards.js';
 import QuestionAnnouncer from './components/common/QuestionAnnouncer.jsx';
 import ScreenErrorBoundary from './components/common/ScreenErrorBoundary.jsx';
 import Dialog from './ui/Dialog.jsx';
@@ -241,7 +234,6 @@ import {
 } from './platform/policies/activityPolicies';
 import { matchesSmartView } from './assignmentSmartViews';
 import {
-  advanceLiveTeachingSession,
   updateWalkthroughTimer,
   walkthroughSessionId,
   walkthroughTimerRemaining,
@@ -317,15 +309,11 @@ import {
   warmupCaptureWasActive,
 } from './app/student/assignmentRuntimeHelpers.js';
 import {
-  CLASS_SCOPED_TABS,
   NO_RECOVERY_OPPORTUNITIES,
   RECOVERY_ANNOUNCEMENT_MODES,
   RECOVERY_DISCOVERY_ALL,
   TEACHER_CROSS_CLASS_TABS,
   TEACHER_FULL_STUDENT_DATA_TABS,
-  TEACHER_PARENT_CONTACT_STREAM_TABS,
-  TEACHER_SESSION_SUMMARY_TABS,
-  TEACHER_SUPPORT_STREAM_TABS,
 } from './app/screenScopes.js';
 // Every screen loaded on demand (one chunk each), and the teacher-only
 // panels, each with its own Suspense boundary (lazyScreens.js). The student's
@@ -415,24 +403,21 @@ import {
   normalizeGradingPeriodSettings,
 } from './platform/student/gradingPeriods.js';
 import {
-  ROUTE_EVENTS, buildRouteEvent, fetchClassPacing, fetchSkillOverrides, fetchWeeklyGoalSettings, fetchTeacherWeeklyPathCompletions,
+  ROUTE_EVENTS, buildRouteEvent, fetchClassPacing, fetchSkillOverrides, fetchWeeklyGoalSettings,
   interventionAsOverride, logRouteEvent, overridesForClassContext,
   storedPacingForClassContext, storedWeeklyGoalForClassContext,
   studentWeeklyPath,
 } from './platform/path/pathStore.js';
-import { buildWeeklyPathPlan } from './platform/path/weeklyPathPlan.js';
 import { forgetSessionPathCoverage } from './platform/path/pathCoverageService.js';
-import { buildTeacherWeeklyView, buildWeeklyGoal, dueAtFor, weekKeyFor, weekStartsOnFor, weeklyPlanClassInputs } from './platform/path/weeklyPathGoal.js';
 import { buildAssignmentWorksheetModel, downloadAssignmentWorksheetPdf } from './platform/resources/pdfLoaders.js';
 // The teacher-only logic App runs (needs attention, the Action Center,
 // Assignment Review's publishing intent, worksheets, Classroom publishing)
 // loads for a teacher, never with a student's Home (app/teacher/teacherKit.js).
 import { loadTeacherKit, loadedTeacherKit, prefetchTeacherWorkspace } from './app/teacher/teacherKitLoader.js';
-import { classIdsForTeacher, resolveStudentCourseContext, studentsInClass, unplaceableStudents } from '../functions/shared/classModel.mjs';
+import { classIdsForTeacher } from '../functions/shared/classModel.mjs';
 // Only the event kinds and the live rapid-correct summary: the rest of
 // teacher/studentSupportSignals.js is the teacher's (first-load budget).
 import { summarizeRapidCorrectness } from './platform/teacher/rapidCorrectness.js';
-import { localDateKeyOf } from './platform/attendance/classMeetings.js';
 import { SCHOOL_NON_INSTRUCTIONAL_KEYS } from './app/shell/schoolCalendarKeys.js';
 // buildAttendanceCorrectionReviewEvent was called by "Keep current extension"
 // and "Apply shorter extension" without being imported — a ReferenceError that
@@ -440,7 +425,6 @@ import { SCHOOL_NON_INSTRUCTIONAL_KEYS } from './app/shell/schoolCalendarKeys.js
 // The attendance helpers (returnCheckIn.js, extensionReconciliation.js) are
 // teacher-only, so they come from the teacher kit (app/teacher/teacherKit.js):
 // every call below is requireTeacherKit().name( or teacherKit.name(.
-import { loadTeacherGradeTransferState } from './platform/gradeTransfer/gradeTransferStore.js';
 // From the shared day rules, not ./platform/attendance/attendanceHistory.js:
 // App reads only this name, and that module is a teacher's history screen.
 // The periods' course profiles alone, not courseRigor.js: its Honors checks
@@ -482,6 +466,13 @@ import { useAssignmentListeners } from './app/shell/useAssignmentListeners.js';
 import { useLiveChallengeInvite } from './app/student/useLiveChallengeInvite.js';
 import { useDraftSaveHealth } from './app/student/useDraftSaveHealth.js';
 import { useStudentClassPoints } from './app/student/useStudentClassPoints.js';
+import { useTeacherAnalytics } from './app/teacher/useTeacherAnalytics.js';
+import { useLiveTeachingTimer } from './app/teacher/useLiveTeachingTimer.js';
+import { useTeacherPresence } from './app/teacher/useTeacherPresence.js';
+import { useTeacherActionCenterData } from './app/teacher/useTeacherActionCenterData.js';
+import { useLiveTeachingPreviewSync } from './app/teacher/useLiveTeachingPreviewSync.js';
+import { useTeacherRosterData } from './app/teacher/useTeacherRosterData.js';
+import { useTeacherLearningPaths } from './app/teacher/useTeacherLearningPaths.js';
 
 // What a teacher's controls are before the teacher kit has loaded, and for a
 // student always: none. Only the teacher's screen reads them, and it waits for
@@ -1638,138 +1629,16 @@ function App() {
     [classes],
   );
 
-  // Course level per student, resolved through the shared class resolver. Passed
-  // to the CCMR screen for DISPLAY only — enrollment says which room a student
-  // sits in, not what they can do.
-  const courseLevelByStudentId = useMemo(() => Object.fromEntries(allStudents.map((student) => [
-    student.id,
-    resolveStudentCourseContext({ student, classesById, courseProfiles }).courseLevel,
-  ])), [allStudents, classesById, courseProfiles]);
-
-  // The standards a teacher might type a code for. Both active courses, because
-  // a teacher searching "A2.4F" should find it without first switching course.
-  const searchableStandards = useMemo(() => (
-    TEXAS_MATH_ACTIVE_COURSES.flatMap((course) => getTexasStandardsForCourse(course.id))
-  ), []);
-
-  const teacherLearningProfiles = useMemo(() => {
-    if (teacherStudentDataMode !== 'full') return {};
-    if (!allStudents.length) return {};
-    return Object.fromEntries(allStudents.map((student) => {
-      const rows = collectStudentEvidence({ student, assignments });
-      const { events } = evidenceRowsToEvents(rows);
-      const legacyProfile = teacherMasteryProfilesByStudentId[student.id] || null;
-      return [student.id, buildStudentLearningProfile({
-        // The class is authoritative. A period-keyed course lookup answers with
-        // whichever class was written last when two share a period, so one of
-        // those two classes' students get profiled against the wrong course.
-        courseId: resolveStudentCourseContext({ student, classesById, courseProfiles }).courseId,
-        evidenceEvents: events,
-        // Without per-TEKS mastery, course mastery is null and the performance
-        // projection reads "Establishing Baseline" forever, however much work
-        // the student has done. The legacy summaries already carry it.
-        masteryProfilesByTeks: legacyProfile
-          ? adaptLegacyMasteryToPhase5({ legacyProfile, evidenceRows: rows })
-          : {},
-      })];
-    }));
-  }, [allStudents, assignments, courseProfiles, classesById, teacherMasteryProfilesByStudentId, teacherStudentDataMode]);
-
-  // The students in the class the Weekly Path screen is looking at.
-  const teacherWeeklyRoster = useMemo(() => {
-    if (!['weeklyPath', 'grades'].includes(teacherTab)) return [];
-    const activeId = activeClass.classId || classes[0]?.classId || null;
-    if (!activeId) return [];
-    return studentsInClass({ students: allStudents, classes, classId: activeId })
-      .map((student) => ({ ...student, name: formatStudentName(student) }))
-      // Named students by last, first, id; students with no name on file last.
-      .sort(compareStudentsByName);
-  }, [allStudents, classes, activeClass.classId, teacherTab]);
-
-  const teacherWeeklyGoalsByStudent = useMemo(() => {
-    if (!['weeklyPath', 'grades'].includes(teacherTab)) return {};
-    const activeId = activeClass.classId || classes[0]?.classId || null;
-    const classRecord = classes.find((entry) => entry.classId === activeId) || null;
-    if (!classRecord) return {};
-    const honors = String(classRecord.courseLevel || '').toLowerCase() === 'honors';
-    const courseId = classRecord.course || courseProfiles?.[classRecord.period]?.course || 'algebra1';
-    const config = storedWeeklyGoalForClassContext(weeklyGoalsByClass, {
-      classId: activeId,
-      classPeriod: classRecord.period,
-    }) || {};
-    const pacing = storedPacingForClassContext(pacingByClass, {
-      classId: activeId,
-      classPeriod: classRecord.period,
-    });
-    const teacherOverrides = overridesForClassContext(skillOverrides, {
-      classId: activeId,
-      classPeriod: classRecord.period,
-    });
-
-    return Object.fromEntries(teacherWeeklyRoster.map((student) => {
-      const studentAssignments = assignments.filter((assignment) => assignmentIsForStudent(assignment, { classId: student.classId || classRecord.classId, classPeriod: student.classPeriod || classRecord.period }));
-      const pathOptions = buildStudentPathOptions({
-        student,
-        assignments: studentAssignments,
-        courseId,
-        pacing,
-        teacherOverrides,
-        nowValue: now,
-      });
-      const plan = buildWeeklyPathPlan({
-        options: pathOptions,
-        courseId,
-        profile: teacherLearningProfiles[student.id] || null,
-        ...weeklyPlanClassInputs({ config, honors }),
-        now,
-      });
-      const proposedGoal = buildWeeklyGoal({
-        plan,
-        config,
-        honors,
-        studentId: student.id,
-        courseId,
-        now,
-      });
-      const frozen = weeklyPathGoalSnapshotsByStudent[student.id] || null;
-      const goal = frozen ? {
-        ...proposedGoal,
-        ...frozen,
-        settings: proposedGoal.settings,
-        profile: proposedGoal.profile,
-        suppressed: proposedGoal.suppressed,
-      } : { ...proposedGoal, assignmentState: 'proposed' };
-      return [student.id, goal];
-    }));
-  }, [activeClass.classId, classes, courseProfiles, weeklyGoalsByClass, pacingByClass, skillOverrides, teacherWeeklyRoster, assignments, teacherLearningProfiles, weeklyPathGoalSnapshotsByStudent, now, teacherTab]);
-
-  // This week's Path completion for the class the screen shows, kept fresh
-  // while a teacher is on it, by the teacher kit (app/teacher/
-  // weeklyPathProgress.js; when to ask: platform/path/
-  // weeklyPathProgressRefresh.js): never for a class no screen shows, not
-  // again for an entry within the minute of the answer the screen holds,
-  // nothing while the page is hidden, and asked again a minute after it was
-  // last asked.
-  const weeklyPathProgress = useMemo(() => (teacherKit ? teacherKit.createWeeklyPathProgressRefresh() : null), [teacherKit]);
-  useEffect(() => () => weeklyPathProgress?.forget(), [weeklyPathProgress, user?.uid]);
-  useEffect(() => {
-    if (user?.role !== 'teacher' || teacherPreviewRuntimeActive || !weeklyPathProgress) return undefined;
-    return teacherKit.followWeeklyPathProgress(weeklyPathProgress, {
-      uid: user.uid,
-      teacherTab,
-      activeClassId: activeClass.classId,
-      classes,
-      weeklyGoalsByClass,
-      path: { completions: fetchTeacherWeeklyPathCompletions, weeklyGoalFor: storedWeeklyGoalForClassContext, weekKeyFor, weekStartsOnFor },
-      set: {
-        completions: setWeeklyPathCompletionsByStudent,
-        goals: setWeeklyPathGoalSnapshotsByStudent,
-        truncated: setWeeklyPathTruncated,
-        loadedFor: setWeeklyPathProgressLoadedFor,
-        loading: setWeeklyPathProgressLoading,
-      },
-    });
-  }, [user?.role, user?.uid, teacherTab, activeClass.classId, classes, weeklyGoalsByClass, teacherPreviewRuntimeActive, weeklyPathProgress, teacherKit]);
+  const [
+    courseLevelByStudentId, searchableStandards, teacherLearningProfiles, teacherWeeklyRoster,
+    teacherWeeklyGoalsByStudent,
+  ] = useTeacherLearningPaths(
+    user, teacherPreviewRuntimeActive, teacherTab, classes, activeClass, assignments, allStudents,
+    teacherStudentDataMode, teacherKit, pacingByClass, skillOverrides, weeklyGoalsByClass,
+    setWeeklyPathCompletionsByStudent, setWeeklyPathGoalSnapshotsByStudent, weeklyPathGoalSnapshotsByStudent,
+    setWeeklyPathTruncated, setWeeklyPathProgressLoadedFor, setWeeklyPathProgressLoading, now, courseProfiles,
+    teacherMasteryProfilesByStudentId, classesById,
+  );
 
   useEffect(() => {
     if (!pendingClassroomLaunch) return;
@@ -2386,133 +2255,11 @@ function App() {
   const refreshTeacherRosterAfterNameChange = () => fetchTeacherRosterSummaries()
     .catch((error) => console.error('Could not refresh the roster after a student identity change:', error));
 
-  useEffect(() => {
-    if (user?.role !== 'teacher') return undefined;
-
-    const needsFullStudentData = teacherWorkspaceMode === 'teacher'
-      && TEACHER_FULL_STUDENT_DATA_TABS.has(teacherTab)
-      && !teacherPreviewRuntimeActive;
-
-    if (!needsFullStudentData) {
-      setAllStudents(teacherRosterSummaries);
-      setTeacherStudentDataMode('summary');
-      return undefined;
-    }
-
-    const viewer = { email: user.email || null, isRootAdmin: user.isRootAdmin === true };
-    setTeacherStudentDataMode('loading-full');
-    // Each record's detail (parts, steps, last response, support flags) is
-    // stored beside its student's grades document (gradeEntryStorage.mjs):
-    // every student whose records are stored that way is followed there too,
-    // and the gradebook sees each grades document joined to it.
-    // The roster's detail listeners follow the roster itself (not who has
-    // split records yet), so they restart only when a student joins or leaves.
-    let latestStudents = null;
-    let detailFailed = false;
-    let detailByStudent = new Map();
-    let rosterKey = '';
-    let stopDetailRoster = () => {};
-    const publish = () => {
-      if (!latestStudents) return;
-      const waiting = latestStudents.filter((student) => needsResponseDetail(student) && !detailByStudent.has(String(student.id)));
-      const studentData = latestStudents.map((student) => {
-        const detail = detailByStudent.get(String(student.id));
-        return detail ? withResponseDetail(student, detail) : student;
-      });
-      setAllStudents(studentData);
-      setTeacherStudentDataMode('full');
-
-      // The repair re-grades stored responses, so it waits until every
-      // student's detail has arrived; it never runs on a summary alone.
-      if (teacherTab === 'grades' && !teacherGraderRepairRanRef.current && !waiting.length && !detailFailed) {
-        teacherGraderRepairRanRef.current = true;
-        persistCurrentGraderCreditRepairs(studentData, assignmentsRef.current)
-          .catch((error) => {
-            teacherGraderRepairRanRef.current = false;
-            console.error('Could not apply deferred current-grader credit repairs:', error);
-          });
-      }
-    };
-    const stopGrades = onSnapshot(
-      studentGradeSourceForViewer(viewer),
-      (snapshot) => {
-        latestStudents = collectStudentGradeSnapshot(snapshot);
-        const ids = latestStudents.map((student) => String(student.id)).sort();
-        const key = ids.join('|');
-        if (key !== rosterKey) {
-          rosterKey = key;
-          stopDetailRoster();
-          detailByStudent = new Map();
-          stopDetailRoster = subscribeResponseDetailRoster(db, ids, (loaded) => {
-            detailByStudent = loaded;
-            publish();
-          }, (error) => {
-            detailFailed = true;
-            console.error('Could not follow students\' saved work detail:', error);
-          });
-        }
-        publish();
-      },
-      (error) => {
-        console.error('Could not watch live student grades:', error);
-        setAllStudents(teacherRosterSummaries);
-        setTeacherStudentDataMode('summary');
-      },
-    );
-    return () => {
-      stopGrades();
-      stopDetailRoster();
-    };
-  // NOT `assignments`: the repair above runs once and reads the ref. Listing
-  // the array tore this listener down on every write to ANY assignment —
-  // another teacher's edit, a DOL unlock, a question-family seat — flipped the
-  // gradebook to loading and re-read every student's grades document.
-  }, [
-    user?.role, user?.email, user?.isRootAdmin, teacherTab, teacherWorkspaceMode,
-    teacherPreviewRuntimeActive, teacherRosterSummaries,
-  ]);
-
-  /*
-   * SEATS FOR UNIQUE QUESTIONS, WRITTEN WITHOUT THE TEACHER DOING ANYTHING.
-   *
-   * An assignment whose family-backed questions vary per student needs every
-   * student in each assigned class to hold a distinct seat
-   * (functions/shared/questionGenerationIdentity.mjs). Only this app knows the
-   * roster, so whenever it sees such an assignment with students missing a
-   * seat, it appends their seats — inside a transaction that re-plans against
-   * the freshly read document, so two teacher tabs cannot hand out one seat
-   * twice. Seats are append-only and keyed by opaque learner tokens; no student
-   * id is ever written to the assignment. Assignments without question
-   * families are never touched.
-   */
-  const generationSeatSignaturesRef = useRef(new Map());
-  useEffect(() => {
-    if (user?.role !== 'teacher' || teacherPreviewRuntimeActive || !allStudents.length || !assignments.length) return;
-    assignments.forEach((assignment) => {
-      const signature = generationSeatPlanSignature({ assignment, students: allStudents });
-      if (!signature || generationSeatSignaturesRef.current.get(assignment.id) === signature) return;
-      generationSeatSignaturesRef.current.set(assignment.id, signature);
-      if (!planGenerationSeatWrites({ assignment, students: allStudents }).length) return;
-      const assignmentRef = doc(db, 'assignments', assignment.id);
-      runTransaction(db, async (transaction) => {
-        const snapshot = await transaction.get(assignmentRef);
-        if (!snapshot.exists()) return;
-        const fresh = { id: snapshot.id, ...snapshot.data() };
-        const writes = planGenerationSeatWrites({ assignment: fresh, students: allStudents });
-        if (!writes.length) return;
-        const fieldsAndValues = [new FieldPath('generationSeats', 'version'), GENERATION_SEATS_VERSION];
-        writes.forEach(({ classId, token, seat }) => {
-          fieldsAndValues.push(new FieldPath('generationSeats', 'byClassId', classId, token), seat);
-        });
-        transaction.update(assignmentRef, ...fieldsAndValues);
-      }).catch((error) => {
-        // Not fatal: unseated students get provisional seats above every
-        // taken seat, and the next roster or assignment change retries.
-        generationSeatSignaturesRef.current.delete(assignment.id);
-        console.warn('Could not seat students for unique questions:', error);
-      });
-    });
-  }, [user?.role, teacherPreviewRuntimeActive, allStudents, assignments]);
+  useTeacherRosterData(
+    user, teacherPreviewRuntimeActive, teacherTab, teacherWorkspaceMode, teacherGraderRepairRanRef, assignments,
+    assignmentsRef, allStudents, setAllStudents, teacherRosterSummaries, setTeacherStudentDataMode,
+    persistCurrentGraderCreditRepairs, collectStudentGradeSnapshot, studentGradeSourceForViewer,
+  );
 
   // Classes are the authoritative record of course, rigor and teacher of
   // record. Read-only from the client: only the audited admin callables write
@@ -3502,49 +3249,10 @@ function App() {
   });
   const activeActivityPolicy = getEffectiveActivityPolicy(isPracticeMode ? 'practice' : activeQuestionRole);
 
-  // As the teacher moves through the exemplar with real student navigation,
-  // keep the Live Teaching session's position in sync so the room's pace
-  // reference is the teacher's ACTUAL position, never a stale one.
-  useEffect(() => {
-    if (!isTeacherPreview || !liveTeachingSession?.active) return;
-    if (String(liveTeachingSession.assignmentId) !== String(activeAssignmentId)) return;
-    setLiveTeachingSession((session) => advanceLiveTeachingSession(session, {
-      assignment: activeAssignmentData,
-      storageQuestionIndex: currentQuestionIndex,
-      activityRole: activeQuestionRole,
-    }));
-  }, [isTeacherPreview, liveTeachingSession?.active, liveTeachingSession?.assignmentId, activeAssignmentId, activeAssignmentData, currentQuestionIndex, activeQuestionRole]);
-
-  // "View as Student" scratchpads are wanted only while the preview is on
-  // screen, or while a Live Teaching session can resume into it
-  // (resumeLiveTeaching keeps them on purpose). Once neither holds — the
-  // teacher left a plain preview, or ended Live Teaching away from it — nothing
-  // is meant to bring them back (a new preview starts empty), so the pages are
-  // released instead of held until sign-out.
-  const previewScratchpadsReachable = isTeacherPreview || Boolean(liveTeachingSession?.active);
-  useEffect(() => {
-    if (!previewScratchpadsReachable) setPreviewScratchpads(EMPTY_SCRATCHPAD_CACHE);
-  }, [previewScratchpadsReachable]);
-
-  // All teacher tabs observe the deterministic session document. Writes occur
-  // only for commands/navigation; timer seconds are derived from startedAt.
-  useEffect(() => {
-    if (user?.role !== 'teacher' || !liveTeachingSession?.sessionId) return undefined;
-    const sessionRef = doc(db, 'walkthroughSessions', liveTeachingSession.sessionId);
-    const expected = { classId: liveTeachingSession.classId, assignmentId: liveTeachingSession.assignmentId };
-    return onSnapshot(sessionRef, (snapshot) => {
-      if (!snapshot.exists()) return;
-      const remote = snapshot.data();
-      // The document id encodes teacher + class + assignment; a record whose
-      // body names a different class or assignment is not this session.
-      if (String(remote?.classId || '') !== String(expected.classId || '')
-        || String(remote?.assignmentId || '') !== String(expected.assignmentId || '')) return;
-      if (Number(remote.updatedAt) > Number(walkthroughWriteRef.current || 0)) {
-        walkthroughWriteRef.current = Number(remote.updatedAt) || 0;
-        setLiveTeachingSession(remote);
-      }
-    });
-  }, [user?.role, liveTeachingSession?.sessionId]);
+  useLiveTeachingPreviewSync(
+    user, liveTeachingSession, setLiveTeachingSession, walkthroughWriteRef, activeAssignmentId, setPreviewScratchpads,
+    currentQuestionIndex, activeAssignmentData, isTeacherPreview, activeQuestionRole,
+  );
 
   // An active session stays only while its assignment is still live work for
   // its class (assignmentAvailability.js). Archived, moved to another marking
@@ -4208,145 +3916,13 @@ function App() {
 
   const { studentSpotlightRequest, studentSpotlightMessage, respondToSpotlight, stopStudentSpotlight, publishSpotlightWork } = useStudentSpotlight({ user, activeView, activeAssignmentId, currentQuestionIndex, studentRecord, activeAssignmentData });
 
-  // Persistent support/intervention history is teacher-authorized and
-  // append-only. It is loaded independently of the live presence stream.
-  useEffect(() => {
-    if (user?.role !== 'teacher' || !user.email) {
-      setStudentSupportEvents([]);
-      return undefined;
-    }
-    if (teacherWorkspaceMode !== 'teacher' || !TEACHER_SUPPORT_STREAM_TABS.has(teacherTab)) {
-      setStudentSupportEvents([]);
-      return undefined;
-    }
-    // The support store loads with the teacher kit; this runs again once it has.
-    if (teacherPreviewRuntimeActive || !teacherKit) return undefined;
-    return teacherKit.subscribeStudentSupportEvents({
-      db,
-      teacherEmail: user.email,
-      onChange: setStudentSupportEvents,
-      onError: (error) => console.error('Student support history failed:', error),
-    });
-  }, [user?.role, user?.email, teacherWorkspaceMode, teacherPreviewRuntimeActive, teacherTab, teacherKit]);
-
-  // One teacher-scoped stream spans the whole roster. Firestore rules verify
-  // teacher-of-record again for every appended contact; students have no access.
-  // The store is loaded on demand: imported here, it rode in every student's
-  // first load (scripts/check-first-load-budget.mjs). A teacher who leaves the
-  // tab before it arrives never subscribes.
-  useEffect(() => {
-    if (user?.role !== 'teacher' || !user.email) { setParentContacts([]); return undefined; }
-    if (teacherWorkspaceMode !== 'teacher' || !TEACHER_PARENT_CONTACT_STREAM_TABS.has(teacherTab)) {
-      setParentContacts([]);
-      return undefined;
-    }
-    if (teacherPreviewRuntimeActive) return undefined;
-    let stopped = false;
-    let release = null;
-    import('./platform/teacher/parentContactStore.js')
-      .then(({ subscribeParentContacts }) => {
-        if (stopped) return;
-        const unsubscribe = subscribeParentContacts({ db, teacherEmail: user.email, onChange: setParentContacts, onError: (error) => console.error('Parent contact history failed:', error) });
-        release = () => unsubscribe();
-      })
-      .catch((error) => console.error('Parent contact history failed:', error));
-    return () => { stopped = true; release?.(); };
-  }, [user?.role, user?.email, teacherWorkspaceMode, teacherPreviewRuntimeActive, teacherTab]);
-
-  const actionGradeScope = useMemo(() => {
-    if (!teacherKit || teacherWorkspaceMode !== 'teacher' || teacherTab !== 'actionCenter') {
-      return { units: [], authorizedClassIds: [] };
-    }
-    return teacherKit.projectGradeTransferUnits({
-      classes, assignments, students: allStudents, teacherEmail: user?.email || '', isRootAdmin: user?.isRootAdmin === true,
-      snapshots: actionGradeSnapshots, practicePasses: actionPracticePasses,
-    });
-  }, [teacherKit, teacherWorkspaceMode, teacherTab, classes, assignments, allStudents, user?.email, user?.isRootAdmin, actionGradeSnapshots, actionPracticePasses]);
-
-  const actionReturnCheckIns = useMemo(() => {
-    if (!teacherKit || teacherWorkspaceMode !== 'teacher' || teacherTab !== 'actionCenter') return [];
-    return classes.flatMap((classRecord) => teacherKit.resolveReturnCheckIns({
-      roster: allStudents.filter((student) => student.classId === (classRecord.classId || classRecord.id)),
-      supportEvents: studentSupportEvents, assignments, classId: classRecord.classId || classRecord.id,
-      classPeriod: classRecord.period || classRecord.classPeriod, schedule: classSchedule,
-      nonInstructionalKeys: SCHOOL_NON_INSTRUCTIONAL_KEYS, todayDateKey: localDateKeyOf(now),
-    }));
-  }, [teacherKit, teacherWorkspaceMode, teacherTab, classes, allStudents, studentSupportEvents, assignments, classSchedule, now]);
-
-  const teacherActionItems = useMemo(() => {
-    if (!teacherKit || teacherWorkspaceMode !== 'teacher' || teacherTab !== 'actionCenter') return [];
-    return teacherKit.buildTeacherActionItems({
-      students: allStudents, classes, supportEvents: studentSupportEvents, parentContacts,
-      returnCheckIns: actionReturnCheckIns, gradeTransferUnits: actionGradeScope.units,
-      retestRecoveryActions, now, todayDateKey: localDateKeyOf(now),
-    });
-  }, [teacherKit, teacherWorkspaceMode, teacherTab, allStudents, classes, studentSupportEvents, parentContacts, actionReturnCheckIns, actionGradeScope.units, retestRecoveryActions, now]);
-  const currentTeacherActionOpenCount = teacherKit ? teacherKit.openTeacherActionCount(teacherActionItems) : 0;
-  const teacherActionOpenCount = teacherTab === 'actionCenter'
-    ? currentTeacherActionOpenCount
-    : teacherActionOpenCountCache;
-
-  useEffect(() => {
-    if (teacherWorkspaceMode !== 'teacher' || teacherTab !== 'actionCenter') return;
-    setTeacherActionOpenCountCache(currentTeacherActionOpenCount);
-  }, [teacherWorkspaceMode, teacherTab, currentTeacherActionOpenCount]);
-
-  useEffect(() => {
-    const classIds = actionGradeScope.authorizedClassIds;
-    if (user?.role !== 'teacher') { setActionGradeSnapshots([]); setActionPracticePasses(new Set()); return; }
-    if (teacherWorkspaceMode !== 'teacher' || teacherTab !== 'actionCenter') {
-      setActionGradeSnapshots([]);
-      setActionPracticePasses(new Set());
-      return;
-    }
-    if (teacherPreviewRuntimeActive) return;
-    if (!classIds.length) { setActionGradeSnapshots([]); setActionPracticePasses(new Set()); return; }
-    loadTeacherGradeTransferState({ classIds })
-      .then(({ snapshots, practicePasses }) => {
-        setActionGradeSnapshots(snapshots);
-        setActionPracticePasses(practicePasses);
-      })
-      .catch((error) => console.error('Action Center grade-transfer projection failed:', error));
-  }, [user?.role, user?.uid, user?.isRootAdmin, auth.session?.uid, actionGradeScope.authorizedClassIds.join('|'), teacherWorkspaceMode, teacherPreviewRuntimeActive, teacherTab]);
-
-  useEffect(() => {
-    if (user?.role !== 'teacher') { setRetestRecoveryActions([]); return; }
-    if (teacherWorkspaceMode !== 'teacher' || teacherTab !== 'actionCenter') {
-      setRetestRecoveryActions([]);
-      return undefined;
-    }
-    // The Test Cycle records come through the teacher kit; this runs again
-    // once it has loaded.
-    if (teacherPreviewRuntimeActive || !teacherKit) return undefined;
-    let cancelled = false;
-    Promise.all(assignments.filter(isTestCycleAssignment).map(async (assignment) => {
-      const response = await teacherKit.listTeacherTestCycleRecords({ assignmentId: assignment.id });
-      return teacherKit.projectTestCycleTeacherActions({ records: response.rows || [], assignment });
-    })).then((groups) => { if (!cancelled) setRetestRecoveryActions(groups.flat()); })
-      .catch((error) => console.error('Action Center Test Cycle projection failed:', error));
-    return () => { cancelled = true; };
-  }, [user?.role, assignments, teacherWorkspaceMode, teacherPreviewRuntimeActive, teacherTab, teacherKit]);
-
-  useEffect(() => {
-    if (user?.role !== 'teacher' || !user.email) {
-      setStudentSessionSummaries([]);
-      return undefined;
-    }
-    if (teacherWorkspaceMode !== 'teacher' || !TEACHER_SESSION_SUMMARY_TABS.has(teacherTab)) {
-      setStudentSessionSummaries([]);
-      return undefined;
-    }
-    if (teacherPreviewRuntimeActive || !teacherKit) return undefined;
-    return teacherKit.subscribeStudentSessionSummaries({
-      db,
-      teacherEmail: user.email,
-      classIds: classes
-        .filter((entry) => entry?.status !== 'archived' && entry?.classId)
-        .map((entry) => entry.classId),
-      onChange: setStudentSessionSummaries,
-      onError: (error) => console.error('Student session summaries failed:', error),
-    });
-  }, [user?.role, user?.email, classes, teacherWorkspaceMode, teacherPreviewRuntimeActive, teacherTab, teacherKit]);
+  const [actionGradeScope, teacherActionItems, teacherActionOpenCount] = useTeacherActionCenterData(
+    auth, user, teacherPreviewRuntimeActive, teacherTab, teacherWorkspaceMode, classes, assignments, allStudents,
+    setStudentSupportEvents, studentSupportEvents, parentContacts, setParentContacts, actionGradeSnapshots,
+    setActionGradeSnapshots, actionPracticePasses, setActionPracticePasses, setTeacherActionOpenCountCache,
+    teacherActionOpenCountCache, teacherKit, retestRecoveryActions, setRetestRecoveryActions,
+    setStudentSessionSummaries, now, classSchedule,
+  );
 
   const [attendanceReviewBusyKey, setAttendanceReviewBusyKey] = useState(null);
 
@@ -4355,64 +3931,7 @@ function App() {
     teacherStudentIdentityIndex, setAttendanceReviewBusyKey,
   ) : NO_TEACHER_CONTROLS;
 
-  // Teachers stream presence only while the live grid is on screen. Subscribe
-  // to roster-owned documents individually rather than the whole collection:
-  // Firestore rules can then enforce that a teacher reads only students they
-  // currently teach. Presence should never become a school-wide teacher feed.
-  //
-  // The listeners follow WHO is on the roster, as a value, and whether a
-  // screen that shows presence is open — not the `allStudents` array itself.
-  // Leaving Grades hands Home a new array of the same students (the compact
-  // roster again in place of the grade records), and Home and Classes are both
-  // presence screens: each of those closed every student's listener and opened
-  // it again.
-  const presenceRosterKey = useMemo(() => JSON.stringify([...new Set(
-    (Array.isArray(allStudents) ? allStudents : [])
-      .map((student) => String(student?.id || '').trim())
-      .filter(Boolean),
-  )]), [allStudents]);
-  const teacherPresenceScreen = ['home', 'classesWorkspace'].includes(teacherTab);
-  useEffect(() => {
-    if (user?.role !== 'teacher' || !teacherPresenceScreen) {
-      setPresenceById({});
-      return undefined;
-    }
-    // Keep the last room snapshot in memory while Preview is open, but stop
-    // every per-student listener. This prevents heartbeat traffic from making
-    // the full interactive exemplar rerender during instruction.
-    if (teacherPreviewRuntimeActive) return undefined;
-
-    const rosterIds = JSON.parse(presenceRosterKey);
-
-    if (!rosterIds.length) {
-      setPresenceById({});
-      return undefined;
-    }
-
-    // One render per second at most, however many students heartbeat: every
-    // snapshot used to re-render the whole dashboard (about 7.5 renders a
-    // second for 150 students). See coalescedKeyedUpdates.js.
-    const presenceBuffer = createKeyedUpdateBuffer({
-      flushMs: PRESENCE_FLUSH_MS,
-      onFlush: (changes) => setPresenceById((current) => applyKeyedChanges(current, changes)),
-    });
-    const unsubs = rosterIds.map((studentId) => onSnapshot(
-      doc(db, 'presence', studentId),
-      (snapshot) => {
-        presenceBuffer.set(studentId, snapshot.exists() ? snapshot.data() : null);
-      },
-      (error) => {
-        // One stale/reassigned roster row should not take the rest of the live
-        // room down. The scoped roster refresh will remove it on the next load.
-        console.error(`Live class update failed for ${studentId}:`, error);
-      },
-    ));
-
-    return () => {
-      presenceBuffer.cancel();
-      unsubs.forEach((unsubscribe) => unsubscribe());
-    };
-  }, [user?.role, teacherPresenceScreen, presenceRosterKey, teacherPreviewRuntimeActive]);
+  useTeacherPresence(user, teacherPreviewRuntimeActive, teacherTab, allStudents, setPresenceById);
   const { studentRosterMembership } = useStudentGradeDocument({
     toastSuccess, setUser, user, assignmentsRef, setTracker, setDolGradesByAssignment, setClassworkGradesByAssignment,
     setClassroomSyncStatusByAssignment, setTestCycleGrades, setTeacherGradeOverridesByAssignment,
@@ -5548,12 +5067,7 @@ function App() {
     });
   };
 
-  useEffect(() => {
-    if (user?.role !== 'teacher') return undefined;
-    const restoreTeacherFromBrowserHistory = (event) => teacherHistoryRestoreRef.current?.(event);
-    window.addEventListener('popstate', restoreTeacherFromBrowserHistory);
-    return () => window.removeEventListener('popstate', restoreTeacherFromBrowserHistory);
-  }, [user?.role]);
+  useLiveTeachingTimer(user, liveTeachingSession, setLiveTeachingSession, teacherHistoryRestoreRef);
 
   const endLiveTeaching = () => {
     if (liveTeachingSession?.sessionId) {
@@ -5571,31 +5085,6 @@ function App() {
       updatedAt: Date.now(),
     } : session);
   };
-
-  useEffect(() => {
-    if (liveTeachingSession?.timer?.status !== 'running') return undefined;
-    const remaining = walkthroughTimerRemaining(liveTeachingSession.timer, Date.now());
-    const timeout = window.setTimeout(() => {
-      setLiveTeachingSession((session) => session ? {
-        ...session,
-        timer: updateWalkthroughTimer(session.timer, 'tick', { nowValue: Date.now() }),
-        projectorState: { ...session.projectorState, showReview: true },
-        updatedAt: Date.now(),
-      } : session);
-      // Audio is best-effort; the synchronized visual expired state remains.
-      try {
-        const audio = new window.AudioContext();
-        const oscillator = audio.createOscillator();
-        oscillator.connect(audio.destination);
-        // A running AudioContext is never garbage collected: one per expired
-        // timer stayed open (and counts against the browser's limit) all day.
-        oscillator.onended = () => { audio.close?.().catch?.(() => {}); };
-        oscillator.start();
-        oscillator.stop(audio.currentTime + 0.35);
-      } catch { /* autoplay may be blocked */ }
-    }, Math.max(0, remaining * 1000) + 50);
-    return () => window.clearTimeout(timeout);
-  }, [liveTeachingSession?.timer]);
 
   const getScratchpadDocumentId = (assignmentId, questionIndex) =>
     `${assignmentId}__question_${questionIndex}`;
@@ -6450,304 +5939,18 @@ function App() {
 
   const [V5_COMPILER_PLUMBING_ERROR, openAssignmentPreflight] = teacherKit ? teacherKit.createAssignmentPreflightControls(requireTeacherKit, setAssignmentPreflight) : NO_TEACHER_CONTROLS;
 
-  // Students in the class the teacher is working in.
-  //
-  // Membership follows `classId`. A student whose record predates the class
-  // migration has no classId at all, so they are matched on the period the
-  // class publishes — which is a compatibility path, not the rule, and it is
-  // why an unmigrated student can still appear in exactly one roster.
-  const studentsInActiveClass = useMemo(() => studentsInClass({
-    students: allStudents,
-    classes,
-    classId: activeClass.classId,
-    // Only when a class is actually selected. With no class chosen the roster is
-    // every student, and passing a stale period here would silently filter it.
-    classPeriod: activeClass.classId ? activeClass.classPeriod : null,
-  }), [allStudents, classes, activeClass.classId, activeClass.classPeriod]);
-
-  // Analytics names students by displayName; build those copies once per roster
-  // change, not on every App render.
-  const teacherAnalyticsStudents = useMemo(() => (
-    teacherTab === 'analytics'
-      ? (activeClass.classId ? studentsInActiveClass : allStudents)
-        .map((student) => ({ ...student, displayName: formatStudentName(student) }))
-      : []
-  ), [teacherTab, activeClass.classId, studentsInActiveClass, allStudents]);
-
-  // THE NEEDS-ATTENTION QUEUE.
-  //
-  // Assembled here rather than inside Teacher Home because every input already
-  // lives at this level and none of it should be recomputed per screen. The
-  // engine itself is pure and lives in `platform/teacher/needsAttention.js`, so
-  // what counts as worth interrupting a teacher about is testable and is not
-  // buried in a component.
-  //
-  // Weekly-path completion is read for ONE class at a time — it is a Cloud
-  // Function call per class, and firing five of them to render a landing page
-  // would be a poor trade. So with a class selected the queue includes weekly
-  // completion; with "All classes" selected it covers academic and system
-  // findings across everyone and the panel says the weekly half is missing.
-  // The queue is a statement about the week, not about this second. Keying it
-  // to the start of the day keeps a thirty-second display tick from rebuilding
-  // it — and from making a "3 items" badge flicker while a teacher reads it.
-  // The week the Path grade belongs to, and whether it has finished. Both are
-  // read by the gradebook panel; the second gates Classroom review, because a
-  // student who finishes on Sunday should not be graded on Wednesday's work.
-  const weeklyPathWeekKey = useMemo(() => {
-    const record = classesById[activeClass.classId] || null;
-    const config = storedWeeklyGoalForClassContext(weeklyGoalsByClass, {
-      classId: activeClass.classId, classPeriod: record?.period || '',
-    }) || {};
-    return weekKeyFor(now, weekStartsOnFor(config));
-  }, [classesById, activeClass.classId, weeklyGoalsByClass, Math.floor(now / 3_600_000)]);
-
-  const weeklyPathWeekComplete = useMemo(() => {
-    const record = classesById[activeClass.classId] || null;
-    const config = storedWeeklyGoalForClassContext(weeklyGoalsByClass, {
-      classId: activeClass.classId, classPeriod: record?.period || '',
-    }) || {};
-    return now > dueAtFor(now, {
-      weekStartsOn: weekStartsOnFor(config),
-      dueDayOfWeek: config.dueDayOfWeek ?? 0,
-    });
-  }, [classesById, activeClass.classId, weeklyGoalsByClass, Math.floor(now / 3_600_000)]);
-
-  const queueDayStart = useMemo(() => new Date(now).setHours(0, 0, 0, 0), [Math.floor(now / 3_600_000)]);
-
-  const needsAttentionQueue = useMemo(() => {
-    if (!teacherKit || !['home', 'classesWorkspace'].includes(teacherTab)) return [];
-    const scoped = activeClass.classId ? studentsInActiveClass : allStudents;
-    const weeklyLoaded = Boolean(activeClass.classId) && weeklyPathProgressLoadedFor === activeClass.classId;
-    const weeklyByStudentId = !weeklyLoaded ? {} : Object.fromEntries(buildTeacherWeeklyView(
-      teacherWeeklyRoster.map((student) => ({
-        studentId: student.id,
-        studentName: formatStudentName(student, { lastFirst: false }),
-        goal: teacherWeeklyGoalsByStudent[student.id] || null,
-        completions: weeklyPathCompletionsByStudent[student.id] || [],
-      })).filter((entry) => entry.goal),
-      { now: queueDayStart },
-    ).map((row) => [row.studentId, row]));
-
-    const classSizes = Object.fromEntries(classes.map((entry) => [
-      entry.classId,
-      studentsInClass({ students: allStudents, classes, classId: entry.classId }).length,
-    ]));
-
-    // How far through the week we are, so nobody is told on Monday morning that
-    // a student has not finished the week's work. The week runs Monday to Sunday
-    // and closes at midnight Sunday night, so Monday is 0 and Sunday is 1 — the
-    // weekend is still working time, not a week already gone.
-    const day = new Date(queueDayStart).getDay();
-    const weekFraction = Math.min(1, Math.max(0, ((day + 6) % 7) / 6));
-
-    return teacherKit.buildNeedsAttentionQueue({
-      students: scoped.map((student) => ({ ...student, displayName: formatStudentName(student) })),
-      profilesByStudentId: teacherLearningProfiles,
-      weeklyByStudentId,
-      classSizes,
-      unplaceable: unplaceableStudents({ students: allStudents, classes })
-        .map((student) => ({ ...student, displayName: formatStudentName(student) })),
-      weeklyProgressTruncated: weeklyPathTruncated,
-      classCount: classes.filter((entry) => entry?.status !== 'archived').length,
-      weekFraction,
-      supportEvents: studentSupportEvents,
-      now: queueDayStart,
-    });
-  }, [
-    activeClass.classId, studentsInActiveClass, allStudents, classes,
-    teacherLearningProfiles, teacherWeeklyRoster, teacherWeeklyGoalsByStudent,
-    weeklyPathCompletionsByStudent, weeklyPathTruncated, weeklyPathProgressLoadedFor, queueDayStart, studentSupportEvents,
-    teacherTab, teacherKit,
-  ]);
-
-  const profileDrawerRosterStudent = useMemo(
-    () => allStudents.find((student) => student.id === profileDrawerStudentId)
-      || teacherRosterSummaries.find((student) => student.id === profileDrawerStudentId)
-      || null,
-    [allStudents, teacherRosterSummaries, profileDrawerStudentId],
+  const [
+    studentsInActiveClass, teacherAnalyticsStudents, weeklyPathWeekKey, weeklyPathWeekComplete, needsAttentionQueue,
+    profileDrawerStudent, profileDrawerLearningProfile, profileDrawerSupportEvents, profileDrawerSessionSummaries,
+    profileDrawerPlan,
+  ] = useTeacherAnalytics(
+    user, teacherTab, classes, activeClass, setActiveClass, assignments, allStudents, teacherRosterSummaries,
+    profileDrawerStudentDetail, setProfileDrawerStudentDetail, studentSupportEvents, teacherKit,
+    studentSessionSummaries, pacingByClass, skillOverrides, weeklyGoalsByClass, weeklyPathCompletionsByStudent,
+    profileDrawerStudentId, profileSupportHistory, setProfileSupportHistory, weeklyPathTruncated, setQuickSearchOpen,
+    weeklyPathProgressLoadedFor, now, courseProfiles, classesById, teacherLearningProfiles, teacherWeeklyRoster,
+    teacherWeeklyGoalsByStudent, setGradebookFilter,
   );
-
-  const profileDrawerStudent = profileDrawerStudentDetail?.id === profileDrawerStudentId
-    ? profileDrawerStudentDetail
-    : profileDrawerRosterStudent;
-
-  useEffect(() => {
-    if (user?.role !== 'teacher' || !profileDrawerStudentId) {
-      setProfileDrawerStudentDetail(null);
-      return undefined;
-    }
-    const current = allStudents.find((student) => student.id === profileDrawerStudentId);
-    if (current?.gradesByAssignment !== undefined) {
-      setProfileDrawerStudentDetail(current);
-      return undefined;
-    }
-
-    let active = true;
-    setProfileDrawerStudentDetail(null);
-    getDoc(doc(db, 'grades', profileDrawerStudentId))
-      .then((snapshot) => {
-        if (!active || !snapshot.exists()) return;
-        const data = snapshot.data() || {};
-        setProfileDrawerStudentDetail({
-          id: snapshot.id,
-          ...data,
-          profile: normalizeStudentProfile(data.profile || data),
-        });
-      })
-      .catch((error) => {
-        if (active) console.error('Could not load student profile detail:', error);
-      });
-    return () => { active = false; };
-  }, [user?.role, profileDrawerStudentId, allStudents]);
-
-  const profileDrawerLearningProfile = useMemo(() => {
-    if (!profileDrawerStudent) return null;
-    const globalProfile = teacherLearningProfiles[profileDrawerStudent.id] || null;
-    if (globalProfile) return globalProfile;
-    if (profileDrawerStudent.gradesByAssignment === undefined) return null;
-
-    const rows = collectStudentEvidence({ student: profileDrawerStudent, assignments });
-    const { events } = evidenceRowsToEvents(rows);
-    const legacyProfile = buildStudentMasteryProfile({ student: profileDrawerStudent, assignments });
-    return buildStudentLearningProfile({
-      courseId: resolveStudentCourseContext({ student: profileDrawerStudent, classesById, courseProfiles }).courseId,
-      evidenceEvents: events,
-      masteryProfilesByTeks: adaptLegacyMasteryToPhase5({ legacyProfile, evidenceRows: rows }),
-    });
-  }, [profileDrawerStudent, teacherLearningProfiles, assignments, classesById, courseProfiles]);
-
-  useEffect(() => {
-    if (user?.role !== 'teacher' || !user.email || !profileDrawerStudentId) {
-      setProfileSupportHistory({ studentId: null, events: [], summaries: [] });
-      return undefined;
-    }
-
-    if (!teacherKit) return undefined;
-    let active = true;
-    setProfileSupportHistory({ studentId: profileDrawerStudentId, events: [], summaries: [] });
-    teacherKit.fetchStudentSupportHistory({
-      db,
-      teacherEmail: user.email,
-      studentId: profileDrawerStudentId,
-    }).then((history) => {
-      if (!active) return;
-      setProfileSupportHistory({
-        studentId: profileDrawerStudentId,
-        events: history.events || [],
-        summaries: history.summaries || [],
-      });
-    }).catch((error) => {
-      if (!active) return;
-      console.error('Could not load full student support history:', error);
-      // Recent globally subscribed records remain available below even if this
-      // focused historical read fails.
-      setProfileSupportHistory({ studentId: profileDrawerStudentId, events: [], summaries: [] });
-    });
-
-    return () => { active = false; };
-  }, [user?.role, user?.email, profileDrawerStudentId, teacherKit]);
-
-  const profileDrawerSupportEvents = useMemo(() => {
-    if (!profileDrawerStudentId) return [];
-    const merged = new Map();
-    [
-      ...(profileSupportHistory.studentId === profileDrawerStudentId ? profileSupportHistory.events : []),
-      ...studentSupportEvents.filter((event) => event.studentId === profileDrawerStudentId),
-    ].forEach((event) => {
-      const key = event.id || `${event.signalKey || ''}:${event.createdAt || ''}`;
-      merged.set(key, event);
-    });
-    return [...merged.values()].sort((a, b) => (
-      Date.parse(b.createdAt || '') - Date.parse(a.createdAt || '')
-    ));
-  }, [profileDrawerStudentId, profileSupportHistory, studentSupportEvents]);
-
-  const profileDrawerSessionSummaries = useMemo(() => {
-    if (!profileDrawerStudentId) return [];
-    const merged = new Map();
-    [
-      ...(profileSupportHistory.studentId === profileDrawerStudentId ? profileSupportHistory.summaries : []),
-      ...studentSessionSummaries.filter((summary) => summary.studentId === profileDrawerStudentId),
-    ].forEach((summary) => merged.set(summary.id || summary.sessionKey, summary));
-    return [...merged.values()].sort((a, b) => Number(b.endedAt || 0) - Number(a.endedAt || 0));
-  }, [profileDrawerStudentId, profileSupportHistory, studentSessionSummaries]);
-
-  // The plan shown in the drawer is the SAME plan the student's own screen is
-  // built from. If the two ever disagree, a teacher is being shown a
-  // recommendation the student never received, which is worse than showing none.
-  const profileDrawerPlan = useMemo(() => {
-    if (!profileDrawerStudent) return null;
-    const context = resolveStudentCourseContext({ student: profileDrawerStudent, classesById, courseProfiles });
-    const studentAssignments = assignments.filter((assignment) => (
-      assignmentIsForStudent(assignment, { classId: profileDrawerStudent.classId || null, classPeriod: profileDrawerStudent.classPeriod })
-    ));
-    const options = buildStudentPathOptions({
-      student: profileDrawerStudent,
-      assignments: studentAssignments,
-      courseId: context.courseId,
-      pacing: storedPacingForClassContext(pacingByClass, {
-        classId: profileDrawerStudent.classId, classPeriod: profileDrawerStudent.classPeriod,
-      }),
-      teacherOverrides: overridesForClassContext(skillOverrides, {
-        classId: profileDrawerStudent.classId, classPeriod: profileDrawerStudent.classPeriod,
-      }),
-    });
-    return buildWeeklyPathPlan({
-      options,
-      courseId: context.courseId,
-      profile: profileDrawerLearningProfile,
-      ...weeklyPlanClassInputs({
-        config: storedWeeklyGoalForClassContext(weeklyGoalsByClass, {
-          classId: profileDrawerStudent.classId, classPeriod: profileDrawerStudent.classPeriod,
-        }) || {},
-        honors: context.courseLevel === 'honors',
-      }),
-    });
-  }, [profileDrawerStudent, classesById, courseProfiles, assignments, pacingByClass, skillOverrides, profileDrawerLearningProfile, weeklyGoalsByClass]);
-
-  // A view that cannot answer anything across five classes gets one chosen for
-  // it rather than being left on an option its own bar does not offer. Weekly
-  // goals and pacing are settings that belong to one class; there is no
-  // meaningful average of them.
-  useEffect(() => {
-    const scope = CLASS_SCOPED_TABS[teacherTab];
-    if (!scope || scope.allowAllClasses !== false || activeClass.classId) return;
-    const first = classes.find((entry) => entry?.status !== 'archived') || null;
-    if (first) setActiveClass({ classId: first.classId, classPeriod: first.period || null });
-  }, [teacherTab, activeClass.classId, classes]);
-
-  // Cmd/Ctrl-K from anywhere in the teacher workspace. Bound at this level
-  // rather than on a screen, because the whole value of the palette is that it
-  // works from wherever the teacher already is.
-  useEffect(() => {
-    if (user?.role !== 'teacher') return undefined;
-    const onKey = (event) => {
-      if ((event.metaKey || event.ctrlKey) && String(event.key).toLowerCase() === 'k') {
-        event.preventDefault();
-        setQuickSearchOpen(true);
-      }
-    };
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, [user?.role]);
-
-  // The Gradebook follows the class bar.
-  //
-  // Guarded on an actual difference rather than on the id alone: navigating
-  // into one student's gradebook sets BOTH the filter (with that student) and
-  // the workspace class, and an unguarded effect would then fire and throw the
-  // student away — sending the teacher back to the class list they just left.
-  useEffect(() => {
-    const desired = activeClass.classId || '';
-    setGradebookFilter((current) => (current.classId === desired ? current : {
-      classId: desired,
-      classPeriod: activeClass.classPeriod || '',
-      // The assignment and the student belonged to the previous class. Carrying
-      // either across would show one class's work under another class's name.
-      assignmentId: null,
-      student: null,
-    }));
-  }, [activeClass.classId, activeClass.classPeriod]);
 
   /*
    * ONE MORE DOL ATTEMPT FOR SELECTED STUDENTS — an absent student, a device

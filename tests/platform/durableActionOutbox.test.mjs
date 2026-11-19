@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import test from 'node:test';
 import { region } from './helpers/sourceContract.mjs';
+import { positionalHookSource } from './helpers/appScreens.mjs';
 import {
   createDurableAction,
   createMemoryOutboxStorage,
@@ -270,11 +271,13 @@ test('production integration uses FieldPath segments and secure Test Cycle never
   assert.match(app, /window\.setInterval\(reconcileQueuedStudentWork, 10_000\)/);
   assert.match(app, /window\.addEventListener\('pageshow', reconcileQueuedStudentWork\)/);
   assert.match(app, /document\.addEventListener\('visibilitychange', reconcileWhenVisible\)/);
-  assert.match(app, /studentGradeSourceForViewer\(viewer\)/);
+  // The teacher's grades listener is useTeacherRosterData since the App split.
+  const rosterData = positionalHookSource('useTeacherRosterData');
+  assert.match(rosterData, /studentGradeSourceForViewer\(viewer\)/);
   // The gradebook is the grades listener's snapshot, joined to each student's stored detail (gradeEntryStorage.mjs).
-  assert.match(app, /latestStudents = collectStudentGradeSnapshot\(snapshot\)/);
-  assert.match(app, /return detail \? withResponseDetail\(student, detail\) : student;/);
-  assert.match(app, /setAllStudents\(studentData\)/);
+  assert.match(rosterData, /latestStudents = collectStudentGradeSnapshot\(snapshot\)/);
+  assert.match(rosterData, /return detail \? withResponseDetail\(student, detail\) : student;/);
+  assert.match(rosterData, /setAllStudents\(studentData\)/);
   assert.throws(() => createDurableAction({ kind: 'ordinarySubmission', studentId: 'student', assignmentId: 'assignment', questionIndex: 0, payload: { secure: true } }), /Protected assessment data/);
   assert.throws(() => createDurableAction({ kind: 'ordinarySubmission', studentId: 'student', assignmentId: 'assignment', questionIndex: 0, payload: { answerKey: 'never' } }), /Protected assessment data/);
 });

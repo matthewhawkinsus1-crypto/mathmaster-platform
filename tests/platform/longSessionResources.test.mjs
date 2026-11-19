@@ -9,11 +9,13 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { executableSource, region } from './helpers/sourceContract.mjs';
+import { positionalHookSource } from './helpers/appScreens.mjs';
 
 const read = (path) => executableSource(readFileSync(new URL(`../../${path}`, import.meta.url), 'utf8'));
 
 test('the walkthrough timer closes the AudioContext it opens for its beep', () => {
-  const app = read('src/App.jsx');
+  // The timer's expiry effect is useLiveTeachingTimer since the App split.
+  const app = executableSource(positionalHookSource('useLiveTeachingTimer'));
   const beep = region(app, 'const audio = new window.AudioContext();', 'oscillator.stop(', 'walkthrough beep');
   // A running AudioContext is never collected; the close is wired before start.
   assert.match(beep, /oscillator\.onended = \(\) => \{ audio\.close\?\.\(\)/);

@@ -59,7 +59,7 @@ import { buildNeedsAttentionQueue } from '../../src/platform/teacher/needsAttent
 import { publicStudentLabel } from '../../src/platform/liveSpotlight.js';
 import { normalizeSchedule, DEFAULT_CLASS_SCHEDULE } from '../../src/assignmentLifecycle.js';
 import { executableSource, region } from './helpers/sourceContract.mjs';
-import { teacherControlsSource } from './helpers/appScreens.mjs';
+import { positionalHookSource, teacherControlsSource } from './helpers/appScreens.mjs';
 
 const read = (path) => readFileSync(new URL(`../../${path}`, import.meta.url), 'utf8');
 
@@ -389,7 +389,8 @@ test('the identity fix adds no full-grades tab and leaves the full-grades listen
     [...tabs.matchAll(/'([A-Za-z]+)'/g)].map(([, tab]) => tab),
     ['students', 'weeklyPath', 'actionCenter', 'parentContacts', 'grades', 'gradeTransfer', 'standards', 'analytics', 'exams'],
   );
-  assert.match(app, /\}, \[\s*user\?\.role, user\?\.email, user\?\.isRootAdmin, teacherTab, teacherWorkspaceMode,\s*teacherPreviewRuntimeActive, teacherRosterSummaries,\s*\]\);/);
+  // The full-grades listener is useTeacherRosterData since the App split.
+  assert.match(positionalHookSource('useTeacherRosterData'), /\}, \[\s*user\?\.role, user\?\.email, user\?\.isRootAdmin, teacherTab, teacherWorkspaceMode,\s*teacherPreviewRuntimeActive, teacherRosterSummaries,\s*\]\);/);
 });
 
 test('Live View never asks for an id as a name, and never shows one to the class', () => {

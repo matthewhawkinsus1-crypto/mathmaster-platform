@@ -24,7 +24,7 @@ import { readFileSync } from 'node:fs';
 
 import { FULL_CLASS, buildTeacherWorkflowFixture } from '../browser/teacherWorkflow/fixture.js';
 import { executableSource, region } from './helpers/sourceContract.mjs';
-import { appHookSource } from './helpers/appScreens.mjs';
+import { appHookSource, positionalHookSource } from './helpers/appScreens.mjs';
 
 const read = (relativePath) => readFileSync(new URL(`../../${relativePath}`, import.meta.url), 'utf8');
 const APP = executableSource(read('src/App.jsx'));
@@ -98,16 +98,19 @@ test('the live monitor\'s Spotlight listeners follow the class\'s roster, not ev
 });
 
 test('the teacher\'s presence listeners follow who is on the roster, not each new array of the same students', () => {
-  const effect = effectAround(APP, /onSnapshot\(\s*doc\(db, 'presence', studentId\)/, 'the presence listeners');
+  // The presence effect, its roster key and its screen test are
+  // useTeacherPresence since the App split, which App hands the roster.
+  const PRESENCE = executableSource(positionalHookSource('useTeacherPresence'));
+  const effect = effectAround(PRESENCE, /onSnapshot\(\s*doc\(db, 'presence', studentId\)/, 'the presence listeners');
   // What they may depend on: who is signed in, whether a presence screen is
   // open, the roster's ids as a value, and Preview. Not the array, and not
   // which of the two presence screens it is.
   assert.deepEqual(effect.deps, ['user?.role', 'teacherPresenceScreen', 'presenceRosterKey', 'teacherPreviewRuntimeActive']);
   assert.match(effect.body, /const rosterIds = JSON\.parse\(presenceRosterKey\);/);
   assert.match(effect.body, /const unsubs = rosterIds\.map\(\(studentId\) => onSnapshot\(/);
-  const key = region(APP, 'const presenceRosterKey = useMemo(', ');\n', 'the roster key');
+  const key = region(PRESENCE, 'const presenceRosterKey = useMemo(', ');\n', 'the roster key');
   assert.match(key, /JSON\.stringify\(\[\.\.\.new Set\(\s*\(Array\.isArray\(allStudents\) \? allStudents : \[\]\)\s*\.map\(\(student\) => String\(student\?\.id \|\| ''\)\.trim\(\)\)/);
-  assert.match(APP, /const teacherPresenceScreen = \['home', 'classesWorkspace'\]\.includes\(teacherTab\);/);
+  assert.match(PRESENCE, /const teacherPresenceScreen = \['home', 'classesWorkspace'\]\.includes\(teacherTab\);/);
 });
 
 test('a student\'s device reads its own class, never the collection', () => {

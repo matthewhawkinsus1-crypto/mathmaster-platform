@@ -4,6 +4,7 @@ import fs from 'node:fs';
 
 import { STUDENT_IDENTITY_FIELDS, TEACHER_ROSTER_SELECT_FIELDS } from '../../functions/shared/studentIdentity.mjs';
 import { functionsBackendSource } from './helpers/functionsBackendSource.mjs';
+import { positionalHookSource } from './helpers/appScreens.mjs';
 
 const app = fs.readFileSync('src/App.jsx', 'utf8');
 const functions = functionsBackendSource();
@@ -52,8 +53,19 @@ test('ordinary teacher tabs do not keep the whole grade corpus subscribed', () =
     'teacher student data effect',
   );
   assert.match(liveGradeEffect, /TEACHER_FULL_STUDENT_DATA_TABS\.has\(teacherTab\)/);
-  assert.match(liveGradeEffect, /setAllStudents\(teacherRosterSummaries\)/);
   assert.match(liveGradeEffect, /setTeacherStudentDataMode\('summary'\)/);
+  // The live grades effect itself is useTeacherRosterData since the App split:
+  // App calls it here, where the effect was, and the hook holds the gate.
+  assert.match(liveGradeEffect, /\n {2}useTeacherRosterData\(/);
+  const rosterEffect = between(
+    positionalHookSource('useTeacherRosterData'),
+    'useEffect(() => {',
+    'SEATS FOR UNIQUE QUESTIONS',
+    'teacher student data effect in useTeacherRosterData',
+  );
+  assert.match(rosterEffect, /TEACHER_FULL_STUDENT_DATA_TABS\.has\(teacherTab\)/);
+  assert.match(rosterEffect, /setAllStudents\(teacherRosterSummaries\)/);
+  assert.match(rosterEffect, /setTeacherStudentDataMode\('summary'\)/);
 });
 
 test('whole-roster mastery/profile derivation is disabled while only compact roster data is resident', () => {
@@ -63,8 +75,9 @@ test('whole-roster mastery/profile derivation is disabled while only compact ros
     '// ONE SET OF LEARNING PROFILES',
     'teacher mastery memo',
   );
+  // The learning profiles are a memo of useTeacherLearningPaths since the App split.
   const learning = between(
-    app,
+    positionalHookSource('useTeacherLearningPaths'),
     'const teacherLearningProfiles = useMemo',
     '// The students in the class the Weekly Path screen is looking at.',
     'teacher learning profile memo',
@@ -74,8 +87,9 @@ test('whole-roster mastery/profile derivation is disabled while only compact ros
 });
 
 test('opening one student from a light screen reads only that student detail document', () => {
+  // The profile drawer's loading is useTeacherAnalytics since the App split.
   const drawer = between(
-    app,
+    positionalHookSource('useTeacherAnalytics'),
     'const profileDrawerRosterStudent = useMemo',
     'const profileDrawerSupportEvents = useMemo',
     'profile drawer loading',
@@ -118,10 +132,12 @@ test('compact roster callable explicitly excludes attempt history fields', () =>
 });
 
 test('teacher background history streams are scoped to the screens that use them', () => {
-  assert.match(app, /TEACHER_SUPPORT_STREAM_TABS\.has\(teacherTab\)/);
-  assert.match(app, /TEACHER_PARENT_CONTACT_STREAM_TABS\.has\(teacherTab\)/);
-  assert.match(app, /TEACHER_SESSION_SUMMARY_TABS\.has\(teacherTab\)/);
-  assert.match(app, /teacherTab !== 'actionCenter'/);
+  // The streams are opened by useTeacherActionCenterData since the App split.
+  const streams = positionalHookSource('useTeacherActionCenterData');
+  assert.match(streams, /TEACHER_SUPPORT_STREAM_TABS\.has\(teacherTab\)/);
+  assert.match(streams, /TEACHER_PARENT_CONTACT_STREAM_TABS\.has\(teacherTab\)/);
+  assert.match(streams, /TEACHER_SESSION_SUMMARY_TABS\.has\(teacherTab\)/);
+  assert.match(streams, /teacherTab !== 'actionCenter'/);
 });
 
 test('ordinary teacher navigation has no generic whole-roster fetch helper left to call accidentally', () => {
@@ -130,8 +146,10 @@ test('ordinary teacher navigation has no generic whole-roster fetch helper left 
 });
 
 test('leaving heavy teacher screens releases their cached history arrays', () => {
+  // The three streams are effects of useTeacherActionCenterData since the App split.
+  const actionCenterData = positionalHookSource('useTeacherActionCenterData');
   const support = between(
-    app,
+    actionCenterData,
     '// Persistent support/intervention history is teacher-authorized',
     '// One teacher-scoped stream spans the whole roster.',
     'support stream',
@@ -139,7 +157,7 @@ test('leaving heavy teacher screens releases their cached history arrays', () =>
   assert.match(support, /setStudentSupportEvents\(\[\]\)/);
 
   const contacts = between(
-    app,
+    actionCenterData,
     '// One teacher-scoped stream spans the whole roster.',
     'const actionGradeScope = useMemo',
     'parent contacts stream',
@@ -147,11 +165,12 @@ test('leaving heavy teacher screens releases their cached history arrays', () =>
   assert.match(contacts, /setParentContacts\(\[\]\)/);
 
   const actionState = between(
-    app,
+    actionCenterData,
     'const actionGradeScope = useMemo',
     // The state stays in App; what followed it (the attendance-extension handlers) is
     // createAttendanceExtensionControls since the App split, called where the code was.
-    'teacherKit.createAttendanceExtensionControls(',
+    // The effects that empty that state end where the hook returns.
+    '\n  return [actionGradeScope,',
     'action center state',
   );
   assert.match(actionState, /setActionGradeSnapshots\(\[\]\)/);

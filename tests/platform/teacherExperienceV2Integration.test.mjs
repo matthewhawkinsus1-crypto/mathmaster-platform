@@ -4,6 +4,7 @@ import path from 'node:path';
 import test from 'node:test';
 import { fileURLToPath } from 'node:url';
 import { functionsBackendSource } from './helpers/functionsBackendSource.mjs';
+import { positionalHookSeam, positionalHookSource } from './helpers/appScreens.mjs';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const root = path.resolve(here, '../..');
@@ -36,7 +37,16 @@ test('Weekly Path teacher view reads secure completed sessions and shows a weekl
   const controls = read('src/components/teacher/WeeklyPathControls.jsx');
   const functions = functionsBackendSource();
 
-  assert.match(app, /fetchTeacherWeeklyPathCompletions/);
+  // Since the App split, useTeacherLearningPaths owns the week's goals and
+  // the effect that keeps its progress fresh; App calls it once, with the
+  // teacher kit, and takes the goals the panel below is handed.
+  const learningPaths = positionalHookSource('useTeacherLearningPaths');
+  const learningPathsSeam = positionalHookSeam('useTeacherLearningPaths');
+  assert.ok(learningPathsSeam.parameters.includes('teacherKit'), 'App hands useTeacherLearningPaths the teacher kit');
+  assert.ok(learningPathsSeam.returned.includes('teacherWeeklyGoalsByStudent'), 'App takes the week\'s goals from useTeacherLearningPaths');
+  assert.match(app, /const \[weeklyPathCompletionsByStudent, setWeeklyPathCompletionsByStudent\] = useState\(/, 'the completions the panel shows are App\'s state');
+  assert.ok(learningPathsSeam.parameters.includes('setWeeklyPathCompletionsByStudent'), 'which App hands the hook to fill');
+  assert.match(learningPaths, /import \{[^}]*\bfetchTeacherWeeklyPathCompletions\b[^}]*\} from '\.\.\/\.\.\/platform\/path\/pathStore\.js';/);
   // The Weekly Path panel is mounted by the teacher's screen, its own module since G2.
   const teacherWorkspace = read('src/app/teacher/TeacherWorkspace.jsx');
   assert.match(teacherWorkspace, /goalsByStudentId=\{teacherWeeklyGoalsByStudent\}/);
@@ -45,7 +55,7 @@ test('Weekly Path teacher view reads secure completed sessions and shows a weekl
   // teacher kit's refresh (weeklyPathProgressRefresh.test.mjs: not while the
   // page is hidden, not again within the minute, only for the class shown).
   // App hands its client to the teacher kit, which asks with it for the class shown.
-  assert.match(app, /return teacherKit\.followWeeklyPathProgress\(weeklyPathProgress, \{[\s\S]*?path: \{ completions: fetchTeacherWeeklyPathCompletions,/);
+  assert.match(learningPaths, /return teacherKit\.followWeeklyPathProgress\(weeklyPathProgress, \{[\s\S]*?path: \{ completions: fetchTeacherWeeklyPathCompletions,/);
   assert.match(read('src/app/teacher/weeklyPathProgress.js'), /fetch: \(weekKey\) => path\.completions\(\{ classId, weekKey \}\),/);
   assert.match(read('src/platform/path/weeklyPathProgressRefresh.js'), /export const WEEKLY_PATH_PROGRESS_FRESH_MS = 60_000;/);
   assert.match(store, /httpsCallable\(functions, 'getTeacherWeeklyPathCompletions'\)/);

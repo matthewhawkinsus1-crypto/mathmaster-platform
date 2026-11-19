@@ -18,7 +18,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync, readdirSync } from 'node:fs';
 import { executableSource, region } from './helpers/sourceContract.mjs';
-import { appHookSource } from './helpers/appScreens.mjs';
+import { appHookSource, appSurfaceSource } from './helpers/appScreens.mjs';
 import {
   GRADE_FIELDS_EMPTY_ON_STUDENT_CREATE,
   MIXED_AUTHORITY_GRADE_FIELDS,
@@ -148,7 +148,10 @@ test('mixed-authority profile fields remain pinned against every browser write',
  * ======================================================================== */
 
 test('the student app addresses no server-owned grade field by path', () => {
-  const paths = [...executableSource(app).matchAll(/new FieldPath\(\s*'([A-Za-z]+)'/g)].map((match) => match[1]);
+  // Counted across App and every module its code moved into (the App split):
+  // the seat allocation is useTeacherRosterData's now, and a path written from
+  // any of them is a path the app writes.
+  const paths = [...executableSource(appSurfaceSource()).matchAll(/new FieldPath\(\s*'([A-Za-z]+)'/g)].map((match) => match[1]);
   // Teacher-side seat allocation on an assignment, and the student's
   // engagement time. Nothing on the grade document a student does not own.
   assert.deepEqual([...new Set(paths)].sort(), ['assignmentActivity', 'generationSeats']);

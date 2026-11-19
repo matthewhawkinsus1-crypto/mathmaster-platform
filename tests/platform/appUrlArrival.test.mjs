@@ -17,7 +17,7 @@ import {
 } from '../../src/app/routes/urlArrival.js';
 import { studentQuestionEntries } from '../../src/app/routes/questionAddress.js';
 import { executableSource, region } from './helpers/sourceContract.mjs';
-import { appHookSource } from './helpers/appScreens.mjs';
+import { appHookSource, positionalHookSeam, positionalHookSource } from './helpers/appScreens.mjs';
 
 const lesson = (id, extra = {}) => ({
   id,
@@ -238,7 +238,15 @@ test('Back never restores an entry another account wrote (the previous student o
   assert.ok(foreign > 0, 'the student handler checks the entry\'s account');
   assert.ok(foreign < studentRestore.indexOf("if (route.surface === 'assignment')"), 'before anything is restored');
   assert.match(studentRestore.slice(foreign), /^[^]*?fresh: true,[^]*?return;/);
-  const teacherRestore = region(appCode, 'teacherHistoryRestoreRef.current = (event) => {', "window.addEventListener('popstate', restoreTeacherFromBrowserHistory)", 'teacher popstate');
+  // Since the App split, useLiveTeachingTimer owns the effect that listens for
+  // popstate and runs the handler App keeps in teacherHistoryRestoreRef: the
+  // handler ends at that hook's call, and the hook hands it every popstate.
+  const teacherRestore = region(appCode, 'teacherHistoryRestoreRef.current = (event) => {', '\n  useLiveTeachingTimer(', 'teacher popstate');
+  assert.ok(positionalHookSeam('useLiveTeachingTimer').parameters.includes('teacherHistoryRestoreRef'), 'App hands the hook the handler\'s ref');
+  assert.match(
+    executableSource(positionalHookSource('useLiveTeachingTimer')),
+    /const restoreTeacherFromBrowserHistory = \(event\) => teacherHistoryRestoreRef\.current\?\.\(event\);\s*window\.addEventListener\('popstate', restoreTeacherFromBrowserHistory\);/,
+  );
   const teacherForeign = teacherRestore.indexOf('if (readRouteOwner(event.state) !== user?.uid) {');
   assert.ok(teacherForeign > 0 && teacherForeign < teacherRestore.indexOf('setTeacherTab(route.tab)'), 'the teacher handler checks the entry\'s account first');
   assert.match(app, /\breadRouteOwner,\n[\s\S]*?\} from '\.\/platform\/student\/browserHistory\.js';/);
