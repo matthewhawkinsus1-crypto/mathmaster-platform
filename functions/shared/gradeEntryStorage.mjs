@@ -249,3 +249,61 @@ export const splitIsFaithful = (record, { summary, detail }, extraChecks = []) =
     try { return stable(view(summary)) === stable(view(record)); } catch { return false; }
   });
 };
+
+/*
+ * WHEN A RECORD IS WRITTEN SPLIT: settings/serverGrading.splitGradeRecords.
+ *
+ * A browser tab opened before the split shipped reads the grades document
+ * alone, and nothing reloads it. Shown a summary, it loses the question's
+ * parts, steps and last response. So until those tabs have reloaded, a record
+ * is written whole, as it was before the split, except:
+ *
+ *   - the switch is on: every record is split. The operator turns it on a day
+ *     after Hosting ships (docs/handoffs/NOVEMBER_BUILD_2026-11.md, section 4);
+ *   - the record is already stored split (it carries a detailRef): it stays
+ *     split, so a document the split made room in does not fill again;
+ *   - the student's grades document is near Firestore's cap (`nearCap`, which
+ *     only the functions measure): the record is split, so their grades keep
+ *     saving.
+ *
+ * With the switch off a record is split only when a reader built before the
+ * split grades its summary exactly as the whole record (splitIsFaithful).
+ * Otherwise it is written whole. A record written whole carries no detailRef
+ * or stepCredit, so no stored detail is ever joined to it.
+ */
+export const SPLIT_SWITCH_FIELD = 'splitGradeRecords';
+
+/** Whether the switch is on in settings/serverGrading's data. */
+export const splitSwitchOn = (settings) => isPlainObject(settings) && settings[SPLIT_SWITCH_FIELD] === true;
+
+/**
+ * How one record is stored: { summary, detail }, where `detail` is null for a
+ * record written whole. `extraChecks` are the caller's own grading views, as
+ * for splitIsFaithful. A field left undefined is dropped either way, as
+ * splitQuestionRecord drops it: Firestore refuses an undefined value.
+ */
+export const recordForStorage = (record, { splitAll = false, nearCap = false, extraChecks = [] } = {}) => {
+  if (!isPlainObject(record)) return { summary: record, detail: null };
+  const whole = Object.fromEntries(Object.entries(withoutMarkers(record)).filter(([, value]) => value !== undefined));
+  if (!splitAll && !nearCap && !isSplitSummary(record)) return { summary: whole, detail: null };
+  const halves = splitQuestionRecord(whole);
+  if (!splitAll && !splitIsFaithful(whole, halves, extraChecks)) return { summary: whole, detail: null };
+  return halves;
+};
+
+/**
+ * A whole tracker as it is stored: { summaries, details, hadSplit }. `hadSplit`
+ * says the tracker given had a record stored split, so its detail document
+ * must be replaced even when nothing is split now.
+ */
+export const trackerForStorage = (tracker, policy = {}) => {
+  const records = isPlainObject(tracker) ? tracker : {};
+  const summaries = {};
+  const details = {};
+  for (const [questionKey, record] of Object.entries(records)) {
+    const { summary, detail } = recordForStorage(record, policy);
+    summaries[questionKey] = summary;
+    if (detail) details[questionKey] = detail;
+  }
+  return { summaries, details, hadSplit: Object.values(records).some(isSplitSummary) };
+};

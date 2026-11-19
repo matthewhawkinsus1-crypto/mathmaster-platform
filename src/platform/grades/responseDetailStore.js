@@ -13,14 +13,18 @@
  * document read its responseDetail.
  *
  * A browser that WRITES records (a teacher's live-question correction, the
- * current-grader repair) writes them split too (writeTrackerSplit), and only
- * from a tracker whose records were all joined: writing a summary that never
- * met its detail would orphan the detail, so that is refused.
+ * current-grader repair) writes them as the functions do (writeTrackerSplit):
+ * split with settings/serverGrading.splitGradeRecords on (readSplitSwitch);
+ * until then whole, except a record already stored split
+ * (gradeEntryStorage.mjs recordForStorage). It writes only from a tracker
+ * whose records were all joined: writing a summary that never met its detail
+ * would orphan the detail, so that is refused.
  */
 import {
   FieldPath,
   collection,
   doc,
+  getDoc,
   getDocs,
   onSnapshot,
   serverTimestamp,
@@ -31,7 +35,8 @@ import {
   assignmentsWithSplitRecords,
   hydrateGradeDocument,
   isSplitSummary,
-  splitTracker,
+  splitSwitchOn,
+  trackerForStorage,
 } from '../../../functions/shared/gradeEntryStorage.mjs';
 
 export { RESPONSE_DETAIL_COLLECTION };
@@ -104,21 +109,38 @@ export class UnjoinedTrackerError extends Error {
 }
 
 /**
- * Write one assignment's whole tracker split, on `writer` (a client batch or
- * transaction): the summaries replace the tracker on the grades document, and
- * the detail document is replaced to match. Refuses a tracker that is not
- * whole. Returns the summaries written (for the caller's own state).
+ * Whether settings/serverGrading.splitGradeRecords is on, read now (the
+ * operator turns it on after a release, while a teacher's tab stays open).
+ * Off when it cannot be read: a record is then written whole, as the browsers
+ * still open from before the split read it.
  */
-export const writeTrackerSplit = ({ db, writer, studentId, assignmentId, tracker }) => {
+export const readSplitSwitch = async (db) => {
+  try {
+    return splitSwitchOn((await getDoc(doc(db, 'settings', 'serverGrading'))).data());
+  } catch {
+    return false;
+  }
+};
+
+/**
+ * Write one assignment's whole tracker on `writer` (a client batch or
+ * transaction): its records replace the tracker on the grades document, split
+ * when `splitAll` (readSplitSwitch) or already stored split, and when any is
+ * split or was, the detail document is replaced to match. Refuses a tracker
+ * that is not whole. Returns the records written (for the caller's own state).
+ */
+export const writeTrackerSplit = ({ db, writer, studentId, assignmentId, tracker, splitAll = false }) => {
   if (!trackerFullyJoined(tracker)) throw new UnjoinedTrackerError(studentId, assignmentId);
-  const { summaries, details } = splitTracker(tracker);
+  const { summaries, details, hadSplit } = trackerForStorage(tracker, { splitAll });
   writer.update(doc(db, 'grades', String(studentId)), new FieldPath('gradesByAssignment', String(assignmentId)), summaries);
-  writer.set(responseDetailDoc(db, studentId, assignmentId), {
-    studentId: String(studentId),
-    assignmentId: String(assignmentId),
-    questions: details,
-    updatedAt: serverTimestamp(),
-  });
+  if (hadSplit || Object.keys(details).length) {
+    writer.set(responseDetailDoc(db, studentId, assignmentId), {
+      studentId: String(studentId),
+      assignmentId: String(assignmentId),
+      questions: details,
+      updatedAt: serverTimestamp(),
+    });
+  }
   return summaries;
 };
 

@@ -102,11 +102,14 @@ const memoryFirestore = (documents) => {
   };
 };
 
+// settings/serverGrading with the grades split on (splitGradeRecords).
+const SPLIT_ON = Object.freeze({ splitGradeRecords: true });
+
 test('a record whose steps earned more than its stored credit stays whole; every other record still moves', async () => {
   const original = { a1: { 0: stepsAheadOfCredit(), 1: partRecord() }, a2: { 0: stepsCounted() } };
   const db = memoryFirestore({ 'grades/s1': { classId: 'c1', gradesByAssignment: original } });
 
-  const moved = await splitInlineRecords({ db, studentId: 's1' });
+  const moved = await splitInlineRecords({ db, studentId: 's1', settings: SPLIT_ON });
   assert.deepEqual(moved, { split: 2, kept: 1 });
 
   const stored = db.store.get('grades/s1').gradesByAssignment;
@@ -123,6 +126,24 @@ test('a record whose steps earned more than its stored credit stays whole; every
       assert.equal(runtime.getQuestionCredit(stored[assignmentId][key]), runtime.getQuestionCredit(record), `${where}: the Classroom triggers`);
     }
   }
+});
+
+test('with the switch off, records move only for a student whose grades document is near the cap, by the same check', async () => {
+  const original = { a1: { 0: stepsAheadOfCredit(), 1: partRecord() }, a2: { 0: stepsCounted() } };
+  // Most students: nothing moves, so every tab opened before the split still reads every record whole.
+  const small = memoryFirestore({ 'grades/s1': { classId: 'c1', gradesByAssignment: original } });
+  assert.deepEqual(await splitInlineRecords({ db: small, studentId: 's1' }), { split: 0, kept: 0 });
+  assert.deepEqual(await splitInlineRecords({ db: small, studentId: 's1', settings: { splitGradeRecords: false } }), { split: 0, kept: 0 });
+  assert.deepEqual(small.store.get('grades/s1').gradesByAssignment, original, 'stored exactly as it was');
+  assert.equal(small.store.has('grades/s1/responseDetail/a1'), false, 'and no detail written');
+
+  // Past three quarters of the cap, the faithful records move so this student's grades keep saving.
+  const near = memoryFirestore({ 'grades/s1': { classId: 'c1', history: 'x'.repeat(800_000), gradesByAssignment: original } });
+  assert.deepEqual(await splitInlineRecords({ db: near, studentId: 's1' }), { split: 2, kept: 1 });
+  const stored = near.store.get('grades/s1').gradesByAssignment;
+  assert.deepEqual(stored.a1[0], stepsAheadOfCredit(), 'the record an older reader would grade lower stays whole');
+  assert.equal(typeof stored.a1[1].detailRef, 'string');
+  assert.equal(typeof stored.a2[0].detailRef, 'string');
 });
 
 test('the check is the reason: such a summary alone reads lower to a reader built before the split', () => {

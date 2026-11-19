@@ -11,8 +11,10 @@ test('live question repair uses a Firestore transaction for assignment and stude
   assert.match(app, /runTransaction\(db, async \(transaction\) =>/);
   assert.match(app, /repairAssignmentTrackerForLiveCorrections/);
   assert.match(app, /questionFingerprint\(liveQuestion\)/);
-  // The repaired tracker is written split, in the same transaction (gradeEntryStorage.mjs).
-  assert.match(app, /writeTrackerSplit\(\{ db, writer: transaction, studentId: student\.id, assignmentId, tracker: nextTracker \}\)/);
+  // The repaired tracker is written in the same transaction, split only as the
+  // functions split (settings/serverGrading.splitGradeRecords, gradeEntryStorage.mjs).
+  assert.match(app, /const splitAll = needsStudentGradeMigration \? await readSplitSwitch\(db\) : false;/);
+  assert.match(app, /writeTrackerSplit\(\{ db, writer: transaction, studentId: student\.id, assignmentId, tracker: nextTracker, splitAll \}\)/);
   assert.match(app, /joinTrackerInTransaction\(transaction, db, student\.id, snapshot\.data\(\) \|\| \{\}, assignmentId\)/);
   assert.match(app, /transaction\.update\(studentRef, studentPatch\)/);
 });

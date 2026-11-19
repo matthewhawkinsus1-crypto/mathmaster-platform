@@ -25,7 +25,7 @@ import '../shell/leadingStyles.js';
 import '../../components/teacher/supportEvidence.css';
 import '../../components/teacher/teacherWorkspace.css';
 import { addDoc, collection, deleteField, doc, runTransaction, updateDoc, writeBatch } from 'firebase/firestore';
-import { joinTrackerInTransaction, writeTrackerSplit } from '../../platform/grades/responseDetailStore.js';
+import { joinTrackerInTransaction, readSplitSwitch, writeTrackerSplit } from '../../platform/grades/responseDetailStore.js';
 import { db } from '../../firebase';
 import { classDolFieldPatch } from '../../platform/assessment/dolAttemptGrantClient.js';
 import { updateAssignmentClassroomPublications } from '../../classroomApi';
@@ -1292,6 +1292,9 @@ export default function TeacherWorkspace({
         );
       }
 
+      // Split as the functions do (settings/serverGrading.splitGradeRecords).
+      const splitAll = needsStudentGradeMigration ? await readSplitSwitch(db) : false;
+
       await runTransaction(db, async (transaction) => {
         const liveAssignmentSnapshot = await transaction.get(assignmentRef);
         if (!liveAssignmentSnapshot.exists()) {
@@ -1400,7 +1403,7 @@ export default function TeacherWorkspace({
           if (nextTracker !== assignmentTracker || (Array.isArray(liveRepairs) && liveRepairs.length > 0)) {
             // This assignment's tracker only, split: summaries on the grades
             // document, its detail document replaced to match.
-            writeTrackerSplit({ db, writer: transaction, studentId: student.id, assignmentId, tracker: nextTracker });
+            writeTrackerSplit({ db, writer: transaction, studentId: student.id, assignmentId, tracker: nextTracker, splitAll });
           }
           if (weightChanges.length > 0) {
             studentPatch.classroomReleaseSignals = {

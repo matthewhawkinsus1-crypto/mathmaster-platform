@@ -53,7 +53,7 @@ const teacherQuestionRepair = require("./lib/teacherQuestionRepair");
  * review, recovery, mastery) joins them first (hydrateGradeData); a reader that
  * only grades (the Classroom triggers, class-wide reports) reads the summary.
  */
-const { gradeEntryStorage, writeSplitTracker, hydrateTrackerRows } = require("./lib/gradeDetailStore");
+const { gradeEntryStorage, splitPolicy, writeSplitTracker, hydrateTrackerRows } = require("./lib/gradeDetailStore");
 const {
   CLASS_COLLECTION,
   TEST_CYCLE_ANSWER_RELEASES,
@@ -861,10 +861,15 @@ exports.commitAssignmentContentUpgrade = onCall(async (request) => {
       });
 
       const storage = await gradeEntryStorage();
+      // Split only with settings/serverGrading.splitGradeRecords on; until then
+      // a record already stored split stays split and the rest stay whole.
+      const recordPolicy = await splitPolicy({
+        settings: (await db.collection("settings").doc("serverGrading").get()).data() || {},
+      });
       migratedRows.forEach(({ gradeRow, migration }) => {
         if (!migration.changed) return;
-        // Summaries on the grades document, detail beside it (gradeEntryStorage.mjs).
-        writeSplitTracker(storage, transaction, gradeRow.ref, assignmentId, migration.tracker);
+        // Records on the grades document, any split detail beside it (gradeEntryStorage.mjs).
+        writeSplitTracker(storage, transaction, gradeRow.ref, assignmentId, migration.tracker, recordPolicy);
         if (migration.gradeMayChange) {
           transaction.update(
             gradeRow.ref,
@@ -1429,10 +1434,15 @@ exports.commitTeacherQuestionRepair = onCall(async (request) => {
       });
 
       const storage = await gradeEntryStorage();
+      // Split only with settings/serverGrading.splitGradeRecords on; until then
+      // a record already stored split stays split and the rest stay whole.
+      const recordPolicy = await splitPolicy({
+        settings: (await db.collection("settings").doc("serverGrading").get()).data() || {},
+      });
       migratedRows.forEach(({ gradeRow, migration }) => {
         if (!migration.changed) return;
-        // Summaries on the grades document, detail beside it (gradeEntryStorage.mjs).
-        writeSplitTracker(storage, transaction, gradeRow.ref, assignmentId, migration.tracker);
+        // Records on the grades document, any split detail beside it (gradeEntryStorage.mjs).
+        writeSplitTracker(storage, transaction, gradeRow.ref, assignmentId, migration.tracker, recordPolicy);
         if (migration.gradeMayChange) {
           transaction.update(
             gradeRow.ref,

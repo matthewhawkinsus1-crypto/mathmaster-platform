@@ -196,8 +196,10 @@ test('signing in shows the canonical record and writes nothing back to it', () =
   assert.doesNotMatch(hydration, /updateDoc\(|setDoc\(|repairGradesByAssignmentWithCurrentGrader\(/);
   // The one-time current-grader correction keeps its teacher-authorized writer.
   const teacherRepair = region(app, 'const persistCurrentGraderCreditRepairs', 'const repairedById', 'teacher grader repair');
-  // ... now writing each changed assignment split (summaries + detail document), one student per batch.
-  assert.match(teacherRepair, /writeTrackerSplit\(\{\s*db, writer: batch, studentId: student\.id, assignmentId, tracker: gradesByAssignment\[assignmentId\],\s*\}\)/);
+  // ... now writing each changed assignment as the functions do (split only
+  // with settings/serverGrading.splitGradeRecords on), one student per batch.
+  assert.match(teacherRepair, /const splitAll = await readSplitSwitch\(db\);/);
+  assert.match(teacherRepair, /writeTrackerSplit\(\{\s*db, writer: batch, studentId: student\.id, assignmentId, tracker: gradesByAssignment\[assignmentId\], splitAll,\s*\}\)/);
   assert.match(teacherRepair, /await batch\.commit\(\);/);
 });
 

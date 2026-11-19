@@ -52,6 +52,7 @@ const mathPath = require("./lib/mathPath");
 const {
   gradeEntryStorage,
   splitInlineRecords,
+  splitPolicy,
   hydrateGradeData,
   questionRecordUpdates,
 } = require("./lib/gradeDetailStore");
@@ -178,7 +179,7 @@ async function studentOverrideEventRef(db, studentId, eventId) {
   return db.collection("grades").doc(String(studentId)).collection(overrides.ASSIGNMENT_OVERRIDE_EVENTS_COLLECTION).doc(String(eventId));
 }
 
-async function finalizeOneResponseCheckpoint({ db, ref, schedule, classPeriodCache, now }) {
+async function finalizeOneResponseCheckpoint({ db, ref, schedule, classPeriodCache, now, serverGradingSettings = null }) {
   const {
     decideCheckpointFinalization,
     buildCheckpointFinalization,
@@ -237,9 +238,13 @@ async function finalizeOneResponseCheckpoint({ db, ref, schedule, classPeriodCac
     }
 
     const assignment = { id: assignmentSnapshot.id, ...assignmentSnapshot.data() };
+    // Whether this record is written split (settings/serverGrading.splitGradeRecords,
+    // or a grades document near the cap), measured on the document as stored.
+    const storedGradeData = gradeSnapshot.data() || {};
+    const recordPolicy = await splitPolicy({ settings: serverGradingSettings, gradeRef, storedGradeData });
     // The whole record (summary joined to its stored detail), read in this transaction.
     const gradeData = await hydrateGradeData({
-      transaction, gradeRef, gradeData: gradeSnapshot.data() || {}, assignmentIds: [String(checkpoint.assignmentId)],
+      transaction, gradeRef, gradeData: storedGradeData, assignmentIds: [String(checkpoint.assignmentId)],
     });
     const question = runtimeQuestionsFromAssignment(assignment)?.[Number(checkpoint.questionIndex)] || null;
 
@@ -341,10 +346,11 @@ async function finalizeOneResponseCheckpoint({ db, ref, schedule, classPeriodCac
     }
 
     const gradeUpdates = [
-      // The summary here, the detail beside it (responseDetail), one detailRef.
+      // The record here, whole or (by the policy above) as its summary with
+      // the detail beside it (responseDetail), one detailRef.
       ...await questionRecordUpdates({
         writer: transaction, gradeRef, studentId: gradeRef.id, assignmentId,
-        questionKey: String(checkpoint.questionIndex), record: finalization.record,
+        questionKey: String(checkpoint.questionIndex), record: finalization.record, policy: recordPolicy,
       }),
       new FieldPath("supportUsageByAssignment", assignmentId),
       finalization.supportUsage,
@@ -444,13 +450,15 @@ exports.finalizeStudentResponseCheckpoints = onSchedule(
 
     const scheduleSnapshot = await db.collection("settings").doc("classSchedule").get();
     const schedule = scheduleSnapshot.exists ? scheduleSnapshot.data() : null;
+    // Whether records are written split (splitGradeRecords), read once per run.
+    const serverGradingSettings = (await db.collection("settings").doc("serverGrading").get()).data() || {};
     const classPeriodCache = new Map();
     const outcomes = {};
 
     for (const snapshot of [...due.docs, ...unhinted.docs]) {
       try {
         const outcome = await finalizeOneResponseCheckpoint({
-          db, ref: snapshot.ref, schedule, classPeriodCache, now,
+          db, ref: snapshot.ref, schedule, classPeriodCache, now, serverGradingSettings,
         });
         outcomes[outcome] = (outcomes[outcome] || 0) + 1;
       } catch (error) {
@@ -620,8 +628,13 @@ async function ingestOneSubmission({ db, studentId, envelope, now, serverGrading
     // its stored detail, read in this transaction (attempt policy compares the
     // last response and replays the steps).
     const storedGradeData = gradeSnapshot.exists ? gradeSnapshot.data() || {} : null;
-    // Records written before the split are moved after this call (splitInlineRecords).
-    if (hints && storedGradeData && (await gradeEntryStorage()).anyInlineRecords(storedGradeData)) hints.inlineRecords = true;
+    // Whether this record is written split (settings/serverGrading.splitGradeRecords,
+    // or a grades document near the cap), measured on the document as stored.
+    const recordPolicy = await splitPolicy({ settings: serverGradingSettings, gradeRef, storedGradeData });
+    // Records stored whole are moved after this call (splitInlineRecords), when
+    // the switch is on or this document is near the cap.
+    if (hints && storedGradeData && (recordPolicy.splitAll || recordPolicy.nearCap)
+      && (await gradeEntryStorage()).anyInlineRecords(storedGradeData)) hints.inlineRecords = true;
     const gradeData = await hydrateGradeData({
       transaction,
       gradeRef,
@@ -884,10 +897,11 @@ async function ingestOneSubmission({ db, studentId, envelope, now, serverGrading
     }
 
     const updates = [
-      // The summary here, the detail beside it (responseDetail), one detailRef.
+      // The record here, whole or (by the policy above) as its summary with
+      // the detail beside it (responseDetail), one detailRef.
       ...await questionRecordUpdates({
         writer: transaction, gradeRef, studentId, assignmentId,
-        questionKey: String(envelope.questionIndex), record: built.record,
+        questionKey: String(envelope.questionIndex), record: built.record, policy: recordPolicy,
       }),
       new FieldPath("supportUsageByAssignment", assignmentId),
       built.supportUsage,
@@ -1121,7 +1135,7 @@ exports.ingestStudentSubmissions = onCall(async (request) => {
    */
   if (hints.inlineRecords) {
     try {
-      const moved = await splitInlineRecords({ db, studentId });
+      const moved = await splitInlineRecords({ db, studentId, settings: serverGradingSettings });
       if (moved.split || moved.kept) logger.info("Moved a student's records into the split", { studentId, ...moved });
     } catch (error) {
       logger.warn("Could not move a student's records into the split", { studentId, errorMessage: error?.message, errorCode: error?.code ?? null });
@@ -2944,6 +2958,8 @@ exports.sweepStudentResponseCheckpoints = onCall({ timeoutSeconds: 540 }, async 
   const now = Date.now();
   const scheduleSnapshot = await db.collection("settings").doc("classSchedule").get();
   const schedule = scheduleSnapshot.exists ? scheduleSnapshot.data() : null;
+  // Whether records are written split (splitGradeRecords), read once per sweep.
+  const serverGradingSettings = (await db.collection("settings").doc("serverGrading").get()).data() || {};
   const classPeriodCache = new Map();
 
   const outcomes = {};
@@ -2991,7 +3007,9 @@ exports.sweepStudentResponseCheckpoints = onCall({ timeoutSeconds: 540 }, async 
       for (const snapshot of group) {
         try {
           // eslint-disable-next-line no-await-in-loop
-          const outcome = await finalizeOneResponseCheckpoint({ db, ref: snapshot.ref, schedule, classPeriodCache, now });
+          const outcome = await finalizeOneResponseCheckpoint({
+            db, ref: snapshot.ref, schedule, classPeriodCache, now, serverGradingSettings,
+          });
           outcomes[outcome] = (outcomes[outcome] || 0) + 1;
         } catch (error) {
           // One unfinalizable checkpoint must not stop the sweep. It stays

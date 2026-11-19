@@ -512,6 +512,11 @@ before(async () => {
     },
   });
   await seedFixture();
+  // The counts pinned below are the grades split's steady state, once the
+  // operator has turned it on (settings/serverGrading.splitGradeRecords). Until
+  // then a record is written whole and a Submit makes no detail write
+  // (tests/integration/gradeSplitServer.test.mjs).
+  await db.collection('settings').doc('serverGrading').set({ splitGradeRecords: true }, { merge: true });
   // The fixture's questions name a standard here, so each attempt's evidence
   // event reaches the mastery trigger as a real lesson's does.
   const aligned = classworkAssignment();
