@@ -45,6 +45,7 @@ import representationMatchGrader from '../../functions/shared/serverGrading/tool
 import { gradeWorkWithGrader } from '../../functions/shared/serverGrading/toolWorkGrading.mjs';
 import { selectRestorableDraftEntries } from '../../functions/shared/workspaceDraftSchema.mjs';
 import { executableSource, region } from './helpers/sourceContract.mjs';
+import { teacherControlsSource } from './helpers/appScreens.mjs';
 import { describeDolClose } from '../../src/platform/assessment/dolCloseCopy.js';
 
 const read = (path) => readFileSync(new URL(`../../${path}`, import.meta.url), 'utf8');
@@ -554,8 +555,10 @@ test('the time-ended receipt belongs to a closed window, not a reopened one', ()
 });
 
 test('the teacher handler writes the Warm-Up controls through the shared, tested function', () => {
-  const app = executableSource(read('src/App.jsx'));
+  // Since the App split the handler and its import are createWarmupSectionControls' (the teacher
+  // kit); teacherControlsSource checks App calls it and takes the handler by name.
+  const app = executableSource(teacherControlsSource('createWarmupSectionControls'));
   const handler = region(app, 'const handleToggleWarmupForClass', 'const handleToggleSectionAccessForClass', 'teacher Warm-Up handler');
   assert.match(handler, /applyWarmupTeacherControl\(\{/);
-  assert.match(app, /import \{[^}]*applyWarmupTeacherControl[^}]*\} from '\.\.\/functions\/shared\/sectionDeadline\.mjs'/);
+  assert.match(app, /import \{[^}]*applyWarmupTeacherControl[^}]*\} from '\.\.\/\.\.\/\.\.\/\.\.\/functions\/shared\/sectionDeadline\.mjs'/);
 });

@@ -11,6 +11,7 @@ import { readFileSync } from 'node:fs';
 import test from 'node:test';
 import { ASSIGNMENT_LIST_GROUP, groupAssignmentList } from '../../src/platform/teacher/assignmentListGroups.js';
 import { executableSource, region } from './helpers/sourceContract.mjs';
+import { teacherControlsSource } from './helpers/appScreens.mjs';
 
 const NOW = new Date(2026, 8, 30, 10, 0, 0);
 const DAY = 24 * 60 * 60 * 1000;
@@ -101,7 +102,9 @@ test('the Assignments tab renders the grouped list, imported, flat only while se
 });
 
 test('the hub can load one class\'s grades on the live screens, read-only', () => {
-  const loader = executableSource(region(app, 'const loadClassGradeRecords = async (classId) => {', 'const openGradeExport =', 'class grade loader'));
+  // Since the App split, createGradebookNavigation (the teacher kit) owns the loader;
+  // teacherControlsSource checks App calls it, passes allStudents and classes, and takes the loader by name.
+  const loader = executableSource(region(teacherControlsSource('createGradebookNavigation'), 'const loadClassGradeRecords = async (classId) => {', 'const openGradeExport =', 'class grade loader'));
   assert.match(loader, /studentsInClass\(\{ students: allStudents, classes, classId \}\)/);
   assert.match(loader, /getDoc\(doc\(db, 'grades', student\.id\)\)/);
   assert.doesNotMatch(loader, /updateDoc|setDoc|writeBatch|runTransaction/);

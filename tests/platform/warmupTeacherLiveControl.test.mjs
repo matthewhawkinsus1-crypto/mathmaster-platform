@@ -8,7 +8,7 @@ import {
 import { region } from './helpers/sourceContract.mjs';
 import { describeWarmupControl } from '../../src/platform/teacher/classLessonControls.js';
 import { applyWarmupTeacherControl } from '../../functions/shared/sectionDeadline.mjs';
-import { appAndTeacherWorkspaceSource, appHookSource } from './helpers/appScreens.mjs';
+import { appAndTeacherWorkspaceSource, appHookSource, teacherControlsSource } from './helpers/appScreens.mjs';
 
 const read = (path) => fs.readFileSync(path, 'utf8');
 
@@ -67,11 +67,13 @@ test('manual Warm-Up open is scoped to the real class and today', () => {
     assert.equal(warmup.instructionDatesByClassId['class-3'], '2026-08-31', `${action} makes today this class's Warm-Up day`);
     assert.equal(warmup.instructionDatesByClassId['class-5'], '2026-08-24', `${action} leaves the sibling class alone`);
   }
-  const app = appAndTeacherWorkspaceSource();
+  // Since the App split the handler is createWarmupSectionControls' (the teacher kit);
+  // teacherControlsSource checks App calls it and takes the handler by name.
+  const app = teacherControlsSource('createWarmupSectionControls');
   const handler = region(app, 'const handleToggleWarmupForClass', 'const handleToggleSectionAccessForClass', 'teacher Warm-Up handler');
   assert.match(handler, /applyWarmupTeacherControl\(\{[\s\S]*?classId,[\s\S]*?dateKey,/);
-  assert.match(app, /needsOpenToday/);
-  assert.match(app, /Open Warm-Up Today/);
+  assert.match(handler, /needsOpenToday/);
+  assert.match(handler, /Open Warm-Up Today/);
 });
 
 test('Warm-Up countdown is visible across teacher and student surfaces', () => {

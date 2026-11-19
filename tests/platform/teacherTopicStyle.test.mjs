@@ -28,6 +28,7 @@ import {
   syncTeacherTopicStyle,
 } from '../../src/platform/classroom/teacherTopicStyle.js';
 import { executableSource, region } from './helpers/sourceContract.mjs';
+import { teacherControlsSource } from './helpers/appScreens.mjs';
 
 const read = (file) => readFileSync(new URL(`../../${file}`, import.meta.url), 'utf8');
 
@@ -168,9 +169,19 @@ test('the Classroom screen reads the saved style when it opens, saves a choice f
 });
 
 test('an automatic publish names the topic from the teacher\'s saved style, through the teacher kit', async () => {
-  const kit = await import('../../src/app/teacher/teacherKit.js');
-  assert.equal(kit.teacherClassroomTopicStyle, syncTeacherTopicStyle);
-  const publish = executableSource(region(read('src/App.jsx'), 'const autoPublishAssignmentPackageToClassroom = async', 'const summary = response?.summary', 'automatic Classroom publish'));
+  // Since the App split the kit also exports the teacher's control factories, whose
+  // imports node cannot resolve, so the kit is read rather than loaded: what it
+  // exports under this name is the module this file tests, loaded from the kit's own path.
+  const kitPath = 'src/app/teacher/teacherKit.js';
+  const reexport = /^export \{ syncTeacherTopicStyle as teacherClassroomTopicStyle \} from '([^']+)';$/m.exec(executableSource(read(kitPath)));
+  assert.ok(reexport, 'the teacher kit exports teacherClassroomTopicStyle');
+  const kitModule = await import(new URL(reexport[1], new URL(`../../${kitPath}`, import.meta.url)).href);
+  assert.equal(kitModule.syncTeacherTopicStyle, syncTeacherTopicStyle);
+  // The publish is createClassroomPublishingControls' since the App split; teacherControlsSource
+  // checks App calls it through the kit and passes requireTeacherKit and user by name.
+  const publishingControls = teacherControlsSource('createClassroomPublishingControls');
+  assert.match(publishingControls, /export function createClassroomPublishingControls\([^)]*[(,\s]requireTeacherKit[,\s)]/);
+  const publish = executableSource(region(publishingControls, 'const autoPublishAssignmentPackageToClassroom = async', 'const summary = response?.summary', 'automatic Classroom publish'));
   assert.match(publish, /teacherClassroomTopicStyle \} = requireTeacherKit\(\);/);
   assert.match(publish, /const topicStyle = await teacherClassroomTopicStyle\(\{ db, uid: user\?\.uid \}\);/);
   assert.match(publish, /automaticClassroomTopicName\(assignment, \{ style: topicStyle \}\)/);

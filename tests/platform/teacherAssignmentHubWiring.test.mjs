@@ -13,6 +13,7 @@ import { readFileSync } from 'node:fs';
 import test from 'node:test';
 import { executableSource, region } from './helpers/sourceContract.mjs';
 import { importsComponent } from './helpers/componentImport.mjs';
+import { teacherControlsSource } from './helpers/appScreens.mjs';
 
 const read = (path) => readFileSync(new URL(`../../${path}`, import.meta.url), 'utf8');
 const app = read('src/App.jsx');
@@ -60,7 +61,9 @@ test('every screen an assignment appears on can open its hub', () => {
 
 test('Export grades from the hub arrives scoped to this class and this assignment', () => {
   assert.match(hub, /onOpenExport\(\{ classIds: classContext \? \[classContext\.classId\] : \[\], assignmentId: assignment\.id \}\)/);
-  const openExport = executableSource(region(app, 'const openGradeExport = (', 'const openGradebookFor', 'openGradeExport'));
+  // Since the App split, createGradebookNavigation (the teacher kit) owns openGradeExport;
+  // teacherControlsSource checks App calls it and takes its handlers by name.
+  const openExport = executableSource(region(teacherControlsSource('createGradebookNavigation'), 'const openGradeExport = (', 'const openGradebookFor', 'openGradeExport'));
   assert.match(openExport, /setGradeExportScope\(\{ classIds: \(classIds \|\| \[\]\)\.filter\(Boolean\), assignmentId: assignmentId \|\| null, nonce: Date\.now\(\) \}\)/);
   assert.match(openExport, /setTeacherTab\('gradeTransfer'\)/);
 });

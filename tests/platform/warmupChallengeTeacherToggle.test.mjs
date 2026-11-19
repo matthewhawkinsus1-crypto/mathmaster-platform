@@ -1,15 +1,24 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
+import { region } from './helpers/sourceContract.mjs';
+import { appSurfaceSource, teacherControlsSource } from './helpers/appScreens.mjs';
 
-const read = (rel) => readFileSync(new URL(rel, import.meta.url), 'utf8')
+const withoutComments = (source) => source
   .replace(/\/\*[\s\S]*?\*\//g, '')
   .split('\n')
   .map((line) => line.replace(/\/\/.*$/, ''))
   .join('\n');
+const read = (rel) => withoutComments(readFileSync(new URL(rel, import.meta.url), 'utf8'));
 
 const teacher = read('../../src/components/liveChallenge/LiveChallengeTeacher.jsx');
 const app = read('../../src/App.jsx');
+// Since the App split the toggle's handler is createAssignmentLibraryControls' (the teacher kit);
+// teacherControlsSource checks App calls it and takes handleLinkWarmupChallenge by name.
+const linkWarmupChallenge = () => region(
+  withoutComments(teacherControlsSource('createAssignmentLibraryControls')),
+  'const handleLinkWarmupChallenge = async', 'const beginEditAssignmentDates', 'handleLinkWarmupChallenge',
+);
 
 test('a standalone challenge is still the default', () => {
   // The empty value must be the initial state, so an untouched panel behaves
@@ -46,8 +55,9 @@ test('assignments not given to the selected class are filtered out', () => {
 test('the toggle writes dotted paths so the rest of the Warm-Up survives', () => {
   // A whole-object write here would silently drop the window, the instruction
   // dates and the per-class closures.
-  assert.match(app, /'warmup\.liveChallenge\.enabled': true/);
-  assert.doesNotMatch(app, /warmup: \{ liveChallenge:/);
+  assert.match(linkWarmupChallenge(), /'warmup\.liveChallenge\.enabled': true/);
+  // Refused wherever App's code now lives, so a whole-object write cannot hide by having moved.
+  assert.doesNotMatch(withoutComments(appSurfaceSource()), /warmup: \{ liveChallenge:/);
 });
 
 test('the teacher panel is given the assignments and the handler', () => {
@@ -60,8 +70,8 @@ test('the teacher panel is given the assignments and the handler', () => {
 });
 
 test('round settings are clamped before they are stored', () => {
-  assert.match(app, /Math\.max\(3, Math\.min\(20, Number\(options\.roundCount\) \|\| 5\)\)/);
-  assert.match(app, /Math\.max\(15, Math\.min\(120, Number\(options\.roundSeconds\) \|\| 30\)\)/);
+  assert.match(linkWarmupChallenge(), /Math\.max\(3, Math\.min\(20, Number\(options\.roundCount\) \|\| 5\)\)/);
+  assert.match(linkWarmupChallenge(), /Math\.max\(15, Math\.min\(120, Number\(options\.roundSeconds\) \|\| 30\)\)/);
 });
 
 test('the control tells the teacher what reaches the gradebook', () => {
