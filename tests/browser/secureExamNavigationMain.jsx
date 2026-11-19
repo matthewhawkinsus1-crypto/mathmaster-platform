@@ -13,6 +13,9 @@
 //                         with a card that does not know the student's extended
 //                         time: "Back to questions", resuming, reading while paused
 //   ?scenario=dashboard   the list with a test in every status a student meets
+//   ?scenario=brokenItem  a course Test whose second item cannot be drawn,
+//                         between two that can: the item says so, and the rest
+//                         of the Test still works
 //   ?supports=glossary    the student's own plan grants Read aloud, Vocabulary
 //                         and Spanish on a test (course scenario): the Rich
 //                         Tool item's tray must offer Vocabulary, terms only
@@ -81,6 +84,21 @@ const twoPart = () => ({
     runtimeMode: 'secureTest',
   },
   key: { answers: { slope: '5', intercept: '3' }, display: '5 and 3' },
+});
+
+// An item the runtime cannot draw: its one response field is not a field. It
+// stands for any item that throws while it is drawn (SecureExamQuestionPlayer,
+// "ONE ITEM THAT THROWS MUST NOT TAKE THE TEST WITH IT").
+const undrawable = () => ({
+  question: {
+    questionType: 'response',
+    prompt: 'Find the value of $x$.',
+    responseFields: [null],
+    choices: [],
+    alignmentKeys: ['texas:A.5A'],
+    runtimeMode: 'secureTest',
+  },
+  key: { answers: { answer: '2' }, display: '2' },
 });
 
 const COURSE_ITEMS = [
@@ -198,6 +216,30 @@ const mount = async () => {
     harness.sessionId = session.examSessionId;
     // A card that only knows the base time: the screen must find the rest.
     root.render(shell(<CourseTest examSessionId={session.examSessionId} title="Unit 5 Test: Data and Lines" delivery={{ timed: true, timeLimitMinutes: 20, calculatorMode: 'none', questionCount: items.length }} />));
+  } else if (scenario === 'brokenItem') {
+    const items = [COURSE_ITEMS[0], undrawable(), COURSE_ITEMS[2]];
+    const { session } = await createSecureExamSession({
+      studentId: 'harness-student', examType: 'courseTest', title: 'Unit 4 Quiz',
+      questionCount: items.length, timeLimitMinutes: 30, sandboxItems: items, calculatorMode: 'none',
+    });
+    harness.sessionId = session.examSessionId;
+    root.render(shell(<CourseTest examSessionId={session.examSessionId} title="Unit 4 Quiz" delivery={{ timed: true, timeLimitMinutes: 30, calculatorMode: 'none', questionCount: items.length }} />));
+  } else if (scenario === 'toolGone') {
+    // Review r8: the exam's tools when an item has none. A course Test whose
+    // calculator is set per item (graphing, none, graphing) or, with
+    // `exam=sat`, a Digital SAT, whose reference sheet is always there.
+    const sat = params.get('exam') === 'sat';
+    const withCalculator = (item, calculatorPolicy) => ({ ...item, question: { ...item.question, calculatorPolicy } });
+    const items = [withCalculator(COURSE_ITEMS[2], 'graphing'), withCalculator(COURSE_ITEMS[3], 'none'), withCalculator(COURSE_ITEMS[4], 'graphing')];
+    const title = sat ? 'Digital SAT Math — tools' : 'Unit 6 Test: Functions';
+    const { session } = sat
+      ? await createSecureExamSession({ studentId: 'harness-student', examType: 'digitalSAT', questionCount: 4, title })
+      : await createSecureExamSession({
+        studentId: 'harness-student', examType: 'courseTest', title,
+        questionCount: items.length, timeLimitMinutes: 30, sandboxItems: items, calculatorMode: 'questionSpecific',
+      });
+    harness.sessionId = session.examSessionId;
+    root.render(shell(<CourseTest examSessionId={session.examSessionId} title={title} examType={sat ? 'digitalSAT' : 'courseTest'} delivery={{ timed: true, timeLimitMinutes: 30, calculatorMode: sat ? 'graphing' : 'questionSpecific', questionCount: sat ? 4 : items.length }} />));
   } else if (scenario === 'legacy') {
     // The older client recorded (and locked) question 1 with the one-way call.
     const { session } = await createSecureExamSession({ studentId: 'harness-student', examType: 'act', questionCount: 3, title: 'ACT Mathematics — begun earlier' });

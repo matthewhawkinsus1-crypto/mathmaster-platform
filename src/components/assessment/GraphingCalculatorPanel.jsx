@@ -5,7 +5,7 @@ import {
   panViewport, parseGraphEntries, readNumberEntry, tableOfValues, tapTraceText, zoomViewport,
 } from '../../platform/assessment/graphingCalculatorModel.js';
 import {
-  EXAM_TOOL_DRAWERS, EXAM_TOOL_IDS, EXAM_TOOL_LAYERS, EXAM_TOOL_OPEN_EVENT, examToolYieldsTo,
+  EXAM_TOOL_CLOSE_EVENT, EXAM_TOOL_DRAWERS, EXAM_TOOL_IDS, EXAM_TOOL_LAYERS, EXAM_TOOL_OPEN_EVENT, examToolYieldsTo,
 } from '../../platform/assessment/examToolLayout.js';
 import { examToolTabEdge, useExamToolbarOffset, useNarrowScreen } from './examToolDrawerHooks.js';
 import { readGraphingLines, writeGraphingLines } from '../calculator/graphingLineMemory.js';
@@ -540,6 +540,35 @@ export default function GraphingCalculatorPanel({
     setOpen(false);
     window.requestAnimationFrame?.(() => returnTo?.focus?.({ preventScroll: true }));
   };
+
+  // The exam asks its open tools to close, as Close does: Escape pressed
+  // anywhere in the test while a phone's sheet is open (EXAM_TOOL_CLOSE_EVENT).
+  // When the question list takes a phone's screen it asks without the way
+  // back to this tool's button: focus stays with the list's own toggle.
+  const closeRef = useRef(close);
+  closeRef.current = close;
+  useEffect(() => {
+    if (!open || typeof window === 'undefined') return undefined;
+    const closeAsked = (event) => (event?.detail?.returnFocus === false ? setOpen(false) : closeRef.current());
+    window.addEventListener(EXAM_TOOL_CLOSE_EVENT, closeAsked);
+    return () => window.removeEventListener(EXAM_TOOL_CLOSE_EVENT, closeAsked);
+  }, [open, setOpen]);
+
+  // Taken away while open (the exam drops its tools on an item that offers
+  // none), it tells its host it closed. A host that still thought it open kept
+  // the question padded for it, and on a phone out of reach, with nothing on
+  // the screen to close. Development mounts every effect twice: an unmount
+  // that is followed at once by a mount is not one.
+  const mountedRef = useRef(false);
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+      queueMicrotask(() => {
+        if (!mountedRef.current && openRef.current) onOpenChangeRef.current?.(false);
+      });
+    };
+  }, []);
 
   if (!available) return null;
 

@@ -59,6 +59,28 @@ export const EXAM_TOOL_NARROW_QUERY = `(max-width: ${EXAM_TOOL_DRAWERS.dockFrom 
 export const EXAM_TOOL_OPEN_EVENT = 'mathmaster:exam-tool-open';
 
 /*
+ * A DRAWER OPENS WHERE THE TOOLBAR ENDS, NOT AT ITS HEIGHT.
+ *
+ * A drawer opened at the toolbar's height from the top of the screen
+ * (--mm-exam-toolbar-offset). But the toolbar sits lower than that while the
+ * app's name bar and the student navigation are above it, so at 1366x768 the
+ * calculator covered the question list's button and the reference sheet both
+ * tool buttons, its own included; on a phone the sheet covered the timer and
+ * every button in the toolbar. The exam now sets the offset to where the
+ * toolbar ENDS on the screen (0 once it has scrolled away), keeps it current
+ * as the page scrolls or the toolbar changes size, and fires
+ * EXAM_TOOLBAR_MOVED_EVENT when it changes, so an open drawer follows it
+ * (examToolDrawerHooks.js useExamToolbarOffset).
+ *
+ * EXAM_TOOL_CLOSE_EVENT asks every open tool to close, as its own Close button
+ * does: focus goes back to its toolbar button. On a phone, where an open sheet
+ * leaves only the toolbar above it within reach, the exam sends it for Escape
+ * pressed anywhere in the test.
+ */
+export const EXAM_TOOLBAR_MOVED_EVENT = 'mathmaster:exam-toolbar-moved';
+export const EXAM_TOOL_CLOSE_EVENT = 'mathmaster:exam-tool-close';
+
+/*
  * THE TEST'S TAB ROUND GOES THROUGH ITS OPEN TOOLS.
  *
  * A drawer is portalled to the end of the body (so no toolbar's stacking

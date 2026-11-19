@@ -124,7 +124,7 @@ test('field items lose the record button in navigation mode; a Rich Tool\'s "Sav
 
   // The secure player between the container and the runtime passes it on —
   // without this the container's mode never reached a student.
-  assert.match(region(playerSource, 'export const SecureExamQuestionPlayer = ({', '}) => (', 'player props'), /\n\s*navigationMode = false,\n/);
+  assert.match(region(playerSource, 'export const SecureExamQuestionPlayer = ({', '}) => {', 'player props'), /\n\s*navigationMode = false,\n/);
   assert.match(region(playerSource, '<RichQuestionRuntime', '/>', 'player runtime element'), /\n\s*navigationMode=\{navigationMode\}\n/);
 
   // The container: the player runs in navigation mode, its onSubmit only saves.

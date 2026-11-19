@@ -33,6 +33,20 @@
  * At 1366×768 the two drawers fit side by side, so both are opened and one
  * walk must reach every control of both.
  *
+ * WHERE A TOOL OPENS (the handoff's "secure exam's tool drawers"). A drawer
+ * opened at the toolbar's height from the top of the screen, but the toolbar
+ * sits under the student's name bar and navigation: at 1366×768 the
+ * calculator covered the question list's button and the reference sheet both
+ * tool buttons; on a phone the sheet covered the timer and the whole toolbar,
+ * and every Tab stop in the test was hidden under it (14 of 14, and 36 of 36).
+ * Now, with each tool open:
+ *   - no control of the toolbar is covered by it;
+ *   - no Tab stop in the test is hidden under it, going either way (WCAG 2.4.11);
+ *   - on a laptop the drawer follows the toolbar as the page scrolls, and stops
+ *     under the name bar, which a tool never covers;
+ *   - on a phone, Escape on the toolbar closes the sheet too, and focus is back
+ *     on its toolbar button.
+ *
  * COMING INTO THE TEST (student-a11y-3). Tab from the student navigation above
  * the test landed on its last control: the guard at the test's start read every
  * focus as Shift+Tab before its first control. Now, with no tool open and with
@@ -103,6 +117,37 @@ const drawerControls = (onlyMissed = false) => {
     .map((element) => `${drawer.getAttribute('data-exam-tool-panel')}: ${(element.getAttribute('aria-label') || element.textContent || element.tagName).replace(/\s+/g, ' ').trim().slice(0, 40)}`));
 };
 
+// In the page: is the control that has focus, in the test, wholly hidden under
+// an open tool (WCAG 2.4.11)? Its centre and two corners are each under one.
+const hiddenUnderTool = () => {
+  const element = document.activeElement;
+  const drawers = [...document.querySelectorAll('[data-exam-tool-panel]')];
+  if (!element || !drawers.length || element.closest('[data-exam-tool-panel]')) return null;
+  const box = element.getBoundingClientRect();
+  if (!box.width || !box.height) return null;
+  const points = [[box.left + box.width / 2, box.top + box.height / 2], [box.left + 2, box.top + 2], [box.right - 2, box.bottom - 2]];
+  const hidden = points.every(([x, y]) => drawers.some((drawer) => drawer.contains(document.elementFromPoint(x, y))));
+  return hidden ? (element.getAttribute('aria-label') || element.textContent || element.tagName).replace(/\s+/g, ' ').trim().slice(0, 40) : null;
+};
+
+// In the page: the toolbar's controls an open tool covers (at their centre).
+const coveredToolbarControls = () => {
+  const drawers = [...document.querySelectorAll('[data-exam-tool-panel]')];
+  return [...document.querySelectorAll('[data-secure-exam-header] button')].filter((button) => {
+    if (!button.getClientRects().length) return false;
+    const box = button.getBoundingClientRect();
+    const top = document.elementFromPoint(box.left + box.width / 2, box.top + box.height / 2);
+    return drawers.some((drawer) => drawer.contains(top));
+  }).map((button) => (button.getAttribute('aria-label') || button.textContent).replace(/\s+/g, ' ').trim().slice(0, 40));
+};
+
+// In the page: where the name bar and the toolbar end, and where each open drawer starts.
+const toolEdges = () => ({
+  nameBar: Math.round(document.querySelector('.mm-identity-bar')?.getBoundingClientRect().bottom ?? 0),
+  toolbar: Math.round(document.querySelector('[data-secure-exam-header]').getBoundingClientRect().bottom),
+  drawers: [...document.querySelectorAll('[data-exam-tool-panel]')].map((drawer) => Math.round(drawer.getBoundingClientRect().top)),
+});
+
 const openPracticeTest = async (page) => {
   await page.goto(APP, { timeout: 180_000 });
   const row = page.locator('article', { hasText: 'Digital SAT Math — practice test' }).first();
@@ -126,23 +171,36 @@ const openTool = async (page, tool) => {
   await page.waitForTimeout(400);
 };
 
+// In the page: whether the stop that has focus is hidden under an open tool in
+// the frame drawn next. A Tab can scroll the page; what the student sees is
+// that frame, so the check runs in its animation-frame callback, after the
+// scroll's own handlers and before it is drawn: a drawer that followed the
+// toolbar a frame late is caught there, and nothing that is never drawn is.
+const hiddenInNextFrame = () => new Promise((resolve) => {
+  window.requestAnimationFrame(() => resolve(window.__mmHiddenUnderTool()));
+});
+
 const walk = async (page, key) => {
+  await page.evaluate(`window.__mmHiddenUnderTool = ${hiddenUnderTool}`);
   await page.evaluate(() => {
     window.__mmToolWalk = new Set();
     window.__mmToolWalkListener ||= (event) => window.__mmToolWalk?.add(event.target);
     document.addEventListener('focusin', window.__mmToolWalkListener, true);
   });
   const strays = [];
+  const hidden = new Set();
   const kinds = { test: 0, tool: 0 };
   for (let press = 1; press <= PRESSES; press += 1) {
     await page.keyboard.press(key);
+    const under = await page.evaluate(hiddenInNextFrame);
     const where = await page.evaluate(whereFocusIs);
     if (where.kind === 'test' || where.kind === 'tool') kinds[where.kind] += 1;
     else strays.push(`${key} ${press}: ${where.kind}`);
+    if (where.kind === 'test' && under) hidden.add(under);
   }
   // The drawer controls the walk never focused (focusin saw each one it did).
   const missed = await page.evaluate(drawerControls, true);
-  return { strays, missed, kinds };
+  return { strays, missed, kinds, hidden: [...hidden] };
 };
 
 const departures = (page) => page.evaluate(() => ({
@@ -231,11 +289,57 @@ const walkTools = async (page, device, tools) => {
   for (const tool of tools) await openTool(page, tool);
   const open = await page.evaluate(() => [...document.querySelectorAll('[data-exam-tool-panel]')].map((drawer) => drawer.getAttribute('data-exam-tool-panel')));
   check(tools.every((tool) => open.includes(tool)), `${label}: open`, `open: ${open.join(', ') || 'none'}`);
+  const covered = await page.evaluate(coveredToolbarControls);
+  check(covered.length === 0, `${label}: no control of the toolbar is covered`, covered.join('; '));
+  if (!device.isMobile) {
+    // A drawer opens where the toolbar ends, follows it as the page scrolls,
+    // and stops under the name bar. The test is full screen, so the window
+    // cannot be made shorter: room to scroll the toolbar away under the name
+    // bar goes after the app instead, outside it, and then goes again.
+    await page.evaluate(() => {
+      const room = document.createElement('div');
+      room.dataset.mmScrollRoom = '';
+      room.style.height = '600px';
+      document.body.append(room);
+    });
+    const follows = [];
+    let underNameBar = false;
+    for (const top of [0, 10_000, 0]) {
+      await page.evaluate((y) => window.scrollTo({ top: y, behavior: 'instant' }), top);
+      await page.waitForTimeout(150);
+      const edges = await page.evaluate(toolEdges);
+      if (top) underNameBar = edges.toolbar < edges.nameBar;
+      const expected = Math.max(edges.nameBar, edges.toolbar);
+      if (!edges.drawers.length || edges.drawers.some((drawerTop) => Math.abs(drawerTop - expected) > 1)) follows.push(`scrolled to ${top ? 'the end' : 'the top'}: drawers at ${edges.drawers.join(', ') || 'none'}, the toolbar ends at ${edges.toolbar}, the name bar at ${edges.nameBar}`);
+    }
+    await page.evaluate(() => document.querySelector('[data-mm-scroll-room]')?.remove());
+    await page.waitForTimeout(150);
+    check(follows.length === 0 && underNameBar, `${label}: each drawer opens where the toolbar ends and follows it, never over the name bar`, `${follows.join('; ')}${underNameBar ? '' : ' (the page never scrolled the toolbar under the name bar)'}`);
+  }
   await entryChecks(page, label);
   const controls = await page.evaluate(drawerControls);
   for (const [key, direction] of [['Tab', 'forward'], ['Shift+Tab', 'back']]) {
-    const { strays, missed, kinds } = await walk(page, key);
+    // On a phone the walk starts with the toolbar part-way under the name bar,
+    // as a page the student scrolled leaves it: a Tab onto a toolbar control
+    // then scrolls the page, and the sheet must follow in that same frame (in
+    // CI it was a frame late, and the toolbar's buttons were under the sheet).
+    if (device.isMobile) {
+      await page.evaluate(() => {
+        const room = document.createElement('div');
+        room.dataset.mmScrollRoom = '';
+        room.style.height = '900px';
+        document.body.append(room);
+        window.scrollBy({ top: 125, behavior: 'instant' });
+      });
+      await page.waitForTimeout(250);
+    }
+    const { strays, missed, kinds, hidden } = await walk(page, key);
+    if (device.isMobile) {
+      await page.evaluate(() => document.querySelector('[data-mm-scroll-room]')?.remove());
+      await page.waitForTimeout(150);
+    }
     check(strays.length === 0, `${label}: ${PRESSES} × ${key} stay in the test and its open tools`, `${strays.length} left it: ${strays.slice(0, 6).join('; ')}`);
+    check(hidden.length === 0, `${label}: going ${direction}, no stop in the test is hidden under the open tool (WCAG 2.4.11)`, hidden.slice(0, 8).join('; '));
     check(missed.length === 0 && kinds.tool > 0, `${label}: every control in the drawer is reached going ${direction} (${controls.length})`, `${kinds.tool} stops in the drawer, ${missed.length} control(s) never reached: ${missed.slice(0, 8).join('; ')}`);
     check(kinds.test > 0, `${label}: going ${direction}, Tab comes back into the test from the drawer`, `${kinds.test} stops in the test`);
   }
@@ -245,6 +349,18 @@ const walkTools = async (page, device, tools) => {
     await page.screenshot({ path: path.join(artifacts, `${device.id}-${tools.join('-')}.png`) }).catch(() => {});
   }
   for (const tool of [...tools].reverse()) await closeWithEscape(page, tool, `${device.id}, ${TOOLS[tool].name}`);
+  if (device.isMobile) {
+    // Only the toolbar is in reach beside a phone's sheet: Escape there closes it too.
+    for (const tool of tools) {
+      await openTool(page, tool);
+      await page.locator(TOOLS[tool].launcher).focus();
+      await page.keyboard.press('Escape');
+      const closed = await page.locator(`[data-exam-tool-panel="${tool}"]`).waitFor({ state: 'detached', timeout: 5000 }).then(() => true).catch(() => false);
+      await page.waitForTimeout(200);
+      const onLauncher = await page.evaluate((selector) => Boolean(document.activeElement?.matches(selector)), TOOLS[tool].launcher);
+      check(closed && onLauncher, `${device.id}, ${TOOLS[tool].name}: Escape on the toolbar closes it, and focus is back on its toolbar button`, `closed ${closed}, on its button ${onLauncher}`);
+    }
+  }
 };
 
 const browser = await chromium.launch(launchOptions);
