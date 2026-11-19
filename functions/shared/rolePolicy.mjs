@@ -113,6 +113,8 @@ export const ADMIN_ONLY_OPERATIONS = Object.freeze([
   'diagnosePathSkill',
   'listAdminAuditLog',
   'assignmentAiSelfTest',
+  // Crash reporting: the mode, and deleting what was collected (lib/platformHealth.js).
+  'managePlatformHealthReporting',
 ]);
 
 export const requiresRootAdmin = (operation) => ADMIN_ONLY_OPERATIONS.includes(operation);

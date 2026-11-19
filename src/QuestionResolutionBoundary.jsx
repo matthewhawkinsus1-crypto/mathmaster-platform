@@ -182,6 +182,14 @@ export const recordQuestionResolutionDiagnostic = ({ kind, context = {}, failure
     message: `${described.stage ? `[${described.stage}] ` : ''}${describeFailure(failure)} | ${describeContext({ ...described, stage: null })}`,
     source,
     limit: QUESTION_DIAGNOSTIC_MESSAGE_LIMIT,
+    // For the crash count (crashReporter.js): the classification and the
+    // error's own wording, the family and the content ids. Never the student.
+    report: {
+      error: `${failure.classification || 'unclassified'} ${failure.diagnostics?.detail || ''}`,
+      family: described.familyId,
+      assignmentId: described.assignmentId,
+      questionId: described.questionId,
+    },
   });
 };
 
