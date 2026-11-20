@@ -368,6 +368,14 @@ function QuestionEngineBody({
   // false: the failure panel shows no classification code and no copyable
   // report (Recovery says what happened in its own words).
   resolutionTechnicalDetails = true,
+  // The host's own sentence about the student's work on a failure panel, where
+  // "your grade is not affected" is not true there (a secure Test:
+  // SecureExamQuestionPlayer). Used by the wrapper's boundary too.
+  resolutionSavedWorkNote = '',
+  // true: a response module that throws is not given its own panel here
+  // (QuestionModuleBoundary); the failure goes to the wrapper's boundary, in
+  // the host's words above. A secure Test sets it.
+  moduleFailuresToHost = false,
   // "Ask my teacher": (requested: boolean) → the host raises or clears the
   // help signal the teacher's live monitor reads (App.jsx → presence).
   // Null where there is no live teacher (previews, Path, post-due practice).
@@ -2566,6 +2574,7 @@ function QuestionEngineBody({
       nextQuestionLabel={nextQuestionLabel}
       hasRecordedWork={(Number(record.totalAttempts) || 0) > 0 || ['correct', 'expired'].includes(record.status)}
       technicalDetails={resolutionTechnicalDetails !== false}
+      savedWorkNote={resolutionSavedWorkNote || ''}
       draftKey={draftKey}
     />
   ) : null;
@@ -3538,6 +3547,7 @@ function QuestionEngineBody({
               }}
               onRecover={draftKey && moduleRecoveries < 1 ? handleRecoverQuestionModule : null}
               onFailureChange={(failed) => setFailedModule(failed ? { key: moduleFailureKey, question: processedQuestion } : null)}
+              failuresToHost={moduleFailuresToHost}
             >
               {/* The figures publish what they say to Read aloud, and write their
                   screen-reader descriptions in the reading's language (AX05). */}
@@ -3759,6 +3769,7 @@ export default function QuestionEngine(props) {
       hasRecordedWork={(Number(record.totalAttempts) || 0) > 0 || ['correct', 'expired'].includes(record.status)}
       onResolutionFailure={props.onResolutionFailure}
       technicalDetails={props.resolutionTechnicalDetails !== false}
+      savedWorkNote={props.resolutionSavedWorkNote || ''}
       draftKey={props.draftKey || null}
     >
       <QuestionEngineBody key={resolutionAttempt} {...props} explicitActivityRole={activityRole ?? null} onResolutionRetry={retry} />

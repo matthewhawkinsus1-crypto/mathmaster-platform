@@ -16,6 +16,10 @@
 //   ?scenario=brokenItem  a course Test whose second item cannot be drawn,
 //                         between two that can: the item says so, and the rest
 //                         of the Test still works
+//   ?scenario=toolThrows  the same Test with a tool item whose tool throws
+//                         inside the question engine while window.__mmCrash is
+//                         true (secureExamCrashProbe.jsx): the item says what
+//                         the Test can promise, not the engine's own panel
 //   ?supports=glossary    the student's own plan grants Read aloud, Vocabulary
 //                         and Spanish on a test (course scenario): the Rich
 //                         Tool item's tray must offer Vocabulary, terms only
@@ -44,11 +48,13 @@ import {
 import { getExecutionMode } from '../../src/config/executionMode.js';
 import { buildPublicToolPayload } from '../../functions/shared/pathToolContracts.mjs';
 import { PATH_TOOL_QUESTIONS } from '../platform/fixtures/pathToolQuestions.mjs';
+import { crashingToolItem, installCrashProbe } from './secureExamCrashProbe.jsx';
 import '../../src/index.css';
 import '../../src/App.css';
 
 const params = new URLSearchParams(window.location.search);
 const scenario = params.get('scenario') || 'practice';
+if (scenario === 'toolThrows') installCrashProbe();
 if (params.get('theme') === 'dark') document.documentElement.dataset.theme = 'dark';
 
 const field = (prompt, answer, extra = {}) => ({
@@ -216,8 +222,8 @@ const mount = async () => {
     harness.sessionId = session.examSessionId;
     // A card that only knows the base time: the screen must find the rest.
     root.render(shell(<CourseTest examSessionId={session.examSessionId} title="Unit 5 Test: Data and Lines" delivery={{ timed: true, timeLimitMinutes: 20, calculatorMode: 'none', questionCount: items.length }} />));
-  } else if (scenario === 'brokenItem') {
-    const items = [COURSE_ITEMS[0], undrawable(), COURSE_ITEMS[2]];
+  } else if (scenario === 'brokenItem' || scenario === 'toolThrows') {
+    const items = [COURSE_ITEMS[0], scenario === 'toolThrows' ? crashingToolItem() : undrawable(), COURSE_ITEMS[2]];
     const { session } = await createSecureExamSession({
       studentId: 'harness-student', examType: 'courseTest', title: 'Unit 4 Quiz',
       questionCount: items.length, timeLimitMinutes: 30, sandboxItems: items, calculatorMode: 'none',

@@ -312,3 +312,32 @@ export const withClassLineFacts = ({ record, players = [], roundIndex }) => {
 
 /** The key that holds a reveal while a later round asks the same line (revealableRounds' questionKeys). */
 export const lineRevealKey = (item) => (item?.line ? `line|${lineKey(item.line)}` : null);
+
+/** How many seeds a shared line game may draw for a schedule whose lines all differ. */
+export const SHARED_LINE_DRAWS = 20;
+
+const linesRepeat = (keys) => {
+  const lines = keys.filter(Boolean);
+  return new Set(lines).size < lines.length;
+};
+
+/**
+ * A shared line game's schedule (a Classic game with the same line for
+ * everyone): the seed its rounds' lines come from, and each round's reveal
+ * key. The seed is drawn again while two rounds would ask the same line, so
+ * the class meets each line once and each round's solution is published at
+ * its own close, up to `draws` seeds. Settings with fewer lines than rounds
+ * keep the last draw, and the hold (revealableRounds' questionKeys) still
+ * covers a line asked twice. `itemFor(seed, roundIndex)` is the round's
+ * shared item; `newSeed()` a fresh seed.
+ */
+export const drawSharedLineSchedule = ({ roundCount, itemFor, newSeed, draws = SHARED_LINE_DRAWS }) => {
+  const keysFor = (seed) => Array.from({ length: roundCount }, (_, roundIndex) => lineRevealKey(itemFor(seed, roundIndex)));
+  let seed = newSeed();
+  let keys = keysFor(seed);
+  for (let draw = 1; draw < draws && linesRepeat(keys); draw += 1) {
+    seed = newSeed();
+    keys = keysFor(seed);
+  }
+  return { seed, keys };
+};

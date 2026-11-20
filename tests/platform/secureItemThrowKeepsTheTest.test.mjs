@@ -50,9 +50,11 @@ test('the secure item sits in the boundary, and Try again draws it afresh', () =
   assert.match(boundary, /resetKey=\{attempt\}\s+onRetry=\{\(\) => setAttempt\(\(count\) => count \+ 1\)\}/);
   assert.match(boundary, /context=\{questionFailureContext\(\{ question, activityRole: 'secureTest', executionScope \}\)\}/, 'the diagnostic names the slot, never the student');
   assert.match(boundary, /executionScope=\{executionScope\}\s+draftKey=\{draftKey\}/);
-  // What the student is told, and where.
-  assert.match(boundary, /technicalDetails=\{false\}/, 'no copyable report on a secure Test');
-  assert.match(boundary, new RegExp(`savedWorkNote="${SECURE_NOTE.replace(/\./g, '\\.')}"`));
+  // What the student is told, and where: one set of words, which the item's
+  // tool hears too (secureToolThrowInEngine.test.mjs).
+  assert.match(player, new RegExp(`const SECURE_SAVED_WORK_NOTE = '${SECURE_NOTE.replace(/\./g, '\\.')}';`));
+  assert.match(player, /const itemFailure = useMemo\(\(\) => \(\{ savedWorkNote: SECURE_SAVED_WORK_NOTE, technicalDetails: false \}\), \[\]\);/, 'no copyable report on a secure Test');
+  assert.match(boundary, /technicalDetails=\{itemFailure\.technicalDetails\}\s+savedWorkNote=\{itemFailure\.savedWorkNote\}/);
   assert.match(boundary, /fallbackLandmark=\{mainLandmark \? 'main' : null\}/);
   // Try again draws the item as the student last left it, from the latest
   // answer handed to the container, as "Back to questions" does.
@@ -99,10 +101,12 @@ test('every other host keeps its words and its element', async () => {
   const recorded = await fallback({ hasRecordedWork: true });
   assert.match(recorded, /Your recorded answers, tries and grade for this question are kept exactly as they are\./);
   // The engine's own boundary, around every practice and assignment question,
-  // passes neither a note nor a landmark.
+  // passes no landmark, and a note only when its host gives one (a secure
+  // Test's tool item: secureToolThrowInEngine.test.mjs).
   const engine = executableSource(read('src/QuestionEngine.jsx'));
   const engineBoundary = region(engine, '<QuestionResolutionBoundary', '</QuestionResolutionBoundary>', 'the engine\'s boundary');
-  assert.doesNotMatch(engineBoundary, /savedWorkNote|fallbackLandmark/);
+  assert.doesNotMatch(engineBoundary, /fallbackLandmark/);
+  assert.match(engineBoundary, /savedWorkNote=\{props\.resolutionSavedWorkNote \|\| ''\}/);
 });
 
 test('the browser journey that found it runs in CI with the others', () => {

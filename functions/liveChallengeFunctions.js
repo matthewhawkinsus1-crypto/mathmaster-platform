@@ -566,14 +566,20 @@ const LINE_GRAPH_PLANNER = Object.freeze({
     const config = modeConfig.lineGraph;
     const generatorVersion = generator.LINE_GRAPH_GENERATOR_VERSION;
     // The seed never leaves the server: it is what makes a student's items
-    // theirs and reproducible.
-    const seed = crypto.randomUUID();
-    // A shared round's line is held back while a later round asks the same
-    // line (the reveal's rule for every shared question), so the schedule's
-    // lines are known from the start — privately.
-    const sharedLineKeys = lineGraphSharesRounds(config)
-      ? Array.from({ length: roundCount }, (_, roundIndex) => lineReveal.lineRevealKey(sharedLineItem(generator, { seed, config, roundIndex })))
+    // theirs and reproducible. A shared round's line is held back while a
+    // later round asks the same line (the reveal's rule for every shared
+    // question), so the schedule's lines are known from the start, privately,
+    // and a shared game draws its seed again while two rounds would ask the
+    // same line (drawSharedLineSchedule): the class meets each line once.
+    const schedule = lineGraphSharesRounds(config)
+      ? lineReveal.drawSharedLineSchedule({
+        roundCount,
+        itemFor: (candidate, roundIndex) => sharedLineItem(generator, { seed: candidate, config, roundIndex }),
+        newSeed: () => crypto.randomUUID(),
+      })
       : null;
+    const seed = schedule ? schedule.seed : crypto.randomUUID();
+    const sharedLineKeys = schedule ? schedule.keys : null;
     return {
       candidateCount: roundCount,
       selected: Array.from({ length: roundCount }, (_, index) => ({

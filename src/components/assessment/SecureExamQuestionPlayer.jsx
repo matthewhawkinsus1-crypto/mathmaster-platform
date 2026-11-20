@@ -1,4 +1,4 @@
-import React, { useCallback, useRef, useState } from 'react';
+import React, { useCallback, useMemo, useRef, useState } from 'react';
 import RichQuestionRuntime from '../question/RichQuestionRuntime.jsx';
 import QuestionResolutionBoundary, { questionFailureContext } from '../../QuestionResolutionBoundary.jsx';
 import { secureShellRuntimeMode } from '../../platform/assessment/questionRuntimePolicy.js';
@@ -37,6 +37,9 @@ import { secureShellRuntimeMode } from '../../platform/assessment/questionRuntim
  * is kept here, so a redraw never brings back an older answer than the one
  * being saved, as "Back to questions" does in the container (latestDraftsRef).
  */
+// What a secure Test can promise about an item that cannot be drawn.
+const SECURE_SAVED_WORK_NOTE = 'Your saved answers are kept exactly as they are.';
+
 export const SecureExamQuestionPlayer = ({
   examType,
   sessionCalculatorMode = null,
@@ -61,6 +64,9 @@ export const SecureExamQuestionPlayer = ({
   onDraftChange,
 }) => {
   const [attempt, setAttempt] = useState(0);
+  // One set of words for an item that cannot be drawn, wherever it fails: in
+  // the item (the boundary below) or in a tool inside the question engine.
+  const itemFailure = useMemo(() => ({ savedWorkNote: SECURE_SAVED_WORK_NOTE, technicalDetails: false }), []);
   const latestDraft = useRef(initialResponsePayload);
   const draftChanged = useCallback((payload, usage) => {
     latestDraft.current = payload;
@@ -77,8 +83,8 @@ export const SecureExamQuestionPlayer = ({
       context={questionFailureContext({ question, activityRole: 'secureTest', executionScope })}
       executionScope={executionScope}
       draftKey={draftKey}
-      technicalDetails={false}
-      savedWorkNote="Your saved answers are kept exactly as they are."
+      technicalDetails={itemFailure.technicalDetails}
+      savedWorkNote={itemFailure.savedWorkNote}
       fallbackLandmark={mainLandmark ? 'main' : null}
     >
       <RichQuestionRuntime
@@ -98,6 +104,7 @@ export const SecureExamQuestionPlayer = ({
         navigationMode={navigationMode}
         calculatorInToolbar={calculatorInToolbar}
         mainLandmark={mainLandmark}
+        itemFailure={itemFailure}
         onSubmit={submitted}
         onDraftChange={draftChanged}
       />
