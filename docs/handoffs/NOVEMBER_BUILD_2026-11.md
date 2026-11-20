@@ -279,6 +279,14 @@ Nothing here has been deployed, and no operator script has been run.
   - **Steps.** A step that uses another skill, such as factoring, opens that skill's own slides.
   - **Coverage.** Every classwork question is covered by an example.
   - **Build order.** Any.
+- **Decided on 2026-11-20: showing the process** (spec: `docs/platform/SHOWING_THE_PROCESS.md`; not built yet).
+  - **Part by part.** Every multi-part answer-box question shows one part at a time, in every section. DOL and Test add a "Review all parts" screen before Submit.
+  - **Building on earlier answers.** Later parts may use the student's own earlier answer.
+  - **Show the step.** A question may require one checked step in a tool.
+  - **Tool first.** New questions use a tool where one can produce the answer.
+  - **Teacher signals.** Leaving the page and pasting into a math box are shown to the teacher as "worth a conversation", never in a grade. Students whose accommodations explain the pattern are exempt.
+  - **Accommodation.** Students with an IEP or 504 can be given "See every part at once".
+  - **Scope.** The platform and future assignments only. Existing assignments are not rewritten, and the worked-example coverage rule applies to new assignments only.
 - **Decided on 2026-11-19** (the owner took the lead session's recommendations; the issues hold each one):
   - **#557, unfinished answers** (`12 +`, `4*`): not submittable on the screen ("not finished", no try used), never marked right on the server; grades already given stay; a read-only count of stored attempts first. **#558, over 240 characters:** refused on the screen with a message; the server's comparison capped. Both are queued for a session after the Fable usage reset (2026-11-21).
   - **Classroom passback (#545):** Reconcile option (A) with the run report (R1); Reconcile only the caller's own posts; at the due date, Classroom's Missing rather than a returned 0. Queued for a session after the same reset. Test Cycle grades are returned: built (section 2).

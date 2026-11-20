@@ -2,6 +2,8 @@
 
 Status: **decided by the owner on 2026-11-20; not built yet.** This page is the
 spec. The build is split into slices that can ship in any order (section 9).
+Its companion, `docs/platform/SHOWING_THE_PROCESS.md`, covers answer boxes that
+one screenshot cannot answer.
 
 ## 1. The goal
 
@@ -110,6 +112,10 @@ A classwork question is **covered** when one of these holds:
 A question that needs no example says why: `"example": { "none": "setup" }` for
 a context-setting question, or `"explain"` for one that gets a model answer
 instead.
+
+**Scope (owner, 2026-11-20).** Coverage is a rule for new and newly imported
+assignments. Existing assignments are not back-filled. The coverage report
+(slice B) lists their gaps for information only.
 
 Pre-Flight checks:
 - **Warning:** a classwork question that is not covered. The coverage report
