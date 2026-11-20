@@ -1732,18 +1732,21 @@ const modelFormSiblings = [
   ['Answer: input time in minutes, output gallons of water left in the tank; {1}; table {2}, {3}, {4}, {5}, {6}; a connected graph; domain {7}; range {8}', 'Respuesta: entrada, tiempo en minutos; salida, galones de agua que quedan en el tanque; {1}; tabla {2}, {3}, {4}, {5}, {6}; una gráfica continua; dominio {7}; rango {8}'],
 ];
 
-// --- The worked solution in Solution Review, as four support families write it
-// (src/platform/supports/families/functionFeatures.js, inverseComposition.js,
-// perpendicularLines.js and transformations.js: workedSolution(question), its
-// headline, steps and answer summary). A closed question with no steps of its
-// own shows its family's, with the family's headline and answer summary where
-// the lesson wrote none (supports/review/closedQuestionReview.js), and
-// SolutionReviewPanel.jsx offers Translate beside them. Before this list, 1,005
-// of the 1,231 sentences these families write for the real lessons had no
-// Spanish. Some quote a field label or an answer choice of the lesson ("Is ABCD
-// a rectangle?", "Yes — …", the person a claim names): those lines are that
-// lesson's. tests/platform/workedSolutionSpanish.test.mjs holds every one, over
-// the real questions these families claim, to a full translation.
+// --- The worked solution in Solution Review, as the support families write it
+// (src/platform/supports/families/*.js, every family that exports
+// workedSolution(question): its headline, steps and answer summary). A closed
+// question with no steps of its own shows its family's, with the family's
+// headline and answer summary where the lesson wrote none
+// (supports/review/closedQuestionReview.js), and SolutionReviewPanel.jsx offers
+// Translate beside them. Before this list, 1,005 of the 1,231 sentences
+// functionFeatures, inverseComposition, perpendicularLines and transformations
+// write for the real lessons had no Spanish, and 493 of the 1,146 that
+// linearEquations, linesAndSlope, pointsAndIntervals and systems write
+// (fractions claims none of the real lessons' questions). Some quote a field
+// label or an answer choice of the lesson ("Is ABCD a rectangle?", "Yes — …",
+// the person a claim names): those lines are that lesson's.
+// tests/platform/workedSolutionSpanish.test.mjs holds every one, over the real
+// questions each family claims, to a full translation.
 const supportFamilyWorkedSolutions = [
   // functionFeatures.js: a relation's arrows; a graph's domain, range, intercepts and behavior; a sequence; a model; a parent function.
   // A relation: its arrows, the function test, domain and range.
@@ -2203,6 +2206,104 @@ const supportFamilyWorkedSolutions = [
   ['Reflection: across the y-axis; Translation: none.', 'Reflexión: sobre el eje y; Traslación: ninguna.'],
   ['Vertex: {1}; Reflection: across the x-axis; Vertical scale: stretch by {2}; Horizontal translation: left {3}; Vertical translation: up {4}; Range: {5}.', 'Vértice: {1}; Reflexión: sobre el eje x; Escala vertical: estiramiento por un factor de {2}; Traslación horizontal: {3} a la izquierda; Traslación vertical: {4} hacia arriba; Rango: {5}.'],
   ['Transformation: horizontal compression; Scale factor: {1}.', 'Transformación: compresión horizontal; Factor de escala: {1}.'],
+
+  // linearEquations.js: its headlines and answer summaries (its steps were already in the pack).
+  ['Solve {1} for {2}, doing the same thing to both sides at every step.', 'Despeja {2} en {1}, haciendo lo mismo en los dos lados en cada paso.'],
+  // Also the answer summary of systems.js and pointsAndIntervals.js.
+  ['The solution is {1}.', 'La solución es {1}.'],
+  ['No solution: no value of {1} makes the equation true.', 'No tiene solución: ningún valor de {1} hace verdadera la ecuación.'],
+  ['All real numbers: every value of {1} makes the equation true.', 'Todos los números reales: todo valor de {1} hace verdadera la ecuación.'],
+
+  // linesAndSlope.js: a table's rate of change, a line through two points, horizontal and vertical lines, the intercepts.
+  ['The constant rate of change is the slope {1}; {2} is the value of {3} when {4} is zero.', 'La razón de cambio constante es la pendiente {1}; {2} es el valor de {3} cuando {4} vale cero.'],
+  ['Every pair gives the same rate, so the table is linear and {1}.', 'Cada par da la misma razón de cambio, así que la tabla es lineal y {1}.'],
+  ['So the table is linear, with {1}, {2} and the equation {3}.', 'Así que la tabla es lineal, con {1}, {2} y la ecuación {3}.'],
+  ['Linear: {1}, {2}, {3}', 'Lineal: {1}, {2}, {3}'],
+  ['Compare the rate of change between pairs of rows: a linear table has the same rate everywhere.', 'Compara la razón de cambio entre pares de filas: una tabla lineal tiene la misma razón de cambio en todas partes.'],
+  ['Every pair of rows gives the same rate, {1}, so the rate of change is constant: the relationship is linear.', 'Cada par de filas da la misma razón de cambio, {1}, así que la razón de cambio es constante: la relación es lineal.'],
+  ['Linear: the rate of change is constant, {1}.', 'Lineal: la razón de cambio es constante, {1}.'],
+  ['Plot points the equation gives you directly, then draw the one line through them.', 'Marca puntos que la ecuación te da directamente y luego traza la única recta que pasa por ellos.'],
+  ['Plot {1} and {2}.', 'Marca {1} y {2}.'],
+  ['Draw the line through {1} and {2}: it is {3}.', 'Traza la recta que pasa por {1} y {2}: es {3}.'],
+  ['The line {1}, through {2} and {3}', 'La recta {1}, que pasa por {2} y {3}'],
+  ['Every point on {1} has y-coordinate {2}; the other coordinate can be any number.', 'Todos los puntos de {1} tienen coordenada y igual a {2}; la otra coordenada puede ser cualquier número.'],
+  ['Draw the horizontal line through {1} and {2}: it is {3}.', 'Traza la recta horizontal que pasa por {1} y {2}: es {3}.'],
+  ['The horizontal line {1}, through {2} and {3}', 'La recta horizontal {1}, que pasa por {2} y {3}'],
+  ['Every point on {1} has x-coordinate {2}; the other coordinate can be any number.', 'Todos los puntos de {1} tienen coordenada x igual a {2}; la otra coordenada puede ser cualquier número.'],
+  ['Draw the vertical line through {1} and {2}: it is {3}.', 'Traza la recta vertical que pasa por {1} y {2}: es {3}.'],
+  ['The vertical line {1}, through {2} and {3}', 'La recta vertical {1}, que pasa por {2} y {3}'],
+  ['Each intercept is where the line meets an axis, so one of the variables is zero there.', 'Cada intersección con un eje es donde la recta toca ese eje, así que ahí una de las variables vale cero.'],
+  ['So the x-intercept is {1} and the y-intercept is {2}.', 'Así que la intersección con el eje x es {1} y la intersección con el eje y es {2}.'],
+  ['x-intercept: {1}; y-intercept: {2}', 'Intersección con el eje x: {1}; intersección con el eje y: {2}'],
+
+  // pointsAndIntervals.js: an inequality solved and shown on a number line, a compound inequality, a radical equation's candidates.
+  ['Solve {1}: undo each operation on both sides, and flip the symbol if you divide by a negative number.', 'Resuelve {1}: deshaz cada operación en los dos lados, e invierte el símbolo si divides entre un número negativo.'],
+  ['Solve {1} the way you solve an equation, flipping the symbol if you divide by a negative number, then show the solution.', 'Resuelve {1} como resuelves una ecuación, invirtiendo el símbolo si divides entre un número negativo, y luego muestra la solución.'],
+  ['Rewrite each side: {1}.', 'Reescribe cada lado: {1}.'],
+  ['Clear the brackets and collect like terms: {1}.', 'Quita los paréntesis y reúne los términos semejantes: {1}.'],
+  ['Read it from right to left, so {1} is on the left: {2}.', 'Léela de derecha a izquierda, así {1} queda a la izquierda: {2}.'],
+  ['So the solution is {1}.', 'Así que la solución es {1}.'],
+  ['So the solution is {1}; on the number line, draw an open dot at {2} and shade to the left with an arrow.', 'Así que la solución es {1}; en la recta numérica, dibuja un punto abierto en {2} y sombrea hacia la izquierda con una flecha.'],
+  ['So the solution is {1}; on the number line, draw an open dot at {2} and shade to the right with an arrow.', 'Así que la solución es {1}; en la recta numérica, dibuja un punto abierto en {2} y sombrea hacia la derecha con una flecha.'],
+  ['So the solution is {1}; on the number line, draw a closed dot at {2} and shade to the left with an arrow.', 'Así que la solución es {1}; en la recta numérica, dibuja un punto cerrado en {2} y sombrea hacia la izquierda con una flecha.'],
+  ['So the solution is {1}; on the number line, draw a closed dot at {2} and shade to the right with an arrow.', 'Así que la solución es {1}; en la recta numérica, dibuja un punto cerrado en {2} y sombrea hacia la derecha con una flecha.'],
+  ['The solution is {1}; on the number line, draw an open dot at {2} and shade to the left with an arrow.', 'La solución es {1}; en la recta numérica, dibuja un punto abierto en {2} y sombrea hacia la izquierda con una flecha.'],
+  ['The solution is {1}; on the number line, draw an open dot at {2} and shade to the right with an arrow.', 'La solución es {1}; en la recta numérica, dibuja un punto abierto en {2} y sombrea hacia la derecha con una flecha.'],
+  ['The solution is {1}; on the number line, draw a closed dot at {2} and shade to the left with an arrow.', 'La solución es {1}; en la recta numérica, dibuja un punto cerrado en {2} y sombrea hacia la izquierda con una flecha.'],
+  ['The solution is {1}; on the number line, draw a closed dot at {2} and shade to the right with an arrow.', 'La solución es {1}; en la recta numérica, dibuja un punto cerrado en {2} y sombrea hacia la derecha con una flecha.'],
+  ['So {1}; on the number line, draw a closed dot at {2} and shade to the left with an arrow; as an inequality, {3}.', 'Así que {1}; en la recta numérica, dibuja un punto cerrado en {2} y sombrea hacia la izquierda con una flecha; como desigualdad, {3}.'],
+  ['On the number line, draw a closed dot at {1} and shade to the left with an arrow; as an inequality, {2}.', 'En la recta numérica, dibuja un punto cerrado en {1} y sombrea hacia la izquierda con una flecha; como desigualdad, {2}.'],
+  ['Graph {1}: mark each boundary number with the right dot, then shade the numbers that make it true.', 'Grafica {1}: marca cada número frontera con el punto que corresponde y luego sombrea los números que la hacen verdadera.'],
+  ['Graph {1} or {2}: mark each boundary number with the right dot, then shade the numbers that make it true.', 'Grafica {1} o {2}: marca cada número frontera con el punto que corresponde y luego sombrea los números que la hacen verdadera.'],
+  ['So the answer is: on the number line, draw an open dot at {1} and shade to the left with an arrow.', 'Así que la respuesta es: en la recta numérica, dibuja un punto abierto en {1} y sombrea hacia la izquierda con una flecha.'],
+  ['On the number line, draw an open dot at {1} and shade to the left with an arrow.', 'En la recta numérica, dibuja un punto abierto en {1} y sombrea hacia la izquierda con una flecha.'],
+  ['So the answer is: on the number line, draw an open dot at {1} and shade to the right with an arrow; in interval notation, {2}.', 'Así que la respuesta es: en la recta numérica, dibuja un punto abierto en {1} y sombrea hacia la derecha con una flecha; en notación de intervalo, {2}.'],
+  ['On the number line, draw an open dot at {1} and shade to the right with an arrow; in interval notation, {2}.', 'En la recta numérica, dibuja un punto abierto en {1} y sombrea hacia la derecha con una flecha; en notación de intervalo, {2}.'],
+  ['So the answer is: on the number line, draw a closed dot at {1} and an open dot at {2}, and shade the segment between them; in interval notation, {3}.', 'Así que la respuesta es: en la recta numérica, dibuja un punto cerrado en {1} y un punto abierto en {2}, y sombrea el segmento entre ellos; en notación de intervalo, {3}.'],
+  ['On the number line, draw a closed dot at {1} and an open dot at {2}, and shade the segment between them; in interval notation, {3}.', 'En la recta numérica, dibuja un punto cerrado en {1} y un punto abierto en {2}, y sombrea el segmento entre ellos; en notación de intervalo, {3}.'],
+  ['So the answer is: on the number line, draw an open dot at {1} and a closed dot at {2}, and shade the segment between them; in interval notation, {3}.', 'Así que la respuesta es: en la recta numérica, dibuja un punto abierto en {1} y un punto cerrado en {2}, y sombrea el segmento entre ellos; en notación de intervalo, {3}.'],
+  ['On the number line, draw an open dot at {1} and a closed dot at {2}, and shade the segment between them; in interval notation, {3}.', 'En la recta numérica, dibuja un punto abierto en {1} y un punto cerrado en {2}, y sombrea el segmento entre ellos; en notación de intervalo, {3}.'],
+  ['So the answer is: on the number line, draw a closed dot at {1} and shade to the left with an arrow, then draw an open dot at {2} and shade to the right with an arrow; in interval notation, {3} ∪ {4}.', 'Así que la respuesta es: en la recta numérica, dibuja un punto cerrado en {1} y sombrea hacia la izquierda con una flecha, y luego dibuja un punto abierto en {2} y sombrea hacia la derecha con una flecha; en notación de intervalo, {3} ∪ {4}.'],
+  ['On the number line, draw a closed dot at {1} and shade to the left with an arrow, then draw an open dot at {2} and shade to the right with an arrow; in interval notation, {3} ∪ {4}.', 'En la recta numérica, dibuja un punto cerrado en {1} y sombrea hacia la izquierda con una flecha, y luego dibuja un punto abierto en {2} y sombrea hacia la derecha con una flecha; en notación de intervalo, {3} ∪ {4}.'],
+  ['So the answer is: on the number line, draw an open dot at {1} and shade to the left with an arrow, then draw a closed dot at {2} and shade to the right with an arrow; in interval notation, {3} ∪ {4}.', 'Así que la respuesta es: en la recta numérica, dibuja un punto abierto en {1} y sombrea hacia la izquierda con una flecha, y luego dibuja un punto cerrado en {2} y sombrea hacia la derecha con una flecha; en notación de intervalo, {3} ∪ {4}.'],
+  ['On the number line, draw an open dot at {1} and shade to the left with an arrow, then draw a closed dot at {2} and shade to the right with an arrow; in interval notation, {3} ∪ {4}.', 'En la recta numérica, dibuja un punto abierto en {1} y sombrea hacia la izquierda con una flecha, y luego dibuja un punto cerrado en {2} y sombrea hacia la derecha con una flecha; en notación de intervalo, {3} ∪ {4}.'],
+  ['So the answer is: on the number line, draw a closed dot at {1} and shade to the left with an arrow, then draw a closed dot at {2} and an open dot at {3}, and shade the segment between them; in interval notation, {4} ∪ {5}.', 'Así que la respuesta es: en la recta numérica, dibuja un punto cerrado en {1} y sombrea hacia la izquierda con una flecha, y luego dibuja un punto cerrado en {2} y un punto abierto en {3}, y sombrea el segmento entre ellos; en notación de intervalo, {4} ∪ {5}.'],
+  ['On the number line, draw a closed dot at {1} and shade to the left with an arrow, then draw a closed dot at {2} and an open dot at {3}, and shade the segment between them; in interval notation, {4} ∪ {5}.', 'En la recta numérica, dibuja un punto cerrado en {1} y sombrea hacia la izquierda con una flecha, y luego dibuja un punto cerrado en {2} y un punto abierto en {3}, y sombrea el segmento entre ellos; en notación de intervalo, {4} ∪ {5}.'],
+  ['So the answer is: on the number line, draw an open dot at {1} and shade to the left with an arrow, then draw a closed dot at {2} and a closed dot at {3}, and shade the segment between them; in interval notation, {4} ∪ {5}.', 'Así que la respuesta es: en la recta numérica, dibuja un punto abierto en {1} y sombrea hacia la izquierda con una flecha, y luego dibuja un punto cerrado en {2} y un punto cerrado en {3}, y sombrea el segmento entre ellos; en notación de intervalo, {4} ∪ {5}.'],
+  ['On the number line, draw an open dot at {1} and shade to the left with an arrow, then draw a closed dot at {2} and a closed dot at {3}, and shade the segment between them; in interval notation, {4} ∪ {5}.', 'En la recta numérica, dibuja un punto abierto en {1} y sombrea hacia la izquierda con una flecha, y luego dibuja un punto cerrado en {2} y un punto cerrado en {3}, y sombrea el segmento entre ellos; en notación de intervalo, {4} ∪ {5}.'],
+  // A radical equation: square both sides, then check each candidate.
+  ['Check each candidate in {1}: squaring both sides can create candidates that do not work.', 'Comprueba cada candidato en {1}: elevar al cuadrado los dos lados puede crear candidatos que no funcionan.'],
+  ['Squaring both sides can create candidates that do not solve {1}, so check each candidate in the original equation.', 'Elevar al cuadrado los dos lados puede crear candidatos que no resuelven {1}, así que comprueba cada candidato en la ecuación original.'],
+  ['Square both sides: {1}.', 'Eleva al cuadrado los dos lados: {1}.'],
+  ['Gather every term on one side: {1}, and the quadratic formula gives {2} or {3}.', 'Reúne todos los términos en un lado: {1}, y la fórmula cuadrática da {2} o {3}.'],
+  ['Every real solution of {1} is one of these numbers, and each of them is a candidate, so checking the candidates finds every solution.', 'Toda solución real de {1} es uno de estos números, y cada uno de ellos es un candidato, así que al comprobar los candidatos se hallan todas las soluciones.'],
+  ['Check {1}: the radicand {2} is {3}, so the left side is {4}, and the right side {5} is {6}, which matches.', 'Comprueba {1}: el radicando {2} vale {3}, así que el lado izquierdo es {4}, y el lado derecho {5} vale {6}, lo cual coincide.'],
+  ['Keep it.', 'Consérvalo.'],
+  ['Check {1}: the radicand {2} is {3}, so the left side is {4}, but the right side {5} is {6}.', 'Comprueba {1}: el radicando {2} vale {3}, así que el lado izquierdo es {4}, pero el lado derecho {5} vale {6}.'],
+  ['A square root is never negative, so {1} is extraneous.', 'Una raíz cuadrada nunca es negativa, así que {1} es una solución extraña.'],
+  ['Reject it.', 'Descártalo.'],
+  ["So the equation's only real solution is {1}: select it.", 'Así que la única solución real de la ecuación es {1}: selecciónala.'],
+  ["The equation's only real solution is {1}: select it.", 'La única solución real de la ecuación es {1}: selecciónala.'],
+
+  // systems.js: a system solved by graphing, by elimination or by substitution, or with no solution or infinitely many.
+  ['Solve the system {1} and {2}: graph both lines and find where they cross.', 'Resuelve el sistema {1} y {2}: grafica las dos rectas y halla dónde se cruzan.'],
+  ['Solve the system {1} and {2}: eliminate a variable and see what is left.', 'Resuelve el sistema {1} y {2}: elimina una variable y mira qué queda.'],
+  ['Solve the system {1} and {2}: substitute one equation into the other.', 'Resuelve el sistema {1} y {2}: sustituye una ecuación en la otra.'],
+  ['Solve the system {1} and {2}: set the two expressions equal.', 'Resuelve el sistema {1} y {2}: iguala las dos expresiones.'],
+  ['So the solution of the system is {1}.', 'Así que la solución del sistema es {1}.'],
+  ['{1} has slope {2} and y-intercept {3}; {4} has slope {5} and y-intercept {6}.', '{1} tiene pendiente {2} e intersección con el eje y {3}; {4} tiene pendiente {5} e intersección con el eje y {6}.'],
+  ['The slopes are equal and the y-intercepts are different, so the lines are parallel and never meet: the system has no solution.', 'Las pendientes son iguales y las intersecciones con el eje y son diferentes, así que las rectas son paralelas y nunca se encuentran: el sistema no tiene solución.'],
+  ['The slopes are equal and so are the y-intercepts, so both equations describe the same line: every point on it is a solution, and the system has infinitely many solutions.', 'Las pendientes son iguales y también las intersecciones con el eje y, así que las dos ecuaciones describen la misma recta: cada uno de sus puntos es una solución, y el sistema tiene infinitas soluciones.'],
+  ['No solution: no pair makes both equations true.', 'No tiene solución: ningún par hace verdaderas las dos ecuaciones.'],
+  ['Infinitely many solutions: every point on the line makes both equations true.', 'Infinitas soluciones: cada punto de la recta hace verdaderas las dos ecuaciones.'],
+  ['Write the first equation with the variables on the left: {1}.', 'Escribe la primera ecuación con las variables a la izquierda: {1}.'],
+  ['The second equation already gives {1}.', 'La segunda ecuación ya da {1}.'],
+  ['Substitute {1} for {2} in the first equation: {3}.', 'Sustituye {2} por {1} en la primera ecuación: {3}.'],
+  ['Check in the first equation: {1}, which is true.', 'Comprueba en la primera ecuación: {1}, que es verdadero.'],
+  ['Subtract the second equation from the first: both variables cancel, leaving {1}.', 'Resta la segunda ecuación de la primera: las dos variables se cancelan y queda {1}.'],
+  ['Add the equations: both variables cancel, leaving {1}.', 'Suma las ecuaciones: las dos variables se cancelan y queda {1}.'],
+  ['{1} is never true, so no pair makes both equations true: the system has no solution.', '{1} nunca es verdadero, así que ningún par hace verdaderas las dos ecuaciones: el sistema no tiene solución.'],
+  ['{1} is always true: the two equations describe the same line, so the system has infinitely many solutions.', '{1} siempre es verdadero: las dos ecuaciones describen la misma recta, así que el sistema tiene infinitas soluciones.'],
 ];
 
 export const supportSentences = [...attemptOutcome, ...matrixLabFixes, ...missMessages, ...toolChecks, ...genericHints, ...backUpSteps, ...familyHints, ...workedExamplePrompts, ...workedExampleAnswers, ...workedExampleSteps, ...platformFamilySentences, ...modelFormSiblings, ...supportFamilyWorkedSolutions];
