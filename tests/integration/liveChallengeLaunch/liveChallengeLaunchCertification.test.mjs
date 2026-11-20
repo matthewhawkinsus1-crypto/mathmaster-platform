@@ -110,13 +110,19 @@ const closeScenario = async ({ host = null, farm, label }) => {
 };
 // The screens a wait is still waiting for, in words: each one's student, the
 // room its view holds, its stage, whether its invite listener is attached, the
-// invite it last heard, and its last errors. A timed-out wait used to say only
-// "not every screen followed its invite" (CI run 64), not which or why.
+// invite it last followed, what that listener has heard since it was attached
+// (how many snapshots, the room the last named, how long ago), and its last
+// errors. A timed-out wait used to say only "not every screen followed its
+// invite" (CI run 64), not which or why. CI run 209's two screens had their
+// listener attached and had followed no invite, which did not say whether it
+// had heard anything at all.
+const heardSince = (atMs) => (atMs ? `${Date.now() - atMs} ms ago` : 'never');
 const describeScreens = (views) => views.map((view) => [
   `${view.studentId}: view room ${view.roomId || 'none'}`,
   `stage ${view.stage || 'none'}`,
   `invite listener ${view.inviteListener ? 'attached' : 'NOT attached'}`,
   `last invite ${view.invite?.roomId || 'none'}`,
+  ...(view.inviteHeard ? [`invite snapshots ${view.inviteHeard.snapshots} since attaching ${heardSince(view.inviteHeard.attachedAtMs)} (last ${heardSince(view.inviteHeard.lastAtMs)}, naming ${view.inviteHeard.roomId || 'no room'})`] : []),
   ...(view.online === false ? ['offline'] : []),
   ...(view.errors?.length ? [`errors: ${view.errors.join(' | ')}`] : []),
 ].join(', ')).join('; ') || 'none';

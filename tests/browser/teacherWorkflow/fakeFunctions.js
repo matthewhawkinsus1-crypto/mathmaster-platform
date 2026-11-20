@@ -43,6 +43,7 @@ import {
   authorizeCaseEvidenceCaller, buildCaseEvidenceResponse, validateCaseEvidenceRequest,
 } from '../../../functions/shared/caseReviewEvidence.mjs';
 import { workspaceDraftDocumentId } from '../../../functions/shared/workspaceDraftSchema.mjs';
+import { CRASH_REPORTING_FLAG, resolveCrashReportingMode } from '../../../functions/shared/crashReport.mjs';
 import { explainStudentChallengeRewards } from '../../../functions/shared/rewardDiagnostics.mjs';
 import {
   STUDENT_IDENTITY_FIELDS, TEACHER_ROSTER_SELECT_FIELDS,
@@ -923,6 +924,18 @@ const handlers = {
     });
     return { success: true, applied: true, ignored: false, reportGeneration: generation, summarySchemaVersion };
   },
+  // A device's crash counts (reportClientCrashes, functions/lib/platformHealth.js
+  // `report`). The server reads its mode from platformFlags/crashReporting,
+  // which the harness's school does not have, so reporting is off, and a probe,
+  // or any request while reporting is off, is answered with the mode and
+  // nothing accepted. The harness keeps no counts. A question MathMaster could
+  // not show records a failure (QuestionResolutionBoundary.jsx), and the device
+  // asks about it 3 s later (crashReporter.js), so a journey that stays that
+  // long, as the throttled held-Recovery journey does, reaches this.
+  reportClientCrashes: () => ({
+    mode: resolveCrashReportingMode(harnessStore.get(`platformFlags/${CRASH_REPORTING_FLAG}`)),
+    accepted: 0,
+  }),
 };
 
 // The four administrator / integration screens the accessibility scenes open (fakeAdminScreens.js): a callable

@@ -347,15 +347,22 @@ for (const device of DEVICES) {
     const shown = await section.locator('[data-practice-solution] li').count();
     check(shown >= steps, `${device.name} ${name}: the worked solution, step by step`, `${shown} steps`);
     // A formula is typeset when it comes on screen (ensureMathElementRenders.js),
-    // so each one is brought on screen in turn, as a student reads down; one
-    // still without width did not typeset.
+    // so each one is brought on screen in turn, as a student reads down, and
+    // stays there until it has width, up to 3 s. One still without width did
+    // not typeset while it was on screen. A fixed 120 ms on screen was too
+    // short on a loaded runner: a formula scrolled past before its render
+    // stays lazy until it comes back (1 blank on one CI run).
     const blank = await section.locator('[data-practice-solution] :is(math-span, math-div)').evaluateAll(async (nodes) => {
+      const typeset = (node) => node.getBoundingClientRect().width > 0;
       for (const node of nodes) {
         node.scrollIntoView({ block: 'center' });
-        await new Promise((resolve) => { setTimeout(resolve, 120); });
+        const until = Date.now() + 3000;
+        while (!typeset(node) && Date.now() < until) {
+          // eslint-disable-next-line no-await-in-loop
+          await new Promise((resolve) => { setTimeout(resolve, 50); });
+        }
       }
-      await new Promise((resolve) => { setTimeout(resolve, 500); });
-      return nodes.filter((node) => !node.getBoundingClientRect().width).length;
+      return nodes.filter((node) => !typeset(node)).length;
     });
     check(blank === 0, `${device.name} ${name}: every formula in the worked solution is typeset on screen`, `${blank} blank`);
     await screenshotKeepingTouch(page, { path: path.join(ARTIFACTS, `${device.name}-${q}.png`), fullPage: true });

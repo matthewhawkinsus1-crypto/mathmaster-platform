@@ -37,8 +37,14 @@ test('the endurance waits name each screen they are still waiting for, and a dev
   assert.match(endurance, /not every screen followed its invite into the new lobby \$\{roomId\}\. Not there: \$\{describeScreens\(/);
   assert.match(endurance, /Not joined: \$\{describeScreens\([^\n]*\. Clock not ready: \$\{describeScreens\(/);
   const describe = region(certification, 'const describeScreens = (views) =>', "|| 'none';", 'describeScreens');
-  for (const part of ['view.studentId', 'view.roomId', 'view.stage', 'view.inviteListener', 'view.invite?.roomId', 'view.errors']) {
+  for (const part of ['view.studentId', 'view.roomId', 'view.stage', 'view.inviteListener', 'view.invite?.roomId', 'view.inviteHeard.snapshots', 'view.inviteHeard.roomId', 'view.errors']) {
     assert.ok(describe.includes(part), `a screen is described by ${part}`);
   }
-  assert.match(read('integration/support/liveChallengeSimStudent.mjs'), /inviteListener: Boolean\(device\.stops\.invite\),/);
+  const sim = read('integration/support/liveChallengeSimStudent.mjs');
+  assert.match(sim, /inviteListener: Boolean\(device\.stops\.invite\),/);
+  // What the invite listener heard: counted from its attaching, on every snapshot it delivers.
+  const follow = region(sim, 'async followInvites() {', '\n    },', 'followInvites');
+  assert.match(follow, /device\.inviteHeard = \{ snapshots: 0, roomId: null, attachedAtMs: Date\.now\(\), lastAtMs: null \};\s*device\.stops\.invite = counted\('invite'/);
+  assert.match(follow, /watchLiveChallengeInvite\(studentId, \(invite\) => \{\s*device\.inviteHeard = \{ \.\.\.device\.inviteHeard, snapshots: device\.inviteHeard\.snapshots \+ 1, roomId: invite\?\.roomId \|\| null, lastAtMs: Date\.now\(\) \};/);
+  assert.match(sim, /inviteHeard: device\.inviteHeard \? \{ \.\.\.device\.inviteHeard \} : null,/);
 });
