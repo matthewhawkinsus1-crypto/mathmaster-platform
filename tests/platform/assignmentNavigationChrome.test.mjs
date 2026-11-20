@@ -45,16 +45,24 @@ test('Show progress and Focus view keep the work where it was', async () => {
   assert.match(keep, /const moved = anchor\.element\.getBoundingClientRect\(\)\.top - anchor\.top;/);
   assert.match(keep, /window\.scrollBy\(\{ top: moved/);
   assert.match(hook, /^import \{[^}]*\buseLayoutEffect\b[^}]*\} from 'react';$/m);
-  const nav = region(source, '<nav ref={stickyHeightRef(ASSIGNMENT_NAV_HEIGHT_VAR)}', '</nav>', 'the navigator');
+  // Since the App split (slice 7) createAssignmentWorkspaceView draws the
+  // navigator; App hands it the toggle the hook returned.
+  assert.ok(appFactorySeam('createAssignmentWorkspaceView').parameters.includes('toggleAssignmentNavigation'), 'App hands the view the toggle');
+  const nav = region(appFactorySource('createAssignmentWorkspaceView'), '<nav ref={stickyHeightRef(ASSIGNMENT_NAV_HEIGHT_VAR)}', '</nav>', 'the navigator');
   assert.match(nav, /onClick=\{toggleAssignmentNavigation\}/);
 });
 
 test('compact controls retain keyboard semantics and touch-sized short-landscape targets', async () => {
+  // Since the App split (slice 7) the compact navigator is drawn by
+  // createAssignmentWorkspaceView (src/app/student/assignmentWorkspaceView.jsx).
   const [app, css] = await Promise.all([
-    readFile(new URL('../../src/App.jsx', import.meta.url), 'utf8'),
+    appFactorySource('createAssignmentWorkspaceView'),
     readFile(new URL('../../src/App.css', import.meta.url), 'utf8'),
   ]);
-  const compact = app.slice(app.indexOf('mathmaster-collapsed-current-location'), app.indexOf("{!assignmentNavigationCollapsed && (", app.indexOf('mathmaster-collapsed-current-location')));
+  const compactStart = app.indexOf('mathmaster-collapsed-current-location');
+  const compactEnd = app.indexOf("{!assignmentNavigationCollapsed && (", compactStart);
+  assert.ok(compactStart >= 0 && compactEnd > compactStart, 'the compact controls are found, before the expanded navigator');
+  const compact = app.slice(compactStart, compactEnd);
   assert.match(compact, /aria-label="Previous question"/);
   assert.match(compact, /aria-label="Choose a question"/);
   assert.match(compact, /aria-label="Next question"/);

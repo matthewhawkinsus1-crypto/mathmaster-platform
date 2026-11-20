@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
+import { appFactorySource } from './helpers/appScreens.mjs';
 
 const read = (path) => readFile(new URL(`../../${path}`, import.meta.url), 'utf8');
 
@@ -22,7 +23,9 @@ test('QuestionEngine owns a compact task prompt and exposes a large next-questio
 });
 
 test('unified assignment navigator reports section completion and supports section/question navigation', async () => {
-  const app = await read('src/App.jsx');
+  // Since the App split (slice 7) createAssignmentWorkspaceView draws the
+  // navigator (src/app/student/assignmentWorkspaceView.jsx); App calls it once.
+  const app = appFactorySource('createAssignmentWorkspaceView');
   assert.match(app, /currentSectionCompletedCount/);
   assert.match(app, /currentSectionRemainingCount/);
   assert.match(app, /mathmaster-assignment-unified-nav/);

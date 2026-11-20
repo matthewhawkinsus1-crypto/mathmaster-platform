@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
-import { appHookSource } from './helpers/appScreens.mjs';
+import { appFactorySource, appHookSource } from './helpers/appScreens.mjs';
 import { region } from './helpers/sourceContract.mjs';
 import { functionsBackendSource } from './helpers/functionsBackendSource.mjs';
 
@@ -24,8 +24,10 @@ test('composed workflow questions restore both responses and active stage', asyn
 });
 
 test('student assignment chrome has a focus view while preserving current-question orientation', async () => {
+  // Since the App split (slice 7) createAssignmentWorkspaceView draws the
+  // assignment chrome (src/app/student/assignmentWorkspaceView.jsx).
   const [app, viewport, css] = await Promise.all([
-    read('src/App.jsx'),
+    appFactorySource('createAssignmentWorkspaceView'),
     read('src/components/student/MobileViewportContainer.jsx'),
     read('src/App.css'),
   ]);

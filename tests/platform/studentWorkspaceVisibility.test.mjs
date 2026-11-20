@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { ASSIGNMENT_NAV_HEIGHT_VAR, STICKY_TASK_HEIGHT_VAR, stickyHeightRef } from '../../src/platform/layout/stickyHeightRef.js';
 import { region } from './helpers/sourceContract.mjs';
-import { appHookSource, appSurfaceSource } from './helpers/appScreens.mjs';
+import { appFactorySource, appHookSource, appSurfaceSource } from './helpers/appScreens.mjs';
 import { workViewCapabilityWord } from '../../src/platform/student/studentWords.js';
 
 const read = (path) => readFileSync(new URL(`../../${path}`, import.meta.url), 'utf8');
@@ -57,9 +57,11 @@ test('the sticky stack is offset by measured heights, not guesses', () => {
   assert.equal(ASSIGNMENT_NAV_HEIGHT_VAR, '--mm-assignment-nav-height');
 
   // App.jsx is never imported by a test, so assert the import next to the call.
-  const app = read('src/App.jsx');
-  assert.match(app, /import \{ ASSIGNMENT_NAV_HEIGHT_VAR, stickyHeightRef \} from '\.\/platform\/layout\/stickyHeightRef\.js';/);
-  assert.match(app, /<nav ref=\{stickyHeightRef\(ASSIGNMENT_NAV_HEIGHT_VAR\)\} className=\{`mathmaster-assignment-unified-nav/);
+  // Since the App split (slice 7) createAssignmentWorkspaceView draws the
+  // navigator, so the import and the call are both in its module.
+  const workspace = appFactorySource('createAssignmentWorkspaceView');
+  assert.match(workspace, /import \{ ASSIGNMENT_NAV_HEIGHT_VAR, stickyHeightRef \} from '\.\.\/\.\.\/platform\/layout\/stickyHeightRef\.js';/);
+  assert.match(workspace, /<nav ref=\{stickyHeightRef\(ASSIGNMENT_NAV_HEIGHT_VAR\)\} className=\{`mathmaster-assignment-unified-nav/);
 });
 
 test('the navigator height ref is stable across renders and publishes the height', async () => {
@@ -281,8 +283,9 @@ test('operation chips typeset the operand instead of printing its LaTeX', () => 
 // (z-index 9999) rendered behind Work View (2147483000) — the timer paused and
 // the student was never told. It was also an unlabelled div without focus.
 test('the inactivity overlay sits above Work View and is a focused, labelled dialog', () => {
-  const app = read('src/App.jsx');
-  const overlay = app.slice(app.indexOf('const renderIdleOverlay = () => {'), app.indexOf('const renderDeleteAssignmentDialog'));
+  // Since the App split (slice 7) createStudentShellViews draws the overlay
+  // (src/app/student/studentShellViews.jsx); it ends where the next view starts.
+  const overlay = region(appFactorySource('createStudentShellViews'), 'const renderIdleOverlay = () => {', 'const renderWhatChangedPanel', 'the inactivity overlay');
   const zIndex = Number(overlay.match(/zIndex: (\d+),/)?.[1]);
   const workView = read('src/components/common/WorkViewShell.css');
   const workViewZ = Number(workView.match(/\.mathmaster-work-view-host\[data-open="true"\] \{[\s\S]*?z-index: (\d+);/)?.[1]);
@@ -381,7 +384,8 @@ test('the numeric keypad stacks above Work View and below the inactivity dialog'
   const z = (pattern) => Number(shell.match(pattern)?.[1]);
   const workView = z(/\.mathmaster-work-view-host\[data-open="true"\] \{[\s\S]*?z-index: (\d+);/);
   const keypad = z(/html\[data-work-view-open="true"\] \.mathmaster-mobile-numeric-keypad \{\s*z-index: (\d+) !important;/);
-  const idle = Number(read('src/App.jsx').match(/className="mathmaster-idle-overlay"[\s\S]*?zIndex: (\d+),/)?.[1]);
+  // The overlay is drawn by createStudentShellViews since the App split (slice 7).
+  const idle = Number(appFactorySource('createStudentShellViews').match(/className="mathmaster-idle-overlay"[\s\S]*?zIndex: (\d+),/)?.[1]);
   assert.ok(keypad > workView, `${keypad} > ${workView}`);
   assert.ok(idle > keypad, `${idle} > ${keypad}`);
 });

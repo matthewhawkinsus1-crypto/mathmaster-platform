@@ -167,8 +167,13 @@ test('the Question Family registry and its families are not in the first load', 
   assert.match(app, /const \{ familyDelivery, loadFamilyDelivery, isPersonalizedBlueprint \} = useFamilyDeliveryEngine\(\{ activeAssignmentId \}\);/);
   // A question waits for it rather than render with its pin unchecked (and,
   // with no pin, for the server's pins: RT15, familyServerDeliveryPin.test.mjs).
-  assert.match(app, /const familyEngineLoading = !familyDelivery;/);
-  assert.match(app, /\{familyEngineLoading(?: \|\| familyPinPending)? \? <p role="status"[^>]*>Loading this question…<\/p> : <QuestionEngine/);
+  // Since the App split (slice 7) createAssignmentWorkspaceView draws the
+  // question and its wait; App imports it statically (the graph above walks
+  // it) and hands it the engine it took from the hook.
+  const workspace = appFactorySource('createAssignmentWorkspaceView');
+  assert.ok(appFactorySeam('createAssignmentWorkspaceView').parameters.includes('familyDelivery'), 'the view is handed the family engine');
+  assert.match(workspace, /const familyEngineLoading = !familyDelivery;/);
+  assert.match(workspace, /\{familyEngineLoading(?: \|\| familyPinPending)? \? <p role="status"[^>]*>Loading this question…<\/p> : <QuestionEngine/);
   // The module lands in a transition, so the question that waited for it
   // mounts without hiding the workspace (familyServerDeliveryPin.test.mjs).
   assert.match(familyEngine, /import\('\.\.\/\.\.\/platform\/generation\/familyDelivery\.js'\)\.then\(\(module\) => \{\s*startTransition\(\(\) => setFamilyDelivery\(\(current\) => current \|\| module\)\);/);

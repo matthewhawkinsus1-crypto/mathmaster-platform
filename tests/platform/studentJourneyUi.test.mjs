@@ -3,10 +3,13 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { region } from './helpers/sourceContract.mjs';
 import { functionsBackendSource } from './helpers/functionsBackendSource.mjs';
+import { appFactorySource } from './helpers/appScreens.mjs';
 
 const read = (relative) => readFileSync(new URL(`../../${relative}`, import.meta.url), 'utf8');
 const engine = read('src/QuestionEngine.jsx');
-const app = read('src/App.jsx');
+// Since the App split (slice 7) createAssignmentWorkspaceView draws the question
+// navigation (src/app/student/assignmentWorkspaceView.jsx); App calls it once.
+const app = appFactorySource('createAssignmentWorkspaceView');
 const pathPlayer = read('src/components/student/PathSessionPlayer.jsx');
 const securePlayerAdapter = read('src/components/assessment/SecureExamQuestionPlayer.jsx');
 // The secure player renders through the shared Rich Question Runtime: its

@@ -14,7 +14,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { executableSource, region } from './helpers/sourceContract.mjs';
-import { appHookSource } from './helpers/appScreens.mjs';
+import { appFactorySource, appHookSource } from './helpers/appScreens.mjs';
 import { parseCss, declared, rulesFor } from './helpers/cssRules.mjs';
 import { atRuleHolds, compareSpecificity, specificity, winning } from './helpers/cssCascade.mjs';
 import { jobsOf, readWorkflow, runsOnPullRequest, stepsOf } from './helpers/ciWorkflows.mjs';
@@ -142,7 +142,8 @@ test('a finished section\'s "Complete" is drawn in its tab, and the section tabs
   assert.equal(declared(app, tabs, 'flex-wrap', { media: PHONE })?.value, 'wrap');
   assert.equal(declared(app, tabs, 'overflow-x', { media: PHONE })?.value, 'visible');
   // The Focus view button is not in the tabs' row of its own: it sits beside them, never over one.
-  const nav = executableSource(read('src/App.jsx'));
+  // Since the App split (slice 7) createAssignmentWorkspaceView draws the navigator.
+  const nav = executableSource(appFactorySource('createAssignmentWorkspaceView'));
   const strip = region(nav, '<div className="mathmaster-section-tabs" role="group" aria-label="Assignment sections">', '</div>\n              ) : (', 'the section strip');
   assert.doesNotMatch(strip, /mathmaster-focus-view-button|mathmaster-overview-button|mathmaster-assignment-status-chip/);
   assert.match(nav, /className="mathmaster-focus-view-button"/);
@@ -237,7 +238,8 @@ test('at a large text size a phone\'s question keeps a whole screen in Focus vie
   assert.equal(declared(app, shell, 'grid-template-rows', { media: LARGE_UPRIGHT })?.value, `auto ${FRAME_HEIGHT}`);
   // Whichever state the navigator is in: the rule asks nothing of it.
   assert.ok(rulesFor(app, screen, { media: LARGE_UPRIGHT }).every((rule) => rule.selectors.every((selector) => !selector.includes('unified-nav'))));
-  const warmupChallenge = region(executableSource(read('src/App.jsx')), 'if (warmupChallengeDecision?.route === WARMUP_CHALLENGE_ROUTE.PLAY && warmupChallengeDecision.roomId) {', '<WarmupChallengeGate', 'the Warm-Up challenge\'s screen');
+  // Since the App split (slice 7) createAssignmentWorkspaceView draws that screen.
+  const warmupChallenge = region(executableSource(appFactorySource('createAssignmentWorkspaceView')), 'if (warmupChallengeDecision?.route === WARMUP_CHALLENGE_ROUTE.PLAY && warmupChallengeDecision.roomId) {', '<WarmupChallengeGate', 'the Warm-Up challenge\'s screen');
   assert.match(warmupChallenge, /<div className="mathmaster-assignment-screen"/);
   assert.doesNotMatch(warmupChallenge, /mathmaster-assignment-shell/, 'no shell: the rule leaves it alone');
   for (const file of ['src/components/liveChallenge/LiveChallengeStudent.jsx', 'src/components/liveChallenge/LiveChallengeFieldQuestion.jsx']) {
