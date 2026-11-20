@@ -2,7 +2,13 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 
-const appSource = readFileSync(new URL('../../src/App.jsx', import.meta.url), 'utf8');
+import { appFactorySource } from './helpers/appScreens.mjs';
+
+// Since the App split (slice 7) the open assignment a teacher previews is drawn
+// by createAssignmentWorkspaceView (src/app/student/assignmentWorkspaceView.jsx),
+// which App calls once, by position: the panel's mount and the generation key
+// are read there.
+const appSource = appFactorySource('createAssignmentWorkspaceView');
 const boundarySource = readFileSync(new URL('../../src/QuestionModuleBoundary.jsx', import.meta.url), 'utf8');
 const panelSource = readFileSync(new URL('../../src/components/teacher/TeacherQuestionReviewPanel.jsx', import.meta.url), 'utf8');
 

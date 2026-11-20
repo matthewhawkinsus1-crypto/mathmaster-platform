@@ -132,7 +132,10 @@ test('the collector finds the checks it is for, and leaves a region-scoped one a
 
 test('this suite refuses patterns in the whole of App.jsx, and App calls hooks to refuse them in', () => {
   // If either goes to zero the test below passes without checking anything.
-  assert.ok(collected.length >= 60, `only ${collected.length} whole-App forbidden patterns were found: the collector no longer recognises how tests read App.jsx`);
+  // (The count falls, a few at a time, as a test turns a refusal over App.jsx into
+  // one over appSurfaceSource(): that test then refuses the pattern in every module
+  // itself and no longer needs this one. 64 after slice 6, 57 after slice 7.)
+  assert.ok(collected.length >= 50, `only ${collected.length} whole-App forbidden patterns were found: the collector no longer recognises how tests read App.jsx`);
   assert.ok(Object.keys(appHookPaths()).length >= 10);
 });
 

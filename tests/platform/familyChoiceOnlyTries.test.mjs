@@ -32,7 +32,7 @@ import { isChoiceOnlyQuestion, recordQuestionAttempt, resolveQuestionMaximumAtte
 import { planSeatAdditions } from '../../functions/shared/questionGenerationIdentity.mjs';
 import { SUBMISSION_DISPOSITION } from '../../functions/shared/studentSubmissionDisposition.mjs';
 import { executableSource, region } from './helpers/sourceContract.mjs';
-import { appFactorySource, appSurfaceSource } from './helpers/appScreens.mjs';
+import { appFactorySeam, appFactorySource, appSurfaceSource } from './helpers/appScreens.mjs';
 import { submitButton } from './helpers/actionBarRender.mjs';
 import {
   CLASS_ID,
@@ -227,7 +227,14 @@ test('App.jsx counts every try on the question shown', () => {
     /familyDeliveriesRef\.current\.set\(shownDeliveryKey\(delivery\), \{ delivery, question: renderedQuestion \|\| null \}\);/);
   assert.match(region(app, 'const handlePreviewFamilyDelivery = useCallback(', '}, []);', 'the preview keeper'),
     /familyDeliveriesRef\.current\.set\(shownDeliveryKey\(\{ \.\.\.delivery, preview: true \}\), \{ delivery, question: renderedQuestion \|\| null \}\);/);
-  const mount = region(app, '<QuestionEngine\n              key={`${activeAssignmentId}', '/>', 'the assignment question mount');
+  // Since the App split (slice 7) createAssignmentWorkspaceView mounts the
+  // question and builds the navigator (src/app/student/assignmentWorkspaceView.jsx);
+  // App hands it both keepers and the count.
+  const workspace = executableSource(appFactorySource('createAssignmentWorkspaceView'));
+  for (const input of ['handleFamilyDelivery', 'handlePreviewFamilyDelivery', 'countedQuestionFor']) {
+    assert.ok(appFactorySeam('createAssignmentWorkspaceView').parameters.includes(input), `App hands the workspace view ${input}`);
+  }
+  const mount = region(workspace, '<QuestionEngine\n              key={`${activeAssignmentId}', '/>', 'the assignment question mount');
   // Among the engine's handlers, each a stable function calling this
   // render's handler (renderStability.js stableCallbacks).
   assert.match(region(mount, '{...stableCallbacks({', '})}', 'the engine handlers'), /\n\s*onFamilyDelivery: preview \? handlePreviewFamilyDelivery : handleFamilyDelivery,\n/);
@@ -240,7 +247,7 @@ test('App.jsx counts every try on the question shown', () => {
   const sites = {
     attempt: region(grading, 'const applyAttempt = (record) =>', '});', 'handleGradeSubmit applyAttempt'),
     step: region(grading, 'const applyStep = (record, occurredAt = null) =>', '});', 'handleStepGrade applyStep'),
-    navigator: region(app, 'const entryMaximumAttempts = (entry) => {', '};', 'entryMaximumAttempts'),
+    navigator: region(workspace, 'const entryMaximumAttempts = (entry) => {', '};', 'entryMaximumAttempts'),
     engine: region(mount, 'maximumAttempts={resolveQuestionMaximumAttempts({', '})}', 'the engine limit'),
   };
   assert.match(sites.attempt, /question: countedQuestionFor\(localAssignment, currentQuestionIndex, record, activeQuestions\[currentQuestionIndex\], isTeacherPreview\),/);

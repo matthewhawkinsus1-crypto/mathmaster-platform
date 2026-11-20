@@ -36,7 +36,7 @@ import {
   persistenceStatusOnAssignmentChange, persistenceStatusWithQueuedWork, saveLineIsAboutDrafts,
 } from '../../src/platform/student/saveStatusModel.js';
 import { executableSource, region } from './helpers/sourceContract.mjs';
-import { appFactorySource, appHookSource, appSurfaceSource } from './helpers/appScreens.mjs';
+import { appFactorySeam, appFactorySource, appHookSource, appModulePaths, appSurfaceSource } from './helpers/appScreens.mjs';
 import { questionRecordView } from '../../src/platform/performance/questionRecordView.js';
 import {
   normalizeQuestionRecord, recordQuestionAttempt, recordQuestionStep, requestReplacementQuestion,
@@ -52,6 +52,15 @@ import {
 
 const read = (path) => readFileSync(new URL(`../../${path}`, import.meta.url), 'utf8');
 const app = () => executableSource(read('src/App.jsx'));
+// Since the App split (slice 7) what App draws is in two modules App calls by
+// position: createAssignmentWorkspaceView owns the open assignment's workspace
+// (renderAssignmentWorkspace), createStudentShellViews the pieces around every
+// student screen (the pack-up line, the active Warm-Up and its banner).
+const workspaceView = () => executableSource(appFactorySource('createAssignmentWorkspaceView'));
+const shellViews = () => executableSource(appFactorySource('createStudentShellViews'));
+const WORKSPACE_START = 'const renderAssignmentWorkspace = (preview = false) => {';
+// The workspace is the whole of what its module builds: it ends at the module's own return.
+const WORKSPACE_END = '\n  return [renderAssignmentWorkspace];';
 
 /* ------------------------------------------------------------ renderFold */
 
@@ -341,7 +350,10 @@ test('App works out the Grade Center, the Recovery summaries, the Path options a
   const screens = code.indexOf('function buildStudentDashboardNow() {');
   const assignmentBranch = code.lastIndexOf('if (isStudentAssignment) {');
   assert.ok(screens > 0 && assignmentBranch > screens, 'the student screens, then the assignment');
-  const workspace = region(code, 'const renderAssignmentWorkspace = (preview = false) => {', 'const renderWhatChangedPanel = ', 'the assignment workspace');
+  const workspace = region(workspaceView(), WORKSPACE_START, WORKSPACE_END, 'the assignment workspace');
+  // The pieces around every student screen are drawn inside an assignment too.
+  const shell = shellViews();
+  const everywhere = [code, ...appModulePaths().map((modulePath) => executableSource(read(modulePath)))];
   for (const [name, [slot, inputs, builder]] of Object.entries(DEFERRED)) {
     // Made once, through renderMemo, on the inputs the memo had.
     const definition = new RegExp(`const ${name} = \\(\\) => renderMemo\\('${slot}', \\[\\s*([^\\]]*?)\\s*\\], \\(\\) =>`);
@@ -351,8 +363,10 @@ test('App works out the Grade Center, the Recovery summaries, the Path options a
     const builds = code.indexOf(builder, found.index);
     assert.ok(builds > found.index && builds - found.index < 900, `${name} builds with ${builder}`);
     // (The teacher's views build other students' Path options with the same builder.)
-    if (name !== 'studentPathOptionsNow') assert.equal(code.split(builder).length - 1, 1, `${builder} is called only there`);
+    // (Counted across App and every module its code moved into.)
+    if (name !== 'studentPathOptionsNow') assert.equal(everywhere.reduce((count, source) => count + source.split(builder).length - 1, 0), 1, `${builder} is called only there`);
     assert.doesNotMatch(workspace, new RegExp(builder.replace(/[.()]/g, '\\$&')), `${builder}: not inside the assignment`);
+    assert.doesNotMatch(shell, new RegExp(builder.replace(/[.()]/g, '\\$&')), `${builder}: not around the assignment`);
     // Asked for only by the screens outside an assignment.
     const calls = [...code.matchAll(new RegExp(`\\b${name}\\(\\)`, 'g'))].map((match) => match.index);
     assert.ok(calls.length >= 2, `${name}: asked for`);
@@ -363,6 +377,8 @@ test('App works out the Grade Center, the Recovery summaries, the Path options a
       assert.ok(insideTheScreens || pacing, `${name}() asked for outside the student screens: ${where}`);
     }
     assert.doesNotMatch(workspace, new RegExp(`\\b${name}\\(`), `${name}: nothing inside the assignment asks`);
+    // Nor the shell drawn around it (in App it sat outside the student screens, where the check above refused a call).
+    assert.doesNotMatch(shell, new RegExp(`\\b${name}\\(`), `${name}: nothing around the assignment asks`);
   }
   // No memo of the old kind is left, and nothing reads a value by its old name.
   for (const old of ['studentGradeCenter', 'studentRecoverySummariesByAssignment', 'studentPathOptions', 'studentPacing', 'studentPracticePassEligibleAssignments']) {
@@ -398,7 +414,8 @@ const only = (text, allowed, label) => {
 const JS = new Set(['const', 'return', 'undefined', 'null', 'true', 'false', 'Boolean']);
 
 test('the navigator works out a section\'s access once per change of what it reads', () => {
-  const code = app();
+  // createAssignmentWorkspaceView owns the navigator since the App split.
+  const code = workspaceView();
   const access = region(code, 'const sectionAccessFor = (entry) => {', 'sectionAccessCache.set(', 'sectionAccessFor');
   const memo = /renderMemo\(`navigatorSection\|\$\{cacheKey\}`, \[([^\]]*)\], \(\) => describeSectionAccess\(\{([\s\S]*)\}\)\);\s*$/.exec(access);
   assert.ok(memo, 'describeSectionAccess, through renderMemo, per role and timing');
@@ -418,7 +435,8 @@ test('the navigator works out a section\'s access once per change of what it rea
 });
 
 test('the navigator works out a question\'s line once per change of what it reads, but a family slot\'s every time', () => {
-  const code = app();
+  // createAssignmentWorkspaceView owns the navigator since the App split.
+  const code = workspaceView();
   const question = region(code, 'const navigatorQuestionFor = (entry) => {', '\n    };', 'navigatorQuestionFor');
   const describe = region(question, 'const describe = () => describeNavigatorQuestion({', '\n      });', 'the description');
   const memo = /\n\s*if \(isFamilyBackedQuestion\(questions\[entry\.index\]\)\) return describe\(\);\n\s*return renderMemo\(`navigatorQuestion\|\$\{entry\.index\}`, \[([\s\S]*?)\], describe\);\s*$/.exec(question);
@@ -452,7 +470,10 @@ test('the navigator works out a question\'s line once per change of what it read
   assert.match(engine, /const isPersonalizedBlueprint = \(question\) => Boolean\(familyDelivery\?\.canGenerateDistinctVariants\(question\)\);/);
   assert.match(engine, /const \[familyDelivery, setFamilyDelivery\] = useState\(null\);/);
   assert.match(engine, /return \{ familyDelivery, loadFamilyDelivery, isPersonalizedBlueprint \};/);
-  assert.match(code, /const \{ familyDelivery, loadFamilyDelivery, isPersonalizedBlueprint \} = useFamilyDeliveryEngine\(/);
+  assert.match(app(), /const \{ familyDelivery, loadFamilyDelivery, isPersonalizedBlueprint \} = useFamilyDeliveryEngine\(/);
+  // And App hands both to the workspace view by those names (the seam holds the two sides to the same order).
+  const handed = appFactorySeam('createAssignmentWorkspaceView').parameters;
+  for (const name of ['familyDelivery', 'isPersonalizedBlueprint']) assert.ok(handed.includes(name), `the workspace view is handed ${name}`);
   // What the page was shown is read only for a family slot.
   const counting = region(read('src/platform/generation/shownFamilyQuestion.js'), 'export const countedQuestion = ({', 'export const countedQuestionKnown', 'countedQuestion');
   assert.match(counting, /if \(!assignmentId \|\| !isFamilyBackedQuestion\(storedQuestion\)\) return fallback;/);
@@ -561,8 +582,13 @@ test('App works out the pack-up line, the lobby rule and the workspace\'s lifecy
     heldTeacherFeedback: { inputs: ['assignment'] },
     dueDateLines: { inputs: ['assignment', 'lifecycle'] },
   };
+  // The pack-up line's two are in createStudentShellViews, the workspace's four
+  // in createAssignmentWorkspaceView, each handed App's own renderMemo.
+  const shell = shellViews();
+  const view = workspaceView();
+  for (const factory of ['createStudentShellViews', 'createAssignmentWorkspaceView']) assert.ok(appFactorySeam(factory).parameters.includes('renderMemo'), `${factory} is handed App's renderMemo`);
   for (const [name, expected] of Object.entries(cases)) {
-    const { inputs, body } = memoSlot(code, name);
+    const { inputs, body } = memoSlot(name.startsWith('packUp') ? shell : view, name);
     assert.deepEqual(inputs, expected.inputs, `${name}: its inputs`);
     const roots = new Set(inputs.map((input) => input.split(/\?\.|\./)[0]));
     only(body.slice(body.indexOf('=>') + 2), new Set([...KEYWORDS, ...PURE, ...roots]), name);
@@ -580,11 +606,11 @@ test('App works out the pack-up line, the lobby rule and the workspace\'s lifecy
   for (const match of rule.matchAll(/\btracker\b(.{0,24})/g)) assert.match(match[1], /^\?\.\[activeAssignmentId\]/, `tracker${match[1]}`);
   // Nothing in a render asks them outside their memos (the precise clock's
   // effect asks for the bell window at the real time, after a render).
-  const packUpLine = region(code, 'const renderStudentPackUpNotice = () => {', 'const renderStudentWarmupBanner = () => {', 'the pack-up line');
+  const packUpLine = region(shell, 'const renderStudentPackUpNotice = () => {', 'const renderStudentWarmupBanner = () => {', 'the pack-up line');
   assert.equal(packUpLine.split('getClassPackUpState(').length - 1, 1);
   assert.equal(packUpLine.split('studentExtraTimeDolOpen(').length - 1, 1);
   assert.equal(code.split('studentWorkspaceHoldsOutcome').length - 1, 2, 'defined, and handed to its memo');
-  const workspace = region(code, 'const renderAssignmentWorkspace = (preview = false) => {', 'const renderWhatChangedPanel = ', 'the assignment workspace');
+  const workspace = region(view, WORKSPACE_START, WORKSPACE_END, 'the assignment workspace');
   const callsIn = (text, call) => text.split(call).length - 1;
   assert.equal(callsIn(workspace, 'projectCurrentAssignmentContent('), 1);
   assert.match(workspace, /renderMemo\('currentContent', \[assignment\], \(\) => projectCurrentAssignmentContent\(assignment\)\)/);
@@ -606,7 +632,8 @@ test('App works out the pack-up line, the lobby rule and the workspace\'s lifecy
 
 test('each lesson\'s Warm-Up window is worked out from the bell schedule, not again on each tracker change', () => {
   const code = app();
-  const warmup = region(code, 'const studentActiveWarmup = () => {', 'const renderStudentWarmupBanner = () => {', 'the active Warm-Up');
+  // createStudentShellViews owns the active Warm-Up since the App split.
+  const warmup = region(shellViews(), 'const studentActiveWarmup = () => {', 'const renderStudentWarmupBanner = () => {', 'the active Warm-Up');
   const windows = memoSlot(warmup, 'openWarmups');
   assert.deepEqual(windows.inputs, ['user', 'secureExamActive', 'assignments', 'classSchedule', 'now']);
   only(windows.body.slice(windows.body.indexOf('=>') + 2), new Set([...KEYWORDS, 'user', 'secureExamActive', 'assignments', 'classSchedule', 'now', 'classContext', 'assignment', 'state', 'assignmentIsForStudent', 'getWarmupState', 'assignmentIsExcusedForStudent', 'getAssignmentLifecycle']), 'the open Warm-Ups');
@@ -618,23 +645,33 @@ test('each lesson\'s Warm-Up window is worked out from the bell schedule, not ag
   for (const match of left.body.matchAll(/\btracker\b(.{0,18})/g)) assert.match(match[1], /^\?\.\[assignment\.id\]/, `tracker${match[1]}`);
   // studentRequiredFor reads the lessons, the student and that lesson's
   // records: the first two are the open Warm-Ups' own inputs.
+  // (Still App's own, handed to the shell views by name.)
+  assert.ok(appFactorySeam('createStudentShellViews').parameters.includes('studentRequiredFor'), 'the shell views are handed studentRequiredFor');
   const required = region(code, 'const studentRequiredFor = (assignmentData,', '\n  );\n', 'studentRequiredFor');
   only(required.slice(required.indexOf('=>') + 2), new Set([...KEYWORDS, 'studentRequiredQuestions', 'assignments', 'entry', 'assignmentData', 'hasPracticePass', 'forStudent', 'user', 'assignmentTracker', 'tracker']), 'studentRequiredFor');
 });
 
 test('App reads a record through its kept view only to read it, and normalises a fresh one where it builds a record', () => {
   const code = app();
-  const sites = [...code.matchAll(/questionRecordView\(([^()]*(?:\([^()]*\))?[^()]*)\)(.{0,20})/g)];
+  // Since the App split the reads are in App and in the modules its code
+  // moved into (most in createAssignmentWorkspaceView): all of them count.
+  const moved = appModulePaths().map((modulePath) => executableSource(read(modulePath)));
+  const everywhere = [code, ...moved].join('\n');
+  const sites = [...everywhere.matchAll(/questionRecordView\(([^()]*(?:\([^()]*\))?[^()]*)\)(.{0,20})/g)];
   assert.ok(sites.length >= 9, `${sites.length} reads through the view`);
   for (const [, , after] of sites) {
     // A field read, or a name whose every use is a field read.
     assert.match(after, /^\.(status|totalAttempts|attemptCount|variantIndex|timeSpent)\b|^;|^\)?\s*$|^,?$/, `questionRecordView(...)${after}`);
   }
   for (const name of ['currentRecord', 'record']) {
-    const at = code.indexOf(`const ${name} = questionRecordView(`);
-    if (at < 0) continue;
-    const scope = code.slice(at, at + 9000);
-    assert.doesNotMatch(scope, new RegExp(`\\b${name}(?:\\.\\w+)+\\s*=[^=>]|\\.\\.\\.${name}\\b|Object\\.assign\\(${name}\\b`), `${name} is only read`);
+    // Both are the workspace's (createAssignmentWorkspaceView); wherever else one is made, it is only read there too.
+    assert.ok(workspaceView().includes(`const ${name} = questionRecordView(`), `the workspace reads ${name} through the view`);
+    for (const source of [code, ...moved]) {
+      const at = source.indexOf(`const ${name} = questionRecordView(`);
+      if (at < 0) continue;
+      const scope = source.slice(at, at + 9000);
+      assert.doesNotMatch(scope, new RegExp(`\\b${name}(?:\\.\\w+)+\\s*=[^=>]|\\.\\.\\.${name}\\b|Object\\.assign\\(${name}\\b`), `${name} is only read`);
+    }
   }
   assert.match(code, /const getModuleRecord = \(assignmentTracker, index\) =>\s*questionRecordView\(assignmentTracker\?\.\[index\]\);/);
   for (const helper of ['getModuleStatus', 'getModuleTime']) assert.match(code, new RegExp(`const ${helper} = \\(assignmentTracker, index\\) =>\\s*getModuleRecord\\(assignmentTracker, index\\)\\.\\w+;`));
@@ -642,7 +679,7 @@ test('App reads a record through its kept view only to read it, and normalises a
   // Since the App split that record is built in changeQuestion, which
   // createQuestionNavigation owns (src/app/student/questionNavigation.js).
   assert.match(executableSource(appFactorySource('createQuestionNavigation')), /\.\.\.normalizeQuestionRecord\(currentAssignmentGrades\[currentQuestionIndex\]\),/);
-  assert.doesNotMatch(code, /\.\.\.questionRecordView\(/);
+  assert.doesNotMatch(everywhere, /\.\.\.questionRecordView\(/);
 });
 
 /* ------------------------------------------- what the runtime driver counts */

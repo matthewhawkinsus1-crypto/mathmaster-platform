@@ -8,6 +8,7 @@ import {
   BUCKET_OPEN_BY_DEFAULT,
   resolveNextAction,
 } from '../../src/studentDashboardModel.js';
+import { appFactorySeam, appFactorySource } from './helpers/appScreens.mjs';
 
 const emptyGroups = () => ({
   [BUCKET.IN_PROGRESS]: [],
@@ -93,11 +94,18 @@ test('assignment workspace exposes focus view and a collapsible task without rem
   ]);
 
   assert.match(app, /assignmentNavigationCollapsed/);
-  assert.match(app, /Focus view/);
-  assert.match(app, /Show progress/);
-  assert.match(app, /mathmaster-collapsed-current-location/);
-  assert.match(app, /mathmaster-focus-inline-controls/);
-  assert.match(app, /!assignmentNavigationCollapsed && \(\s*<div className="mathmaster-assignment-unified-bottom">/);
+  // Since the App split (slice 7) the workspace is drawn by createAssignmentWorkspaceView
+  // (src/app/student/assignmentWorkspaceView.jsx); appFactorySeam checks App calls it once and hands it its
+  // inputs by name, the navigator's collapsed state among them.
+  const workspace = appFactorySource('createAssignmentWorkspaceView');
+  assert.ok(appFactorySeam('createAssignmentWorkspaceView').parameters.includes('assignmentNavigationCollapsed'));
+  // The one button says which it does (the bare words below also appear in the module's comments).
+  assert.match(workspace, /\{assignmentNavigationCollapsed \? 'Show progress' : 'Focus view'\}/);
+  assert.match(workspace, /Focus view/);
+  assert.match(workspace, /Show progress/);
+  assert.match(workspace, /mathmaster-collapsed-current-location/);
+  assert.match(workspace, /mathmaster-focus-inline-controls/);
+  assert.match(workspace, /!assignmentNavigationCollapsed && \(\s*<div className="mathmaster-assignment-unified-bottom">/);
   assert.match(viewport, /Hide task/);
   assert.match(viewport, /Show task/);
   assert.doesNotMatch(viewport, /Task hidden for more workspace/);

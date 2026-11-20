@@ -30,8 +30,12 @@ const teacherPreviewEntryBody = executableSource(region(
   'startTeacherPreview + teachAssignmentLive',
 ));
 
+// Since the App split, createAssignmentWorkspaceView owns the open-assignment
+// workspace (src/app/student/assignmentWorkspaceView.jsx): App builds
+// renderAssignmentWorkspace once per render and hands it what it reads by position.
+const workspaceView = appFactorySource('createAssignmentWorkspaceView');
 const workspaceHeadBody = executableSource(region(
-  source,
+  workspaceView,
   'const renderAssignmentWorkspace = (preview = false) => {',
   // The head ends where the open question's record is read (however it is read).
   'const currentRecord = ',
@@ -70,6 +74,7 @@ test('Teacher Preview and live teaching entry points never read a student Practi
 });
 
 test('renderAssignmentWorkspace derives hasPracticePass only for a real student, never for preview, never in post-deadline voluntary Practice Mode', () => {
+  assert.ok(appFactorySeam('createAssignmentWorkspaceView').parameters.includes('hasPracticePassFor'), 'App hands the workspace view the Practice Pass lookup');
   assert.match(workspaceHeadBody, /const hasPracticePass = !preview && !lifecycle\.isPracticeOnly && hasPracticePassFor\(assignment\.id\)/);
 });
 
@@ -78,7 +83,9 @@ test('renderAssignmentWorkspace filters Practice out of the workspace question s
 });
 
 test('the practice-progress readout is passed the same hasPracticePass flag the workspace derived', () => {
-  assert.match(source, /calculatePracticeProgress\(workingTracker, assignment, \{ hasPracticePass \}\)/);
+  // (In the workspace view since the App split, with App's own calculatePracticeProgress.)
+  assert.ok(appFactorySeam('createAssignmentWorkspaceView').parameters.includes('calculatePracticeProgress'), 'App hands the workspace view its practice-progress readout');
+  assert.match(executableSource(workspaceView), /calculatePracticeProgress\(workingTracker, assignment, \{ hasPracticePass \}\)/);
 });
 
 test('live presence and the active-question correction effect read the practice-pass-aware index helper, not the raw current-content one', () => {

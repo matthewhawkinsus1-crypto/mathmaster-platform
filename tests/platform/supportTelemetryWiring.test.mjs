@@ -8,6 +8,7 @@ import { readFileSync } from 'node:fs';
 import { applyStudentSupportToQuestion, buildSupportUsage } from '../../src/studentSupport.js';
 import { followRosterClass, studentClassFields } from '../../src/platform/student/rosterMembership.js';
 import { region, executableSource } from './helpers/sourceContract.mjs';
+import { appFactorySeam, appFactorySource } from './helpers/appScreens.mjs';
 
 const engine = readFileSync(new URL('../../src/QuestionEngine.jsx', import.meta.url), 'utf8');
 const app = readFileSync(new URL('../../src/App.jsx', import.meta.url), 'utf8');
@@ -46,7 +47,10 @@ test('the question engine reports read-aloud use at the button and calculator us
 });
 
 test('only real student credit work records evidence; previews and post-deadline practice never do', () => {
-  const mount = region(app, '<QuestionEngine', '/>', 'QuestionEngine mount');
+  // Since the App split (slice 7), createAssignmentWorkspaceView mounts
+  // QuestionEngine; App hands it its own recorder (below).
+  assert.ok(appFactorySeam('createAssignmentWorkspaceView').parameters.includes('recordStudentSupportEvidence'), 'App hands the workspace view its recorder');
+  const mount = region(appFactorySource('createAssignmentWorkspaceView'), '<QuestionEngine', '/>', 'QuestionEngine mount');
   // Among the engine's handlers (renderStability.js stableCallbacks): null in
   // a preview and in post-deadline practice, so nothing there is recorded.
   assert.match(region(mount, '{...stableCallbacks({', '})}', 'the engine handlers'), /\n\s*onSupportEvidence: preview \|\| lifecycle\.isPracticeOnly\s*\? null/);

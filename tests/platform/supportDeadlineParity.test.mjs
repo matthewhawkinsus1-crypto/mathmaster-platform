@@ -17,7 +17,7 @@ import { resolveStudentFinalDeadlineFromAssignment } from '../../src/platform/gr
 import { withStudentSupportDates } from '../../functions/shared/supportDeadline.mjs';
 import { buildSupportProjection } from '../../functions/shared/supportProfileModel.mjs';
 import { region, executableSource } from './helpers/sourceContract.mjs';
-import { appHookSource } from './helpers/appScreens.mjs';
+import { appFactorySeam, appFactorySource, appHookSource } from './helpers/appScreens.mjs';
 import { functionsBackendSource } from './helpers/functionsBackendSource.mjs';
 
 const CHICAGO = 'America/Chicago';
@@ -179,10 +179,15 @@ test('both student date displays read the student\'s lifecycle, not the class da
   assert.match(dashboard, /studentDueDateLines\(resumeAssignment, resumeLifecycle\)\.dueLine/);
   // The workspace header's lines, from the student's own lifecycle (kept
   // until the assignment or that lifecycle changes: App's render work).
-  assert.match(app, /const dates = renderMemo\('dueDateLines', \[assignment, lifecycle\], \(\) => studentDueDateLines\(assignment, lifecycle\)\); return <>\{dates\.dueLine\}\{dates\.finalLine \? <><br \/>\{dates\.finalLine\}<\/> : null\}<\/>;/);
-  // The name is in App's import block from assignmentLifecycle (wherever in
-  // the list): a call with no import passes every other gate (AGENTS.md).
-  const lifecycleImport = app.match(/import \{([^}]*)\} from '\.\/assignmentLifecycle';/);
-  assert.ok(lifecycleImport, 'App.jsx imports from assignmentLifecycle');
-  assert.match(lifecycleImport[1], /\bstudentDueDateLines,/, 'App.jsx imports what it calls');
+  // Since the App split the header is drawn by createAssignmentWorkspaceView
+  // (src/app/student/assignmentWorkspaceView.jsx), with App's own renderMemo.
+  const workspaceView = appFactorySource('createAssignmentWorkspaceView');
+  assert.ok(appFactorySeam('createAssignmentWorkspaceView').parameters.includes('renderMemo'), 'App hands the workspace view its renderMemo');
+  assert.match(workspaceView, /const dates = renderMemo\('dueDateLines', \[assignment, lifecycle\], \(\) => studentDueDateLines\(assignment, lifecycle\)\); return <>\{dates\.dueLine\}\{dates\.finalLine \? <><br \/>\{dates\.finalLine\}<\/> : null\}<\/>;/);
+  // The name is in the import block from assignmentLifecycle (wherever in
+  // the list) of the module that makes the call, the workspace view's now: a
+  // call with no import passes every other gate (AGENTS.md).
+  const lifecycleImport = workspaceView.match(/import \{([^}]*)\} from '\.\.\/\.\.\/assignmentLifecycle';/);
+  assert.ok(lifecycleImport, 'assignmentWorkspaceView.jsx imports from assignmentLifecycle');
+  assert.match(lifecycleImport[1], /\bstudentDueDateLines\b/, 'assignmentWorkspaceView.jsx imports what it calls');
 });

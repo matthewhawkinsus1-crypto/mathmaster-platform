@@ -172,7 +172,10 @@ test('the visible in-app Back control returns result-launched practice to Assign
   const start = region(appFactorySource('createStudentNavigation'), 'const startAssignment = ', 'const openStudentGradeCenter', 'startAssignment');
   assert.match(start, /if \(!options\?\.returnToResult\) setAssignmentResultRoute\(null\)/);
 
-  const leave = region(app, 'const returnsToAssignmentResult = ', '// While the Warm-Up challenge is live', 'assignment leave routing');
+  // Since the App split (slice 7), createAssignmentWorkspaceView owns the
+  // workspace's leave control; App hands it the result route.
+  assert.ok(appFactorySeam('createAssignmentWorkspaceView').parameters.includes('assignmentResultRoute'), 'App hands the workspace view the result route');
+  const leave = region(appFactorySource('createAssignmentWorkspaceView'), 'const returnsToAssignmentResult = ', '// While the Warm-Up challenge is live', 'assignment leave routing');
   assert.match(leave, /assignmentResultRoute\?\.assignmentId === activeAssignmentId/);
   assert.match(leave, /setActiveView\('assignmentResult'\)/);
   assert.match(leave, /Back to Results/);

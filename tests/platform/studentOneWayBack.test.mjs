@@ -15,21 +15,25 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { executableSource, region } from './helpers/sourceContract.mjs';
+import { appFactorySource } from './helpers/appScreens.mjs';
 
 const read = (path) => executableSource(readFileSync(new URL(`../../${path}`, import.meta.url), 'utf8'));
 const app = read('src/App.jsx');
 
 test('NAV-20: the workspace has one student Back, named for its destination', () => {
-  const header = region(app, '<header className="mathmaster-assignment-header"', '</header>', 'assignment header');
+  // Since the App split the workspace (its header, its sticky navigator and the
+  // Back label) is drawn by createAssignmentWorkspaceView, which App calls once.
+  const workspace = executableSource(appFactorySource('createAssignmentWorkspaceView'));
+  const header = region(workspace, '<header className="mathmaster-assignment-header"', '</header>', 'assignment header');
   // The header's text exit exists only inside a preview branch.
   assert.match(header, /\{preview && \(\s*<button\s+onClick=\{leaveAssignment\}[\s\S]*?Back to Instructor Dashboard\s*<\/button>\s*\)\}/);
   assert.equal((header.match(/onClick=\{leaveAssignment\}/g) || []).length, 1);
   assert.doesNotMatch(header, /studentAssignmentBackLabel/);
-  const back = region(app, '<button type="button" className="mathmaster-unified-nav-back"', '</button>', 'sticky Back');
+  const back = region(workspace, '<button type="button" className="mathmaster-unified-nav-back"', '</button>', 'sticky Back');
   assert.match(back, /onClick=\{leaveAssignment\}/);
   assert.match(back, /aria-label=\{preview \? 'Back to instructor dashboard' : studentAssignmentBackLabel\}/);
   assert.doesNotMatch(back, /Back to dashboard/);
-  const label = region(app, 'const studentAssignmentBackLabel = ', ';', 'Back label');
+  const label = region(workspace, 'const studentAssignmentBackLabel = ', ';', 'Back label');
   assert.match(label, /studentDashboardMode === 'testCycle'\s*\?\s*'Back to the Test Cycle'/, 'a Test Cycle review returns to its card');
 });
 

@@ -2,14 +2,16 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import { region } from './helpers/sourceContract.mjs';
+import { appFactorySource } from './helpers/appScreens.mjs';
 
 const read = (path) => readFile(new URL(`../../${path}`, import.meta.url), 'utf8');
 
 test('assignment navigation merges section tabs, numbered question jumps, and next/previous controls', async () => {
-  const [app, css] = await Promise.all([
-    read('src/App.jsx'),
-    read('src/App.css'),
-  ]);
+  // Since the App split the navigator is drawn by the open assignment's
+  // workspace, which createAssignmentWorkspaceView owns (App calls it once, by
+  // position); the styles are still App.css.
+  const app = appFactorySource('createAssignmentWorkspaceView');
+  const css = await read('src/App.css');
 
   assert.match(app, /mathmaster-assignment-unified-nav/);
   assert.match(app, /mathmaster-section-tab/);

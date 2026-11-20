@@ -5,10 +5,15 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { READING_ACTIVITY_EVENTS, subscribeToReadingActivity } from '../../src/components/common/readingActivity.js';
 import { executableSource, region } from './helpers/sourceContract.mjs';
-import { appHookSource } from './helpers/appScreens.mjs';
+import { appFactorySource, appHookSource } from './helpers/appScreens.mjs';
 
 const read = (path) => readFileSync(new URL(`../../${path}`, import.meta.url), 'utf8');
 const app = executableSource(read('src/App.jsx'));
+// Since the App split (slice 7) what App draws is built by two factories App
+// calls: createAssignmentWorkspaceView owns the open assignment's workspace,
+// createStudentShellViews the pieces around every student screen.
+const workspace = executableSource(appFactorySource('createAssignmentWorkspaceView'));
+const shellViews = executableSource(appFactorySource('createStudentShellViews'));
 
 // WCAG 2.4.7: role="button" spans, tabs and options had no ring, and inline
 // outline:none beat the stylesheet. Keyboard focus only (:focus-visible).
@@ -23,15 +28,15 @@ test('a keyboard focus ring covers ARIA widgets and beats inline outline:none', 
 });
 
 test('assignment sections are a group of buttons, not buttons pretending to be list items', () => {
-  const nav = region(app, 'className="mathmaster-section-tabs"', 'navigationSections.map', 'the section bar');
+  const nav = region(workspace, 'className="mathmaster-section-tabs"', 'navigationSections.map', 'the section bar');
   assert.match(nav, /role="group" aria-label="Assignment sections"/);
-  const tab = region(app, 'navigationSections.map((section) => {', '</button>', 'a section button');
+  const tab = region(workspace, 'navigationSections.map((section) => {', '</button>', 'a section button');
   assert.doesNotMatch(tab, /role="listitem"/);
 });
 
 test('moving to another question is announced from the rendered prompt', () => {
-  assert.match(app, /import QuestionAnnouncer from '\.\/components\/common\/QuestionAnnouncer\.jsx';/);
-  const call = region(app, '<QuestionAnnouncer', '/>', 'the announcer');
+  assert.match(workspace, /import QuestionAnnouncer from '\.\.\/\.\.\/components\/common\/QuestionAnnouncer\.jsx';/);
+  const call = region(workspace, '<QuestionAnnouncer', '/>', 'the announcer');
   assert.match(call, /announceKey=\{`\$\{activeAssignmentId\}-\$\{currentQuestionIndex\}`\}/);
   assert.match(call, /containerRef=\{assignmentQuestionStageRef\}/);
   const announcer = executableSource(read('src/components/common/QuestionAnnouncer.jsx'));
@@ -54,7 +59,7 @@ test('reading with a screen reader keeps the idle prompt away', () => {
   assert.match(effect, /const stopReadingActivity = subscribeToReadingActivity\(window, resetActivity\);/);
   assert.match(effect, /stopReadingActivity\(\);/, 'and unsubscribes');
   assert.deepEqual([...READING_ACTIVITY_EVENTS].sort(), ['focusin', 'keyup', 'scroll', 'selectionchange']);
-  assert.match(region(app, 'const renderIdleOverlay', 'Yes, I&apos;m Back!', 'the idle overlay'), /data-idle-prompt=""/);
+  assert.match(region(shellViews, 'const renderIdleOverlay', 'Yes, I&apos;m Back!', 'the idle overlay'), /data-idle-prompt=""/);
 });
 
 test('reading signals count, but the idle prompt focusing itself does not', () => {
@@ -86,7 +91,7 @@ test('the document title names the screen', () => {
     assert.match(chrome, new RegExp(`${mode}: '${title}'`), mode);
   }
   assert.match(chrome, /if \(view === 'assignment'\) return `\$\{String\(assignmentTitle \|\| ''\)\.trim\(\) \|\| 'Assignment'\} – \$\{suffix\}`;/);
-  assert.match(app, /import \{ MAIN_CONTENT_ID, SkipToContent \} from '\.\/components\/common\/pageChrome\.jsx';/);
+  assert.match(shellViews, /import \{ MAIN_CONTENT_ID, SkipToContent \} from '\.\.\/\.\.\/components\/common\/pageChrome\.jsx';/);
   // Since the App split the title is useStudentScreenChange's, which App calls
   // with what the title is made from.
   const screenChange = executableSource(appHookSource('useStudentScreenChange'));
@@ -102,7 +107,7 @@ test('the document title names the screen', () => {
 
 // WCAG 2.4.1: the first Tab stop on a student screen skips the navigation.
 test('a student screen starts with a skip link past the navigation', () => {
-  const shell = region(app, 'const renderStudentIdentityShell', '\n  };', 'the student shell');
+  const shell = region(shellViews, 'const renderStudentIdentityShell', '\n  };', 'the student shell');
   assert.match(shell, /<div data-authenticated-student-shell=[^>]*>\s*<SkipToContent \/>/, 'first in the shell');
   // The skip link's fallback anchor exists on every screen: the shell's own
   // main (a screen without one, NAV-15), or the empty anchor before a screen

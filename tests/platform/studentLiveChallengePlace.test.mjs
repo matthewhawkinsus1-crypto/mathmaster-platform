@@ -14,10 +14,15 @@ import { liveChallengeExitLabel, liveChallengeReturnPlace, sectionHoldsLobbyInvi
 import { shouldShowChallengeHandoffBanner, shouldShowChallengeLobbyInvite } from '../../src/platform/liveChallenge/warmupChallengeLink.js';
 import { classroomAnnouncement, classroomAnnouncementState } from '../../src/platform/student/classroomAnnouncements.js';
 import { executableSource, region } from './helpers/sourceContract.mjs';
-import { appFactorySource, appHookSource, appSurfaceSource } from './helpers/appScreens.mjs';
+import { appFactorySeam, appFactorySource, appHookSource, appSurfaceSource } from './helpers/appScreens.mjs';
 
 const read = (path) => executableSource(readFileSync(new URL(`../../${path}`, import.meta.url), 'utf8'));
 const app = read('src/App.jsx');
+// Since the App split (slice 7) the open assignment's workspace is drawn by createAssignmentWorkspaceView and the
+// shell around every student screen by createStudentShellViews; App calls each once and hands them what they read,
+// name for name (appFactorySource checks that seam).
+const workspaceView = executableSource(appFactorySource('createAssignmentWorkspaceView'));
+const shellViews = executableSource(appFactorySource('createStudentShellViews'));
 
 test('NAV-25: the place a student joins from, and the exit named for it', () => {
   const inAssignment = liveChallengeReturnPlace({ activeView: 'assignment', activeAssignmentId: 'a1', currentQuestionIndex: 4, studentDashboardMode: 'grades' });
@@ -38,9 +43,11 @@ test('NAV-25: the lobby invite is offered in an assignment; the running banner k
   assert.equal(shouldShowChallengeLobbyInvite({ invite: { status: 'running', roomId: 'r1' } }), false, 'running is the hand-off banner');
   assert.equal(shouldShowChallengeLobbyInvite({ invite: { status: 'invited', roomId: 'r1' }, warmupDecision: { roomId: 'r1' } }), false, "this lesson's own Warm-Up game has its own lobby");
   assert.equal(shouldShowChallengeHandoffBanner({ invite: { status: 'invited', roomId: 'r1' } }), false);
-  const workspace = region(app, '{!preview && !lobbyInviteHeldHere && shouldShowChallengeLobbyInvite({ invite: liveChallengeInvite, warmupDecision: warmupChallengeDecision }) && (', '</section>', 'workspace lobby invite');
+  const workspace = region(workspaceView, '{!preview && !lobbyInviteHeldHere && shouldShowChallengeLobbyInvite({ invite: liveChallengeInvite, warmupDecision: warmupChallengeDecision }) && (', '</section>', 'workspace lobby invite');
   assert.match(workspace, /onClick=\{joinLiveChallenge\}/);
-  assert.match(app, /!lobbyInviteHeldHere && shouldShowChallengeLobbyInvite\(\{ invite: liveChallengeInvite, warmupDecision: warmupChallengeDecision \}\) && \{\s*key: 'liveChallenge',/, 'and the phone status chip');
+  // The join it calls is the one App hands the workspace view.
+  assert.ok(appFactorySeam('createAssignmentWorkspaceView').parameters.includes('joinLiveChallenge'));
+  assert.match(workspaceView, /!lobbyInviteHeldHere && shouldShowChallengeLobbyInvite\(\{ invite: liveChallengeInvite, warmupDecision: warmupChallengeDecision \}\) && \{\s*key: 'liveChallenge',/, 'and the phone status chip');
 });
 
 test('NAV-25 review B1: never on an exit ticket, quiz or test whose outcome is withheld', () => {
@@ -56,7 +63,11 @@ test('NAV-25 review B1: never on an exit ticket, quiz or test whose outcome is w
   assert.match(app, /const lobbyInviteHeldHere = renderMemo\('lobbyInviteHeld', \[user\?\.role, user\?\.id, activeView, activeAssignmentId, assignments, now, currentQuestionIndex, tracker\?\.\[activeAssignmentId\]\], studentWorkspaceHoldsOutcome\);/);
   // The banner, the phone chip and the announcement all use it; the running
   // hand-off banner (pre-existing, deliberate) does not.
-  assert.equal((app.match(/!lobbyInviteHeldHere && shouldShowChallengeLobbyInvite\(/g) || []).length, 2);
+  // Both are drawn by the workspace view since the App split, from the answer App hands it; counted there and
+  // across App and every module its code moved into, so neither a third use nor a lost one can hide.
+  assert.ok(appFactorySeam('createAssignmentWorkspaceView').parameters.includes('lobbyInviteHeldHere'), 'App hands the workspace view the rule\'s answer');
+  assert.equal((workspaceView.match(/!lobbyInviteHeldHere && shouldShowChallengeLobbyInvite\(/g) || []).length, 2);
+  assert.equal((executableSource(appSurfaceSource()).match(/!lobbyInviteHeldHere && shouldShowChallengeLobbyInvite\(/g) || []).length, 2);
   // Since the App split, useClassroomAnnouncement owns the announcement; App hands it the rule's answer.
   assert.match(app, /useClassroomAnnouncement\(\{ user, secureExamActive, liveChallengeInvite, studentSpotlightRequest, lobbyInviteHeldHere \}\);/);
   assert.match(executableSource(appHookSource('useClassroomAnnouncement')), /invite: user\?\.role === 'student' && !lobbyInviteHeldHere \? liveChallengeInvite : null,/);
@@ -119,13 +130,14 @@ test('NAV-23: the invite and a Spotlight request are said once, when they newly 
   // Review S4: the news, without naming a button the screen may call something else.
   assert.equal(classroomAnnouncement(none, lobby), 'Your teacher opened the Live Challenge lobby.');
   assert.doesNotMatch(classroomAnnouncement(lobby, classroomAnnouncementState({ invite: { status: 'running', roomId: 'r1' } })), /button/);
-  const shell = region(app, 'const renderStudentIdentityShell = ', 'const renderStudentScreen = ', 'shell');
+  const shell = region(shellViews, 'const renderStudentIdentityShell = ', 'const renderStudentScreen = ', 'shell');
   assert.match(shell, /<div role="status" aria-live="polite" aria-atomic="true" data-classroom-announcement className="mm-visually-hidden">\s*\{classroomAnnouncementText\}/);
   // The Spotlight request is a labelled region now, not a dialog that never takes focus.
   assert.match(shell, /<section aria-label="Student Spotlight request" data-spotlight-request/);
   assert.doesNotMatch(shell, /role="dialog" aria-label="Student Spotlight request"/);
   // Since the App split, useClassroomAnnouncement owns the effect and the text the shell's live region shows.
   assert.match(app, /const \{ classroomAnnouncementText \} = useClassroomAnnouncement\(/);
+  assert.ok(appFactorySeam('createStudentShellViews').parameters.includes('classroomAnnouncementText'), 'and App hands that text to the shell that shows it');
   const announcementHook = executableSource(appHookSource('useClassroomAnnouncement'));
   assert.match(announcementHook, /return \{ classroomAnnouncementText \};/);
   const effect = region(announcementHook, 'const classroomAnnouncementTimerRef = useRef(null);', '}, [currentClassroomState.challenge, currentClassroomState.spotlight]);', 'announcement effect');

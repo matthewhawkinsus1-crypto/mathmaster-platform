@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { readFileSync, readdirSync } from 'node:fs';
 import test from 'node:test';
 import { region } from './helpers/sourceContract.mjs';
+import { appFactorySeam, appFactorySource } from './helpers/appScreens.mjs';
 import {
   answerFocusPosition,
   countAnswerControls,
@@ -120,7 +121,12 @@ test('App records the cursor before a restore remount, for that question only, a
   assert.notEqual(restoreStart, -1, 'the server read still restores drafts');
   const restoreBranch = app.slice(restoreStart, app.indexOf('sync.noteServerCopy(entries);', restoreStart));
   assert.match(restoreBranch, /setDraftRestoreFocus\(\{\s*questionIndex: currentQuestionIndexRef\.current,\s*position: answerFocusPosition\(assignmentQuestionStageRef\.current\),\s*\}\);\s*setWorkspaceDraftGeneration\(\(value\) => value \+ 1\);/);
-  assert.match(app, /draftRestore=\{draftRestoreFocus\?\.questionIndex === currentQuestionIndex \? draftRestoreFocus : null\}/);
+  // Since the App split QuestionEngine is drawn by the open assignment's
+  // workspace (createAssignmentWorkspaceView), which App hands the cursor it
+  // recorded and the question shown.
+  const handed = appFactorySeam('createAssignmentWorkspaceView').parameters;
+  for (const name of ['draftRestoreFocus', 'currentQuestionIndex']) assert.ok(handed.includes(name), `App hands the workspace view ${name}`);
+  assert.match(appFactorySource('createAssignmentWorkspaceView'), /draftRestore=\{draftRestoreFocus\?\.questionIndex === currentQuestionIndex \? draftRestoreFocus : null\}/);
   // Another question, or another assignment, drops it; the ref the read
   // records it with follows the question shown, from the commit that shows it
   // (draftRestoreRemountScope.test.mjs).

@@ -44,8 +44,13 @@ import { buildLiveStatus, classifyLiveStudent, LIVE_FLAGS, LIVE_SEVERITY, summar
 import { ACTIVITY_ROLES } from '../../functions/shared/activityPolicies.mjs';
 import { familyInstance } from './helpers/misconceptionFixtures.mjs';
 import { executableSource, region } from './helpers/sourceContract.mjs';
+import { appFactorySeam, appFactorySource, appSurfaceSource } from './helpers/appScreens.mjs';
 
 const read = (path) => readFileSync(new URL(`../../${path}`, import.meta.url), 'utf8');
+// Since the App split (slice 7) the open assignment's workspace, QuestionEngine's
+// props among it, is drawn by createAssignmentWorkspaceView
+// (src/app/student/assignmentWorkspaceView.jsx), which App calls once, by position.
+const workspaceViewSource = () => appFactorySource('createAssignmentWorkspaceView');
 
 /* ------------------------------------------------------------ 1. messages */
 
@@ -287,13 +292,16 @@ test('3. a DOL\'s per-item right/wrong release never opens the worked solution (
   const app = executableSource(read('src/App.jsx'));
   // The per-item release (a DOL item that is correct or out of attempts)
   // still shows right/wrong…
-  assert.match(app, /const currentFeedbackReleased = lifecycle\.isPracticeOnly \|\| assignmentFeedbackWasReleased\(assignment\)\s*\|\| \(activeActivityPolicy\.feedback === 'afterAssignmentSubmit' && \['correct', 'expired'\]\.includes\(currentRecord\.status\)\);/);
+  // (Both are the workspace view's since the App split.)
+  const workspace = executableSource(workspaceViewSource());
+  assert.match(workspace, /const currentFeedbackReleased = lifecycle\.isPracticeOnly \|\| assignmentFeedbackWasReleased\(assignment\)\s*\|\| \(activeActivityPolicy\.feedback === 'afterAssignmentSubmit' && \['correct', 'expired'\]\.includes\(currentRecord\.status\)\);/);
   // …but the review follows the assignment-level release only.
-  assert.match(app, /assessmentReviewReleased=\{assignmentFeedbackWasReleased\(assignment\)\}/);
-  assert.doesNotMatch(app, /assessmentReviewReleased=\{currentFeedbackReleased\}/);
+  assert.match(workspace, /assessmentReviewReleased=\{assignmentFeedbackWasReleased\(assignment\)\}/);
+  assert.doesNotMatch(executableSource(appSurfaceSource()), /assessmentReviewReleased=\{currentFeedbackReleased\}/);
   // The assignment-level release is the teacher's release and nothing else
   // (moved to app/student/assignmentRuntimeHelpers.js by the App split).
   assert.match(app, /\bassignmentFeedbackWasReleased,\n[\s\S]*?\} from '\.\/app\/student\/assignmentRuntimeHelpers\.js';/);
+  assert.match(workspace, /^import \{[^}]*\bassignmentFeedbackWasReleased\b[^}]*\} from '\.\/assignmentRuntimeHelpers\.js';$/m);
   assert.equal(assignmentFeedbackWasReleased({ feedbackReleased: true }), true);
   assert.equal(assignmentFeedbackWasReleased({ feedbackReleasedAt: '2026-10-01T00:00:00Z' }), true);
   assert.equal(assignmentFeedbackWasReleased({ dol: { enabled: true } }), false, 'nothing but the teacher\'s release counts');
@@ -574,14 +582,20 @@ test('6. "Ask my teacher" adds a time and a question position to the student\'s 
   // Wired: imported where it is used (nothing imports App.jsx, so a missing
   // import passes every other gate).
   const app = read('src/App.jsx');
-  assert.match(app, /^import \{ helpRequestAfterClose, helpRequestFields, nextHelpRequest \} from '\.\/platform\/supports\/helpRequest\.js';$/m);
+  // Since the App split the workspace view raises the hand (nextHelpRequest)
+  // and App lowers and publishes it: each imports what it calls.
+  const workspace = workspaceViewSource();
+  assert.match(app, /^import \{ helpRequestAfterClose, helpRequestFields \} from '\.\/platform\/supports\/helpRequest\.js';$/m);
+  assert.match(workspace, /^import \{ nextHelpRequest \} from '\.\.\/\.\.\/platform\/supports\/helpRequest\.js';$/m);
   // A raised hand comes down when its question closes (the toggle is gone
   // from a closed question, so nothing else could lower it).
   assert.match(app, /useEffect\(\(\) => \{\s*setHelpRequest\(\(current\) => helpRequestAfterClose\(current, activeWorkingTracker, \{ askingAllowed: !activeLifecycle\?\.isPracticeOnly \}\)\);\s*\}, \[activeWorkingTracker, activeLifecycle\?\.isPracticeOnly\]\);/);
   assert.match(app, /\.\.\.helpRequestFields\(helpRequest, \{ assignmentId: activeAssignmentId \}\),/);
   // Among QuestionEngine's handlers, each one function for App's life that
   // calls this render's (renderStability.js stableCallbacks).
-  const engineHandlers = region(app, '{...stableCallbacks({', '})}', "QuestionEngine's handlers");
+  // (Drawn by the workspace view, which App hands the hand's setter.)
+  const engineHandlers = region(workspace, '{...stableCallbacks({', '})}', "QuestionEngine's handlers");
+  assert.ok(appFactorySeam('createAssignmentWorkspaceView').parameters.includes('setHelpRequest'), 'App hands the workspace view the setter of the one hand');
   assert.match(engineHandlers, /\n\s*onAskTeacher: preview \|\| lifecycle\.isPracticeOnly \|\| user\?\.role !== 'student'\s*\? null\s*: \(requested\) => setHelpRequest\(nextHelpRequest\(\{ requested, assignmentId: activeAssignmentId, questionIndex: currentQuestionIndex \}\)\),\n/);
   // Published only after the stale document is deleted (a write before it
   // would be deleted and archived as a session of its own).
@@ -595,7 +609,8 @@ test('6. a hand comes down when its question locks without closing — DOL timer
   assert.match(engine, /const locked = Boolean\(isCorrect \|\| isExpired \|\| assignmentLocked\);/);
   // …and a locked question lowers its own raised hand, since Ask and Cancel go with it.
   assert.match(engine, /useEffect\(\(\) => \{\s*if \(locked && helpRequested && typeof onAskTeacher === 'function'\) onAskTeacher\(false\);\s*\}, \[locked, helpRequested, onAskTeacher\]\);/);
-  const app = executableSource(read('src/App.jsx'));
+  // QuestionEngine's props are the workspace view's since the App split.
+  const app = executableSource(workspaceViewSource());
   // The hand belongs to the question it was raised on: another question shows
   // "Ask my teacher", and only the question it was raised on can lower it.
   assert.match(app, /helpRequested=\{helpRequest\?\.assignmentId === activeAssignmentId && helpRequest\?\.questionIndex === currentQuestionIndex\}/);
@@ -694,9 +709,12 @@ test('6. "Ask my teacher" is never offered inside a secure Test or Test Cycle', 
   ['src/components/assessment/SecureExamContainer.jsx', 'src/components/assessment/SecureExamQuestionPlayer.jsx',
     'src/components/question/RichQuestionRuntime.jsx', 'src/components/student/TestCycleCorrections.jsx',
     'src/components/student/TestCycleCard.jsx'].forEach((path) => assert.doesNotMatch(read(path), /onAskTeacher|helpRequested/, path));
-  const app = read('src/App.jsx');
+  // Counted across App and every module its code moved into (the App split),
+  // and the one host is the workspace view.
+  const app = appSurfaceSource();
   // (A prop, or a key of the handlers App hands it through stableCallbacks.)
   assert.equal((app.match(/\bonAskTeacher(?:=|: )/g) || []).length, 1, 'one host: the assignment workspace');
+  assert.equal((workspaceViewSource().match(/\bonAskTeacher(?:=|: )/g) || []).length, 1, 'and it is the assignment workspace view');
   // And the secure host really is server-graded: the exam player renders
   // RichQuestionRuntime, which mounts QuestionEngine with serverGrading.
   assert.match(read('src/components/assessment/SecureExamQuestionPlayer.jsx'), /<RichQuestionRuntime/);

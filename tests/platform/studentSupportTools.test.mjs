@@ -8,6 +8,7 @@ import { readFileSync } from 'node:fs';
 import { getStudentSupportPresentation, studentSupportTools } from '../../src/studentSupport.js';
 import { buildSupportProjection } from '../../functions/shared/supportProfileModel.mjs';
 import { region } from './helpers/sourceContract.mjs';
+import { appFactorySeam, appFactorySource } from './helpers/appScreens.mjs';
 
 const NOW = Date.parse('2026-09-30T15:00:00Z');
 const profile = (accommodations, { status = 'active', modifications = [] } = {}) => buildSupportProjection({
@@ -56,8 +57,13 @@ test('graph paper reaches the scratchpad only for a student entitled to it', () 
 });
 
 test('the panel is for real student work only, and an opened link is a recorded use', () => {
-  const app = readFileSync(new URL('../../src/App.jsx', import.meta.url), 'utf8');
-  assert.match(app, /import StudentSupportTools from '\.\/components\/student\/StudentSupportTools\.jsx';/);
+  // Since the App split (slice 7) createAssignmentWorkspaceView draws the panel
+  // (src/app/student/assignmentWorkspaceView.jsx), so the import is its own.
+  const app = appFactorySource('createAssignmentWorkspaceView');
+  assert.match(app, /import StudentSupportTools from '\.\.\/\.\.\/components\/student\/StudentSupportTools\.jsx';/);
+  // The recorder is still App's; the view is handed it by name.
+  assert.ok(appFactorySeam('createAssignmentWorkspaceView').parameters.includes('recordStudentSupportEvidence'));
+  assert.match(readFileSync(new URL('../../src/App.jsx', import.meta.url), 'utf8'), /^ {2}const recordStudentSupportEvidence = \(\{$/m);
   const mount = region(app, '{!preview && user?.role === \'student\' && (\n                <StudentSupportTools', '/>', 'Support tools mount');
   assert.match(mount, /onResourceOpened=\{\(supportId\) => recordStudentSupportEvidence\(\{ supportId, eventType: 'used'/);
   const panel = readFileSync(new URL('../../src/components/student/StudentSupportTools.jsx', import.meta.url), 'utf8');
@@ -91,7 +97,8 @@ const mediaBlocks = (css) => {
 // student where the header is hidden (tests/browser/teacherWorkflow/
 // assignmentChromeJourneys.mjs opens it on a 390×844 phone).
 test('where the assignment header is hidden, the same panel is behind the always-present chip', () => {
-  const app = readFileSync(new URL('../../src/App.jsx', import.meta.url), 'utf8');
+  // The navigator is drawn by createAssignmentWorkspaceView since the App split (slice 7).
+  const app = appFactorySource('createAssignmentWorkspaceView');
   const nav = region(app, 'className={`mathmaster-assignment-unified-nav', '</nav>', 'assignment navigator');
   assert.match(app, /const assignmentChipShown = !preview && user\?\.role === 'student';/);
   assert.match(nav, /\{assignmentChipShown && \(\s*<button/);

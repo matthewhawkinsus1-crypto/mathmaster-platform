@@ -41,12 +41,18 @@ test('m13: the DOL reminder is not shown while the student is on that DOL', () =
 });
 
 test('R2-m4: a closed DOL says who closed it, and only an open one promises "when time ends"', () => {
-  assert.match(imports, /import \{ describeDolClose, DOL_OPEN_NOTICE \} from '\.\/platform\/assessment\/dolCloseCopy\.js';/);
-  const workspace = region(app, 'const renderAssignmentWorkspace = (preview = false) => {', '// The read-only "What changed" list', 'the assignment workspace');
+  // Since the App split (slice 7) the workspace is drawn by createAssignmentWorkspaceView
+  // (src/app/student/assignmentWorkspaceView.jsx), which App calls once: the copy's import is that module's, and
+  // the workspace runs to the module's closing return.
+  const workspaceView = appFactorySource('createAssignmentWorkspaceView');
+  const workspaceImports = region(workspaceView, 'import ', '\nexport function ', 'the workspace view\'s imports');
+  assert.match(workspaceImports, /import \{ describeDolClose, DOL_OPEN_NOTICE \} from '\.\.\/\.\.\/platform\/assessment\/dolCloseCopy\.js';/);
+  const workspace = region(workspaceView, 'const renderAssignmentWorkspace = (preview = false) => {', '\n  return [renderAssignmentWorkspace];', 'the assignment workspace');
   // The copy is the DOL state's: who closed it and the server's receipt. (D7
   // added the student's own extra-time close to the same call; any further
   // arguments are allowed, these three are required.)
   assert.match(workspace, /const currentDolCopy = currentIsDOL && !preview\s*\? describeDolClose\(\{ status: dolState\.status, teacherClosed: dolState\.teacherClosed, outcome: currentCheckpointOutcome(?:, [^}]*)? \}\)\s*: null;/);
+  assert.notEqual(workspace.indexOf('const currentCheckpointOutcome ='), -1, 'the receipt is read in the workspace');
   assert.ok(workspace.indexOf('const currentCheckpointOutcome =') < workspace.indexOf('const currentDolCopy ='), 'the receipt is read before the copy');
   // The lock message: the same condition, the wording from the copy module.
   assert.match(workspace, /assignmentLockedMessage=\{!preview && currentIsDOL && dolState\.status === 'ended'\s*\? currentDolCopy\.lockMessage/);
@@ -124,7 +130,9 @@ test('I item 4: getSectionAccessState is the signed-in student\'s binding everyw
   // createGradingControls. They are counted with App's too, and each factory
   // is handed the same binding by name, below where it is bound.
   const grading = executableSource(appFactorySource('createGradingControls'));
-  const movedCalls = { createStudentWorksheetExport: 1, createGradingControls: 2 };
+  // Since slice 7 the workspace's two (the current section's lock and the navigator's sectionAccessFor) are
+  // createAssignmentWorkspaceView's, counted and handed the binding the same way.
+  const movedCalls = { createStudentWorksheetExport: 1, createGradingControls: 2, createAssignmentWorkspaceView: 2 };
   let movedCallCount = 0;
   for (const [factory, expected] of Object.entries(movedCalls)) {
     const factoryCalls = [...executableSource(appFactorySource(factory)).matchAll(/\bgetSectionAccessState\(/g)];
@@ -139,10 +147,10 @@ test('I item 4: getSectionAccessState is the signed-in student\'s binding everyw
   assert.equal(
     [...executableSource(appSurfaceSource()).matchAll(/\bgetSectionAccessState\(/g)].length,
     calls.length + navigationCalls.length + movedCallCount,
-    'every section-access call is App\'s, the student navigation\'s, the worksheet export\'s or the grading controls\'',
+    'every section-access call is App\'s, the student navigation\'s, the worksheet export\'s, the grading controls\' or the workspace view\'s',
   );
   assert.ok(calls.length + navigationCalls.length + movedCallCount >= 6, `every section-access call (found ${calls.length + navigationCalls.length + movedCallCount})`);
-  const navigatorAccess = region(code, 'const sectionAccessFor = (entry) => {', 'sectionAccessCache.set(', 'the navigator\'s section access');
+  const navigatorAccess = region(executableSource(appFactorySource('createAssignmentWorkspaceView')), 'const sectionAccessFor = (entry) => {', 'sectionAccessCache.set(', 'the navigator\'s section access');
   assert.match(navigatorAccess, /manualState: getSectionAccessState\(\{/);
   assert.ok(calls.every((index) => index > at), 'no call before the binding');
   // Home's dashboard model receives the binding, not the plain function.

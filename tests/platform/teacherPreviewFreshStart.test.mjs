@@ -1,9 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import fs from 'node:fs';
-import { appFactorySource } from './helpers/appScreens.mjs';
-
-const app = fs.readFileSync('src/App.jsx', 'utf8');
+import { appFactorySeam, appFactorySource } from './helpers/appScreens.mjs';
 
 test('teacher View as Student clears preview-only saved drafts before opening', () => {
   // Since the App split, createTeacherPreviewNavigation owns startTeacherPreview;
@@ -30,6 +27,12 @@ test('teacher View as Student clears preview-only saved drafts before opening', 
 });
 
 test('teacher can restart the open preview fresh without leaving the assignment', () => {
+  // Since the App split (slice 7) createAssignmentWorkspaceView draws the
+  // preview banner and keys the question; App hands it the function it took
+  // from createTeacherPreviewNavigation.
+  assert.ok(appFactorySeam('createTeacherPreviewNavigation').returned.includes('startTeacherPreview'));
+  assert.ok(appFactorySeam('createAssignmentWorkspaceView').parameters.includes('startTeacherPreview'));
+  const app = appFactorySource('createAssignmentWorkspaceView');
   assert.match(app, /Restart Preview Fresh/);
   assert.match(app, /onClick=\{\(\) => startTeacherPreview\(assignment\.id\)\}/);
   assert.match(app, /preview-\$\{previewSessionId\}/);

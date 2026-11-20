@@ -21,10 +21,15 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { region, executableSource } from './helpers/sourceContract.mjs';
+import { appFactorySeam, appFactorySource } from './helpers/appScreens.mjs';
 import { describeRuntimeSaveLine, initialSaveSubject, saveLineIsRoutine } from '../../src/platform/student/saveStatusModel.js';
 
 const read = (relative) => readFileSync(new URL(`../../${relative}`, import.meta.url), 'utf8');
 const app = read('src/App.jsx');
+// Since the App split (slice 7) createAssignmentWorkspaceView draws the stage and
+// the lines under the question (src/app/student/assignmentWorkspaceView.jsx);
+// the save-line values are still App's, handed to it by name.
+const workspace = appFactorySource('createAssignmentWorkspaceView');
 
 /** One rule's declarations, comments left out, within a media block. */
 const rule = (media, selector) => {
@@ -39,7 +44,7 @@ const PHONE_LAYOUTS = [
 ];
 
 test('the save line and the problem notice are in the status element, inside the stage, after the question', () => {
-  const stage = region(app, '<main ref={assignmentQuestionStageRef} className="mathmaster-question-stage"', '</main>', 'the question stage');
+  const stage = region(workspace, '<main ref={assignmentQuestionStageRef} className="mathmaster-question-stage"', '</main>', 'the question stage');
   const engine = stage.indexOf('<QuestionEngine');
   const status = region(stage, '<div className="mathmaster-question-stage-status">', '\n            </div>\n', 'the status element');
   assert.ok(engine >= 0 && stage.indexOf('<div className="mathmaster-question-stage-status">') > engine, 'the status element follows the question');
@@ -65,9 +70,10 @@ test('a routine save line is marked as such; a line that needs the student never
   for (const persistenceStatus of ['offline', 'needs-review', 'rejected', 'volatile', 'idle', undefined, 'something new']) {
     assert.equal(saveLineIsRoutine({ persistenceStatus }), false, String(persistenceStatus));
   }
-  const status = region(app, '<div className="mathmaster-question-stage-status">', '\n            </div>\n', 'the status element');
+  const status = region(workspace, '<div className="mathmaster-question-stage-status">', '\n            </div>\n', 'the status element');
   assert.match(status, /<p data-save-line="" data-save-line-routine=\{studentSaveLineRoutine \? '' : undefined\}/);
   assert.match(app, /const studentSaveLineRoutine = saveLineIsRoutine\(\{ persistenceStatus: studentPersistenceStatus \}\);/);
+  assert.ok(appFactorySeam('createAssignmentWorkspaceView').parameters.includes('studentSaveLineRoutine'), 'the view draws App\'s value');
 });
 
 for (const [layout, media] of PHONE_LAYOUTS) {

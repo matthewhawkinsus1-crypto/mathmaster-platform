@@ -32,13 +32,20 @@ test('App navigation, resume, Overview, and Focus View share the projection seam
   const source = await readFile('src/App.jsx', 'utf8');
   assert.match(source, /projectCurrentAssignmentContent\(assignment\)/);
   assert.match(source, /entry\.storageIndex/);
-  assert.match(source, /entry\.logicalPosition/);
-  assert.match(source, /entry\.logicalRole/);
+  // Since the App split (slice 7) the open assignment's navigator, Overview
+  // and Focus View are drawn by createAssignmentWorkspaceView
+  // (src/app/student/assignmentWorkspaceView.jsx), which App calls once: the
+  // projection is read there, as it still is in App.
+  const workspace = appFactorySource('createAssignmentWorkspaceView');
+  assert.match(workspace, /projectCurrentAssignmentContent\(assignment\)/);
+  assert.match(workspace, /entry\.storageIndex/);
+  assert.match(workspace, /entry\.logicalPosition/);
+  assert.match(workspace, /entry\.logicalRole/);
   // Since the App split opening an assignment (startAssignment) is
   // createStudentNavigation's: the requested question resolves there.
   const start = region(appFactorySource('createStudentNavigation'), 'const startAssignment = (', 'const openStudentDashboardMode = ', 'startAssignment');
   assert.match(start, /resolveCurrentContentStorageIndex\(assignmentData, requested\)/);
-  assert.match(source, /currentContent\.logicalSections\.map/);
-  assert.match(source, /visibleQuestionEntries/);
-  assert.match(source, /navigationSections/);
+  assert.match(workspace, /currentContent\.logicalSections\.map/);
+  assert.match(workspace, /visibleQuestionEntries/);
+  assert.match(workspace, /navigationSections/);
 });

@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
-import { appAndTeacherWorkspaceSource } from './helpers/appScreens.mjs';
+import { appAndTeacherWorkspaceSource, teacherControlsSource } from './helpers/appScreens.mjs';
 
 import {
   PUBLICATION_STRATEGIES,
@@ -61,11 +61,14 @@ test('existing destination variant cannot silently cross Standard or Honors rigo
 });
 
 test('Export JSON emits marked canonical V5 instead of the retired schemaVersion 2 package', () => {
-  assert.match(app, /JSON\.stringify\(buildCurrentContentPortablePackage\(exportJsonAssignment\)/);
+  // Since the App split (slice 7) the Export JSON dialog is createTeacherDialogViews's
+  // (src/app/teacher/controls/teacherDialogViews.jsx), reached through the teacher kit.
+  const dialogs = teacherControlsSource('createTeacherDialogViews');
+  assert.match(dialogs, /JSON\.stringify\(buildCurrentContentPortablePackage\(exportJsonAssignment\)/);
   assert.match(currentContentExport, /storedAssignmentToV5\(\{ \.\.\.assignment, sections \}/);
   assert.match(currentContentExport, /mathmasterCanonicalAssignmentV5/);
   assert.doesNotMatch(currentContentExport, /schemaVersion:\s*2/);
-  assert.match(app, /portable MathMaster assignment/);
+  assert.match(dialogs, /portable MathMaster assignment/);
 });
 
 test('Assignment V5 split publishing creates one post for every authored core section without a lessonBundle', () => {

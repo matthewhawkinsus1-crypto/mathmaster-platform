@@ -59,8 +59,11 @@ test('student performance architecture keeps tools lazy, secure prefetch guarded
   // Declared lazily in app/lazyScreens.js since the App split, and memoised
   // there: App keeps its props the same until what they mean changes.
   assert.match(readFileSync(new URL('../../src/app/lazyScreens.js', import.meta.url), 'utf8'), /export const QuestionEngine = memo\(lazy\(\(\) => import\('\.\.\/QuestionEngine\.jsx'\)\)\)/);
-  assert.match(app, /\bQuestionEngine,\n[\s\S]*?\} from '\.\/app\/lazyScreens\.js';/);
-  const questionMount = app.match(/<QuestionEngine[\s\S]*?\/>/)?.[0] || '';
+  // Mounted by createAssignmentWorkspaceView (src/app/student/assignmentWorkspaceView.jsx)
+  // since the App split (slice 7): it imports the lazy one, and App calls it.
+  const workspace = appFactorySource('createAssignmentWorkspaceView');
+  assert.match(workspace, /^import \{[^}]*\bQuestionEngine\b[^}]*\} from '\.\.\/lazyScreens\.js';$/m);
+  const questionMount = workspace.match(/<QuestionEngine[\s\S]*?\/>/)?.[0] || '';
   assert.match(questionMount, /key=\{`\$\{activeAssignmentId\}-\$\{currentQuestionIndex\}-\$\{currentRecord\.variantIndex\}/);
   assert.doesNotMatch(questionMount.split('question=')[0], /lastResponseKey|attemptCount|teacherLearningProfiles/);
 });

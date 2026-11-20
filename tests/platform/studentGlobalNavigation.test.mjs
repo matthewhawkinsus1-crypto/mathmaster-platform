@@ -205,7 +205,9 @@ test('Assignments and Grades each offer a route to the other', () => {
 });
 
 test('leaving an assignment names the list it returns to', () => {
-  const leave = region(app, 'const studentAssignmentBackLabel = ', 'const leaveAssignment', 'assignment back label');
+  // Since the App split the workspace, with its Back and what it is called, is
+  // drawn by createAssignmentWorkspaceView (App calls it once, by position).
+  const leave = region(appFactorySource('createAssignmentWorkspaceView'), 'const studentAssignmentBackLabel = ', 'const leaveAssignment', 'assignment back label');
   assert.match(leave, /'Back to Results'/);
   assert.match(leave, /'Back to Assignments'/);
   assert.match(leave, /'Back to Grades'/);

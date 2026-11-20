@@ -46,6 +46,7 @@ import { buildClosedQuestionReview, buildPartReviewRows, legacyReviewSpeechLines
 import { auditAssignmentSolutionReviews, workedSolutionDepth } from '../../src/platform/preflight/solutionReviewPreflight.js';
 import { ONE_TRY, ONE_TRY_WITH_HINT, chosenOptionReasons, oneTryNotice, optionRationale, optionRationaleProblems } from '../../src/platform/supports/feedback/oneTryChoice.js';
 import { buildReviewMyWorkModel } from '../../src/platform/student/reviewMyWorkModel.js';
+import { appFactorySource } from './helpers/appScreens.mjs';
 
 const ROOT = new URL('../../', import.meta.url);
 const read = (path) => readFileSync(new URL(path, ROOT), 'utf8');
@@ -228,7 +229,9 @@ test('HELP-1 / HELP-9: the closed card puts it under the worked solution, gated 
   assert.ok(card.indexOf('{closedReview}') >= 0 && card.indexOf('{closedReview}') < card.indexOf('{practiceLikeThis}'), 'under the worked solution');
   // The classroom assignment vouches for Classwork and Practice by the
   // SECTION's role: post-due practice runs a DOL as 'practice'.
-  const app = code('src/App.jsx');
+  // Since the App split (slice 7) createAssignmentWorkspaceView mounts the
+  // question (src/app/student/assignmentWorkspaceView.jsx); App calls it once.
+  const app = executableSource(appFactorySource('createAssignmentWorkspaceView'));
   assert.match(app, /practiceLikeThisAllowed=\{\['classwork', 'practice'\]\.includes\(activeQuestionRole\)\}/);
   ['src/components/student/SectionRecoveryRunner.jsx', 'src/components/student/PathSessionPlayer.jsx', 'src/components/student/TestCycleCorrections.jsx', 'src/components/liveChallenge/LiveChallengeStudent.jsx', 'src/components/question/RichQuestionRuntime.jsx', 'src/components/demo/DemoExperience.jsx']
     .forEach((path) => assert.doesNotMatch(code(path), /practiceLikeThisAllowed/, `${path} never vouches`));

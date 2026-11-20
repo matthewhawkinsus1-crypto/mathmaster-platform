@@ -25,6 +25,7 @@ import { renderToStaticMarkup } from 'react-dom/server';
 import { createServer } from 'vite';
 
 import { executableSource, region } from './helpers/sourceContract.mjs';
+import { appFactorySeam, appFactorySource } from './helpers/appScreens.mjs';
 import { getPeriodWindow } from '../../src/assignmentLifecycle.js';
 import {
   ASK_MODE,
@@ -59,6 +60,10 @@ import {
 const ROOT = new URL('../../', import.meta.url);
 const read = (path) => readFileSync(new URL(path, ROOT), 'utf8');
 const code = (path) => executableSource(read(path));
+// Since the App split (slice 7) the open assignment's workspace is drawn by
+// createAssignmentWorkspaceView (src/app/student/assignmentWorkspaceView.jsx),
+// which App calls once, by position, and hands the hook's result (askMyTeacher).
+const workspaceViewCode = () => executableSource(appFactorySource('createAssignmentWorkspaceView'));
 
 /* ------------------------------------------------------- the in-class test */
 
@@ -272,8 +277,12 @@ test('the hook owns the hand: restored on entering an assignment, forgotten on l
   const app = code('src/App.jsx');
   assert.match(app, /^import \{ useAskMyTeacher, useTeacherQuestionsOn \} from '\.\/platform\/supports\/useAskMyTeacher\.js';$/m);
   // questionFor comes from the model (beside followRosterTeacher, which keeps the teacher current).
-  assert.match(app, /^import \{[^}]*\bquestionFor\b[^}]*\} from '\.\/platform\/supports\/askTeacher\.js';$/m);
-  assert.match(app, /^import \{ TeacherAnswersList \} from '\.\/components\/student\/TeacherAnswersList\.jsx';$/m);
+  // The workspace view calls it and draws the answers list since the App split,
+  // from the hook's result App hands it.
+  const workspace = workspaceViewCode();
+  assert.ok(appFactorySeam('createAssignmentWorkspaceView').passed.includes('askMyTeacher'), "App hands the workspace view the hook's result");
+  assert.match(workspace, /^import \{[^}]*\bquestionFor\b[^}]*\} from '\.\.\/\.\.\/platform\/supports\/askTeacher\.js';$/m);
+  assert.match(workspace, /^import \{ TeacherAnswersList \} from '\.\.\/\.\.\/components\/student\/TeacherAnswersList\.jsx';$/m);
   const wiring = region(app, 'const askMyTeacher = useAskMyTeacher({', 'const { helpRequest, setHelpRequest } = askMyTeacher;', 'the hook call');
   assert.match(wiring, /classPeriod: user\?\.classPeriod \|\| null,/);
   assert.match(wiring, /schedule: classSchedule,/);
@@ -285,15 +294,15 @@ test('the hook owns the hand: restored on entering an assignment, forgotten on l
   // The host hands the engine this question's asking state: built in the
   // workspace once per change of what it says (renderStability.js), and
   // handed to the engine as itself.
-  const context = region(app, 'const askTeacherQuestion = questionFor(', '}));', 'the ask context');
+  const context = region(workspace, 'const askTeacherQuestion = questionFor(', '}));', 'the ask context');
   assert.match(context, /^const askTeacherQuestion = questionFor\(askMyTeacher\.questions, \{ assignmentId: activeAssignmentId, questionIndex: currentQuestionIndex \}\);/);
   assert.match(context, /onSendQuestion: askMyTeacher\.canLeaveQuestion\s*\? \(\{ existing, text \}\) => askMyTeacher\.sendQuestion\(\{[^}]*questionIndex: currentQuestionIndex,/);
   assert.match(context, /mode: askMyTeacher\.mode,/);
   assert.match(context, /acknowledgement: askMyTeacher\.acknowledgement,/);
   assert.match(context, /question: askTeacherQuestion,/);
   assert.match(context, /onSendQuestion,\s*$/);
-  assert.match(app, /\n\s*askTeacherContext=\{askTeacherContext\}\n/);
-  assert.match(app, /\{!preview && <TeacherAnswersList questions=\{askMyTeacher\.questions\} compact \/>\}/);
+  assert.match(workspace, /\n\s*askTeacherContext=\{askTeacherContext\}\n/);
+  assert.match(workspace, /\{!preview && <TeacherAnswersList questions=\{askMyTeacher\.questions\} compact \/>\}/);
 });
 
 test('the engine still decides where asking is offered: never locked, never under server grading', () => {
@@ -431,8 +440,9 @@ test('Teacher Home loads a bounded list, and says where each question was asked 
   // for questions stored before.
   assert.equal(teacherQuestionPlace({ assignment, questionLabel: 'Exit ticket (DOL) · Question 1', questionIndex: 7 }).label, 'Exit ticket (DOL) · Question 1');
   assert.equal(teacherQuestionPlace({ assignment, questionLabel: 'DOL / Exit Ticket · Question 1', questionIndex: 9 }).label, 'DOL / Exit Ticket · Question 1');
-  // App.jsx builds the label from the same tab name the platform names.
-  assert.match(code('src/App.jsx'), /dol: \{ label: EXIT_TICKET_SPELLED_OUT, /);
+  // App.jsx builds the label from the same tab name the platform names
+  // (in the workspace view, createAssignmentWorkspaceView's, since the App split).
+  assert.match(workspaceViewCode(), /dol: \{ label: EXIT_TICKET_SPELLED_OUT, /);
   for (const sent of ['Call home now', 'MESSAGE FROM THE PRINCIPAL · Question 1', 'Classwork · Question 0', 'Classwork · Question 3 — urgent', '', null]) {
     assert.equal(teacherQuestionPlace({ assignment, questionLabel: sent, questionIndex: 2 }).label, 'Question 3', String(sent));
   }

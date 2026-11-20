@@ -22,7 +22,7 @@ import path from 'node:path';
 import { register } from 'node:module';
 import { chainTo, firstLoadGraph, repo } from './helpers/firstLoadGraph.mjs';
 import { executableSource, region } from './helpers/sourceContract.mjs';
-import { appModulePaths, positionalHookSeam, positionalHookSource, teacherControlPaths, teacherControlsSeam, teacherControlsSource } from './helpers/appScreens.mjs';
+import { appFactorySource, appModulePaths, positionalHookSeam, positionalHookSource, teacherControlPaths, teacherControlsSeam, teacherControlsSource } from './helpers/appScreens.mjs';
 
 // Since the App split the kit also exports a teacher's control factories,
 // which import src/firebase.js as App.jsx did: node imports the kit through
@@ -209,7 +209,12 @@ test('the authoring states and the exam-practice rule are the same values from t
   const framework = await import('../../src/platform/student/questionAssessmentFramework.js');
   const alignment = await import('../../src/platform/student/questionAlignmentInfo.js');
   assert.equal(alignment.questionAssessmentFramework, framework.questionAssessmentFramework, 'one function, re-exported');
-  assert.match(app, /^import \{ questionAssessmentFramework \} from '\.\/platform\/student\/questionAssessmentFramework\.js';$/m);
+  // The caller is the open assignment's workspace, createAssignmentWorkspaceView's
+  // (src/app/student/assignmentWorkspaceView.jsx) since the App split (slice 7):
+  // it imports the small module, never the alignment panel's.
+  const workspace = appFactorySource('createAssignmentWorkspaceView');
+  assert.match(workspace, /^import \{ questionAssessmentFramework \} from '\.\.\/\.\.\/platform\/student\/questionAssessmentFramework\.js';$/m);
+  assert.match(executableSource(workspace), /\bquestionAssessmentFramework\(questions\[index\] \|\| \{\}\)/);
   const sat = { assessmentContext: { examStyle: true, framework: 'digitalSAT' }, alignments: [{ framework: 'digitalSAT', domainId: 'algebra' }] };
   assert.deepEqual(framework.questionAssessmentFramework(sat), { framework: 'digitalSAT', domainId: 'algebra', examStyle: true });
   assert.deepEqual(framework.questionAssessmentFramework({ assessmentContext: { examStyle: true, framework: 'digitalSAT' } }), { framework: null, domainId: '', examStyle: false });

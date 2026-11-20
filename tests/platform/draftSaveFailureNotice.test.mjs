@@ -31,7 +31,7 @@ import {
 } from '../../functions/shared/workspaceDraftSchema.mjs';
 import { createWorkspaceDraftSync } from '../../src/platform/persistence/workspaceDraftSync.js';
 import { executableSource, region } from './helpers/sourceContract.mjs';
-import { appHookSource, appSurfaceSource } from './helpers/appScreens.mjs';
+import { appFactorySeam, appFactorySource, appHookSource, appSurfaceSource } from './helpers/appScreens.mjs';
 import { draftHealthAccountEffect, replayAccounts } from './helpers/draftHealthAccountEffect.mjs';
 
 const STUDENT = 'S-save';
@@ -184,7 +184,11 @@ test('App.jsx shows the notice on the assignment screen, for this student and as
   // shared by the notice and the save line (saveLineIsAboutDrafts, below).
   const problem = region(app, 'const studentDraftSaveProblem = ', ';\n');
   assert.match(problem, /= draftSaveHealthVersion >= 0\s*\? describeDraftSaveProblems\(draftSaveProblemsFor\(\{ studentId: user\?\.id, assignmentId: activeAssignmentId \}\)\)\s*: null$/);
-  const notice = region(app, '{!preview && studentDraftSaveProblem && (', '</p>');
+  // Since the App split (slice 7) the open assignment is drawn by
+  // createAssignmentWorkspaceView, which App hands the problem it read above.
+  const workspace = executableSource(appFactorySource('createAssignmentWorkspaceView'));
+  assert.ok(appFactorySeam('createAssignmentWorkspaceView').passed.includes('studentDraftSaveProblem'), 'App hands the workspace view the problem it read');
+  const notice = region(workspace, '{!preview && studentDraftSaveProblem && (', '</p>');
   assert.match(notice, /<p role="alert" data-draft-save-problem=\{studentDraftSaveProblem\.kind\}[^>]*>\s*\{studentDraftSaveProblem\.text\}\s*$/);
   // Not gated on the outbox status: a draft can fail while nothing is queued.
   assert.doesNotMatch(notice, /studentPersistenceStatus/);
@@ -260,7 +264,10 @@ test('App: the save line gives way to the notice, and Home is told', () => {
   assert.match(app, /import \{[^}]*\bdraftSaveProblemsForStudent\b[^}]*\} from '\.\/platform\/persistence\/draftSaveHealth\.js';/);
   const shown = region(app, 'const studentSaveLineShown = ', ';\n');
   assert.match(shown, /^const studentSaveLineShown = studentPersistenceStatus !== 'idle'\s*&& !\(studentDraftSaveProblem && saveLineIsAboutDrafts\(\{ persistenceStatus: studentPersistenceStatus, subject: studentSaveSubject, pendingGradeCount: studentPendingGradeCount \}\)\)$/);
-  assert.match(app, /\{!preview && studentSaveLineShown && \(\s*<p data-save-line=""/);
+  // The line is drawn by createAssignmentWorkspaceView since the App split
+  // (slice 7), from the answer App worked out above and hands it.
+  assert.ok(appFactorySeam('createAssignmentWorkspaceView').passed.includes('studentSaveLineShown'), 'App hands the workspace view whether the save line shows');
+  assert.match(executableSource(appFactorySource('createAssignmentWorkspaceView')), /\{!preview && studentSaveLineShown && \(\s*<p data-save-line=""/);
   // Home and the pack-up line read one save status (NAV-24 review B2).
   assert.match(app, /saveStatus=\{studentSaveStatusNow\(\)\}/);
   const home = region(app, 'const studentSaveStatusNow = () => describeSaveStatus({', '});');

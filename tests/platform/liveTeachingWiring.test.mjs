@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import { region } from './helpers/sourceContract.mjs';
-import { appFactorySource, positionalHookSeam, positionalHookSource } from './helpers/appScreens.mjs';
+import { appFactorySeam, appFactorySource, positionalHookSeam, positionalHookSource } from './helpers/appScreens.mjs';
 
 /*
  * Classroom Live, Phase 2 (Live Teaching / Teacher Exemplar) is wired across
@@ -20,6 +20,11 @@ const teacherHome = fs.readFileSync('src/TeacherHome.jsx', 'utf8');
 // seam, name for name).
 const teacherPreviewNavigation = () => appFactorySource('createTeacherPreviewNavigation');
 const RESUME_END = '\n  return [startTeacherPreview, teachAssignmentLive, resumeLiveTeaching];';
+// Since the App split (slice 7), createAssignmentWorkspaceView owns
+// renderAssignmentWorkspace, which draws the open exemplar: its leave control,
+// its header and the Live Teaching bar. App builds it once (appFactorySource
+// holds the seam, name for name).
+const assignmentWorkspaceView = () => appFactorySource('createAssignmentWorkspaceView');
 
 test('teaching a lesson reuses the existing student-preview runtime, not a second renderer', () => {
   const navigation = teacherPreviewNavigation();
@@ -90,22 +95,28 @@ test('navigating the exemplar keeps the Live Teaching session synced to the REAL
 });
 
 test('returning to Live Classroom from a live-taught exemplar preserves the exemplar position (routes home, not to Assignments)', () => {
-  const region_ = region(app, 'const isLiveTeachingThisAssignment = ', 'const leaveAssignment = ', 'isLiveTeachingThisAssignment');
+  // (createAssignmentWorkspaceView: the workspace reads the session App hands it.)
+  const workspace = assignmentWorkspaceView();
+  assert.ok(appFactorySeam('createAssignmentWorkspaceView').parameters.includes('liveTeachingSession'), 'App hands the workspace view the Live Teaching session');
+  const region_ = region(workspace, 'const isLiveTeachingThisAssignment = ', 'const leaveAssignment = ', 'isLiveTeachingThisAssignment');
   assert.match(region_, /liveTeachingSession\?\.active/);
   assert.match(region_, /String\(liveTeachingSession\.assignmentId\) === String\(assignment\.id\)/);
 
-  const leave = region(app, 'const leaveAssignment = () => {', 'setActiveView(\'dashboard\');\n      setActiveAssignmentId(null);', 'leaveAssignment');
+  const leave = region(workspace, 'const leaveAssignment = () => {', 'setActiveView(\'dashboard\');\n      setActiveAssignmentId(null);', 'leaveAssignment');
   assert.match(leave, /setTeacherTab\(isLiveTeachingThisAssignment \? 'home' : 'assignments'\)/);
 });
 
 test('a thin Live Teaching control bar is shown inside the exemplar itself, identifying it as the teacher exemplar', () => {
-  assert.match(app, /LIVE TEACHING/);
-  assert.match(app, /isLiveTeachingThisAssignment && \(/);
-  assert.match(app, /describeClassworkPace\(\{ assignment, classworkQuestionPosition: liveTeachingSession\?\.classworkQuestionPosition/);
+  // (createAssignmentWorkspaceView draws the bar.)
+  const workspace = assignmentWorkspaceView();
+  assert.match(workspace, /LIVE TEACHING/);
+  assert.match(workspace, /isLiveTeachingThisAssignment && \(/);
+  assert.match(workspace, /describeClassworkPace\(\{ assignment, classworkQuestionPosition: liveTeachingSession\?\.classworkQuestionPosition/);
 });
 
 test('the "Restart Preview Fresh" header control defers to the Live Teaching bar\'s own restart while a live session owns this assignment', () => {
-  assert.match(app, /preview && !isLiveTeachingThisAssignment && \(/);
+  // (createAssignmentWorkspaceView draws the header.)
+  assert.match(assignmentWorkspaceView(), /preview && !isLiveTeachingThisAssignment && \(/);
 });
 
 test('App.jsx wires the Live Teaching session, actions, and pace helper through imports', () => {
@@ -125,7 +136,9 @@ test('App.jsx wires the Live Teaching session, actions, and pace helper through 
     positionalHookSource('useLiveTeachingPreviewSync'),
     /^import \{[^}]*\badvanceLiveTeachingSession\b[^}]*\} from '\.\.\/\.\.\/platform\/teacher\/liveTeachingSession\.js';$/m,
   );
-  assert.match(app, /import \{ describeClassworkPace \} from '\.\/platform\/teacher\/classworkModel\.js';/);
+  // Since the App split (slice 7), createAssignmentWorkspaceView draws the
+  // Live Teaching bar, so that module is the one that imports the pace helper.
+  assert.match(assignmentWorkspaceView(), /^import \{ describeClassworkPace \} from '\.\.\/\.\.\/platform\/teacher\/classworkModel\.js';$/m);
 });
 
 test('TeacherHome forwards the Live Teaching session and actions down to Live Classroom, without owning any of the logic itself', () => {

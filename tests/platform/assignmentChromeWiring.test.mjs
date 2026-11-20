@@ -8,25 +8,31 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { executableSource, region } from './helpers/sourceContract.mjs';
-import { appHookSource, appSurfaceSource } from './helpers/appScreens.mjs';
+import { appFactorySeam, appFactorySource, appHookSource, appSurfaceSource } from './helpers/appScreens.mjs';
 
 const read = (path) => readFileSync(new URL(`../../${path}`, import.meta.url), 'utf8');
 const app = read('src/App.jsx');
-const appCode = executableSource(app);
+// Since the App split (slice 7) the assignment chrome is drawn by createAssignmentWorkspaceView
+// (src/app/student/assignmentWorkspaceView.jsx) and the Warm-Up banner by createStudentShellViews; App calls each
+// once and hands them what they read, name for name (appFactorySource checks that seam). The imports the chrome
+// calls are that module's now.
+const workspace = appFactorySource('createAssignmentWorkspaceView');
+const workspaceCode = executableSource(workspace);
 const timeLeft = read('src/components/student/SectionTimeLeft.jsx');
 const examHeader = read('src/components/assessment/ExamPrepHeader.jsx');
 const engine = read('src/QuestionEngine.jsx');
 const css = read('src/App.css');
-const nav = region(app, '<nav ref={stickyHeightRef(ASSIGNMENT_NAV_HEIGHT_VAR)}', '</nav>', 'the navigator');
+const nav = region(workspace, '<nav ref={stickyHeightRef(ASSIGNMENT_NAV_HEIGHT_VAR)}', '</nav>', 'the navigator');
 
 test('App imports what the navigator calls', () => {
-  assert.match(app, /import SectionTimeLeft from '\.\/components\/student\/SectionTimeLeft\.jsx';/);
-  const navigatorImport = region(app, 'import {\n  outcomeWithheld,', "} from './platform/student/assignmentNavigator.js';", 'the navigator import');
+  assert.match(workspace, /import SectionTimeLeft from '\.\.\/\.\.\/components\/student\/SectionTimeLeft\.jsx';/);
+  const navigatorImport = region(workspace, 'import {\n  outcomeWithheld,', "} from '../../platform/student/assignmentNavigator.js';", 'the navigator import');
   for (const name of ['QUESTION_STATUS', 'SECTION_ACCESS', 'NAVIGATOR_PENDING_LABEL', 'describeNavigatorQuestion', 'describeNavigatorSectionProgress', 'describeSectionAccess', 'sectionLandingEntry']) {
-    assert.match(navigatorImport, new RegExp(`\\n {2}${name},\\n`), name);
-    assert.match(appCode, new RegExp(`\\b${name}\\b[.(]?`), `${name} is used`);
+    // (The moved import lists several names on a line.)
+    assert.match(navigatorImport, new RegExp(`[{,\\s]${name},`), name);
+    assert.match(workspaceCode.replace(/^import [\s\S]*?;$/gm, ''), new RegExp(`\\b${name}\\b[.(]?`), `${name} is used`);
   }
-  assert.match(app, /import \{ SR_ONLY_STYLE \} from '\.\/ui\/srOnly\.js';/);
+  assert.match(workspace, /import \{ SR_ONLY_STYLE \} from '\.\.\/\.\.\/ui\/srOnly\.js';/);
 });
 
 test('RUN-5: the number strip and its spoken names read the masked state', () => {
@@ -35,29 +41,29 @@ test('RUN-5: the number strip and its spoken names read the masked state', () =>
   assert.match(strip, /aria-label=\{`\$\{compactSectionLabel\(entry\)\} question \$\{entry\.sectionPosition \+ 1\}: \$\{shown\.spoken\}/);
   assert.doesNotMatch(strip, /record\.status|needs another try/);
   // navigatorQuestionFor passes the held mask and whether a new version is offered.
-  const question = region(app, 'const navigatorQuestionFor = (entry) => {', '\n    };', 'navigatorQuestionFor');
+  const question = region(workspace, 'const navigatorQuestionFor = (entry) => {', '\n    };', 'navigatorQuestionFor');
   assert.match(question, /feedbackHeld: entryFeedbackHeld\(entry\)/);
   assert.match(question, /sectionClosed: access\.state === SECTION_ACCESS\.READ_ONLY/);
   assert.match(question, /replacementAvailable: resolveQuestionReplacementAllowed\(\{\s*question: questions\[entry\.index\],\s*activityPolicy: policy,/);
   // Held wherever the question withholds its outcome — the engine's own rule,
   // every feedback mode (a DOL's afterAssignmentSubmit included).
-  const held = region(app, 'const entryFeedbackHeld = (entry) =>', '});\n', 'entryFeedbackHeld');
+  const held = region(workspace, 'const entryFeedbackHeld = (entry) =>', '});\n', 'entryFeedbackHeld');
   assert.match(held, /outcomeWithheld\(\{\s*feedbackMode: entryRuntimePolicy\(entry\)\.feedback,/);
   assert.match(held, /released: lifecycle\.isPracticeOnly \|\| assignmentFeedbackWasReleased\(assignment\),/);
   assert.match(held, /record: workingTracker\?\.\[entry\.index\],/);
 });
 
 test('RUN-9: the Overview speaks the same state, never "tries left" for a closed section', () => {
-  const overview = region(app, '{assignmentOverviewExpanded && (', '<QuestionAnnouncer', 'the Overview');
+  const overview = region(workspace, '{assignmentOverviewExpanded && (', '<QuestionAnnouncer', 'the Overview');
   assert.match(overview, /const shown = navigatorQuestionFor\(entry\);/);
   assert.match(overview, />\{shown\.label\}<\/div>/, 'the card shows the state\'s words');
   assert.doesNotMatch(overview, /getQuestionCardState/);
 });
 
 test('RUN-8: a closed section is viewable, and a locked one says why', () => {
-  const available = region(app, 'const entryIsAvailable = (entry) =>', ';\n', 'entryIsAvailable');
+  const available = region(workspace, 'const entryIsAvailable = (entry) =>', ';\n', 'entryIsAvailable');
   assert.match(available, /sectionAccessFor\(entry\)\.viewable/);
-  const access = region(app, 'const sectionAccessFor = (entry) => {', 'sectionAccessCache.set(', 'sectionAccessFor');
+  const access = region(workspace, 'const sectionAccessFor = (entry) => {', 'sectionAccessCache.set(', 'sectionAccessFor');
   for (const input of ['warmupState,', 'dolState,', 'unrestricted: preview || lifecycle.isPracticeOnly,']) {
     assert.ok(access.includes(input), input);
   }
@@ -66,13 +72,13 @@ test('RUN-8: a closed section is viewable, and a locked one says why', () => {
   assert.match(access, /const hasWork = sectionHasWork\(entry\?\.role\);[\s\S]*\n\s*hasWork,\n/);
   // A locked section never opens: viewable is the only gate, the tab opens
   // only its landing question, and every other way in asks the same gate.
-  assert.match(app, /const entryIsAvailable = \(entry\) => sectionAccessFor\(entry\)\.viewable;\n/);
+  assert.match(workspace, /const entryIsAvailable = \(entry\) => sectionAccessFor\(entry\)\.viewable;\n/);
   const tab = region(nav, '<button\n                          type="button"\n                          className={`mathmaster-section-tab', '</button>', 'the section tab');
   assert.equal([...tab.matchAll(/changeQuestion\(/g)].length, 1, 'the tab opens one question');
   assert.match(tab, /onClick=\{\(\) => \(targetEntry\s*\? changeQuestion\(targetEntry\.index\)\s*: setSectionLockNote\(/);
-  const target = region(app, 'const sectionNavigationTarget = (section) => sectionLandingEntry({', 'currentIndex: currentQuestionIndex,', 'the tab target');
+  const target = region(workspace, 'const sectionNavigationTarget = (section) => sectionLandingEntry({', 'currentIndex: currentQuestionIndex,', 'the tab target');
   assert.match(target, /viewable: entryIsAvailable\(entry\),/);
-  assert.match(app, /if \(entryIsAvailable\(visibleQuestionEntries\[position\]\)\) return visibleQuestionEntries\[position\];/);
+  assert.match(workspace, /if \(entryIsAvailable\(visibleQuestionEntries\[position\]\)\) return visibleQuestionEntries\[position\];/);
   assert.equal([...nav.matchAll(/<option key=\{entry\.index\} value=\{entry\.index\} disabled=\{!entryIsAvailable\(entry\)\} data-locked=\{entryIsAvailable\(entry\) \? undefined : 'true'\}>/g)].length, 2, 'both question lists disable a locked question, and mark it for drivers');
   // Pressing a locked tab puts its reason on screen, in a status line.
   assert.match(nav, /setSectionLockNote\(\{ assignmentId: activeAssignmentId, role: section\.role, text: access\.reason \}\)/);
@@ -126,7 +132,10 @@ test('RUN-14: inside its lesson the Warm-Up is not a toast, and not a banner on 
   }
   const reminder = region(appHookSource('useTimedSectionReminders'), 'const key = `${assignment.id}:${user.classId || user.classPeriod}:${warmupState.instructionDateKey || localDateKey(now)}`;', 'toastWarning(', 'the Warm-Up reminder');
   assert.match(reminder, /if \(activeView === 'assignment' && activeAssignmentId === assignment\.id\) return;/);
-  assert.match(app, /className="mathmaster-warmup-banner"/);
+  // The banner is renderStudentWarmupBanner's, which createStudentShellViews builds and the workspace view draws.
+  assert.match(region(appFactorySource('createStudentShellViews'), 'const renderStudentWarmupBanner = () => {', 'const renderIdleOverlay = () => {', 'the Warm-Up banner'), /className="mathmaster-warmup-banner"/);
+  assert.ok(appFactorySeam('createAssignmentWorkspaceView').parameters.includes('renderStudentWarmupBanner'), 'App hands the banner to the workspace view');
+  assert.match(workspaceCode, /\{!preview && renderStudentWarmupBanner\(/, 'which draws it in the open assignment');
   const phone = region(css, '@media (max-width: 768px) and (orientation: portrait), (orientation: landscape) and (max-height: 500px) {', '\n}\n', 'the phone rules');
   assert.match(phone, /\.mathmaster-assignment-screen \.mathmaster-warmup-banner \{\s*display: none !important;/);
   assert.match(phone, /\.mathmaster-assignment-screen \.mathmaster-assignment-status-chip \{\s*display: block;/);
@@ -136,15 +145,15 @@ test('NAV-5: the phone status chip opens the full lines, and only phones show it
   assert.match(nav, /aria-expanded=\{assignmentStatusOpen\}/);
   assert.match(nav, /\$\{assignmentStatusLines\[0\]\.chip\}/);
   assert.match(nav, /assignmentStatusLines\.map\(\(line\) => \(/);
-  const lines = region(app, 'const assignmentStatusLines = preview ? [] : [', '].filter(Boolean);', 'the status lines');
+  const lines = region(workspace, 'const assignmentStatusLines = preview ? [] : [', '].filter(Boolean);', 'the status lines');
   for (const key of ['liveChallenge', 'dol', 'warmup', 'late', 'practice']) assert.match(lines, new RegExp(`key: '${key}'`), key);
   // Another lesson's Warm-Up, which the hidden banner would have offered.
-  const other = region(app, 'const otherWarmup = preview ? null : studentActiveWarmup();', 'const gradeSoFarLine', 'another lesson\'s Warm-Up');
+  const other = region(workspace, 'const otherWarmup = preview ? null : studentActiveWarmup();', 'const gradeSoFarLine', 'another lesson\'s Warm-Up');
   assert.match(other, /otherWarmup\.assignment\.id !== activeAssignmentId/);
   assert.match(other, /key: 'otherWarmup'/);
   assert.match(other, /startAssignment\(otherWarmup\.assignment\.id, otherWarmup\.questionIndices\[0\]\)/);
   // With nothing urgent the chip is "More": the grade and Support tools.
-  assert.match(app, /const assignmentChipShown = !preview && user\?\.role === 'student';/);
+  assert.match(workspace, /const assignmentChipShown = !preview && user\?\.role === 'student';/);
   assert.match(nav, /\{assignmentChipShown && \(/);
   const panel = region(nav, '<div id="mathmaster-assignment-status-panel"', '{/* The DOL', 'the chip panel');
   assert.match(panel, /<strong>\{gradeSoFarLine\}<\/strong>/);
@@ -154,9 +163,9 @@ test('NAV-5: the phone status chip opens the full lines, and only phones show it
 });
 
 test('RUN-16: no program words in the assignment chrome', () => {
-  const header = region(app, '<header className="mathmaster-assignment-header"', '</header>', 'the assignment header');
+  const header = region(workspace, '<header className="mathmaster-assignment-header"', '</header>', 'the assignment header');
   // On time needs no badge; which version a section hands out is for a preview.
-  assert.match(app, /: \{ label: '', background: 'transparent', color: 'var\(--mm-text\)' \};/);
+  assert.match(workspace, /: \{ label: '', background: 'transparent', color: 'var\(--mm-text\)' \};/);
   assert.match(header, /\{lifecycleBadge\.label && <span/);
   assert.match(header, /\{preview && <span[^\n]*PERSONALIZED VERSIONS/);
   assert.doesNotMatch(executableSource(app), /'On-time access'|if submitted now/i);

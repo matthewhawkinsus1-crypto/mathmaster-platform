@@ -16,6 +16,13 @@ const app = executableSource(readFileSync(new URL('../../src/App.jsx', import.me
 // Since the App split (slice 5) startAssignment is createStudentNavigation's
 // (src/app/student/studentNavigation.js), which App calls once, by position.
 const navigation = executableSource(appFactorySource('createStudentNavigation'));
+// Since the App split (slice 7) what App draws is built by two factories App
+// calls once, by position: createStudentShellViews (the identity shell, the
+// Warm-Up banner, What changed: src/app/student/studentShellViews.jsx) and
+// createAssignmentWorkspaceView (the open assignment:
+// src/app/student/assignmentWorkspaceView.jsx).
+const shellViews = executableSource(appFactorySource('createStudentShellViews'));
+const workspaceView = executableSource(appFactorySource('createAssignmentWorkspaceView'));
 
 test('Recovery for every assignment is built and fed to the dashboard, with its import', async () => {
   assert.match(app, /import\s*\{[^}]*\brecoveryStatesFromSummaries\b[^}]*\}\s*from\s*'\.\/platform\/student\/recoveryStates\.js'/);
@@ -81,14 +88,16 @@ test('Tests & Exams carries the shared student navigation, and Back names Home',
   const exams = region(app, "studentDashboardMode === 'secureExams'", '<StudentSecureExamDashboard', 'Tests & Exams branch');
   assert.match(exams, /<StudentGlobalNav current=\{STUDENT_DESTINATION\.SECURE_EXAMS\} onNavigate=\{navigateStudent\}/);
   assert.match(app, /import StudentGlobalNav, \{ STUDENT_DESTINATION \} from '\.\/components\/student\/StudentGlobalNav\.jsx'/);
-  const backLabel = region(app, 'const studentAssignmentBackLabel =', 'const isLiveTeachingThisAssignment', 'assignment Back label');
+  const backLabel = region(workspaceView, 'const studentAssignmentBackLabel =', 'const isLiveTeachingThisAssignment', 'assignment Back label');
   assert.match(backLabel, /'Back to Home'/);
   assert.doesNotMatch(backLabel, /'Back to Dashboard'/);
 });
 
 test('What changed items are built once in App from records the student reads, with their imports', () => {
   assert.match(app, /import \{[^}]*\bbuildWhatChanged\b[^}]*\} from '\.\/platform\/student\/whatChangedModel\.js'/);
-  assert.match(app, /import WhatChangedList from '\.\/components\/student\/WhatChangedList\.jsx'/);
+  // The list is drawn by renderWhatChangedPanel, createStudentShellViews' since the App split.
+  assert.match(shellViews, /import WhatChangedList from '\.\.\/\.\.\/components\/student\/WhatChangedList\.jsx'/);
+  assert.match(shellViews, /const renderWhatChangedPanel = \(compact\) => \(\s*<WhatChangedList\s+items=\{whatChangedItems\}/);
   const memo = region(app, 'const whatChangedItems = useMemo(', '}, [user?.role, user?.id, user?.classId', 'What changed memo');
   assert.match(memo, /controlsByAssignmentId: studentAssignmentControls\?\.byAssignmentId/);
   assert.match(memo, /teacherGradeOverridesByAssignment,/);
@@ -98,12 +107,13 @@ test('What changed items are built once in App from records the student reads, w
 });
 
 test('Log Out warns about unsent work on the one identity bar', () => {
-  assert.match(app, /import \{ describeLogoutRisk \} from '\.\/platform\/student\/logoutGuard\.js'/);
+  // The identity shell is createStudentShellViews' since the App split.
+  assert.match(shellViews, /import \{ describeLogoutRisk \} from '\.\.\/\.\.\/platform\/student\/logoutGuard\.js'/);
   // The shell reads the risk once (the pack-up line, NAV-24, reads it too) and
   // hands it to the one identity bar; a teacher preview has none.
-  const shell = region(app, 'const renderStudentIdentityShell = ', '<StudentIdentityBar', 'identity shell');
+  const shell = region(shellViews, 'const renderStudentIdentityShell = ', '<StudentIdentityBar', 'identity shell');
   assert.match(shell, /const studentShellLogoutRisk = preview \? null : describeLogoutRisk\(\{\s*outboxDepth: studentOutboxDepth,\s*pendingGradeCount: studentPendingGradeCount/);
-  const bar = region(app, '<StudentIdentityBar', '/>', 'identity bar');
+  const bar = region(shellViews, '<StudentIdentityBar', '/>', 'identity bar');
   assert.match(bar, /logoutRisk=\{studentShellLogoutRisk\}/);
 });
 
@@ -199,11 +209,12 @@ test('the Warm-Up banner never recommends excused or unopened work (review findi
   // The banner's choice lives in studentActiveWarmup (pass 3: the phone's
   // status chip offers the same Warm-Up; worked out once per change of what
   // it reads); the banner renders its answer.
-  const banner = region(app, 'const studentActiveWarmup = () => ', 'const questions = getStoredAssignmentQuestions(assignment);', 'banner filter');
-  assert.match(app, /const renderStudentWarmupBanner = \(\) => \{\n\s+const activeWarmup = studentActiveWarmup\(\);/);
+  // (createStudentShellViews' since the App split.)
+  const banner = region(shellViews, 'const studentActiveWarmup = () => ', 'const questions = getStoredAssignmentQuestions(assignment);', 'banner filter');
+  assert.match(shellViews, /const renderStudentWarmupBanner = \(\) => \{\n\s+const activeWarmup = studentActiveWarmup\(\);/);
   assert.match(banner, /if \(assignmentIsExcusedForStudent\(assignment, user\.id\)\) return null;/);
   assert.match(banner, /if \(!getAssignmentLifecycle\(assignment, now, \{ studentId: user\.id \}\)\.isOpen\) return null;/);
-  assert.match(app, /import \{[^}]*\bassignmentIsExcusedForStudent\b[^}]*\} from '\.\/platform\/student\/studentGradeCenterModel\.js'/);
+  assert.match(shellViews, /import \{[^}]*\bassignmentIsExcusedForStudent\b[^}]*\} from '\.\.\/\.\.\/platform\/student\/studentGradeCenterModel\.js'/);
 });
 
 test('the cached dashboard never outlives the signed-in student (shared Chromebook)', () => {

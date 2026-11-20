@@ -21,7 +21,7 @@ import assert from 'node:assert/strict';
 import { readdirSync, readFileSync, statSync } from 'node:fs';
 import path from 'node:path';
 import { executableSource, region } from './helpers/sourceContract.mjs';
-import { appHookSource } from './helpers/appScreens.mjs';
+import { appFactorySource, appHookSource } from './helpers/appScreens.mjs';
 
 const root = new URL('../../', import.meta.url);
 const read = (file) => executableSource(readFileSync(new URL(file, root), 'utf8'));
@@ -29,8 +29,10 @@ const workspace = read('src/app/teacher/TeacherWorkspace.jsx');
 
 test('the workspace takes the skip link and the target id from the shared page chrome, as the student shell does', () => {
   assert.match(workspace, /import \{ MAIN_CONTENT_ID, SkipToContent \} from '\.\.\/\.\.\/components\/common\/pageChrome\.jsx';/);
-  const student = read('src/App.jsx');
-  assert.match(student, /import \{ MAIN_CONTENT_ID, SkipToContent \} from '\.\/components\/common\/pageChrome\.jsx';/, 'the student shell uses the same two');
+  // Since the App split (slice 7) the student shell is createStudentShellViews' (src/app/student/studentShellViews.jsx),
+  // which App calls once: the import is that module's.
+  const student = executableSource(appFactorySource('createStudentShellViews'));
+  assert.match(student, /import \{ MAIN_CONTENT_ID, SkipToContent \} from '\.\.\/\.\.\/components\/common\/pageChrome\.jsx';/, 'the student shell uses the same two');
   // Since the App split, app/shell/useStudentScreenChange.js owns the tab's
   // title, and takes the other two names from the same page chrome.
   assert.match(executableSource(appHookSource('useStudentScreenChange')), /import \{ pageTitleFor, useDocumentTitle \} from '\.\.\/\.\.\/components\/common\/pageChrome\.jsx';/);

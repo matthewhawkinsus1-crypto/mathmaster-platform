@@ -327,8 +327,15 @@ test('App: every save the device refuses is kept for its assignment, and every s
 test('App: Home, the pack-up line and Log Out read unstored work first', () => {
   const home = executableSource(region(app, 'const studentSaveStatusNow = () => describeSaveStatus({', '});', 'Home\'s save status'));
   assert.match(home, /persistenceStatus: persistenceStatusWithUnstoredWork\(studentPersistenceStatus, studentUnstoredAssignmentIds\),/);
-  const shell = executableSource(region(app, 'const studentShellLogoutRisk = preview ? null : describeLogoutRisk({', '});', 'Log Out'));
+  // Since the App split (slice 7), createStudentShellViews owns the identity
+  // shell (Log Out) and the pack-up line; App hands it the status, the
+  // unstored work and Home's own reading.
+  const shellViews = appFactorySource('createStudentShellViews');
+  for (const input of ['studentPersistenceStatus', 'studentUnstoredAssignmentIds', 'studentSaveStatusNow']) {
+    assert.ok(appFactorySeam('createStudentShellViews').parameters.includes(input), `App hands the shell views ${input}`);
+  }
+  const shell = executableSource(region(shellViews, 'const studentShellLogoutRisk = preview ? null : describeLogoutRisk({', '});', 'Log Out'));
   assert.match(shell, /persistenceStatus: persistenceStatusWithUnstoredWork\(studentPersistenceStatus, studentUnstoredAssignmentIds\),/);
   // The pack-up line is Home's status (packUpLine.js), not a second reading.
-  assert.match(app, /const workLine = packUpWorkLine\(studentSaveStatusNow\(\)\);/);
+  assert.match(shellViews, /const workLine = packUpWorkLine\(studentSaveStatusNow\(\)\);/);
 });

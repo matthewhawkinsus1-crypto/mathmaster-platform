@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import { executableSource, region } from './helpers/sourceContract.mjs';
-import { appHookSource } from './helpers/appScreens.mjs';
+import { appFactorySeam, appFactorySource, appHookSource } from './helpers/appScreens.mjs';
 import {
   activeClassPointAnnouncements,
   classPointAccountId,
@@ -126,7 +126,11 @@ test('teacher preview is isolated before subscriptions and identity points rende
   assert.notEqual(effect.indexOf("user?.role !== 'student'"), -1);
   assert.notEqual(effect.indexOf('subscribeToStudentClassPoints'), -1);
   assert.ok(effect.indexOf("user?.role !== 'student'") < effect.indexOf('subscribeToStudentClassPoints'));
-  assert.match(app, /classPointsBalance=\{preview \|\| studentClassPoints\.unavailable \? null/);
+  // Since the App split the identity bar is drawn by the identity shell, which
+  // createStudentShellViews owns; App hands it the points the hook returned.
+  const shell = region(appFactorySource('createStudentShellViews'), 'const renderStudentIdentityShell = (content, { preview = false, main = false } = {}) => {', 'const renderStudentScreen = ', 'the identity shell');
+  assert.ok(appFactorySeam('createStudentShellViews').parameters.includes('studentClassPoints'), 'App hands the shell views the Class Points it took from the hook');
+  assert.match(shell, /classPointsBalance=\{preview \|\| studentClassPoints\.unavailable \? null/);
 });
 
 test('student name remains the strongest identity element and points are secondary', async () => {

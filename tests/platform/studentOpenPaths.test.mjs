@@ -29,7 +29,7 @@ import {
 import { buildStudentGradeCenter, findGradeCenterEntry } from '../../src/platform/student/studentGradeCenterModel.js';
 import { buildWaysToRaise, entryCanStillRise } from '../../src/platform/student/waysToRaiseModel.js';
 import { executableSource, region } from './helpers/sourceContract.mjs';
-import { appFactorySource, positionalHookSource } from './helpers/appScreens.mjs';
+import { appFactorySeam, appFactorySource, positionalHookSource } from './helpers/appScreens.mjs';
 
 const read = (path) => readFileSync(new URL(`../../${path}`, import.meta.url), 'utf8');
 
@@ -244,7 +244,10 @@ test('NAV-9: Home opens results and starts with origin Home; the Test Cycle card
 
 // ------------------------------------------------------------ P3: the Live Challenge lobby
 test('P3: the Live Challenge lobby invite shows on Assignments, Grades, Rewards, My Math Path and a result — never in a test', () => {
-  const invite = region(app, 'const renderStudentLiveChallengeInvite = () => {', '\n  };\n');
+  // Since the App split (slice 7), createStudentShellViews owns the invite
+  // line; App hands it joinLiveChallenge and draws it where it did (below).
+  assert.ok(appFactorySeam('createStudentShellViews').parameters.includes('joinLiveChallenge'), 'App hands the shell views joinLiveChallenge');
+  const invite = region(executableSource(appFactorySource('createStudentShellViews')), 'const renderStudentLiveChallengeInvite = () => {', '\n  };\n');
   assert.match(invite, /if \(user\?\.role !== 'student' \|\| secureExamActive\) return null;/);
   assert.match(invite, /\['invited', 'joined', 'running'\]\.includes\(liveChallengeInvite\.status\)/);
   // Through openStudentDashboardMode, which also leaves the result page (activeView

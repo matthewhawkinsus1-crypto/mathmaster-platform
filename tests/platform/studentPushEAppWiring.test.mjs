@@ -6,6 +6,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { region } from './helpers/sourceContract.mjs';
 import { importsComponent } from './helpers/componentImport.mjs';
+import { appFactorySource } from './helpers/appScreens.mjs';
 
 const app = readFileSync(new URL('../../src/App.jsx', import.meta.url), 'utf8');
 // The module's import block: everything before the first top-level component.
@@ -32,12 +33,20 @@ test('the teacher class-reward panels are imported and mounted for the active cl
 });
 
 test('a Warm-Up game gets the student\'s support profile and the rewards card, without a second way out', () => {
-  const gate = region(app, '<WarmupChallengeGate\n', 'onExitToAssignment=', 'the Warm-Up game mount');
+  // Since the App split (slice 7) the open assignment, the Warm-Up game's
+  // mount in it, is drawn by createAssignmentWorkspaceView
+  // (src/app/student/assignmentWorkspaceView.jsx), which App calls once, by position.
+  const workspace = appFactorySource('createAssignmentWorkspaceView');
+  const gate = region(workspace, '<WarmupChallengeGate\n', 'onExitToAssignment=', 'the Warm-Up game mount');
   // The whole profile, not just a name: Read aloud reads it. The id is the real one.
   assert.match(gate, /studentProfile=\{\{ \.\.\.\(user\?\.profile \|\| \{\}\), studentId: user\?\.id, name: user\?\.name \}\}/);
   assert.match(gate, /renderMatchRewards=\{\(roomId, match = \{\}\) => \(\s*<ChallengeRewardsEarned/);
   // Mid-Warm-Up the one way on is Back to Warm-Up (it records the game and
   // keeps the assignment's exit): no "Open My Rewards" link in this slot.
   assert.match(gate, /onOpenRewards=\{null\}/);
+  // The card is imported where the gate is drawn (App keeps its own import
+  // for the standalone game, which it still draws).
+  const workspaceImports = region(workspace, 'import ', '\nexport function ', 'the workspace view\'s imports');
+  assert.match(workspaceImports, /import ChallengeRewardsEarned from '\.\.\/\.\.\/components\/student\/rewards\/ChallengeRewardsEarned\.jsx';/);
   assert.match(imports, /import ChallengeRewardsEarned from '\.\/components\/student\/rewards\/ChallengeRewardsEarned\.jsx';/);
 });

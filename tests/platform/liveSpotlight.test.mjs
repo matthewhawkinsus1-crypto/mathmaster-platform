@@ -12,7 +12,7 @@ import {
   SPOTLIGHT_MAX_FRAME_BYTES,
 } from '../../src/platform/liveSpotlight.js';
 
-import { appHookSource, positionalHookSource } from './helpers/appScreens.mjs';
+import { appFactorySeam, appFactorySource, appHookSource, positionalHookSource } from './helpers/appScreens.mjs';
 
 const require = createRequire(import.meta.url);
 const spotlightCleanup = require('../../functions/lib/liveSpotlight.js');
@@ -124,12 +124,24 @@ test('Spotlight wiring remains separate from presence, drafts, grades, attempts,
     readFile(new URL('../../src/components/teacher/LiveClassMonitor.jsx', import.meta.url), 'utf8'),
     readFile(new URL('../../src/components/teacher/StudentSpotlightView.jsx', import.meta.url), 'utf8'),
   ]);
-  assert.match(app, /from '\.\/platform\/liveSpotlight\.js'/);
+  // Since the App split (slice 7), createStudentShellViews draws the
+  // student's Spotlight notices (the only thing App read the module for), so
+  // it is the module that imports it; createAssignmentWorkspaceView mounts
+  // the question. App hands both the request, and the workspace the sender.
+  const shellViews = appFactorySource('createStudentShellViews');
+  const workspaceView = appFactorySource('createAssignmentWorkspaceView');
+  for (const input of ['studentSpotlightRequest', 'respondToSpotlight']) {
+    assert.ok(appFactorySeam('createStudentShellViews').parameters.includes(input), `App hands the shell views ${input}`);
+  }
+  for (const input of ['studentSpotlightRequest', 'publishSpotlightWork']) {
+    assert.ok(appFactorySeam('createAssignmentWorkspaceView').parameters.includes(input), `App hands the workspace view ${input}`);
+  }
+  assert.match(shellViews, /from '\.\.\/\.\.\/platform\/liveSpotlight\.js'/);
   // The question's frames go to publishSpotlightWork, and only while a
   // request exists: its identity follows the request, so the question sends
   // the frame on screen the moment Present Now is pressed (a memoised
   // QuestionEngine is drawn again only for a new prop).
-  assert.match(app, /onSpotlightFrame=\{preview \? null : studentSpotlightRequest && publishSpotlightWork\}/);
+  assert.match(workspaceView, /onSpotlightFrame=\{preview \? null : studentSpotlightRequest && publishSpotlightWork\}/);
   // Since the App split the request, the publisher and publishSpotlightWork
   // are useStudentSpotlight's, which App calls with the student and the
   // question on screen, for the request and the frame sender used above.
@@ -145,8 +157,8 @@ test('Spotlight wiring remains separate from presence, drafts, grades, attempts,
     assert.match(spotlightCall[2], new RegExp(`[{,\\s]${input}[,\\s}]`), input);
   }
   assert.match(spotlight, /const publishSpotlightWork = useCallback\([\s\S]*?\}, \[studentSpotlightRequest, /);
-  assert.match(app, /Present Now/);
-  assert.match(app, /Stop Presenting/);
+  assert.match(shellViews, /Present Now/);
+  assert.match(shellViews, /Stop Presenting/);
   assert.doesNotMatch(presence, /liveSpotlightFrames|studentWorkspaceDrafts/);
   assert.match(rules, /match \/liveSpotlightFrames\/\{requestId\}/);
   assert.match(rules, /match \/studentWorkspaceDrafts\/\{draftId\}[\s\S]*allow read: if rootAdmin\(\) \|\| ownsStudent/);

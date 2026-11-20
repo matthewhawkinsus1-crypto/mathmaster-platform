@@ -19,6 +19,7 @@ import {
 } from '../../src/platform/assessment/examToolLayout.js';
 import { examToolTabEdge } from '../../src/components/assessment/examToolDrawerHooks.js';
 import { executableSource, region } from './helpers/sourceContract.mjs';
+import { appFactorySource } from './helpers/appScreens.mjs';
 
 const read = (relative) => readFileSync(new URL(`../../${relative}`, import.meta.url), 'utf8');
 const SHEET = read('src/components/assessment/SatReferenceSheet.jsx');
@@ -63,7 +64,9 @@ test('both tools stay open only where both sit beside a usable question; otherwi
 test('the tools sit above Work View and its keypad, and under the inactivity dialog, the integrity warning and the pause', () => {
   const workView = Number(read('src/components/common/WorkViewShell.css').match(/\.mathmaster-work-view-host\[data-open="true"\] \{[^}]*?z-index: (\d+);/)[1]);
   const workViewKeypad = Number(read('src/components/common/WorkViewShell.css').match(/\.mathmaster-mobile-numeric-keypad \{\s*z-index: (\d+)/)[1]);
-  const idle = Number(region(read('src/App.jsx'), 'className="mathmaster-idle-overlay"', '}}', 'the inactivity dialog').match(/zIndex: (\d+)/)[1]);
+  // Since the App split (slice 7) the inactivity dialog is renderIdleOverlay in createStudentShellViews
+  // (src/app/student/studentShellViews.jsx), which App calls once.
+  const idle = Number(region(appFactorySource('createStudentShellViews'), 'className="mathmaster-idle-overlay"', '}}', 'the inactivity dialog').match(/zIndex: (\d+)/)[1]);
   // The question list is a panel on the page now, not a layer; what must
   // cover a tool is the warning before a pause, and the pause itself.
   const container = read('src/components/assessment/SecureExamContainer.jsx');
