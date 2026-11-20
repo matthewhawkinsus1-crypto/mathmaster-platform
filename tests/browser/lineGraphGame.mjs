@@ -1118,7 +1118,12 @@ await run('name-on-phones', async () => {
   for (const [index, student] of phones.entries()) await countdownHeld(S, student, watches[index], await itemOnScreen(student, roomId));
   await Promise.all(phones.map(async (student) => {
     // A point-slope equation, the widest a choice holds: its ✓ before it wrapped it at 360 px.
-    const item = await toNameItem(student, roomId, endsAtOf(room) - 8_000, (candidate) => candidate.form === 'pointSlope' && candidate.answerStyle === 'choice')
+    // Looked for until 16 s before the round ends, then any line to name. The
+    // look skips every other item, and a point-slope choice comes 30 or more
+    // items in about 1 round in 120 (0.23% not in 40): with 2 s left for any
+    // line to name, a line to graph on screen then had no time to give way
+    // ("no equation to choose came", one CI run).
+    const item = await toNameItem(student, roomId, endsAtOf(room) - 16_000, (candidate) => candidate.form === 'pointSlope' && candidate.answerStyle === 'choice')
       || await toNameItem(student, roomId, endsAtOf(room) - 6_000);
     if (!check(S, item?.answerStyle === 'choice', `${student.studentId}: no equation to choose came (${item?.answerStyle})`)) return;
     notes.push({ scenario: S, student: student.studentId, device: student.device, choiceForm: item.form });
