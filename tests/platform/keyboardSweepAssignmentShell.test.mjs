@@ -23,10 +23,14 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { executableSource, region } from './helpers/sourceContract.mjs';
 import { parseCss } from './helpers/cssRules.mjs';
+import { appFactorySource } from './helpers/appScreens.mjs';
 
 const read = (path) => readFileSync(new URL(`../../${path}`, import.meta.url), 'utf8');
 const harness = executableSource(read('tests/browser/keyboardSweepMain.jsx'));
-const app = executableSource(read('src/App.jsx'));
+// Since the App split (slice 7) the App's assignment screen is drawn by createAssignmentWorkspaceView
+// (src/app/student/assignmentWorkspaceView.jsx), a plain function App calls where the markup was:
+// appFactorySource checks App still imports and calls it, so this is still the App's own markup.
+const app = executableSource(appFactorySource('createAssignmentWorkspaceView'));
 const tidy = (text) => String(text).replace(/\s+/g, ' ').trim();
 // The object literal a constant is set to: `Object.freeze({ ... })`.
 const frozen = (name) => tidy(harness.match(new RegExp(`const ${name} = Object\\.freeze\\((\\{[^}]*\\})\\);`))?.[1] || '');

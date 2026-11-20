@@ -30,6 +30,7 @@ import { buildAssignmentV5PreflightModel } from '../../src/platform/preflight/as
 import { buildPreflightReviewedAssignmentV5 } from '../../src/components/teacher/preflightV5Review.js';
 import { AUTHORING_STATES } from '../../src/platform/preflight/authoringStates.js';
 import { componentSource, executableSource, region } from './helpers/sourceContract.mjs';
+import { appFactorySource } from './helpers/appScreens.mjs';
 
 const read = (path) => readFileSync(new URL(`../../${path}`, import.meta.url), 'utf8');
 const GRAPH_PROMPT = 'Enter f(x) = x² − 4x + 3 into the built-in graphing calculator and find its zeros.';
@@ -222,7 +223,9 @@ test('Pre-Flight carries the note as advice, judged with the Calculator setting 
 });
 
 test('the mirror holds: App sends the student QuestionEngine only the lesson\'s setting, and QuestionEngine draws graphing only where it resolves', () => {
-  const app = executableSource(read('src/App.jsx'));
+  // Since the App split (slice 7) the student's QuestionEngine is drawn by createAssignmentWorkspaceView
+  // (src/app/student/assignmentWorkspaceView.jsx), a plain function App calls where the element was.
+  const app = executableSource(appFactorySource('createAssignmentWorkspaceView'));
   const engine = region(app, 'familyEngineLoading || familyPinPending ?', 'askTeacherContext={askTeacherContext}', 'the student assignment QuestionEngine');
   assert.match(engine, /assignmentCalculatorMode=\{assignment\?\.toolPolicy\?\.calculator \|\| null\}/);
   assert.doesNotMatch(engine, /assessmentContext=|teacherCalculatorChoice=|graphingCalculatorAllowed=/, 'a new calculator input here must be read by assignmentStudentCalculator too');

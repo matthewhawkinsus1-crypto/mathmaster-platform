@@ -24,7 +24,7 @@ import {
 } from '../../src/app/shell/screenChange.js';
 import { MAIN_CONTENT_ID } from '../../src/components/common/skipTarget.js';
 import { executableSource, region } from './helpers/sourceContract.mjs';
-import { appHookSource } from './helpers/appScreens.mjs';
+import { appFactorySeam, appFactorySource, appHookSource } from './helpers/appScreens.mjs';
 
 // ------------------------------------------------------------ a tiny DOM
 class FakeElement {
@@ -250,6 +250,11 @@ test('NAV-3: a screen that places its own focus, or only speaks, is named and le
 
 // ------------------------------------------------------------ App wiring
 const app = executableSource(readFileSync(new URL('../../src/App.jsx', import.meta.url), 'utf8'));
+// Since the App split (slice 7) the shell around every student screen is createStudentShellViews'
+// (src/app/student/studentShellViews.jsx); appFactorySeam checks App calls it once and that what App hands it
+// and takes from it line up with the module, name for name.
+const shellSeam = appFactorySeam('createStudentShellViews');
+const shellViews = executableSource(appFactorySource('createStudentShellViews'));
 
 test('NAV-3: App imports the module and runs it on every student screen-key change, and the shell has the live region', () => {
   // Since the App split, app/shell/useStudentScreenChange.js owns the effect
@@ -266,7 +271,8 @@ test('NAV-3: App imports the module and runs it on every student screen-key chan
   assert.match(effect, /from: typeof document === 'undefined' \? null : document\.activeElement,\s*said: false,/);
   assert.match(effect, /settleScreenChange\(document, pending, \{\s*movesFocus: screenChangeMovesFocus\(pending\.key\),\s*announce: \(\) => setStudentScreenAnnouncement\(screenAnnouncement\(documentTitleRef\.current\)\),\s*\}\);/);
   assert.match(effect, /if \(next != null\) \{\s*timer = window\.setTimeout\(settle, next\);/);
-  const shell = region(app, 'const renderStudentIdentityShell = (', '\n  };');
+  const shell = region(shellViews, 'const renderStudentIdentityShell = (', '\n  };');
+  assert.ok(shellSeam.parameters.includes('studentScreenAnnouncement'), 'App hands the shell what the hook says');
   assert.match(shell, /role="status" aria-live="polite"[^>]*data-screen-announcement[^>]*>\s*\{studentScreenAnnouncement\}/);
 });
 
@@ -291,9 +297,10 @@ test('NAV-3: a reload of My Math Path keeps the screen, and the heading a screen
 });
 
 test('NAV-15: the shell gives a screen with no main of its own one main, and never a second to a screen that has one', () => {
-  const shell = region(app, 'const renderStudentIdentityShell = (', '\n  };');
+  const shell = region(shellViews, 'const renderStudentIdentityShell = (', '\n  };');
   assert.match(shell, /\{main \? \(\s*(?:\/\/[^\n]*\n\s*)?<main id=\{MAIN_CONTENT_ID\} tabIndex=\{-1\}/);
-  assert.match(app, /const renderStudentScreen = \(content\) => renderStudentIdentityShell\(content, \{ main: true \}\);/);
+  assert.match(shellViews, /const renderStudentScreen = \(content\) => renderStudentIdentityShell\(content, \{ main: true \}\);/);
+  assert.ok(shellSeam.taken.includes('renderStudentScreen') && shellSeam.taken.includes('renderStudentIdentityShell'), 'App takes both from the shell views');
   // Wrapped by the shell: Home, Assignments, Grades, Rewards, Live Challenge, Test Cycle, Recovery.
   const wrapped = [...app.matchAll(/return renderStudentScreen\(\s*([\s\S]{0,400})/g)].map((match) => match[1]);
   for (const screen of ['<LiveChallengeStudent', '<StudentAssignmentsCenter', '<StudentRewardsCenter', '<StudentGradeCenter', '<TestCycleCard', '<StudentDashboardView', '<SectionRecoveryRunner']) {

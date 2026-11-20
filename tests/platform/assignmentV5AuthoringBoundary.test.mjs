@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import { assignmentIntakeSource } from './helpers/intakeSource.mjs';
 import { assignmentQuestionEditorSource } from './helpers/splitComponentSource.mjs';
-import { appAndTeacherWorkspaceSource } from './helpers/appScreens.mjs';
+import { appAndTeacherWorkspaceSource, appSurfaceSource, teacherControlsSource } from './helpers/appScreens.mjs';
 
 const app = appAndTeacherWorkspaceSource();
 const intake = assignmentIntakeSource();
@@ -72,10 +72,16 @@ test('stored assignment review paths reuse canonical V5 instead of recompiling r
 test('platform self-export is canonical V5 and carries a lossless self-import marker', () => {
   // Bind this contract to the export call and the pure builder that now owns it,
   // rather than requiring a particular local helper shape inside App.jsx.
-  assert.match(app, /JSON\.stringify\(buildCurrentContentPortablePackage\(exportJsonAssignment\)/);
+  // Since the App split (slice 7) the export dialog is createTeacherDialogViews'
+  // (src/app/teacher/controls/teacherDialogViews.jsx), which App reaches through the teacher kit; the builder's
+  // import is that module's.
+  const dialogs = teacherControlsSource('createTeacherDialogViews');
+  assert.match(dialogs, /JSON\.stringify\(buildCurrentContentPortablePackage\(exportJsonAssignment\)/);
+  assert.match(dialogs, /^import \{ buildCurrentContentPortablePackage \} from '\.\.\/\.\.\/\.\.\/platform\/assignments\/currentContentPortableAssignment\.js';$/m);
   assert.match(currentContentExport, /storedAssignmentToV5\(\{ \.\.\.assignment, sections \}/);
   assert.match(currentContentExport, /mathmasterCanonicalAssignmentV5/);
-  assert.doesNotMatch(app, /schemaVersion:\s*2[\s\S]{0,500}questions:\s*assignment\.questions/);
+  // Refused across App, the teacher workspace and every module App's code moved into, so a legacy export cannot hide in one.
+  assert.doesNotMatch(appSurfaceSource(), /schemaVersion:\s*2[\s\S]{0,500}questions:\s*assignment\.questions/);
 });
 
 test('normal question editing also stays no-code', () => {

@@ -9,7 +9,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { region, executableSource } from './helpers/sourceContract.mjs';
-import { appHookSource } from './helpers/appScreens.mjs';
+import { appFactorySource, appHookSource } from './helpers/appScreens.mjs';
 
 import { solvedStageUpdate } from '../../src/tools/stepAlgebra2/linearInterceptsMath.js';
 import { unicodeSubscriptsToMathMarkup } from '../../src/mathDisplayFormat.js';
@@ -324,7 +324,9 @@ test('the DOL "do this next" opens the first DOL question the student has not tr
 });
 
 test('the Warm-Up banner leaves once every Warm-Up question is finished', () => {
-  const app = source('src/App.jsx');
+  // Since the App split (slice 7) both are createStudentShellViews' (src/app/student/studentShellViews.jsx),
+  // which App calls once and takes them from, by position.
+  const app = appFactorySource('createStudentShellViews');
   // The banner's choice lives in studentActiveWarmup (pass 3: the phone's
   // status chip offers the same Warm-Up; worked out once per change of what
   // it reads); the banner renders its answer.
