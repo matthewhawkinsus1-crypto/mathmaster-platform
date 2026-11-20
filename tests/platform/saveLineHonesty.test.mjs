@@ -20,6 +20,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { region, executableSource } from './helpers/sourceContract.mjs';
+import { appFactorySeam, appFactorySource, appSurfaceSource } from './helpers/appScreens.mjs';
 import {
   describeRuntimeSaveLine, describeSaveStatus, drainDelivered, initialSaveSubject, nextSaveSubject, persistenceStatusAfterDrain,
   persistenceStatusOnAssignmentChange, persistenceStatusWithQueuedWork, persistenceStatusWithUnstoredWork, withUnstoredWork, withoutUnstoredWork,
@@ -154,8 +155,13 @@ test('App: the reconcile says queued work through the model, every tick', () => 
 });
 
 test('App: the drain sets the line from the line it shows and its own result, through the model', () => {
-  assert.match(app, /^import \{[^}]*\bpersistenceStatusAfterDrain\b[^}]*\} from '\.\/platform\/student\/saveStatusModel\.js';$/m);
-  const drain = executableSource(region(app, 'const drainStudentOutbox = async', 'return result;', 'the drain'));
+  // Since the App split the drain is createStudentOutbox's, with the import it
+  // calls; App hands the factory the line's setter and takes the drain back.
+  const outbox = appFactorySource('createStudentOutbox');
+  assert.ok(appFactorySeam('createStudentOutbox').parameters.includes('setStudentPersistenceStatus'), 'App hands the drain the line\'s setter');
+  assert.ok(appFactorySeam('createStudentOutbox').taken.includes('drainStudentOutbox'), 'App takes the drain from createStudentOutbox');
+  assert.match(outbox, /^import \{[^}]*\bpersistenceStatusAfterDrain\b[^}]*\} from '\.\.\/\.\.\/platform\/student\/saveStatusModel\.js';$/m);
+  const drain = executableSource(region(outbox, 'const drainStudentOutbox = async', 'return result;', 'the drain'));
   // A functional update: the status the line shows when the drain returns,
   // not the one this render saw (a save refused while the drain was out).
   assert.match(drain, /setStudentPersistenceStatus\(\(status\) => persistenceStatusAfterDrain\(\{\s*status,\s*remaining: result\.remaining,\s*tally: result\.tally,\s*online,\s*successStatus,\s*\}\)\);/);
@@ -263,7 +269,21 @@ test('App: another assignment starts the line over, and another account starts f
 });
 
 test('App: every save the device refuses is kept for its assignment, and every save it stores clears it', () => {
-  const code = executableSource(app);
+  // Since the App split four of the five durable writes are in the factories
+  // App calls once: progress in createQuestionNavigation (changeQuestion), a
+  // submission, a step and a new problem in createGradingControls. The
+  // checkpoint is still App's. The refusals are counted across App and every
+  // module its code moved into, so none is lost and none is added unseen.
+  const code = executableSource(appSurfaceSource());
+  const navigation = appFactorySource('createQuestionNavigation');
+  const grading = appFactorySource('createGradingControls');
+  for (const factoryName of ['createQuestionNavigation', 'createGradingControls']) {
+    for (const input of ['setStudentPersistenceStatus', 'setStudentUnstoredAssignmentIds', 'activeAssignmentId', 'setTracker']) {
+      assert.ok(appFactorySeam(factoryName).parameters.includes(input), `App hands ${factoryName} ${input}`);
+    }
+    // Imported where it is called.
+    assert.match(appFactorySource(factoryName), /^import \{[^}]*\bwithUnstoredWork\b[^}]*\bwithoutUnstoredWork\b[^}]*\} from '\.\.\/\.\.\/platform\/student\/saveStatusModel\.js';$/m, `${factoryName} imports what it records with`);
+  }
   // Each refusal records its assignment as it says "Not saved", and there is
   // no "Not saved" without it.
   const refusals = code.match(/setStudentPersistenceStatus\('volatile'\);/g) || [];
@@ -273,16 +293,19 @@ test('App: every save the device refuses is kept for its assignment, and every s
   // Each of the five, in its own handler: refused in its catch, stored after
   // the queue took it (and only then).
   const sites = [
-    ['const changeQuestion = async (', 'const exportAssignmentWorksheetPdf = async (', "kind: 'questionProgress'", 'setTracker(updatedTracker);'],
-    ['const handleResponseCheckpoint = useCallback(', 'const handleGradeSubmit = async (', 'const queued = await enqueueResponseCheckpoint(checkpoint);', "setStudentPersistenceStatus('queued');"],
-    ['const handleGradeSubmit = async (', 'const handleStepGrade = async (', "kind: 'ordinarySubmission'", 'setTracker(updatedTracker);'],
-    ['const handleStepGrade = async (', 'const handleRequestNewQuestion = async (', "kind: 'stepSubmission'", 'setTracker(updatedTracker);'],
-    // Since the App split what follows it in App is its call of
-    // createAssignmentPreflightControls, which holds V5_COMPILER_PLUMBING_ERROR.
-    ['const handleRequestNewQuestion = async (', 'const [V5_COMPILER_PLUMBING_ERROR', "kind: 'questionReplacement'", 'setTracker(updatedTracker);'],
+    // changeQuestion is the one function of createQuestionNavigation: it ends
+    // where the factory returns.
+    [navigation, 'const changeQuestion = async (', '\n  return [changeQuestion];', "kind: 'questionProgress'", 'setTracker(updatedTracker);'],
+    // Still App's. What follows it in App is its call of createGradingControls,
+    // which holds handleGradeSubmit.
+    [app, 'const handleResponseCheckpoint = useCallback(', '] = createGradingControls(', 'const queued = await enqueueResponseCheckpoint(checkpoint);', "setStudentPersistenceStatus('queued');"],
+    [grading, 'const handleGradeSubmit = async (', 'const handleStepGrade = async (', "kind: 'ordinarySubmission'", 'setTracker(updatedTracker);'],
+    [grading, 'const handleStepGrade = async (', 'const handleRequestNewQuestion = async (', "kind: 'stepSubmission'", 'setTracker(updatedTracker);'],
+    // The last function of createGradingControls: it ends where the factory returns.
+    [grading, 'const handleRequestNewQuestion = async (', '\n  return [', "kind: 'questionReplacement'", 'setTracker(updatedTracker);'],
   ];
-  for (const [start, end, enqueue, stored] of sites) {
-    const handler = executableSource(region(app, start, end, start));
+  for (const [owner, start, end, enqueue, stored] of sites) {
+    const handler = executableSource(region(owner, start, end, start));
     const queuedAt = handler.indexOf(enqueue);
     assert.notEqual(queuedAt, -1, `${start}: its enqueue`);
     // The catch of that enqueue, to its closing brace.

@@ -11,7 +11,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { executableSource, region } from './helpers/sourceContract.mjs';
-import { appFactorySource, positionalHookSeam, positionalHookSource } from './helpers/appScreens.mjs';
+import { appFactorySeam, appFactorySource, appSurfaceSource, positionalHookSeam, positionalHookSource } from './helpers/appScreens.mjs';
 import {
   EMPTY_SCRATCHPAD_CACHE,
   SCRATCHPAD_CACHE_BUDGET_BYTES,
@@ -227,6 +227,12 @@ const app = executableSource(appSource);
 // Since the App split, useLiveTeachingPreviewSync owns the effect that
 // releases the preview's scratchpads.
 const previewSync = executableSource(positionalHookSource('useLiveTeachingPreviewSync'));
+// Since the App split (slice 6) createScratchpadControls owns opening and
+// saving a scratchpad, and createStudentOutbox owns leaving an unavailable
+// assignment. App calls each once, by position (appFactorySource holds App's
+// arguments to the factory's parameters, name for name).
+const scratchpadControls = executableSource(appFactorySource('createScratchpadControls'));
+const studentOutbox = executableSource(appFactorySource('createStudentOutbox'));
 
 test('App imports the store it calls (a missing import is a ReferenceError nothing else catches)', () => {
   assert.match(
@@ -236,9 +242,23 @@ test('App imports the store it calls (a missing import is a ReferenceError nothi
   );
   const imported = app.match(/import \{([^}]*)\} from '\.\/platform\/student\/practiceScratchpadCache\.js';/);
   assert.ok(imported, 'App.jsx imports practiceScratchpadCache.js');
-  for (const name of ['EMPTY_SCRATCHPAD_CACHE', 'readCachedScratchpadPage', 'storeCachedScratchpad', 'touchCachedScratchpad']) {
+  for (const name of ['EMPTY_SCRATCHPAD_CACHE']) {
     assert.match(imported[1], new RegExp(`\\b${name}\\b`), `${name} is called in App.jsx and must be imported`);
   }
+  // Since the App split each import sits with the code that calls it: the
+  // store's read, save and touch in createScratchpadControls, the empty store
+  // in createStudentOutbox (leaving an unavailable assignment).
+  const controlsImported = scratchpadControls.match(/import \{([^}]*)\} from '\.\.\/\.\.\/platform\/student\/practiceScratchpadCache\.js';/);
+  assert.ok(controlsImported, 'createScratchpadControls imports practiceScratchpadCache.js');
+  for (const name of ['readCachedScratchpadPage', 'storeCachedScratchpad', 'touchCachedScratchpad']) {
+    assert.match(scratchpadControls.replace(/^import .*$/gm, ''), new RegExp(`\\b${name}\\(`), `${name} is called in createScratchpadControls`);
+    assert.match(controlsImported[1], new RegExp(`\\b${name}\\b`), `${name} is called in createScratchpadControls and must be imported there`);
+  }
+  assert.match(
+    studentOutbox,
+    /import \{[^}]*\bEMPTY_SCRATCHPAD_CACHE\b[^}]*\} from '\.\.\/\.\.\/platform\/student\/practiceScratchpadCache\.js';/,
+    'EMPTY_SCRATCHPAD_CACHE is used in createStudentOutbox and must be imported there',
+  );
 });
 
 test('both in-memory scratchpad maps are budgeted stores, read and written only through the store', () => {
@@ -247,24 +267,57 @@ test('both in-memory scratchpad maps are budgeted stores, read and written only 
 
   // Every read of either map is a store read: no indexing, spreading or
   // iterating that would skip it (and break on the store's shape).
-  const reads = [...app.matchAll(/\b(practiceScratchpads|previewScratchpads)\b/g)];
+  // Since the App split the reads are createScratchpadControls's: App declares
+  // each store and hands it to that factory by position, and nothing else.
+  // Uses are looked for across App and every module its code moved into, and
+  // the only use that is not a declaration or a store read is that hand-over
+  // (App's arguments to the one call, the factory's own parameter list).
+  const surface = executableSource(appSurfaceSource());
+  const within = (startNeedle, endNeedle, label) => {
+    const start = surface.indexOf(startNeedle);
+    assert.notEqual(start, -1, `could not find ${label}`);
+    assert.equal(surface.indexOf(startNeedle, start + 1), -1, `${label} appears once`);
+    const end = surface.indexOf(endNeedle, start);
+    assert.notEqual(end, -1, `could not find the end of ${label}`);
+    return [start, end];
+  };
+  const handOvers = [
+    within('] = createScratchpadControls(', ');', 'App\'s call of createScratchpadControls'),
+    within('export function createScratchpadControls(', ') {', 'createScratchpadControls\'s parameters'),
+  ];
+  const handedOver = (index) => handOvers.some(([start, end]) => index > start && index < end);
+  const reads = [...surface.matchAll(/\b(practiceScratchpads|previewScratchpads)\b/g)];
   for (const store of ['practiceScratchpads', 'previewScratchpads']) {
-    assert.ok(reads.filter((match) => match[1] === store).length >= 3, `${store} is declared and read`);
+    assert.ok(reads.filter((match) => match[1] === store && !handedOver(match.index)).length >= 3, `${store} is declared and read`);
+    assert.equal(reads.filter((match) => match[1] === store && handedOver(match.index)).length, 2, `${store} is handed to createScratchpadControls once, and declared there once`);
   }
   for (const match of reads) {
-    const before = app.slice(Math.max(0, match.index - 40), match.index);
+    const before = surface.slice(Math.max(0, match.index - 40), match.index);
     const declared = before.endsWith('const [');
     const storeRead = before.endsWith('readCachedScratchpadPage(');
-    assert.ok(declared || storeRead, `${match[1]} is used outside the store: …${before}${app.slice(match.index, match.index + 40)}…`);
+    assert.ok(declared || storeRead || handedOver(match.index), `${match[1]} is used outside the store: …${before}${surface.slice(match.index, match.index + 40)}…`);
   }
 
   // Every write replaces the store with one the store built: the empty store,
   // a touch, or a budgeted save. A hand-built map would bypass the budget.
   // (Since the App split one of those writes, the release on leaving the
   // preview, is useLiveTeachingPreviewSync's: its writes are held the same.)
-  const written = `${app}\n${previewSync}`;
+  // (Since slice 6 the touch and the budgeted save are
+  // createScratchpadControls's and one release is createStudentOutbox's: every
+  // write in App and in every module its code moved into is held the same.)
+  const written = surface;
   const writes = [...written.matchAll(/\bset(Practice|Preview)Scratchpads\(/g)];
   assert.ok(previewSync.match(/\bsetPreviewScratchpads\(/), 'the hook\'s write is among those checked');
+  for (const [owner, source, setter] of [
+    ['useLiveTeachingPreviewSync', previewSync, 'setPreviewScratchpads'],
+    ['createScratchpadControls', scratchpadControls, 'setPreviewScratchpads'],
+    ['createScratchpadControls', scratchpadControls, 'setPracticeScratchpads'],
+    ['createStudentOutbox', studentOutbox, 'setPracticeScratchpads'],
+  ]) {
+    const write = source.match(new RegExp(`\\b${setter}\\([^\\n]*`));
+    assert.ok(write && written.includes(write[0]), `${owner}'s ${setter} write is among those checked`);
+  }
+  assert.ok(writes.length >= 9, 'the writes in App and in its modules are all counted');
   for (const match of writes) {
     const argument = written.slice(match.index + match[0].length, match.index + match[0].length + 80);
     assert.match(
@@ -276,7 +329,12 @@ test('both in-memory scratchpad maps are budgeted stores, read and written only 
 });
 
 test('opening a scratchpad reads the right store and marks it used', () => {
-  const load = region(app, 'const handleLoadScratchpad = async () => {', 'const handleSaveScratchpad', 'handleLoadScratchpad');
+  // Since the App split handleLoadScratchpad is createScratchpadControls's,
+  // which App hands both stores and their setters.
+  for (const input of ['previewScratchpads', 'setPreviewScratchpads', 'practiceScratchpads', 'setPracticeScratchpads', 'isTeacherPreview']) {
+    assert.ok(appFactorySeam('createScratchpadControls').parameters.includes(input), `App hands createScratchpadControls ${input}`);
+  }
+  const load = region(scratchpadControls, 'const handleLoadScratchpad = async () => {', 'const handleSaveScratchpad', 'handleLoadScratchpad');
   const preview = region(load, 'if (isTeacherPreview) {', '}', 'preview load');
   assert.match(preview, /setPreviewScratchpads\(\(current\) => touchCachedScratchpad\(current, scratchpadId\)\);/);
   assert.match(preview, /return loadScratchpadRecord\(async \(id\) => readCachedScratchpadPage\(previewScratchpads, scratchpadId, id\), scratchpadId\);/);
@@ -286,9 +344,17 @@ test('opening a scratchpad reads the right store and marks it used', () => {
 });
 
 test('saving stores the open question\'s scratchpad through the budget, in the right store', () => {
-  // Since the App split what follows the save in App is its call of
+  // Since the App split handleSaveScratchpad is createScratchpadControls's:
+  // it is the last function before the factory returns. App hands the factory
+  // the open question and both stores, and still calls it above
   // createTeacherScratchpadControls, which holds openTeacherScratchpad.
-  const saveHandler = region(app, 'const handleSaveScratchpad = async', 'const [openTeacherScratchpad]', 'handleSaveScratchpad');
+  for (const input of ['activeAssignmentId', 'currentQuestionIndex', 'previewScratchpads', 'setPreviewScratchpads', 'practiceScratchpads', 'setPracticeScratchpads', 'isTeacherPreview']) {
+    assert.ok(appFactorySeam('createScratchpadControls').parameters.includes(input), `App hands createScratchpadControls ${input}`);
+  }
+  const controlsAt = app.indexOf('] = createScratchpadControls(');
+  const teacherControlsAt = app.indexOf('const [openTeacherScratchpad]');
+  assert.ok(controlsAt !== -1 && teacherControlsAt !== -1 && controlsAt < teacherControlsAt, 'the save is built above the teacher\'s scratchpad controls');
+  const saveHandler = region(scratchpadControls, 'const handleSaveScratchpad = async', '\n  return [getScratchpadDocumentId, loadScratchpadRecord, handleLoadScratchpad, handleSaveScratchpad];', 'handleSaveScratchpad');
   // The id saved is the question on screen — the one the store exempts.
   assert.match(saveHandler, /const scratchpadId = getScratchpadDocumentId\(\s*activeAssignmentId,\s*currentQuestionIndex,\s*\);/);
   const preview = region(saveHandler, 'if (isTeacherPreview) {\n      setPreviewScratchpads', 'return;', 'preview save');
@@ -328,6 +394,9 @@ test('signing out, and leaving an unavailable assignment, empty the stores', () 
   const logout = region(app, 'const handleLogout = async () => {', 'setGradebookFilter(', 'handleLogout');
   assert.match(logout, /setPracticeScratchpads\(EMPTY_SCRATCHPAD_CACHE\);/);
   assert.match(logout, /setPreviewScratchpads\(EMPTY_SCRATCHPAD_CACHE\);/);
-  const leave = region(app, 'const leaveUnavailableAssignment = () => {', '};', 'leaveUnavailableAssignment');
+  // Since the App split leaveUnavailableAssignment is createStudentOutbox's,
+  // which App hands the practice store's setter.
+  assert.ok(appFactorySeam('createStudentOutbox').parameters.includes('setPracticeScratchpads'), 'App hands createStudentOutbox setPracticeScratchpads');
+  const leave = region(studentOutbox, 'const leaveUnavailableAssignment = () => {', '};', 'leaveUnavailableAssignment');
   assert.match(leave, /setPracticeScratchpads\(EMPTY_SCRATCHPAD_CACHE\);/);
 });

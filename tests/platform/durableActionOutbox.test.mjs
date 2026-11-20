@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import test from 'node:test';
 import { region } from './helpers/sourceContract.mjs';
-import { positionalHookSource } from './helpers/appScreens.mjs';
+import { appFactorySeam, appFactorySource, positionalHookSource } from './helpers/appScreens.mjs';
 import {
   createDurableAction,
   createMemoryOutboxStorage,
@@ -249,7 +249,14 @@ test('production integration uses FieldPath segments and secure Test Cycle never
   // so the region starts where the envelope is built and ends at the drain. A
   // region pinned to a single function would have gone red for a rename while
   // every behaviour below stayed intact.
-  const reconciliation = region(app, 'const buildSubmissionEnvelopeForAction', 'const drainStudentOutbox', 'student reconciliation');
+  // Since the App split the reconciliation unit is createStudentOutbox's and
+  // the submit, step and new-problem handlers are createGradingControls's;
+  // App calls each once (appFactorySource holds the seams) and hands the
+  // handlers the cycle that delivers what they queue.
+  const outbox = appFactorySource('createStudentOutbox');
+  const grading = appFactorySource('createGradingControls');
+  assert.ok(appFactorySeam('createGradingControls').parameters.includes('reconcileAndReportStudentOutbox'), 'App hands the handlers the outbox\'s cycle');
+  const reconciliation = region(outbox, 'const buildSubmissionEnvelopeForAction', 'const drainStudentOutbox', 'student reconciliation');
   assert.match(reconciliation, /hasClassworkGrade: payload\.hasClassworkGrade === true/);
   assert.match(reconciliation, /hasDolGrade: payload\.hasDolGrade === true/);
   assert.match(reconciliation, /if \(INGESTIBLE_KINDS\.includes\(action\.kind\)\) \{\s*throw new Error\('Grade-bearing actions require server ingestion\.'/);
@@ -257,14 +264,17 @@ test('production integration uses FieldPath segments and secure Test Cycle never
   assert.match(reconciliation, /disposition: SUBMISSION_DISPOSITION\.RETRYABLE/);
   assert.doesNotMatch(reconciliation, /lastSubmissionId: action\.actionId|wroteEvidenceFor/);
   assert.doesNotMatch(reconciliation, /deleteField\(/);
-  assert.match(app, /await enqueueDurableAction\(createDurableAction\(\{[\s\S]*kind: 'ordinarySubmission'/);
-  assert.match(app, /createdAt: submissionCapturedAt/);
-  assert.match(app, /timedSectionAccess,/);
-  const stepRegion = app.slice(app.indexOf('const handleStepGrade'), app.indexOf('const handleRequestNewQuestion'));
+  assert.match(grading, /await enqueueDurableAction\(createDurableAction\(\{[\s\S]*kind: 'ordinarySubmission'/);
+  assert.match(grading, /createdAt: submissionCapturedAt/);
+  assert.match(grading, /timedSectionAccess,/);
+  const stepRegion = region(grading, 'const handleStepGrade', 'const handleRequestNewQuestion', 'handleStepGrade');
   assert.doesNotMatch(stepRegion, /getLiveAssignment|gradesByAssignment:\s*updatedTracker|await updateDoc/);
+  assert.notEqual(stepRegion.indexOf("kind: 'stepSubmission'"), -1, 'the step is queued');
   assert.ok(stepRegion.indexOf("kind: 'stepSubmission'") < stepRegion.indexOf('setTracker(updatedTracker)'), 'step must cross the outbox boundary before React advances');
-  const replacementRegion = app.slice(app.indexOf('const handleRequestNewQuestion'), app.indexOf('const V5_COMPILER_PLUMBING_ERROR'));
+  // handleRequestNewQuestion is the last function before the factory returns.
+  const replacementRegion = region(grading, 'const handleRequestNewQuestion', '\n  return [', 'handleRequestNewQuestion');
   assert.doesNotMatch(replacementRegion, /getLiveAssignment|await updateDoc/);
+  assert.notEqual(replacementRegion.indexOf("kind: 'questionReplacement'"), -1, 'the replacement is queued');
   assert.ok(replacementRegion.indexOf("kind: 'questionReplacement'") < replacementRegion.indexOf('setTracker(updatedTracker)'), 'replacement must be queued before React advances');
   assert.doesNotMatch(secureService, /enqueueDurableAction|ordinarySubmission/);
   assert.match(app, /overlayDurableActionsOnGrades\(current, actions\)/);

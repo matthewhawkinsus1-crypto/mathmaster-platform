@@ -164,5 +164,10 @@ test('the student runtime restores refused Review work before it reads and deliv
   // A failure there must not stop the rest of recovery.
   assert.match(recover.slice(resendAt, listAt), /\.catch\(/);
   // Imported where it is called: a .jsx call with no import passes every check.
-  assert.match(region(app, 'import {\n  createDurableAction,', "} from './platform/performance/durableActionOutbox.js';", 'outbox import'), /\bresendRetiredReviewWork,/);
+  // (Since the App split createDurableAction, which opened this import, went
+  // with its callers into createQuestionNavigation and createGradingControls;
+  // the recovery and its resend are still App's, so this is still App's import.)
+  const outboxImport = /^import \{\n([^}]*)\} from '\.\/platform\/performance\/durableActionOutbox\.js';$/m.exec(app);
+  assert.ok(outboxImport, 'App imports the outbox');
+  assert.match(outboxImport[1], /\bresendRetiredReviewWork,/);
 });

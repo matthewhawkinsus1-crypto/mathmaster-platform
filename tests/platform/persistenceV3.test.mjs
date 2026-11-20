@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { readFile, readdir } from 'node:fs/promises';
 import test from 'node:test';
 import { executableSource, region } from './helpers/sourceContract.mjs';
+import { appFactorySeam, appFactorySource } from './helpers/appScreens.mjs';
 import {
   createDurableAction,
   createMemoryOutboxStorage,
@@ -166,7 +167,12 @@ test('grade delivery has one canonical writer and hydration reports before and a
     readFile(new URL('../../src/App.jsx', import.meta.url), 'utf8'),
     functionsBackendSource(),
   ]);
-  const dispatcher = region(app, 'const reconcileDurableStudentAction', 'const drainStudentOutbox', 'durable dispatcher');
+  // Since the App split the dispatcher, the drain and the report cycle are
+  // createStudentOutbox's, which App calls once and takes
+  // reconcileAndReportStudentOutbox from (appFactorySource holds that seam).
+  const outbox = appFactorySource('createStudentOutbox');
+  assert.ok(appFactorySeam('createStudentOutbox').taken.includes('reconcileAndReportStudentOutbox'), 'App takes the cycle its hydration awaits from createStudentOutbox');
+  const dispatcher = region(outbox, 'const reconcileDurableStudentAction', 'const drainStudentOutbox', 'durable dispatcher');
   // Graded work — and elapsed time, which lands on the same server-owned
   // canonical record — goes to server ingestion, and an unreachable callable
   // leaves it queued as retryable. There is no browser fallback.
@@ -185,10 +191,11 @@ test('grade delivery has one canonical writer and hydration reports before and a
    * is route BOTH halves through that helper rather than awaiting a report
    * itself, so that is what is asserted here.
    */
-  const cycle = region(app, 'const reconcileAndReportStudentOutbox', 'const leaveUnavailableAssignment', 'report-drain-report');
+  const cycle = region(outbox, 'const reconcileAndReportStudentOutbox', 'const leaveUnavailableAssignment', 'report-drain-report');
   assert.match(cycle, /reconcileWithDeviceReports\(\{[\s\S]*report: reportStudentOutbox[\s\S]*drain: \(\) => drainStudentOutbox\(options\)/);
   assert.doesNotMatch(executableSource(cycle), /await\s+reportStudentOutbox\(/);
-  assert.match(app, /import \{[\s\S]*reconcileWithDeviceReports[\s\S]*\} from '\.\/platform\/persistence\/deviceReportCoordinator\.js'/);
+  // The import went with the call, into createStudentOutbox's module.
+  assert.match(outbox, /import \{[^}]*reconcileWithDeviceReports[^}]*\} from '\.\.\/\.\.\/platform\/persistence\/deviceReportCoordinator\.js'/);
   const passback = region(functionsSource, 'exports.syncGradeToClassroom', 'exports.queueReleasedAssessmentGrades', 'Classroom passback');
   assert.match(passback, /!isTestCycleAssignment && isFinal/);
   assert.match(passback, /status: "sync-pending"[\s\S]*isFinal: false/);
@@ -709,10 +716,29 @@ test('the browser never writes classworkGradesByAssignment from its local tracke
     /FieldPath\(\s*'classworkGradesByAssignment'/,
     'the student client must not write the classwork completion projection',
   );
+  // Since the App split the student's writers that sat in that part of App are
+  // in the six factories of the assignment runtime: refused in each as well.
+  for (const factoryName of [
+    'createStudentOutbox', 'createAssignmentActivityFlush', 'createQuestionNavigation', 'createStudentWorksheetExport',
+    'createScratchpadControls', 'createGradingControls',
+  ]) {
+    assert.doesNotMatch(
+      executableSource(appFactorySource(factoryName)),
+      /FieldPath\(\s*'classworkGradesByAssignment'/,
+      `the student client must not write the classwork completion projection (${factoryName})`,
+    );
+  }
 
   // The activity flush writes engagement time and then ASKS the server to
   // re-derive the projection from canonical records.
-  const flush = region(app, 'const flushAssignmentActivity', 'const rawActiveAssignmentData', 'activity flush');
+  // Since the App split the flush is createAssignmentActivityFlush's: it is
+  // the one function before the factory returns. App hands the factory the
+  // setter the server's answer goes to.
+  assert.ok(appFactorySeam('createAssignmentActivityFlush').parameters.includes('setClassworkGradesByAssignment'), 'App hands the flush the projection\'s setter');
+  const flush = region(
+    executableSource(appFactorySource('createAssignmentActivityFlush')),
+    'const flushAssignmentActivity', '\n  return [flushAssignmentActivity];', 'activity flush',
+  );
   assert.match(flush, /FieldPath\('assignmentActivity', assignmentId\)/, 'engagement time is still saved');
   assert.match(flush, /reconcileAssignmentActivityProjection\(\{ assignmentId \}\)/);
 
@@ -773,8 +799,14 @@ test('the recovery panel shows the discrepancy before it offers to resolve it', 
  * ======================================================================== */
 
 test('Submit still advances on the durable write alone, with every network call detached', async () => {
-  const app = await readFile(new URL('../../src/App.jsx', import.meta.url), 'utf8');
-  const submit = region(app, 'const serverAckSpan = startPerformanceSpan', 'const handleRequestNewQuestion', 'submit tail');
+  // Since the App split Submit (handleGradeSubmit) is createGradingControls's
+  // and Next (changeQuestion) is createQuestionNavigation's. App hands each
+  // the background calls its tail detaches.
+  const grading = appFactorySource('createGradingControls');
+  for (const input of ['reconcileAndReportStudentOutbox', 'flushAssignmentActivity']) {
+    assert.ok(appFactorySeam('createGradingControls').parameters.includes(input), `App hands createGradingControls ${input}`);
+  }
+  const submit = region(grading, 'const serverAckSpan = startPerformanceSpan', 'const handleRequestNewQuestion', 'submit tail');
 
   // Reconciliation, reporting and the activity flush are all inside a voided
   // async IIFE. `void (async () => ...)` is what keeps them off the student's
@@ -784,16 +816,44 @@ test('Submit still advances on the durable write alone, with every network call 
 
   // The enqueue is the only thing awaited before the UI advances, and a failed
   // enqueue returns rather than advancing on work that is not durable.
-  const capture = region(app, "setStudentPersistenceStatus('capturing')", 'const serverAckSpan = startPerformanceSpan', 'durable capture');
+  const capture = region(grading, "setStudentPersistenceStatus('capturing')", 'const serverAckSpan = startPerformanceSpan', 'durable capture');
   const enqueue = capture.indexOf('await enqueueDurableAction(');
   const advance = capture.indexOf('setTracker(updatedTracker)');
   assert.ok(enqueue >= 0 && advance > enqueue, 'the UI must advance only after the durable write');
-  assert.match(capture, /catch \(error\)[\s\S]*setStudentPersistenceStatus\('volatile'\)[\s\S]*return null;/);
+  // In App this region ran from Next's capture to Submit's tail, and
+  // `return null;` was found somewhere in it. It is now Submit's own capture:
+  // its catch says "Not saved" and returns (SUBMISSION_NOT_QUEUED, no verdict)
+  // and the advance is the next statement, so a failed enqueue cannot reach it.
+  assert.match(
+    executableSource(capture),
+    /catch \(error\) \{[\s\S]*setStudentPersistenceStatus\('volatile'\);\s*return SUBMISSION_NOT_QUEUED;\s*\}\s*setTracker\(updatedTracker\);/,
+  );
   assert.doesNotMatch(
     executableSource(capture.slice(enqueue, advance)),
     /await (ingestOneSubmission|reportDeviceQueueState|reconcileAssignmentActivityProjection|drainStudentOutbox)\(/,
     'no network call may be awaited between the durable write and the student advancing',
   );
+
+  // Next's capture, which was the first in that region of App: the same holds
+  // in createQuestionNavigation, where changeQuestion is the one function.
+  const navigation = appFactorySource('createQuestionNavigation');
+  for (const input of ['drainStudentOutbox', 'flushAssignmentActivity']) {
+    assert.ok(appFactorySeam('createQuestionNavigation').parameters.includes(input), `App hands createQuestionNavigation ${input}`);
+  }
+  const nextCapture = region(navigation, "setStudentPersistenceStatus('capturing')", '\n  return [changeQuestion];', 'durable capture on Next');
+  const nextEnqueue = nextCapture.indexOf('await enqueueDurableAction(');
+  const nextAdvance = nextCapture.indexOf('setTracker(updatedTracker)');
+  assert.ok(nextEnqueue >= 0 && nextAdvance > nextEnqueue, 'Next must advance only after the durable write');
+  assert.match(
+    executableSource(nextCapture),
+    /catch \(error\) \{[\s\S]*setStudentPersistenceStatus\('volatile'\);[^}]*\breturn;\s*\}\s*setTracker\(updatedTracker\);/,
+  );
+  assert.doesNotMatch(
+    executableSource(nextCapture.slice(nextEnqueue, nextAdvance)),
+    /await (ingestOneSubmission|reportDeviceQueueState|reconcileAssignmentActivityProjection|drainStudentOutbox)\(/,
+    'no network call may be awaited between the durable write and the student moving on',
+  );
+  assert.match(nextCapture, /void \(async \(\) => \{[\s\S]*await drainStudentOutbox\(\);/, 'Next\'s drain is detached');
 });
 
 /* ==========================================================================
