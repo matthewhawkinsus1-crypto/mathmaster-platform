@@ -32,7 +32,7 @@ import { resolveReferenceInfo } from '../../src/referenceInfo.js';
 import { questionReadingParts, questionReadingText, readingFunctionNames } from '../../src/platform/language/questionReading.js';
 import { definedFunctionNames, mathToSpeech, speechTextFor } from '../../src/platform/language/speechText.js';
 import { spokenMathLabel } from '../../src/platform/language/mathSpeechLabel.js';
-import { maskMath } from '../../src/platform/language/mathSafeText.js';
+import { maskMath, segmentMathText } from '../../src/platform/language/mathSafeText.js';
 import {
   compileTemplates, loadLanguagePack, resolveTranslation, resolveTranslationNow, translateWithPack, TRANSLATION_COVERAGE, TRANSLATION_GAP,
 } from '../../src/platform/language/translationProviders.js';
@@ -142,6 +142,37 @@ test('a hyphen joining mathematics to a word is part of the word: "$x$-terms" is
   assert.equal(speechTextFor('Get the $x$-terms on one side, and the $y$-intercept is 4.'), 'Get the x terms on one side, and the y intercept is 4.');
   assert.equal(speechTextFor('Solve $x$-3 = 4.'), 'Solve x minus 3 equals 4.', 'a minus before a number is still a minus');
   assert.deepEqual(maskMath('The $x$-terms are both $3x$.').tokens, ['$x$', '$3x$'], 'the hyphen is not carried into a translation slot');
+});
+
+test('a suspended hyphen is a word\'s for Translate: "the x- and y-intercepts" has no "x-" to carry, and Read aloud is unchanged', async () => {
+  // Translate's split: a lone letter and its "-" before "and" or "or", or
+  // before a comma and the next letter's "-", are words. As a slot, "x-"
+  // reached the Spanish as "con el eje x- y con el eje y".
+  assert.deepEqual(maskMath('It looks like the x- and y-intercepts traded places.').tokens, []);
+  assert.deepEqual(maskMath('Name the x- or y-axis.').tokens, []);
+  assert.deepEqual(maskMath('the x-, y- and z-coordinates').tokens, []);
+  assert.deepEqual(maskMath('each row holds the x-, y-, and z-coefficients of one equation').tokens, [], 'with the list comma before "and"');
+  // Narrow: a minus with an operand is a minus, and a letter that is an operand stays math.
+  assert.deepEqual(maskMath('Solve x- 3 = 5.').tokens, ['x- 3 = 5']);
+  assert.deepEqual(maskMath('y = x- and').tokens, ['y = x-']);
+  assert.deepEqual(maskMath('2x- and y-values').tokens, ['2x-']);
+
+  const pack = await loadLanguagePack('es');
+  assert.equal(
+    translateWithPack(MISCONCEPTION_STUDENT_MESSAGES['intercepts-swapped'], pack).text,
+    'Parece que las intersecciones con el eje x y con el eje y intercambiaron lugares. La intersección con el eje x está donde y = 0, y la intersección con el eje y está donde x = 0.',
+  );
+  assert.equal(
+    translateWithPack('Read each feature from the function: where it crosses the axes, where it turns, how it behaves, and which x- and y-values it uses.', pack).text,
+    'Lee cada característica de la función: dónde cruza los ejes, dónde da la vuelta, cómo se comporta y qué valores de x y de y usa.',
+    'the functionFeatures headline',
+  );
+  assert.equal(translateWithPack('Find the x- and y-intercepts of 3x + 4y = 24.', pack).text, 'Halla las intersecciones con el eje x y con el eje y de 3x + 4y = 24.', 'es.js had this sentence, and it never matched');
+
+  // Read aloud keeps its own split, and what it says.
+  assert.deepEqual(segmentMathText('Find the x- and y-intercepts.', { speech: true }).filter((segment) => segment.kind === 'math').map((segment) => segment.value), ['x-']);
+  assert.equal(speechTextFor('Find the x- and y-intercepts of 3x + 4y = 24.'), 'Find the x- and y-intercepts of 3x plus 4y equals 24.');
+  assert.equal(speechTextFor('Solve x- 3 = 5 and the x- or y-axis.'), 'Solve x minus 3 equals 5 and the x- or y-axis.');
 });
 
 test('the labels other tools speak are unchanged where they had no price, defined function or matrix', () => {

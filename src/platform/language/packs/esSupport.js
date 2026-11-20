@@ -33,7 +33,7 @@ const missMessages = [
   ['Subtract the coordinates in the same order on the top and the bottom (second point minus first point both times).', 'Resta las coordenadas en el mismo orden arriba y abajo (segundo punto menos primer punto las dos veces).'],
   ['It looks like the slope and the y-intercept traded places.', 'Parece que la pendiente y la intersección con el eje y intercambiaron lugares.'],
   ['In {1} mx {2}, the number multiplying {3} is the slope and the constant term is the y-intercept.', 'En {1} mx {2}, el número que multiplica a {3} es la pendiente y el término constante es la intersección con el eje y.'],
-  ['It looks like the {1} and y-intercepts traded places.', 'Parece que las intersecciones con el eje {1} y con el eje y intercambiaron lugares.'],
+  ['It looks like the x- and y-intercepts traded places.', 'Parece que las intersecciones con el eje x y con el eje y intercambiaron lugares.'],
   ['The x-intercept is where {1}, and the y-intercept is where {2}.', 'La intersección con el eje x está donde {1}, y la intersección con el eje y está donde {2}.'],
   ['Check the order inside your ordered pair.', 'Revisa el orden dentro de tu par ordenado.'],
   ['An ordered pair is written {1}: the x-coordinate comes first.', 'Un par ordenado se escribe {1}: la coordenada x va primero.'],
@@ -1881,7 +1881,7 @@ const supportFamilyWorkedSolutions = [
   // Its headlines and answer summaries (Solution Review shows them when the lesson wrote none).
   ['A relation is its set of ordered pairs: the inputs come first, the outputs second.', 'Una relación es su conjunto de pares ordenados: primero van las entradas y después las salidas.'],
   ['Substitute each listed input into the rule; only those points belong to the relation.', 'Sustituye cada entrada de la lista en la regla; solo esos puntos pertenecen a la relación.'],
-  ['Read each feature from the function: where it crosses the axes, where it turns, how it behaves, and which {1} and y-values it uses.', 'Lee cada característica de la función: dónde cruza los ejes, dónde da la vuelta, cómo se comporta y qué valores de {1} y de y usa.'],
+  ['Read each feature from the function: where it crosses the axes, where it turns, how it behaves, and which x- and y-values it uses.', 'Lee cada característica de la función: dónde cruza los ejes, dónde da la vuelta, cómo se comporta y qué valores de x y de y usa.'],
   ['Read each feature from the function: where it is defined, which heights it reaches, and how it moves from left to right.', 'Lee cada característica de la función: dónde está definida, qué alturas alcanza y cómo se mueve de izquierda a derecha.'],
   ['Read each attribute from the function itself: which inputs it accepts, which outputs it reaches, and how its graph behaves.', 'Lee cada atributo directamente de la función: qué entradas acepta, qué salidas alcanza y cómo se comporta su gráfica.'],
   ['An arithmetic sequence adds the same number each time.', 'Una sucesión aritmética suma el mismo número cada vez.'],
