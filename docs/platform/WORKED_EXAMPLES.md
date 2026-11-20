@@ -196,6 +196,31 @@ The commonest rich tools on classwork:
 - `solveRadicalEquation` 10;
 - `graphSystem` 8.
 
+**Built-in examples today.** Each real classwork question was built the way
+`QuestionEngine` receives it (496 questions once compiled; the table above
+counts the 483 authored ones). Then it was checked for a sibling from
+`buildSimilarWorkedExample` or `buildNumericVariant`:
+
+| | Count |
+|---|---|
+| Have a built-in example today | 137 of 496 |
+| Have none | 359 |
+| Lessons with no built-in example on any classwork question | 14 of 41 |
+
+The 359 without one, by kind:
+- `multipleResponses` 247;
+- `solveInequalitySystem` 30;
+- `matchFigures`, `syntheticDivision`, `sortIntoCategories` and `solveRadicalEquation` 10 each;
+- `analyzeTransformations` 9;
+- 33 more across 12 other kinds.
+
+No classwork question carries a variant. So for an answer-box question, the
+sibling must come from either:
+- a new support-family generator (platform work), or
+- an example the lesson writes (`"source": "authored"`, lesson content).
+
+The coverage report (slice B) lists which question needs which.
+
 ## 9. Build slices
 
 Each slice ships on its own, in any order.
