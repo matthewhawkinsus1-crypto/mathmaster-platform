@@ -76,3 +76,4 @@ export { createTeacherWorksheetControls } from './controls/teacherWorksheetContr
 export { createAttendanceExtensionControls } from './controls/attendanceExtensionControls.js';
 export { createClassroomPublishingControls } from './controls/classroomPublishingControls.js';
 export { createPathPacingControls } from './controls/pathPacingControls.js';
+export { createTeacherDialogViews } from './controls/teacherDialogViews.jsx';
