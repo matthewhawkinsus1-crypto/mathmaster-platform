@@ -32,6 +32,7 @@ import { isChoiceOnlyQuestion, recordQuestionAttempt, resolveQuestionMaximumAtte
 import { planSeatAdditions } from '../../functions/shared/questionGenerationIdentity.mjs';
 import { SUBMISSION_DISPOSITION } from '../../functions/shared/studentSubmissionDisposition.mjs';
 import { executableSource, region } from './helpers/sourceContract.mjs';
+import { appFactorySource, appSurfaceSource } from './helpers/appScreens.mjs';
 import { submitButton } from './helpers/actionBarRender.mjs';
 import {
   CLASS_ID,
@@ -211,7 +212,15 @@ test('App.jsx counts every try on the question shown', () => {
   // From a module that carries no family engine (the first load).
   const shownImport = app.match(/import \{([^}]*)\} from '\.\/platform\/generation\/shownFamilyQuestion\.js';/);
   assert.ok(shownImport, 'App reads the count from shownFamilyQuestion.js');
-  for (const name of ['countedQuestion', 'shownDeliveryKey']) assert.match(shownImport[1], new RegExp(`\\b${name}\\b`), name);
+  // Since the App split the count is createGradingControls's
+  // (src/app/student/gradingControls.js), which App imports statically (the
+  // same first load): it imports countedQuestion from the same module, and
+  // App keeps shownDeliveryKey for the keepers below.
+  const grading = executableSource(appFactorySource('createGradingControls'));
+  const gradingShownImport = grading.match(/import \{([^}]*)\} from '\.\.\/\.\.\/platform\/generation\/shownFamilyQuestion\.js';/);
+  assert.ok(gradingShownImport, 'the grading controls read the count from shownFamilyQuestion.js');
+  for (const name of ['countedQuestion', 'shownDeliveryKey']) assert.match(gradingShownImport[1], new RegExp(`\\b${name}\\b`), name);
+  assert.match(shownImport[1], /\bshownDeliveryKey\b/, 'shownDeliveryKey');
   // What QuestionEngine reports showing is kept under the one key; a
   // teacher's preview under its own, and the preview hands it only there.
   assert.match(region(app, 'const handleFamilyDelivery = useCallback(', '}, [user?.role', 'handleFamilyDelivery'),
@@ -224,13 +233,13 @@ test('App.jsx counts every try on the question shown', () => {
   assert.match(region(mount, '{...stableCallbacks({', '})}', 'the engine handlers'), /\n\s*onFamilyDelivery: preview \? handlePreviewFamilyDelivery : handleFamilyDelivery,\n/);
   // The count reads that map: countedQuestionFor takes its input, the map
   // first, from triesCountingFor (familyDealtTriesCounted.test.mjs holds the rest).
-  assert.match(region(app, 'const triesCountingFor = ', '\n  });', 'triesCountingFor'), /=> \(\{\s*shown: familyDeliveriesRef\.current,/);
-  assert.match(region(app, 'const countedQuestionFor = ', '});', 'countedQuestionFor'), /countedQuestion\(\{\s*\.\.\.triesCountingFor\(assignment, questionIndex, record, preview\),\s*fallback,\s*$/);
+  assert.match(region(grading, 'const triesCountingFor = ', '\n  });', 'triesCountingFor'), /=> \(\{\s*shown: familyDeliveriesRef\.current,/);
+  assert.match(region(grading, 'const countedQuestionFor = ', '});', 'countedQuestionFor'), /countedQuestion\(\{\s*\.\.\.triesCountingFor\(assignment, questionIndex, record, preview\),\s*fallback,\s*$/);
   // Each place App counts reads it: the attempt, the step, the navigator and
   // the limit QuestionEngine is handed.
   const sites = {
-    attempt: region(app, 'const applyAttempt = (record) =>', '});', 'handleGradeSubmit applyAttempt'),
-    step: region(app, 'const applyStep = (record, occurredAt = null) =>', '});', 'handleStepGrade applyStep'),
+    attempt: region(grading, 'const applyAttempt = (record) =>', '});', 'handleGradeSubmit applyAttempt'),
+    step: region(grading, 'const applyStep = (record, occurredAt = null) =>', '});', 'handleStepGrade applyStep'),
     navigator: region(app, 'const entryMaximumAttempts = (entry) => {', '};', 'entryMaximumAttempts'),
     engine: region(mount, 'maximumAttempts={resolveQuestionMaximumAttempts({', '})}', 'the engine limit'),
   };
@@ -239,7 +248,8 @@ test('App.jsx counts every try on the question shown', () => {
   assert.match(sites.navigator, /question: countedQuestionFor\(assignment, entry\.index, workingTracker\?\.\[entry\.index\], questions\[entry\.index\], preview\),/);
   assert.match(sites.engine, /question: countedQuestionFor\(assignment, currentQuestionIndex, workingTracker\?\.\[currentQuestionIndex\], questions\[currentQuestionIndex\], preview\),/);
   // And no count in App reads a stored question past it.
-  const counts = [...app.matchAll(/resolveQuestionMaximumAttempts\(\{\s*question: ([^\n]+)/g)].map((match) => match[1]);
+  // Counted across App and every module its code moved into (the App split).
+  const counts = [...executableSource(appSurfaceSource()).matchAll(/resolveQuestionMaximumAttempts\(\{\s*question: ([^\n]+)/g)].map((match) => match[1]);
   assert.equal(counts.length, 4, 'four places count tries');
   counts.forEach((question) => assert.match(question, /^countedQuestionFor\(/, `a count reads ${question}`));
 });

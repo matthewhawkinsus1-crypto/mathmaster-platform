@@ -166,7 +166,11 @@ test('every student-runtime site reads the closure', () => {
   assert.match(code, /const sectionPosition = studentRequiredSet \? requiredSectionPosition\.get\(index\) : entry\.logicalPosition;/, 'numbering inside a reduced section');
   assert.match(code, /splitGradesBySection\(\{ tracker: recordedTracker, assignment, supportProfile: officialSupportProfile \}\)/);
 
-  const change = executableSource(region(app, 'const changeQuestion = async (newIndex) => {', 'if (isTeacherPreview) {', 'changeQuestion guard'));
+  // Since the App split, createQuestionNavigation owns changeQuestion; App
+  // builds it once and hands it the closure.
+  const change = executableSource(region(appFactorySource('createQuestionNavigation'), 'const changeQuestion = async (newIndex) => {', 'if (isTeacherPreview) {', 'changeQuestion guard'));
+  assert.ok(appFactorySeam('createQuestionNavigation').parameters.includes('studentRequiredFor'), 'App hands createQuestionNavigation the closure');
+  assert.match(change, /const required = studentRequiredFor\(localAssignment, \{ hasPracticePass: hasPracticePassFor\(activeAssignmentId\) \}\);/);
   assert.match(change, /if \(required\.omitted\.includes\(newIndex\)\) return;/);
 
   // Since the App split, useTimedSectionReminders owns the DOL close and the
@@ -177,11 +181,21 @@ test('every student-runtime site reads the closure', () => {
   assert.match(timedSections, /const warmupOmitted = new Set\(studentRequiredFor\(assignment\)\.omitted\);/);
   assert.match(timedSections, /const ownDolIndices = allDolIndices\.filter\(\(index\) => !studentDolOmitted\.has\(index\)\);/, 'DOL close scores the student\'s DOL');
   assert.match(timedSections, /const questionIndices = ownDolIndices\.length \? ownDolIndices : allDolIndices;/, 'never a DOL over nothing');
-  assert.match(code, /questionIndices: studentDolIndices,/, 'the live DOL projection');
+  // Since the App split, createGradingControls owns handleGradeSubmit and its
+  // live DOL projection; App hands it the closure too.
+  const grading = executableSource(appFactorySource('createGradingControls'));
+  assert.ok(appFactorySeam('createGradingControls').parameters.includes('studentRequiredFor'), 'App hands createGradingControls the closure');
+  assert.match(grading, /const dolOmitted = new Set\(studentRequiredFor\(assignment, \{ assignmentTracker: updatedTracker\?\.\[activeAssignmentId\] \|\| null \}/);
+  assert.match(grading, /questionIndices: studentDolIndices,/, 'the live DOL projection');
   assert.match(timedSections, /&& !warmupOmitted\.has\(index\)/, 'Warm-Up reminder');
   assert.match(code, /&& !bannerOmitted\.has\(index\)/, 'Warm-Up banner');
   assert.match(code, /questionStates: encodeQuestionStates\(activeWorkingTracker, included, \{ notRequired \}\),/, 'presence');
-  assert.match(code, /if \(!question \|\| !questionIsIncluded\(question\) \|\| printOmitted\.has\(index\)\) continue;/, 'student PDF');
+  // Since the App split, createStudentWorksheetExport owns the student's PDF;
+  // App hands it the closure as well.
+  const worksheetExport = executableSource(appFactorySource('createStudentWorksheetExport'));
+  assert.ok(appFactorySeam('createStudentWorksheetExport').parameters.includes('studentRequiredFor'), 'App hands createStudentWorksheetExport the closure');
+  assert.match(worksheetExport, /new Set\(studentRequiredFor\(assignmentData\)\.omitted\)/);
+  assert.match(worksheetExport, /if \(!question \|\| !questionIsIncluded\(question\) \|\| printOmitted\.has\(index\)\) continue;/, 'student PDF');
 });
 
 test('Home, Grades and Recovery receive the student\'s own profile; Teacher Preview never does', () => {

@@ -14,7 +14,9 @@ test('assignment menu exposes one no-code setup editor', () => {
   assert.match(teacherWorkspace, /beginEditAssignmentSetup\(assignment\)/);
   assert.match(app, /prepareStoredAssignmentForReuse\(assignment, \{ resetAssignmentKey: false \}\)/);
   const start = app.indexOf('const beginEditAssignmentSetup');
-  const end = app.indexOf('const beginEditAssignmentDates', start);
+  // The end anchor is the next function the teacher workspace declares. (The old one left App.jsx with the App split, and a missing anchor silently widens the region to the end of the file.)
+  const end = app.indexOf('const beginAssignLibraryAssignment', start);
+  assert.ok(start > 0 && end > start, 'the setup editor entry was found');
   assert.doesNotMatch(app.slice(start, end), /readAssignmentJson\(/);
   assert.match(app, /mode:\s*'update'[\s\S]{0,220}existingAssignmentId:\s*assignment\.id/);
 });

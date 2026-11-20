@@ -1145,9 +1145,11 @@ test('recovery proposals cannot be committed against an assignment they were not
 });
 
 test('the client sends its delivery attempt count with every ingested submission', async () => {
-  const { readFile } = await import('node:fs/promises');
   const { region } = await import('./helpers/sourceContract.mjs');
-  const app = await readFile(new URL('../../src/App.jsx', import.meta.url), 'utf8');
-  const builder = region(app, 'const buildSubmissionEnvelopeForAction', 'const reconcileThroughClientTransaction', 'envelope builder');
+  // Since the App split the envelope builder is createStudentOutbox's, which
+  // App calls once (appFactorySource holds that seam).
+  const { appFactorySource } = await import('./helpers/appScreens.mjs');
+  const outbox = appFactorySource('createStudentOutbox');
+  const builder = region(outbox, 'const buildSubmissionEnvelopeForAction', 'const reconcileThroughClientTransaction', 'envelope builder');
   assert.match(builder, /deliveryAttempts: Number\(action\.delivery\?\.attempts \|\| 0\)/);
 });

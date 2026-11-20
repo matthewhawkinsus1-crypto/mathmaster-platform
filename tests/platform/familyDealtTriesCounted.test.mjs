@@ -52,7 +52,7 @@ import {
 } from '../../functions/shared/attemptPolicy.mjs';
 import { planSeatAdditions } from '../../functions/shared/questionGenerationIdentity.mjs';
 import { executableSource, region } from './helpers/sourceContract.mjs';
-import { appHookSource } from './helpers/appScreens.mjs';
+import { appFactorySource, appHookSource } from './helpers/appScreens.mjs';
 import {
   CLASS_ID,
   DAY,
@@ -200,10 +200,13 @@ test('App.jsx hands every count the question the pin dealt where nothing was sho
   const app = executableSource(readFileSync(new URL('../../src/App.jsx', import.meta.url), 'utf8'));
   // Every count reads one input (triesCountingFor): the questions shown, then
   // the engine's rebuild of what the pin dealt (dealFor), for a student.
-  const counting = region(app, 'const triesCountingFor = ', '\n  });', 'triesCountingFor');
+  // Since the App split the counts are createGradingControls's
+  // (src/app/student/gradingControls.js); App keeps the ref it hands in.
+  const grading = executableSource(appFactorySource('createGradingControls'));
+  const counting = region(grading, 'const triesCountingFor = ', '\n  });', 'triesCountingFor');
   assert.match(counting, /=> \(\{\s*shown: familyDeliveriesRef\.current,\s*deal: dealFor\(assignment, questionIndex, record\),/);
-  assert.match(region(app, 'const countedQuestionFor = ', '});', 'countedQuestionFor'), /countedQuestion\(\{\s*\.\.\.triesCountingFor\(assignment, questionIndex, record, preview\),/);
-  const dealt = region(app, 'const dealFor = ', ': null);', 'dealFor');
+  assert.match(region(grading, 'const countedQuestionFor = ', '});', 'countedQuestionFor'), /countedQuestion\(\{\s*\.\.\.triesCountingFor\(assignment, questionIndex, record, preview\),/);
+  const dealt = region(grading, 'const dealFor = ', ': null);', 'dealFor');
   assert.match(dealt, /=> \(familyDelivery && user\?\.role === 'student' && user\?\.id\s*\? \(\{ slot, variant, storedQuestion \}\) => familyDelivery\.dealtFamilyQuestion\(\{/);
   assert.match(dealt, /\bquestion: storedQuestion,/);
   assert.match(dealt, /\bquestionIndex,/);
@@ -354,7 +357,8 @@ test('App.jsx tells the question list what is not known before the family engine
   const source = readFileSync(new URL('../../src/App.jsx', import.meta.url), 'utf8');
   const app = executableSource(source);
   // The same input as the count itself, so the two cannot disagree.
-  assert.match(region(app, 'const countedQuestionKnownFor = ', ');', 'countedQuestionKnownFor'), /=> countedQuestionKnown\(\s*triesCountingFor\(assignment, questionIndex, record, preview\),\s*$/);
+  // Since the App split it is createGradingControls's (src/app/student/gradingControls.js); App takes it from its one call.
+  assert.match(region(executableSource(appFactorySource('createGradingControls')), 'const countedQuestionKnownFor = ', ');', 'countedQuestionKnownFor'), /=> countedQuestionKnown\(\s*triesCountingFor\(assignment, questionIndex, record, preview\),\s*$/);
   const question = region(app, 'const navigatorQuestionFor = (entry) => {', '\n    };', 'navigatorQuestionFor');
   assert.match(question, /triesKnown: countedQuestionKnownFor\(assignment, entry\.index, workingTracker\?\.\[entry\.index\], preview\),/);
   assert.match(question, /maximumAttempts: entryMaximumAttempts\(entry\),/);

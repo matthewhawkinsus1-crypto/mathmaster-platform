@@ -23,6 +23,7 @@ import {
 } from '../../src/platform/student/submissionNotQueued.js';
 import { describeSaveStatus } from '../../src/platform/student/saveStatusModel.js';
 import { executableSource, region } from './helpers/sourceContract.mjs';
+import { appFactorySource } from './helpers/appScreens.mjs';
 
 const app = executableSource(readFileSync(new URL('../../src/App.jsx', import.meta.url), 'utf8'));
 const engine = executableSource(readFileSync(new URL('../../src/QuestionEngine.jsx', import.meta.url), 'utf8'));
@@ -57,8 +58,11 @@ test('the engine locks only on a verdict, so this result leaves the question ope
 
 test('App.jsx: a failed queue returns "not submitted", never null', () => {
   // The import also brings the step and new-problem results (pass 3, wave 7).
-  assert.match(app, /^import \{ (?:\w+, )*SUBMISSION_NOT_QUEUED(?:, \w+)* \} from '\.\/platform\/student\/submissionNotQueued\.js';$/m, 'imported next to its use');
-  const submit = region(app, 'const handleGradeSubmit = async (', 'const handleStepGrade = async (');
+  // Since the App split handleGradeSubmit is createGradingControls's
+  // (src/app/student/gradingControls.js), which App calls and which makes the import.
+  const grading = executableSource(appFactorySource('createGradingControls'));
+  assert.match(grading, /^import \{ (?:\w+, )*SUBMISSION_NOT_QUEUED(?:, \w+)* \} from '\.\.\/\.\.\/platform\/student\/submissionNotQueued\.js';$/m, 'imported next to its use');
+  const submit = region(grading, 'const handleGradeSubmit = async (', 'const handleStepGrade = async (');
   const enqueue = submit.indexOf("kind: 'ordinarySubmission'");
   assert.notEqual(enqueue, -1);
   const failure = submit.slice(submit.indexOf('} catch (error) {', enqueue), submit.indexOf('setTracker(updatedTracker);', enqueue));
@@ -69,6 +73,7 @@ test('App.jsx: a failed queue returns "not submitted", never null', () => {
   // again was a second announcement of the same thing (pass 3, wave 6).
   assert.doesNotMatch(failure, /toast(?:Warning|Error|Info|Success)\(/);
   // Nothing is counted for it: the tracker is only written after the queue.
+  assert.notEqual(submit.indexOf('return SUBMISSION_NOT_QUEUED;'), -1);
   assert.ok(submit.indexOf('setTracker(updatedTracker);', enqueue) > submit.indexOf('return SUBMISSION_NOT_QUEUED;'));
 });
 

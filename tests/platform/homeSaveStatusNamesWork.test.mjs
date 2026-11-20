@@ -12,6 +12,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { region } from './helpers/sourceContract.mjs';
+import { appFactorySeam, appFactorySource } from './helpers/appScreens.mjs';
 import { SAVE_TONE, describeSaveStatus } from '../../src/platform/student/saveStatusModel.js';
 import { packUpWorkLine } from '../../src/platform/student/packUpLine.js';
 import {
@@ -71,7 +72,12 @@ test('the outbox drain says which assignment each kept answer is on', async () =
 
 test('App hands Home the titles of the assignments the work is on', () => {
   const app = readFileSync(new URL('../../src/App.jsx', import.meta.url), 'utf8');
-  const drain = region(app, 'const drainStudentOutbox = async', 'return result;', 'the drain');
+  // Since the App split the drain is createStudentOutbox's, which App calls
+  // once and hands the setter of its own list (the helper holds App's
+  // arguments to the factory's parameters, name for name).
+  const outbox = appFactorySeam('createStudentOutbox');
+  assert.ok(outbox.parameters.includes('setStudentNeedsReviewAssignmentIds'), 'the outbox is handed the setter of the list Home names');
+  const drain = region(appFactorySource('createStudentOutbox'), 'const drainStudentOutbox = async', 'return result;', 'the drain');
   // (Kept as the same list while it names the same assignments: keepSame,
   // appRenderWork.test.mjs.)
   assert.match(drain, /setStudentNeedsReviewAssignmentIds\((?:keepSame\()?\[\.\.\.new Set\(\(result\.retained \|\| \[\]\)\s*\.filter\(\(entry\) => entry\.disposition === SUBMISSION_DISPOSITION\.NEEDS_REVIEW && entry\.assignmentId\)/);

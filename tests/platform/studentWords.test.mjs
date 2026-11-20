@@ -26,6 +26,7 @@ import { partialCreditBreakdown } from '../../src/platform/supports/feedback/par
 import { SAME_ANSWER_AGAIN } from '../../src/platform/student/submitCost.js';
 import { questionAddressLabel } from '../../src/app/routes/questionAddress.js';
 import { executableSource, region } from './helpers/sourceContract.mjs';
+import { appFactorySeam, appFactorySource, appSurfaceSource } from './helpers/appScreens.mjs';
 
 const read = (path) => readFileSync(new URL(`../../${path}`, import.meta.url), 'utf8');
 
@@ -264,11 +265,15 @@ test('NAV-26: Home\'s waiting chip asks onlyExitTicketWaits, and says so', () =>
 });
 
 test('S3: the exit ticket\'s "not open" toast says what is true for its state, from the navigator', () => {
-  const app = executableSource(read('src/App.jsx'));
-  const toast = region(app, 'const dolLifecycle = getAssignmentLifecycle(', 'return;\n    }', 'the exit-ticket toast');
+  // Since the App split the toast is changeQuestion's, in
+  // createQuestionNavigation, which App calls once and hands toastInfo.
+  const navigation = executableSource(appFactorySource('createQuestionNavigation'));
+  assert.ok(appFactorySeam('createQuestionNavigation').parameters.includes('toastInfo'), 'App hands createQuestionNavigation the toast');
+  const toast = region(navigation, 'const dolLifecycle = getAssignmentLifecycle(', 'return;\n    }', 'the exit-ticket toast');
   assert.match(toast, /const dolAccess = describeSectionAccess\(\{ role: 'dol', label: `the \$\{exitTicketInSentence\}`, timedDol: true, lifecycle: dolLifecycle, dolState, nowValue: Date\.now\(\) \}\);/);
   assert.match(toast, /dolAccess\.reason \|\|/);
-  assert.doesNotMatch(app, /last minutes of class/);
+  // Refused in App and in every module its code moved into.
+  assert.doesNotMatch(executableSource(appSurfaceSource()), /last minutes of class/);
 });
 
 test('S5: a past-date Test Cycle is never in the closed tab, whose name says "try again"', async () => {

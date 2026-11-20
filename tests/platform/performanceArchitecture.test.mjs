@@ -9,6 +9,8 @@ import {
   recordPerformanceSample,
   startPerformanceSpan,
 } from '../../src/platform/performance/performanceTelemetry.js';
+import { region } from './helpers/sourceContract.mjs';
+import { appFactorySource } from './helpers/appScreens.mjs';
 
 test('performance telemetry calculates bounded p50/p95 aggregates without accepting sensitive dimensions', () => {
   clearPerformanceDiagnostics();
@@ -45,9 +47,12 @@ test('student performance architecture keeps tools lazy, secure prefetch guarded
   assert.match(registry, /dataModelingLab:\s*\(\) => import\(/);
   assert.doesNotMatch(registry, /import DataModelingLab from/);
   assert.match(app, /secure: isTestCycleAssignment\(activeAssignmentData\)/);
-  const submitRegion = app.slice(app.indexOf('const handleGradeSubmit'), app.indexOf('const handleStepGrade'));
-  const durableSubmitRegion = submitRegion.slice(submitRegion.indexOf('const assignment = localAssignment'));
+  // Since the App split handleGradeSubmit is createGradingControls's
+  // (src/app/student/gradingControls.js), which App calls.
+  const submitRegion = region(appFactorySource('createGradingControls'), 'const handleGradeSubmit', 'const handleStepGrade', 'handleGradeSubmit');
+  const durableSubmitRegion = region(submitRegion, 'const assignment = localAssignment', null, 'the durable submit');
   assert.ok(durableSubmitRegion.indexOf('await enqueueDurableAction') >= 0);
+  assert.ok(durableSubmitRegion.indexOf('setTracker(updatedTracker)') >= 0);
   assert.ok(durableSubmitRegion.indexOf('await enqueueDurableAction') < durableSubmitRegion.indexOf('setTracker(updatedTracker)'));
   assert.ok(engine.indexOf("startPerformanceSpan('submit_local_ack_ms'") < engine.indexOf('await onGrade('));
   assert.match(firebase, /persistentLocalCache\(\{ tabManager: persistentMultipleTabManager\(\) \}\)/);

@@ -36,7 +36,7 @@ import {
   persistenceStatusOnAssignmentChange, persistenceStatusWithQueuedWork, saveLineIsAboutDrafts,
 } from '../../src/platform/student/saveStatusModel.js';
 import { executableSource, region } from './helpers/sourceContract.mjs';
-import { appHookSource } from './helpers/appScreens.mjs';
+import { appFactorySource, appHookSource, appSurfaceSource } from './helpers/appScreens.mjs';
 import { questionRecordView } from '../../src/platform/performance/questionRecordView.js';
 import {
   normalizeQuestionRecord, recordQuestionAttempt, recordQuestionStep, requestReplacementQuestion,
@@ -293,13 +293,18 @@ test('App renders nothing for a snapshot, a resume, a report or a drain that cha
   assert.equal((resume.match(/setResumeAction\(/g) || []).length, 1);
   // The device report's error: set only when it says something new, and only through that.
   assert.match(code, /const showStudentReportingError = \(reason\) => \{\s*if \(studentReportingErrorRef\.current === reason\) return;\s*studentReportingErrorRef\.current = reason;\s*setStudentReportingError\(reason\);\s*\};/);
-  assert.equal((code.match(/setStudentReportingError\(/g) || []).length, 1, 'set nowhere else');
-  assert.equal((code.match(/studentReportingErrorRef\.current = /g) || []).length, 1, 'the ref is the value last set');
-  const settled = region(code, 'onSettled: ({ ok, error }) => {', "console.warn('Device queue report unavailable:'", 'the report settled');
+  // Since the App split the report and the drain are createStudentOutbox's
+  // (src/app/student/studentOutbox.js); App hands it showStudentReportingError
+  // by position. The counts are over App and every module its code moved into.
+  const outbox = executableSource(appFactorySource('createStudentOutbox'));
+  const surface = executableSource(appSurfaceSource());
+  assert.equal((surface.match(/setStudentReportingError\(/g) || []).length, 1, 'set nowhere else');
+  assert.equal((surface.match(/studentReportingErrorRef\.current = /g) || []).length, 1, 'the ref is the value last set');
+  const settled = region(outbox, 'onSettled: ({ ok, error }) => {', "console.warn('Device queue report unavailable:'", 'the report settled');
   assert.match(settled, /if \(ok\) \{\s*showStudentReportingError\(null\);\s*return;\s*\}/);
   assert.match(settled, /showStudentReportingError\(diagnostic\.safeReason\);/);
   // The answers needing review: the same list while it names the same assignments.
-  const drain = region(code, 'const drainStudentOutbox = async', 'return result;', 'the drain');
+  const drain = region(outbox, 'const drainStudentOutbox = async', 'return result;', 'the drain');
   assert.match(drain, /setStudentNeedsReviewAssignmentIds\(keepSame\(\[\.\.\.new Set\(/);
 });
 
@@ -634,7 +639,9 @@ test('App reads a record through its kept view only to read it, and normalises a
   assert.match(code, /const getModuleRecord = \(assignmentTracker, index\) =>\s*questionRecordView\(assignmentTracker\?\.\[index\]\);/);
   for (const helper of ['getModuleStatus', 'getModuleTime']) assert.match(code, new RegExp(`const ${helper} = \\(assignmentTracker, index\\) =>\\s*getModuleRecord\\(assignmentTracker, index\\)\\.\\w+;`));
   // A record App builds from another starts from a fresh object.
-  assert.match(code, /\.\.\.normalizeQuestionRecord\(currentAssignmentGrades\[currentQuestionIndex\]\),/);
+  // Since the App split that record is built in changeQuestion, which
+  // createQuestionNavigation owns (src/app/student/questionNavigation.js).
+  assert.match(executableSource(appFactorySource('createQuestionNavigation')), /\.\.\.normalizeQuestionRecord\(currentAssignmentGrades\[currentQuestionIndex\]\),/);
   assert.doesNotMatch(code, /\.\.\.questionRecordView\(/);
 });
 

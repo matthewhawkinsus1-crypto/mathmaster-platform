@@ -62,7 +62,10 @@ test('resuming teaching re-enters the runtime WITHOUT resetting the tracker, scr
 });
 
 test('ending Live Teaching clears the session', () => {
-  const region_ = region(app, 'const endLiveTeaching = ', 'const getScratchpadDocumentId', 'endLiveTeaching');
+  // (endLiveTeaching stayed in App. The scratchpad functions that followed it
+  // are createScratchpadControls' since the App split, so the region ends at
+  // the next function App kept.)
+  const region_ = region(app, 'const endLiveTeaching = ', 'const controlWalkthroughTimer = ', 'endLiveTeaching');
   assert.match(region_, /setLiveTeachingSession\(endLiveTeachingSession\(\)\)/);
 });
 

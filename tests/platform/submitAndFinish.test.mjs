@@ -25,6 +25,7 @@ import React from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 
 import { executableSource, region } from './helpers/sourceContract.mjs';
+import { appFactorySeam, appFactorySource } from './helpers/appScreens.mjs';
 import { CHOICE_QUESTION, LITERAL_QUESTION, closeEngine, decode, loadEngine, renderEngine, submitButton } from './helpers/actionBarRender.mjs';
 import { missOutcomeText, submitActionLabel, submitLabelForCost, submitTryCost, triesLeftText } from '../../src/platform/student/submitCost.js';
 import { ACTIVITY_POLICIES } from '../../src/platform/policies/activityPolicies.js';
@@ -261,9 +262,14 @@ test('App wires the save line: the model it imports, an answer marked as sent on
   // Submit (a no-credit practice submit queues nothing).
   // (Handed among the engine's handlers, renderStability.js stableCallbacks.)
   assert.match(region(mount, '{...stableCallbacks({', '})}', 'the engine handlers'), /\n\s*onGrade: handleGradeSubmit,\n[\s\S]*\n\s*onStepGrade: handleStepGrade,\n/);
-  const queuedAnswer = region(app, "kind: 'ordinarySubmission'", '} catch (error) {', 'the answer enqueue');
+  // Since the App split both paths are createGradingControls's
+  // (src/app/student/gradingControls.js); App hands it its own markAnswerSent.
+  const grading = executableSource(appFactorySource('createGradingControls'));
+  assert.ok(appFactorySeam('createGradingControls').parameters.includes('markAnswerSent'), "the mark the paths call is App's own");
+  assert.match(app, /const markAnswerSent = \(\) => /, 'which App defines');
+  const queuedAnswer = region(grading, "kind: 'ordinarySubmission'", '} catch (error) {', 'the answer enqueue');
   assert.match(queuedAnswer, /\}\)\);\s*(\/\/[^\n]*\n\s*)*markAnswerSent\(\);\s*setStudentOutboxDepth\(\(depth\) => depth \+ 1\);\s*setStudentPersistenceStatus\('queued'\);\s*$/);
-  const queuedStep = region(app, "kind: 'stepSubmission'", '} catch (error) {', 'the step enqueue');
+  const queuedStep = region(grading, "kind: 'stepSubmission'", '} catch (error) {', 'the step enqueue');
   assert.match(queuedStep, /markAnswerSent\(\);\s*setStudentOutboxDepth\(\(depth\) => depth \+ 1\);\s*setStudentPersistenceStatus\('queued'\);\s*$/);
   // The reconcile's queued work: the status goes through the model now, so a
   // save in progress or refused is not written over (saveLineHonesty.test.mjs).

@@ -26,7 +26,9 @@ test('new authoring enters through Assignment V5 and reviewed Preflight', () => 
 
 test('question editing cannot write content before native V5 Preflight succeeds', () => {
   const editStart = app.indexOf('const saveQuestionEditor');
-  const editEnd = app.indexOf('const studentsInActiveClass', editStart);
+  // The end anchor is the next function the teacher workspace declares. (The old one left App.jsx with the App split, and a missing anchor silently widens the region to the end of the file.)
+  const editEnd = app.indexOf('const handleDuplicateAssignment', editStart);
+  assert.ok(editStart > 0 && editEnd > editStart, 'the question-editor save was found');
   const block = app.slice(editStart, editEnd);
   assert.match(block, /storedAssignmentToV5/);
   assert.match(block, /buildAssignmentV5PreflightModel/);
@@ -36,7 +38,9 @@ test('question editing cannot write content before native V5 Preflight succeeds'
 
 test('duplication cannot create a content copy outside native V5 Preflight', () => {
   const start = app.indexOf('const handleDuplicateAssignment');
-  const end = app.indexOf('const handleToggleArchiveAssignment', start);
+  // The end anchor is the next function the teacher workspace declares. (The old one left App.jsx with the App split, and a missing anchor silently widens the region to the end of the file.)
+  const end = app.indexOf('const openStoredAssignmentForPreflight', start);
+  assert.ok(start > 0 && end > start, 'the duplicate handler was found');
   const block = app.slice(start, end);
   assert.match(block, /storedAssignmentToV5/);
   assert.match(block, /buildAssignmentV5PreflightModel/);
@@ -54,7 +58,9 @@ test('stored assignment review paths reuse canonical V5 instead of recompiling r
   assert.doesNotMatch(libraryBlock, /readAssignmentJson\(/);
 
   const setupStart = app.indexOf('const beginEditAssignmentSetup');
-  const setupEnd = app.indexOf('const beginEditAssignmentDates', setupStart);
+  // The end anchor is the next function the teacher workspace declares. (The old one left App.jsx with the App split, and a missing anchor silently widens the region to the end of the file.)
+  const setupEnd = app.indexOf('const beginAssignLibraryAssignment', setupStart);
+  assert.ok(libraryStart > 0 && libraryEnd > libraryStart && setupEnd > setupStart, 'both review paths were found');
   const setupBlock = app.slice(setupStart, setupEnd);
   assert.match(setupBlock, /prepareStoredAssignmentForReuse/);
   assert.doesNotMatch(setupBlock, /readAssignmentJson\(/);

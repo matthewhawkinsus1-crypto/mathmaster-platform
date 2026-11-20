@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { executableSource, region } from './helpers/sourceContract.mjs';
 import { importsComponent } from './helpers/componentImport.mjs';
-import { appFactorySource, teacherControlsSource } from './helpers/appScreens.mjs';
+import { appFactorySeam, appFactorySource, teacherControlsSource } from './helpers/appScreens.mjs';
 
 /*
  * App.jsx WIRING FOR THE ONE "TODAY" RULE.
@@ -47,10 +47,17 @@ test('the dashboard model receives the student, their Recovery states and the te
   // "Finished" counts a family slot on the question it dealt, from what this
   // page knows: the same counting Start hands questionIsTerminal (P-7).
   assert.match(region(app, 'buildStudentDashboardModel({', '\n    });', 'the dashboard model call'), /\n\s*terminalCounting: terminalCountingFor,\n/);
-  const counting = region(app, 'const terminalCountingFor = ', '\n  });', 'terminalCountingFor');
+  // Since the App split (slice 6) both countings are createGradingControls',
+  // which App calls once, by position: it hands it what this page has shown
+  // and takes terminalCountingFor from it (appFactorySource holds both sides,
+  // name for name).
+  const grading = executableSource(appFactorySource('createGradingControls'));
+  assert.ok(appFactorySeam('createGradingControls').parameters.includes('familyDeliveriesRef'), 'App hands createGradingControls what this page has shown');
+  assert.ok(appFactorySeam('createGradingControls').taken.includes('terminalCountingFor'), 'App takes terminalCountingFor from createGradingControls');
+  const counting = region(grading, 'const terminalCountingFor = ', '\n  });', 'terminalCountingFor');
   assert.match(counting, /=> \(\{\s*questionIndex,\s*shown: familyDeliveriesRef\.current,\s*deal: dealFor\(assignment, questionIndex, record\),\s*$/);
   // The same deal every count in the question list reads.
-  assert.match(region(app, 'const triesCountingFor = ', '\n  });', 'triesCountingFor'), /\bdeal: dealFor\(assignment, questionIndex, record\),/);
+  assert.match(region(grading, 'const triesCountingFor = ', '\n  });', 'triesCountingFor'), /\bdeal: dealFor\(assignment, questionIndex, record\),/);
 });
 
 test('Start/Continue lands on the first unfinished open question, and never on a dead end', () => {

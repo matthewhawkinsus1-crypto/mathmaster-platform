@@ -11,7 +11,7 @@ import {
   scratchpadPageDocId,
 } from '../../src/platform/student/scratchpadPages.js';
 
-import { teacherControlsSeam, teacherControlsSource } from './helpers/appScreens.mjs';
+import { appFactorySeam, appFactorySource, teacherControlsSeam, teacherControlsSource } from './helpers/appScreens.mjs';
 
 const codeOf = (path) => readFileSync(path, 'utf8')
   .replace(/\/\*[\s\S]*?\*\//g, ' ')
@@ -217,8 +217,14 @@ test('the teacher sees every page, not the first third of an answer', () => {
 test('a page that will not delete never fails the save', () => {
   // A stale extra page is a nuisance; a save that reports failure after the
   // work is already written tells a student to redo work that is safe.
-  const source = codeOf('src/App.jsx');
-  const saver = source.slice(source.indexOf('const handleSaveScratchpad'));
+  // Since the App split handleSaveScratchpad is createScratchpadControls's,
+  // which App calls once (appFactorySource holds that seam).
+  assert.ok(appFactorySource('createScratchpadControls'), 'App builds the save');
+  const source = codeOf(appFactorySeam('createScratchpadControls').path);
+  const saverAt = source.indexOf('const handleSaveScratchpad');
+  assert.notEqual(saverAt, -1, 'the save');
+  const saver = source.slice(saverAt);
+  assert.notEqual(saver.indexOf('deletes.map'), -1, 'the save deletes the pages that were removed');
   const deletes = saver.slice(saver.indexOf('deletes.map'));
   assert.match(deletes.slice(0, 260), /catch\(\(\) => \{\}\)/);
 });

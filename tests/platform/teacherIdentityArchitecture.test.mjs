@@ -37,7 +37,7 @@ import {
 } from '../../src/platform/studentName.js';
 import { normalizeTeacherRosterSummary } from '../../src/platform/teacher/teacherRosterSummary.js';
 import { executableSource, region } from './helpers/sourceContract.mjs';
-import { appHookPaths, appHookSource, appModulePaths, positionalHookNames, positionalHookSource, teacherControlPaths, teacherControlsSource } from './helpers/appScreens.mjs';
+import { appFactoryPaths, appFactorySource, appHookPaths, appHookSource, appModulePaths, positionalHookNames, positionalHookSource, teacherControlPaths, teacherControlsSource } from './helpers/appScreens.mjs';
 import { functionsBackendSource } from './helpers/functionsBackendSource.mjs';
 
 const ROOT = fileURLToPath(new URL('../../', import.meta.url));
@@ -186,12 +186,15 @@ const MODULE_ANCHOR = /^(?:export\s+)?(?:default\s+)?(?:async\s+)?function\s+([\
 const APP_BODY_ANCHOR = /^ {2}(?:const\s+([\w$]+)\s*=|useEffect\(\(\)\s*=>\s*\{\s*\n\s*([^\n]+))/gm;
 const TEACHER_CONTROL_PATHS = new Set(Object.values(teacherControlPaths()));
 const POSITIONAL_HOOK_PATHS = new Set(positionalHookNames().map((name) => appHookPaths()[name]));
+const APP_FACTORY_PATHS = new Set(Object.values(appFactoryPaths()));
 const anchorOf = (source, index, path) => {
   // The teacher workspace's body members are anchored like App's: G2 moved
   // App's teacher-only handlers into it verbatim. So are the body members of a
   // teacher control factory (the App split moved App's handlers there verbatim),
-  // and of a hook App calls by position (its effects and memos, moved verbatim).
-  const patterns = path === 'src/App.jsx' || path === 'src/app/teacher/TeacherWorkspace.jsx' || TEACHER_CONTROL_PATHS.has(path) || POSITIONAL_HOOK_PATHS.has(path) ? [MODULE_ANCHOR, APP_BODY_ANCHOR] : [MODULE_ANCHOR];
+  // and of a hook App calls by position (its effects and memos, moved verbatim),
+  // and of a factory App imports and calls by position (App's plain functions,
+  // moved verbatim: each keeps the name it had in App).
+  const patterns = path === 'src/App.jsx' || path === 'src/app/teacher/TeacherWorkspace.jsx' || TEACHER_CONTROL_PATHS.has(path) || POSITIONAL_HOOK_PATHS.has(path) || APP_FACTORY_PATHS.has(path) ? [MODULE_ANCHOR, APP_BODY_ANCHOR] : [MODULE_ANCHOR];
   let best = null;
   patterns.forEach((pattern) => {
     for (const match of source.matchAll(pattern)) {
@@ -222,18 +225,25 @@ const KNOWN_GRADES_DOCUMENT_ACCESS = {
     // THE one full-data listener's source: the teacher's whole class, one query.
     studentGradeSourceForViewer: 2,
     // The signed-in STUDENT's own record: the response-checkpoint transaction
-    // reads it to confirm the roster row exists…
-    reconcileThroughClientTransaction: 1,
+    // reads it to confirm the roster row exists (since the App split in
+    // app/student/studentOutbox.js, below)…
     // …session hydration reads it (and no longer writes a credit repair back:
     // a student's client authors no grade state), holding its target open
     // until the receipt listener below takes it, so the read and the listener
     // ask the server once (signInHoldsRef)…
     'useEffect: let cancelled = false;': 2,
-    // …engagement time, the one field the student's client still writes…
-    flushAssignmentActivity: 1,
+    // …engagement time, the one field the student's client still writes
+    // (since the App split in app/student/assignmentActivity.js, below)…
     // …and the receipt listener on their own document, which since the App
     // split is in app/student/useStudentGradeDocument.js (below).
   },
+  // The response-checkpoint transaction's read of the signed-in STUDENT's own
+  // record, moved from App.jsx with the factory App calls (createStudentOutbox,
+  // the App split).
+  'src/app/student/studentOutbox.js': { reconcileThroughClientTransaction: 1 },
+  // The signed-in STUDENT's engagement-time write, moved from App.jsx with the
+  // factory App calls (createAssignmentActivityFlush, the App split).
+  'src/app/student/assignmentActivity.js': { flushAssignmentActivity: 1 },
   // The profile drawer: ONE student, when a teacher opens them. Moved from
   // App.jsx with the hook App calls (useTeacherAnalytics, the App split).
   'src/app/teacher/useTeacherAnalytics.js': {
@@ -288,6 +298,10 @@ test('Test F: no screen reads or listens to grades documents to learn a name —
   positionalHookSource('useTeacherAnalytics');
   // The inventoried hub read exists only while App calls the factory that holds it.
   teacherControlsSource('createGradebookNavigation');
+  // The inventoried transaction read and engagement-time write exist only
+  // while App calls the factories that hold them.
+  appFactorySource('createStudentOutbox');
+  appFactorySource('createAssignmentActivityFlush');
   assert.deepEqual(census(FULL_RECORD_HELPER_CALL), KNOWN_FULL_RECORD_HELPER_CALLS, guidance);
 });
 
