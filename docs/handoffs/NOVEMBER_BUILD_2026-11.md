@@ -273,6 +273,12 @@ Nothing here has been deployed, and no operator script has been run.
 
 ## 5. Waiting on the owner
 
+- **Decided on 2026-11-20: worked examples** (spec: `docs/platform/WORKED_EXAMPLES.md`; not built yet).
+  - **Where they appear.** Classwork gets the full example, opened by itself before the first question on a new skill. Practice gets a lighter one when the student asks. DOL, quiz and test get none, and the section's role decides this.
+  - **Score.** Opening an example never lowers a Practice score. It is recorded as `workedExampleUsed`, as a hint is.
+  - **Steps.** A step that uses another skill, such as factoring, opens that skill's own slides.
+  - **Coverage.** Every classwork question is covered by an example.
+  - **Build order.** Any.
 - **Decided on 2026-11-19** (the owner took the lead session's recommendations; the issues hold each one):
   - **#557, unfinished answers** (`12 +`, `4*`): not submittable on the screen ("not finished", no try used), never marked right on the server; grades already given stay; a read-only count of stored attempts first. **#558, over 240 characters:** refused on the screen with a message; the server's comparison capped. Both are queued for a session after the Fable usage reset (2026-11-21).
   - **Classroom passback (#545):** Reconcile option (A) with the run report (R1); Reconcile only the caller's own posts; at the due date, Classroom's Missing rather than a returned 0. Queued for a session after the same reset. Test Cycle grades are returned: built (section 2).
