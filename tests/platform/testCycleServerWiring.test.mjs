@@ -5,6 +5,7 @@ import { createRequire } from 'node:module';
 
 import { assertCapability, componentSource, executableSource, region } from './helpers/sourceContract.mjs';
 import { functionsBackendSource, topLevelDeclaration } from './helpers/functionsBackendSource.mjs';
+import { appFactorySource } from './helpers/appScreens.mjs';
 
 const require_ = createRequire(import.meta.url);
 const testCycleLib = require_('../../functions/lib/testCycle.js');
@@ -12,6 +13,9 @@ const functionsIndex = functionsBackendSource();
 const rules = readFileSync(new URL('../../firestore.rules', import.meta.url), 'utf8');
 const card = componentSource('src/components/student/TestCycleCard.jsx');
 const app = readFileSync(new URL('../../src/App.jsx', import.meta.url), 'utf8');
+// Since the App split, createStudentNavigation owns startAssignment; App builds
+// it once (appFactorySource holds the seam, name for name).
+const studentNavigation = () => appFactorySource('createStudentNavigation');
 
 /*
  * THE SERVER SIDE OF THE CYCLE, AND THE ONE CARD THAT DRIVES IT.
@@ -195,13 +199,13 @@ test('the card shows one stage, and the server decides which', () => {
 });
 
 test('every route into a Test Cycle goes through the card', () => {
-  const start = region(app, 'const startAssignment = (assignmentId', 'const assignmentQuestions', 'startAssignment');
+  const start = region(studentNavigation(), 'const startAssignment = (assignmentId', 'const assignmentQuestions', 'startAssignment');
   assert.match(start, /isTestCycleAssignment\(assignmentData\) && !cycleStage/);
   assert.match(start, /openStudentDashboardMode\('testCycle'\)/);
 });
 
 test('Review opens only the Review questions', () => {
-  const start = region(app, 'const currentContent = projectCurrentAssignmentContent', 'const requested =', 'stage filter');
+  const start = region(studentNavigation(), 'const currentContent = projectCurrentAssignmentContent', 'const requested =', 'stage filter');
   assert.match(start, /cycleStage\s*\n?\s*\?\s*currentContent\.entries\.filter\(\(entry\) => entry\.logicalRole === cycleStage\)/);
   assert.match(app, /cycleStage: 'review'/);
 });

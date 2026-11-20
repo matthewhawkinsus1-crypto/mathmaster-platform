@@ -221,17 +221,34 @@ test('teacher entries keep other screens\' history state and round-trip normaliz
  * these read its source — anchored to the regions that do the work.
  */
 const appSource = executableSource(readFileSync('src/App.jsx', 'utf8'));
+// Since the App split, useTeacherBrowserHistory owns the teacher's route, the
+// effect that writes it and the popstate restore. App calls it once, where the
+// code was, and hands it what it reads by position (positionalHookSource holds
+// App's arguments to the hook's parameters, name for name).
+const teacherHistoryHook = () => executableSource(positionalHookSource('useTeacherBrowserHistory'));
 
 test('App imports the teacher history module it calls', () => {
-  assert.match(appSource, /from '\.\/platform\/teacher\/teacherBrowserHistory\.js'/);
-  const importBlock = region(appSource, 'import {\n  TEACHER_HISTORY_DOCUMENT_ID', "from './platform/teacher/teacherBrowserHistory.js'", 'teacher history import');
+  // The hook makes the calls now, so the hook's module is the one that imports them.
+  const hookSource = teacherHistoryHook();
+  assert.match(hookSource, /from '\.\.\/\.\.\/platform\/teacher\/teacherBrowserHistory\.js'/);
+  const importBlock = region(hookSource, 'import {\n  TEACHER_HISTORY_DOCUMENT_ID', "from '../../platform/teacher/teacherBrowserHistory.js'", 'teacher history import');
   for (const name of ['planTeacherHistoryWrite', 'readTeacherHistoryEntry', 'writeTeacherRouteState', 'teacherRouteKey', 'teacherRouteSignature']) {
-    assert.match(importBlock, new RegExp(`\\b${name}\\b`), `${name} is called in App.jsx and must be imported (no-undef is not linted here)`);
+    assert.match(importBlock, new RegExp(`\\b${name}\\b`), `${name} is called in useTeacherBrowserHistory and must be imported (no-undef is not linted here)`);
   }
 });
 
 test('App describes every teacher screen and panel as a route and follows the write plan', () => {
-  const routeBlock = region(appSource, 'const teacherBrowserRoute = useMemo(', '}, [teacherBrowserRoute, urlArrival]);', 'teacher route + writer');
+  const hookSource = teacherHistoryHook();
+  // What the route is made of, and the wait for the opening address, reach the hook from App.
+  const { parameters } = positionalHookSeam('useTeacherBrowserHistory');
+  for (const input of [
+    'user', 'urlArrival', 'activeView', 'activeAssignmentId', 'currentQuestionIndex', 'teacherWorkspaceMode', 'adminTab', 'teacherTab',
+    'assignmentHubTarget', 'profileDrawerStudentId', 'caseReviewStudentId', 'supportReportStudentId', 'testCyclePreviewAssignment',
+    'teacherBrowserHistoryReadyRef', 'teacherHistoryStepBackAtRef',
+  ]) {
+    assert.ok(parameters.includes(input), `App hands useTeacherBrowserHistory ${input}`);
+  }
+  const routeBlock = region(hookSource, 'const teacherBrowserRoute = useMemo(', '}, [teacherBrowserRoute, urlArrival]);', 'teacher route + writer');
   assert.match(routeBlock, /user\?\.role !== 'teacher'/);
   assert.match(routeBlock, /activeView === 'teacherPreview'/);
   assert.match(routeBlock, /surface: 'administration'/);
@@ -247,15 +264,25 @@ test('App describes every teacher screen and panel as a route and follows the wr
   // nothing is written while the address the page opened at waits to open.
   assert.match(routeBlock, /const url = teacherUrlFor\(teacherBrowserRoute\);/);
   assert.match(routeBlock, /if \(urlArrival\) return;/);
-  assert.match(appSource, /import \{[^}]*\bteacherUrlFor\b[^}]*\} from '\.\/app\/routes\/browserUrl\.js';/);
+  assert.match(hookSource, /import \{[^}]*\bteacherUrlFor\b[^}]*\} from '\.\.\/routes\/browserUrl\.js';/);
 });
 
 test('App restores the teacher screen on popstate and never acts underneath an open dialog', () => {
   // Since the App split, useLiveTeachingTimer owns the effect that listens for
-  // popstate and runs the handler App keeps in teacherHistoryRestoreRef: the
-  // handler ends at that hook's call, and the hook hands it every popstate,
-  // for a teacher only, and stops listening on cleanup.
-  const restoreBlock = region(appSource, 'teacherHistoryRestoreRef.current = (event) => {', '\n  useLiveTeachingTimer(', 'teacher popstate restore');
+  // popstate and runs the handler kept in teacherHistoryRestoreRef, and
+  // useTeacherBrowserHistory owns the handler: it is the last statement of
+  // that hook, App still owns the ref and hands the same one to both, and the
+  // listening hook hands the handler every popstate, for a teacher only, and
+  // stops listening on cleanup.
+  const hookSource = teacherHistoryHook();
+  const restoreBlock = region(hookSource, 'teacherHistoryRestoreRef.current = (event) => {', '\n  };\n}\n', 'teacher popstate restore');
+  assert.match(appSource, /const teacherHistoryRestoreRef = useRef\(/, 'App owns the ref both hooks are handed');
+  for (const input of [
+    'teacherHistoryRestoreRef', 'setTeacherTab', 'setAdminTab', 'setProfileDrawerStudentId', 'setActiveView', 'startTeacherPreview', 'resumeLiveTeaching',
+    'questionEditorAssignment',
+  ]) {
+    assert.ok(positionalHookSeam('useTeacherBrowserHistory').parameters.includes(input), `App hands useTeacherBrowserHistory ${input}`);
+  }
   assert.ok(positionalHookSeam('useLiveTeachingTimer').parameters.includes('teacherHistoryRestoreRef'), 'App hands the hook the handler\'s ref');
   assert.match(
     executableSource(positionalHookSource('useLiveTeachingTimer')),
@@ -271,6 +298,6 @@ test('App restores the teacher screen on popstate and never acts underneath an o
   const guardAt = restoreBlock.indexOf('if (teacherDialogOpen)');
   assert.ok(guardAt > 0, 'popstate checks for an open dialog');
   assert.ok(guardAt < restoreBlock.indexOf('setTeacherTab(route.tab)'), 'the dialog guard runs before the tab changes');
-  const dialogBlock = region(appSource, 'const teacherDialogOpen =', ');', 'open teacher dialogs');
+  const dialogBlock = region(hookSource, 'const teacherDialogOpen =', ');', 'open teacher dialogs');
   assert.match(dialogBlock, /questionEditorAssignment/, 'an open question editor (unsaved edits) blocks Back');
 });

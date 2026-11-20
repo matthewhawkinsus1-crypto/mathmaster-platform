@@ -17,7 +17,7 @@ import {
 import { ACTIVITY_POLICIES, ACTIVITY_ROLES } from '../../src/platform/policies/activityPolicies.js';
 import { assertCapability, componentSource, region } from './helpers/sourceContract.mjs';
 import { teacherActionsForRow } from '../../src/platform/teacher/testCycleTeacherRows.js';
-import { appAndTeacherWorkspaceSource } from './helpers/appScreens.mjs';
+import { appAndTeacherWorkspaceSource, appFactorySource } from './helpers/appScreens.mjs';
 import { functionsBackendSource } from './helpers/functionsBackendSource.mjs';
 
 const functionsIndex = functionsBackendSource();
@@ -196,7 +196,13 @@ test('the exact Review-only V5 incident is recognized, blocked, and routed fail-
   const cycle = preflightTestCycle({ assignment: incident });
   assert.equal(cycle.blocked, true);
   assert.equal(resolveTestCycleStage({ policy: null, record: {}, reviewProgress: { complete: true } }), null);
-  assert.match(app, /isTestCycleAssignment\(assignmentData\) && !cycleStage/);
+  // Since the App split, createStudentNavigation owns startAssignment, the one
+  // door into an assignment; App builds it once (appFactorySource holds the seam).
+  const startAssignment = region(
+    appFactorySource('createStudentNavigation'),
+    'const startAssignment = (assignmentId', 'const assignmentQuestions', 'startAssignment',
+  );
+  assert.match(startAssignment, /isTestCycleAssignment\(assignmentData\) && !cycleStage/);
   assert.match(functionsIndex, /diagnosticCode: "TEST_CYCLE_TEST_PHASE_MISSING"/);
 });
 

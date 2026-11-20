@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import { executableSource, region } from './helpers/sourceContract.mjs';
-import { positionalHookSeam, positionalHookSource } from './helpers/appScreens.mjs';
+import { appFactorySource, positionalHookSeam, positionalHookSource } from './helpers/appScreens.mjs';
 
 /*
  * Live Teaching (Classroom Live, Phase 2) MUST be exactly as isolated as the
@@ -25,12 +25,15 @@ test('teachAssignmentLive and resumeLiveTeaching both enter through activeView =
   // activeView itself — that IS the "reuse the runtime" requirement, and
   // startTeacherPreview is what actually flips activeView to teacherPreview
   // (asserted by teacherPreviewFreshStart.test.mjs, and here directly).
-  const teach = region(app, 'const teachAssignmentLive = ', 'const resumeLiveTeaching = ', 'teachAssignmentLive');
+  // Since the App split, createTeacherPreviewNavigation owns all three; App
+  // builds them once (appFactorySource holds the seam, name for name).
+  const navigation = appFactorySource('createTeacherPreviewNavigation');
+  const teach = region(navigation, 'const teachAssignmentLive = ', 'const resumeLiveTeaching = ', 'teachAssignmentLive');
   assert.match(teach, /startTeacherPreview\(assignmentId, \{ lessonRuntime: true \}\);/);
-  const startTeacherPreviewBody = region(app, 'const startTeacherPreview = ', 'const teachAssignmentLive = ', 'startTeacherPreview');
+  const startTeacherPreviewBody = region(navigation, 'const startTeacherPreview = ', 'const teachAssignmentLive = ', 'startTeacherPreview');
   assert.match(startTeacherPreviewBody, /setActiveView\('teacherPreview'\);/);
 
-  const resume = region(app, 'const resumeLiveTeaching = ', 'const endLiveTeaching = ', 'resumeLiveTeaching');
+  const resume = region(navigation, 'const resumeLiveTeaching = ', '\n  return [startTeacherPreview, teachAssignmentLive, resumeLiveTeaching];', 'resumeLiveTeaching');
   assert.match(resume, /setActiveView\('teacherPreview'\)/);
 });
 

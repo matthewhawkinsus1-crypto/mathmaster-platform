@@ -29,6 +29,7 @@ import {
 import { buildStudentGradeCenter, findGradeCenterEntry } from '../../src/platform/student/studentGradeCenterModel.js';
 import { buildWaysToRaise, entryCanStillRise } from '../../src/platform/student/waysToRaiseModel.js';
 import { executableSource, region } from './helpers/sourceContract.mjs';
+import { appFactorySource, positionalHookSource } from './helpers/appScreens.mjs';
 
 const read = (path) => readFileSync(new URL(`../../${path}`, import.meta.url), 'utf8');
 
@@ -195,11 +196,20 @@ test('NAV-8: the result page names its two practices apart', () => {
 
 // ------------------------------------------------------------ App wiring
 const app = executableSource(read('src/App.jsx'));
+// Since the App split (slice 5) App calls each of these once, by position, and they own:
+//   createStudentNavigation (src/app/student/studentNavigation.js): startAssignment, openStudentAssignmentResult,
+//     joinLiveChallenge, openStudentDashboardMode;
+//   useStudentBrowserHistory (src/app/student/useStudentBrowserHistory.js): the student's popstate restore.
+const navigation = executableSource(appFactorySource('createStudentNavigation'));
+const studentHistory = executableSource(positionalHookSource('useStudentBrowserHistory'));
 
 test('NAV-4 / NAV-10: every blocked start in startAssignment lands on the result page with its notice', () => {
-  assert.match(app, /^import \{ OPEN_NOTICE, describeOpenNotice, teacherClosedState \} from '\.\/platform\/student\/studentOpenGate\.js';$/m);
-  assert.match(app, /^import \{ LEVEL as NAV_LEVEL, normalizeOrigin, resolveBack \} from '\.\/platform\/student\/navigationModel\.js';$/m);
-  const start = region(app, 'const startAssignment = (assignmentId, requestedQuestionIndex = 0, options = {}) => {', "return true;\n  };");
+  // Each import is asserted in the file that makes the calls: the gate and the origin in the
+  // navigation module, the Back label (resolveBack, NAV-9 below) still in App.
+  assert.match(navigation, /^import \{ OPEN_NOTICE, describeOpenNotice, teacherClosedState \} from '\.\.\/\.\.\/platform\/student\/studentOpenGate\.js';$/m);
+  assert.match(navigation, /^import \{ LEVEL as NAV_LEVEL, normalizeOrigin \} from '\.\.\/\.\.\/platform\/student\/navigationModel\.js';$/m);
+  assert.match(app, /^import \{ LEVEL as NAV_LEVEL, resolveBack \} from '\.\/platform\/student\/navigationModel\.js';$/m);
+  const start = region(navigation, 'const startAssignment = (assignmentId, requestedQuestionIndex = 0, options = {}) => {', "return true;\n  };");
   const gate = region(start, 'const resultOrigin = ', 'const currentContent = ');
   assert.match(gate, /const landOnResult = \(notice\) => openStudentAssignmentResult\(assignmentId, \{ origin: resultOrigin, notice \}\);/);
   // Computed for a student (review fix 2: 'teacher' here left the suite green).
@@ -215,7 +225,7 @@ test('NAV-4 / NAV-10: every blocked start in startAssignment lands on the result
   // The gate runs before anything opens the workspace.
   assert.ok(start.indexOf('if (closedByTeacher)') > 0 && start.indexOf('if (closedByTeacher)') < start.indexOf('setActiveAssignmentId(assignmentId);'));
   // The result route carries the notice to the page.
-  assert.match(region(app, 'const openStudentAssignmentResult = ', '\n  };'), /notice: options\.notice \|\| null,/);
+  assert.match(region(navigation, 'const openStudentAssignmentResult = ', '\n  };'), /notice: options\.notice \|\| null,/);
   assert.match(app, /notice=\{assignmentResultRoute\.notice \|\| null\}/);
 });
 
@@ -224,9 +234,10 @@ test('NAV-9: Home opens results and starts with origin Home; the Test Cycle card
   assert.match(app, /onStartAssignment=\{\(assignmentId, questionIndex\) => startAssignment\(assignmentId, questionIndex \?\? 0, \{ origin: NAV_LEVEL\.HOME \}\)\}/);
   assert.match(app, /exitLabel=\{`← \$\{resolveBack\(NAV_LEVEL\.TEST_CYCLE, \{ origin: activeTestCycleOrigin \}\)\?\.navLabel/);
   assert.match(app, /onExit=\{\(\) => openStudentOriginLevel\(activeTestCycleOrigin\)\}/);
-  const popstate = region(app, 'const restoreFromBrowserHistory = (event) => {', "window.addEventListener('popstate', restoreFromBrowserHistory);");
+  const popstate = region(studentHistory, 'const restoreFromBrowserHistory = (event) => {', "window.addEventListener('popstate', restoreFromBrowserHistory);");
   assert.match(popstate, /if \(route\.dashboardMode === 'testCycle'\) \{[\s\S]*?setActiveTestCycleAssignmentId\(testCycleId\);/);
-  assert.match(app, /^import \{ parseAppPath \} from '\.\/app\/routes\/appUrl\.js';$/m);
+  // The restore reads the address, so the hook that owns it imports the parser.
+  assert.match(studentHistory, /^import \{ parseAppPath \} from '\.\.\/routes\/appUrl\.js';$/m);
   const card = executableSource(read('src/components/student/TestCycleCard.jsx'));
   assert.match(card, /<button type="button" data-test-cycle-exit onClick=\{onExit\} style=\{quietButtonStyle\}>\s*\{exitLabel\}/);
 });
@@ -241,9 +252,9 @@ test('P3: the Live Challenge lobby invite shows on Assignments, Grades, Rewards,
   // NAV-25: through joinLiveChallenge, which keeps the place to come back to
   // and then opens the game with openStudentDashboardMode.
   assert.match(invite, /onClick=\{joinLiveChallenge\}/);
-  assert.match(region(app, 'const joinLiveChallenge = () => {', '\n  };'), /openStudentDashboardMode\('liveChallenge'\);/);
+  assert.match(region(navigation, 'const joinLiveChallenge = () => {', '\n  };'), /openStudentDashboardMode\('liveChallenge'\);/);
   assert.doesNotMatch(invite, /setStudentDashboardMode\(/);
-  const open = region(app, 'const openStudentDashboardMode = (mode) => {', '\n  };');
+  const open = region(navigation, 'const openStudentDashboardMode = (mode) => {', '\n  };');
   assert.match(open, /setActiveView\('dashboard'\);/);
   assert.match(open, /setAssignmentResultRoute\(null\);/);
   assert.match(open, /if \(mode !== 'mathPath'\) setPathLaunchTeks\(null\);/);
@@ -287,7 +298,9 @@ test('review fix 4: toasts never sit over the action bar; on a phone they sit at
 });
 
 test('review notes: Back onto a paused lesson lands on its result page; the Classroom launch waits while its assignment is present', () => {
-  const popstate = region(app, 'const restoreFromBrowserHistory = (event) => {', "window.addEventListener('popstate', restoreFromBrowserHistory);");
+  const popstate = region(studentHistory, 'const restoreFromBrowserHistory = (event) => {', "window.addEventListener('popstate', restoreFromBrowserHistory);");
+  // The hook imports the gate it calls here.
+  assert.match(studentHistory, /^import \{ describeOpenNotice, teacherClosedState \} from '\.\.\/\.\.\/platform\/student\/studentOpenGate\.js';$/m);
   const branch = region(popstate, "if (route.surface === 'assignment') {", "setActiveView('assignment');");
   assert.match(branch, /const closedNow = teacherClosedState\(assignmentsRef\.current\.find\(\(item\) => item\.id === route\.assignmentId\)\);/);
   assert.match(branch, /if \(closedNow\) \{[\s\S]*?notice: describeOpenNotice\(\{ kind: closedNow \}\),[\s\S]*?setActiveView\('assignmentResult'\);\s*return;/);

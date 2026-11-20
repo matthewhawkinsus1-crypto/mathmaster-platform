@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import { region, executableSource } from './helpers/sourceContract.mjs';
+import { appFactorySeam, appFactorySource } from './helpers/appScreens.mjs';
 
 // src/App.jsx is .jsx: nothing here can import and unit-test its component
 // body directly (see classPointsAuthorizationOrder.test.mjs for the same
@@ -11,15 +12,19 @@ import { region, executableSource } from './helpers/sourceContract.mjs';
 
 const source = fs.readFileSync('src/App.jsx', 'utf8');
 
+// Since the App split, createStudentNavigation owns startAssignment and
+// createTeacherPreviewNavigation owns the teacher's entry points. App builds
+// each once and hands it what it reads by position (appFactorySource holds
+// App's arguments to the factory's parameters, name for name).
 const startAssignmentBody = executableSource(region(
-  source,
+  appFactorySource('createStudentNavigation'),
   'const startAssignment = (assignmentId, requestedQuestionIndex = 0, options = {}) => {',
-  'const startTeacherPreview = (',
+  '\n  const openStudentDashboardMode = (mode) => {',
   'startAssignment',
 ));
 
 const teacherPreviewEntryBody = executableSource(region(
-  source,
+  appFactorySource('createTeacherPreviewNavigation'),
   'const startTeacherPreview = (',
   'const resumeLiveTeaching = () => {',
   'startTeacherPreview + teachAssignmentLive',
@@ -34,6 +39,7 @@ const workspaceHeadBody = executableSource(region(
 ));
 
 test('startAssignment refuses to reopen an explicitly-requested waived Practice section', () => {
+  assert.ok(appFactorySeam('createStudentNavigation').parameters.includes('hasPracticePassFor'), 'App hands createStudentNavigation the Practice Pass lookup');
   assert.match(startAssignmentBody, /hasPracticePassFor\(assignmentId\)/);
   assert.match(startAssignmentBody, /scopedSectionKey === 'practice' && hasPracticePass/);
   assert.match(startAssignmentBody, /Practice is already excused with your Practice Pass/);
@@ -57,6 +63,8 @@ test('startAssignment never applies the Practice Pass filter to a Test Cycle sta
 test('Teacher Preview and live teaching entry points never read a student Practice Pass redemption', () => {
   assert.doesNotMatch(teacherPreviewEntryBody, /hasPracticePassFor/);
   assert.doesNotMatch(teacherPreviewEntryBody, /studentAssignmentIndicesWithPracticePass/);
+  // ...and App hands the teacher's factory no way to: a redemption could only reach it as an argument.
+  assert.doesNotMatch(appFactorySeam('createTeacherPreviewNavigation').parameters.join(' '), /PracticePass|studentRequiredFor|studentClassPoints/);
   // Both still use the full current-content projection, unfiltered.
   assert.match(teacherPreviewEntryBody, /getCurrentContentQuestionIndices\(assignmentData\)/);
 });

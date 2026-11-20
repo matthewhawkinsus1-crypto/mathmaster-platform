@@ -13,6 +13,10 @@
  *       // a name a statement declares, the line a statement starts on, a range of
  *       // lines, or text exactly one statement contains
  *   "callAt": "first" | "last" | "<selector>"        // where the hook is called (default first)
+ *   "callAfter": "<selector>"
+ *       // optional, instead of callAt: call below a statement that stays, further down
+ *       // than everything moved (for functions that read something declared late).
+ *       // Refused when a moved statement calls a hook.
  *   "positional": true
  *       // optional: pass the inputs as plain arguments and return one array, so the
  *       // seam leaves no property names in the bundle (a test must then hold the
@@ -300,8 +304,18 @@ export const planExtraction = (spec, read) => {
   const problems = [];
   for (const statement of moved) if (statement.sharesLine) problems.push(`line ${statement.startLine}: the statement shares a line with other code`);
 
-  const callAt = !spec.callAt || spec.callAt === 'first' ? moved[0] : spec.callAt === 'last' ? moved[moved.length - 1] : select(spec.callAt)[0];
-  if (!movedSet.has(callAt)) problems.push('callAt must be one of the moved statements');
+  // callAfter: the call goes below a statement that stays, further down than everything
+  // moved. Only for statements that call no hook (nothing about hook order may change)
+  // and whose results nothing reads during render before that point.
+  const after = spec.callAfter ? select(spec.callAfter)[0] : null;
+  const callAt = after
+    ? { index: after.index + 0.5, startLine: after.endLine + 1 }
+    : !spec.callAt || spec.callAt === 'first' ? moved[0] : spec.callAt === 'last' ? moved[moved.length - 1] : select(spec.callAt)[0];
+  if (after) {
+    if (movedSet.has(after)) problems.push('callAfter must be a statement that stays');
+    if (after.index < moved[moved.length - 1].index) problems.push('callAfter must be below every moved statement');
+    for (const statement of moved) if (/\buse[A-Z]\w*\(/.test(source.slice(statement.textStart, statement.textEnd))) problems.push(`line ${statement.startLine}: calls a hook, so it cannot be called from further down (callAfter)`);
+  } else if (!movedSet.has(callAt)) problems.push('callAt must be one of the moved statements');
   // A factory handed out by an object that may not be there yet is called behind
   // a check, so it cannot hold a hook: React needs the same hooks every render.
   if (spec.from) for (const statement of moved) if (/\buse[A-Z]\w*\(/.test(source.slice(statement.textStart, statement.textEnd))) problems.push(`line ${statement.startLine}: calls a hook, and ${spec.hook} would be called only when ${spec.from.object} is there`);
@@ -427,6 +441,11 @@ export const planExtraction = (spec, read) => {
       rewritten += `${/^\s*\n/.test(lead) && !rewritten.endsWith('\n\n') ? '\n' : ''}  ${call}\n`;
     }
     at = statement.textEnd;
+  }
+  if (after) {
+    const kept = source.slice(at, after.textEnd);
+    rewritten += `${kept}${kept.endsWith('\n') ? '' : '\n'}  ${call}\n`;
+    at = after.textEnd;
   }
   rewritten += source.slice(at);
   rewritten = rewritten.replace(/\n{3,}/g, (match, offset) => (offset > component.body.start ? '\n\n' : match));

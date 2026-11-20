@@ -6,7 +6,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { executableSource, region } from './helpers/sourceContract.mjs';
-import { appHookSource, appSurfaceSource, teacherControlsSource } from './helpers/appScreens.mjs';
+import { appFactorySeam, appFactorySource, appHookSource, appSurfaceSource, teacherControlsSource } from './helpers/appScreens.mjs';
 import { describeDolClose } from '../../src/platform/assessment/dolCloseCopy.js';
 
 const app = readFileSync(new URL('../../src/App.jsx', import.meta.url), 'utf8');
@@ -110,7 +110,22 @@ test('I item 4: getSectionAccessState is the signed-in student\'s binding everyw
   const calls = [...code.matchAll(/\bgetSectionAccessState\(/g)].map((match) => match.index);
   // Six since pass 3: the Overview's own lock lookup became the navigator's
   // shared sectionAccessFor (assignmentNavigator.js), which asks the binding.
-  assert.ok(calls.length >= 6, `every section-access call (found ${calls.length})`);
+  // Since the App split, entry's two calls (startAssignment) are
+  // createStudentNavigation's. They are counted with App's, and they ask the
+  // same binding: App hands it to the factory by name, below where it is bound.
+  const navigationCalls = [...executableSource(appFactorySource('createStudentNavigation')).matchAll(/\bgetSectionAccessState\(/g)];
+  assert.equal(navigationCalls.length, 2, 'entry asks twice: is the section open, and why a Classroom launch was detoured');
+  assert.ok(appFactorySeam('createStudentNavigation').parameters.includes('getSectionAccessState'), 'App hands createStudentNavigation the binding');
+  const navigationBuiltAt = code.indexOf('] = createStudentNavigation(');
+  assert.notEqual(navigationBuiltAt, -1, 'App builds the student navigation');
+  assert.ok(navigationBuiltAt > at, 'the navigation is built after the binding it is handed');
+  // No other module App's code moved into calls it: one would not be asking the binding.
+  assert.equal(
+    [...executableSource(appSurfaceSource()).matchAll(/\bgetSectionAccessState\(/g)].length,
+    calls.length + navigationCalls.length,
+    'every section-access call is App\'s or the student navigation\'s',
+  );
+  assert.ok(calls.length + navigationCalls.length >= 6, `every section-access call (found ${calls.length + navigationCalls.length})`);
   const navigatorAccess = region(code, 'const sectionAccessFor = (entry) => {', 'sectionAccessCache.set(', 'the navigator\'s section access');
   assert.match(navigatorAccess, /manualState: getSectionAccessState\(\{/);
   assert.ok(calls.every((index) => index > at), 'no call before the binding');

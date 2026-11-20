@@ -13,6 +13,7 @@ import React from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { createServer } from 'vite';
 import { executableSource } from './helpers/sourceContract.mjs';
+import { appFactorySource } from './helpers/appScreens.mjs';
 import { STUDENT_DESTINATION, STUDENT_DESTINATION_DASHBOARD_MODE, STUDENT_DESTINATION_ORDER } from '../../src/platform/student/navigationModel.js';
 import { parseAppPath } from '../../src/app/routes/appUrl.js';
 
@@ -49,9 +50,10 @@ test('every destination\'s address opens that destination\'s screen', () => {
   assert.equal(parsed('/path'), STUDENT_DESTINATION_DASHBOARD_MODE[STUDENT_DESTINATION.MATH_PATH]);
   assert.equal(parsed('/tests'), STUDENT_DESTINATION_DASHBOARD_MODE[STUDENT_DESTINATION.SECURE_EXAMS]);
   // App's navigateStudent opens the same screens.
-  const app = executableSource(readFileSync(new URL('../../src/App.jsx', import.meta.url), 'utf8'));
-  assert.match(app, /const openStudentAssignmentsCenter = \(\) => openStudentDashboardMode\('assignmentsCenter'\);/);
-  assert.match(app, /if \(destination === STUDENT_DESTINATION\.SECURE_EXAMS\) return openStudentDashboardMode\('secureExams'\);/);
+  // Since the App split (slice 5) navigateStudent is createStudentNavigation's, which App calls once, by position.
+  const navigation = executableSource(appFactorySource('createStudentNavigation'));
+  assert.match(navigation, /const openStudentAssignmentsCenter = \(\) => openStudentDashboardMode\('assignmentsCenter'\);/);
+  assert.match(navigation, /if \(destination === STUDENT_DESTINATION\.SECURE_EXAMS\) return openStudentDashboardMode\('secureExams'\);/);
 });
 
 test('a plain click stays in the tab; a new-tab click is the browser\'s', () => {

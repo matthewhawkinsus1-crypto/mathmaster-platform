@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import { executableSource, region } from './helpers/sourceContract.mjs';
+import { appFactorySource } from './helpers/appScreens.mjs';
 
 /*
  * The screens are wired to the shared availability rule
@@ -14,6 +15,9 @@ import { executableSource, region } from './helpers/sourceContract.mjs';
 const monitor = executableSource(fs.readFileSync('src/components/teacher/LiveClassMonitor.jsx', 'utf8'));
 const app = executableSource(fs.readFileSync('src/App.jsx', 'utf8'));
 const home = executableSource(fs.readFileSync('src/TeacherHome.jsx', 'utf8'));
+// Since the App split, createTeacherPreviewNavigation owns teachAssignmentLive;
+// App builds it once (appFactorySource holds the seam, name for name).
+const teacherPreviewNavigation = () => executableSource(appFactorySource('createTeacherPreviewNavigation'));
 
 test('Live Classroom builds ONE list of offerable assignments from the shared class-scoped rule', () => {
   assert.match(monitor, /import \{[^}]*walkthroughAssignmentsForClass[^}]*\} from '\.\.\/\.\.\/platform\/assignments\/assignmentAvailability\.js';/);
@@ -60,15 +64,19 @@ test('a class with no live work shows an intentional empty state', () => {
 
 test('Teach This Lesson names the class the panel showed; App honours it and refuses ineligible work', () => {
   assert.match(monitor, /onClick=\{\(\) => onTeach\(choiceId, \{ classId: activeClassId \}\)\}/);
-  assert.match(app, /import \{ validatePersistedWalkthroughSession, walkthroughEligibility \} from '\.\/platform\/assignments\/assignmentAvailability\.js';/);
-  const teach = region(app, 'const teachAssignmentLive = async (', 'const resumeLiveTeaching = ', 'teachAssignmentLive');
+  // The module that makes both calls imports both; App still validates a
+  // running session (the stale-session effect, below) and imports that one.
+  const navigation = teacherPreviewNavigation();
+  assert.match(navigation, /import \{ validatePersistedWalkthroughSession, walkthroughEligibility \} from '\.\.\/\.\.\/platform\/assignments\/assignmentAvailability\.js';/);
+  assert.match(app, /import \{[^}]*\bvalidatePersistedWalkthroughSession\b[^}]*\} from '\.\/platform\/assignments\/assignmentAvailability\.js';/);
+  const teach = region(navigation, 'const teachAssignmentLive = async (', 'const resumeLiveTeaching = ', 'teachAssignmentLive');
   assert.match(teach, /const classId = requestedClassId \|\| activeClass\?\.classId \|\| null;/);
   const guard = teach.indexOf('if (!walkthroughEligibility({ assignment: assignmentData, classId,');
   assert.ok(guard > 0 && guard < teach.indexOf('const startFresh = '), 'eligibility is checked before anything starts');
 });
 
 test('a saved session is restored only when validated, and a stale one is retired', () => {
-  const teach = region(app, 'const teachAssignmentLive = async (', 'const resumeLiveTeaching = ', 'teachAssignmentLive');
+  const teach = region(teacherPreviewNavigation(), 'const teachAssignmentLive = async (', 'const resumeLiveTeaching = ', 'teachAssignmentLive');
   assert.match(teach, /const savedCheck = saved \? validatePersistedWalkthroughSession\(\{/);
   assert.match(teach, /if \(saved\?\.active && !savedCheck\?\.valid\) \{[\s\S]*active: false/);
   assert.match(teach, /if \(savedCheck\?\.valid\) \{\s*const resumed = saved;/);

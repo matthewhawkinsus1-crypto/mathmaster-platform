@@ -11,7 +11,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { executableSource, region } from './helpers/sourceContract.mjs';
-import { positionalHookSeam, positionalHookSource } from './helpers/appScreens.mjs';
+import { appFactorySource, positionalHookSeam, positionalHookSource } from './helpers/appScreens.mjs';
 import {
   EMPTY_SCRATCHPAD_CACHE,
   SCRATCHPAD_CACHE_BUDGET_BYTES,
@@ -314,7 +314,13 @@ test('leaving "View as Student" releases its scratchpads, unless Live Teaching c
   // The flag it reads is the same one that gates every preview write.
   assert.match(app, /const isTeacherPreview = user\?\.role === 'teacher' && activeView === 'teacherPreview';/);
   // Resume still finds the exemplar's pages: it neither resets them itself...
-  const resume = region(app, 'const resumeLiveTeaching = ', 'const endLiveTeaching = ', 'resumeLiveTeaching');
+  // (since the App split, createTeacherPreviewNavigation owns resumeLiveTeaching;
+  // App builds it once, and it is the last function before the factory returns).
+  const resume = region(
+    executableSource(appFactorySource('createTeacherPreviewNavigation')),
+    'const resumeLiveTeaching = ', '\n  return [startTeacherPreview, teachAssignmentLive, resumeLiveTeaching];', 'resumeLiveTeaching',
+  );
+  assert.match(resume, /setActiveView\('teacherPreview'\);/, 'the region is the function that re-enters the preview');
   assert.doesNotMatch(resume, /setPreviewScratchpads/);
 });
 

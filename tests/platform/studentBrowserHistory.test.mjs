@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
+import { positionalHookSource } from './helpers/appScreens.mjs';
 
 import {
   MATH_PATH_ROUTE_STATE_KEY,
@@ -72,7 +73,9 @@ test('My Math Path history state preserves enough session config for browser For
 });
 
 test('App wires browser popstate to the student surface instead of leaving the SPA', () => {
-  const source = readFileSync('src/App.jsx', 'utf8');
+  // Since the App split the student's history effects are
+  // useStudentBrowserHistory's, which App calls once, by position.
+  const source = positionalHookSource('useStudentBrowserHistory');
   assert.match(source, /readStudentRouteState\(event\.state\)/);
   assert.match(source, /window\.addEventListener\('popstate', restoreFromBrowserHistory\)/);
   assert.match(source, /writeStudentRouteState\(studentBrowserRoute/);

@@ -1,15 +1,20 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
+import { appFactorySource } from './helpers/appScreens.mjs';
 
 const app = fs.readFileSync('src/App.jsx', 'utf8');
 
 test('teacher View as Student clears preview-only saved drafts before opening', () => {
-  assert.match(app, /removeAssignmentDrafts/);
-  const start = app.indexOf('const startTeacherPreview =');
-  const end = app.indexOf('const getScratchpadDocumentId', start);
+  // Since the App split, createTeacherPreviewNavigation owns startTeacherPreview;
+  // App builds it once (appFactorySource holds the seam, name for name), and
+  // the function ends where the next one in that module starts.
+  const navigation = appFactorySource('createTeacherPreviewNavigation');
+  assert.match(navigation, /removeAssignmentDrafts/);
+  const start = navigation.indexOf('const startTeacherPreview =');
+  const end = navigation.indexOf('const teachAssignmentLive = ', start);
   assert.ok(start >= 0 && end > start);
-  const preview = app.slice(start, end);
+  const preview = navigation.slice(start, end);
 
   assert.match(preview, /removeAssignmentDrafts\(\{ studentId: 'teacher-preview', assignmentId \}\)/);
   assert.match(preview, /setPreviewTracker\(createEmptyAssignmentTracker\(assignmentQuestions\)\)/);

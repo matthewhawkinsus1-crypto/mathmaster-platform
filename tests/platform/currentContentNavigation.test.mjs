@@ -1,6 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
+import { region } from './helpers/sourceContract.mjs';
+import { appFactorySource } from './helpers/appScreens.mjs';
 import { evaluateClassworkCompletion, getCurrentContentQuestionIndices, resolveDOLQuestionIndices } from '../../src/assignmentLifecycle.js';
 import { splitGrade, splitGradesBySection } from '../../src/platform/teacher/gradeEvidence.js';
 
@@ -32,7 +34,10 @@ test('App navigation, resume, Overview, and Focus View share the projection seam
   assert.match(source, /entry\.storageIndex/);
   assert.match(source, /entry\.logicalPosition/);
   assert.match(source, /entry\.logicalRole/);
-  assert.match(source, /resolveCurrentContentStorageIndex\(assignmentData, requested\)/);
+  // Since the App split opening an assignment (startAssignment) is
+  // createStudentNavigation's: the requested question resolves there.
+  const start = region(appFactorySource('createStudentNavigation'), 'const startAssignment = (', 'const openStudentDashboardMode = ', 'startAssignment');
+  assert.match(start, /resolveCurrentContentStorageIndex\(assignmentData, requested\)/);
   assert.match(source, /currentContent\.logicalSections\.map/);
   assert.match(source, /visibleQuestionEntries/);
   assert.match(source, /navigationSections/);

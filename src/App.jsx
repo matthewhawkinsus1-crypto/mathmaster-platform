@@ -45,7 +45,6 @@ import { recordStudentSupportEvidence as saveStudentSupportEvidence } from './pl
 import { launchSupportRecords, studentMayRecordSupport, usedRecordKey } from './platform/supportEvidence/studentSupportTelemetry.js';
 // The DOL recovery builders are teacher actions: they load with the teacher
 // kit (app/teacher/teacherKit.js). A student's screen reads only the summary.
-import { practiceSkillLaunch } from './platform/assessment/practiceSkillLaunch.js';
 import { describeDolClose, DOL_OPEN_NOTICE } from './platform/assessment/dolCloseCopy.js';
 import { extraTimeFrom } from './platform/assessment/extraTimeWords.js';
 // The DOL grant helpers (platform/assessment/dolAttemptGrantClient.js) are
@@ -86,7 +85,6 @@ import {
   studentClassAssignmentsQuery,
 } from './platform/assignments/studentAssignmentScope.js';
 import { EMPTY_STUDENT_CONTROLS, STUDENT_CONTROLS_STATUS, projectStudentAssignments } from './platform/assignments/studentAssignmentControls.js';
-import { resolveStudentOverride } from '../functions/shared/studentAssignmentOverrides.mjs';
 import useStudentAssignmentControls from './platform/assignments/useStudentAssignmentControls.js';
 import {
   EMPTY_TEACHER_CONTROLS,
@@ -114,7 +112,6 @@ import {
   readResumeAction,
   reconcileFieldRecordDrafts,
   reconcileToolWorkspaceDrafts,
-  removeAssignmentDrafts,
   restoreQuestionDrafts,
   saveResumeAction,
   subscribeToQuestionDrafts,
@@ -126,7 +123,6 @@ import {
   CLASS_PERIODS,
   DEFAULT_CLASS_SCHEDULE,
   assignmentIsForStudent,
-  formatDateTime,
   formatRemainingTime,
   getAssignmentLifecycle,
   getClassPackUpState,
@@ -141,7 +137,6 @@ import {
   prerequisiteAccess,
   recordAssignmentActivity,
   sectionAccessForStudent,
-  getCurrentContentQuestionIndices,
   getIncludedQuestionIndices,
   questionIsIncluded,
   studentAssignmentIndicesWithPracticePass,
@@ -215,7 +210,6 @@ import {
 } from './services/submissionIngestionService.js';
 // The tools' parsed-workspace cache alone, not the draft hook: that loads with
 // the tools (PF01, tools/shared/toolDraftCache.js).
-import { forgetAssignmentToolDrafts } from './tools/shared/toolDraftCache.js';
 import { createDeviceReportCoordinator, reconcileWithDeviceReports } from './platform/persistence/deviceReportCoordinator.js';
 import {
   INGESTIBLE_KINDS,
@@ -226,7 +220,6 @@ import {
 import {
   SUBMISSION_DISPOSITION,
 } from '../functions/shared/studentSubmissionDisposition.mjs';
-import { resolveStudentAssignmentEntry } from './platform/student/assignmentEntry.js';
 import { buildStudentMasteryProfile, collectStudentEvidence } from './masteryEngine.js';
 import {
   getEffectiveActivityPolicy,
@@ -235,12 +228,10 @@ import {
 import { matchesSmartView } from './assignmentSmartViews';
 import {
   updateWalkthroughTimer,
-  walkthroughSessionId,
   walkthroughTimerRemaining,
   endLiveTeachingSession,
-  startLiveTeachingSession,
 } from './platform/teacher/liveTeachingSession.js';
-import { validatePersistedWalkthroughSession, walkthroughEligibility } from './platform/assignments/assignmentAvailability.js';
+import { validatePersistedWalkthroughSession } from './platform/assignments/assignmentAvailability.js';
 import { describeClassworkPace } from './platform/teacher/classworkModel.js';
 import { normalizeFolderPaths } from './assignmentFolders';
 
@@ -262,15 +253,13 @@ import { buildAttemptEvidenceEvent } from './platform/history/evidenceEvent.js';
 import { teksCodeFromSkillId } from './platform/path/skillGraph.js';
 import { buildStudentPathOptions } from './platform/path/studentPathOptions.js';
 import { resolveAssignmentPathLaunch } from './platform/path/assignmentPathLaunch.js';
-import { LEVEL as NAV_LEVEL, normalizeOrigin, resolveBack } from './platform/student/navigationModel.js';
-import { OPEN_NOTICE, describeOpenNotice, teacherClosedState } from './platform/student/studentOpenGate.js';
+import { LEVEL as NAV_LEVEL, resolveBack } from './platform/student/navigationModel.js';
 import { splitGrade, splitGradesBySection } from './platform/teacher/gradeEvidence.js';
 import { projectTeacherOverridesForDisplay } from './platform/grading/canonicalGradeProjection.js';
 import { projectSectionRecoveriesForDisplay } from './platform/grading/sectionRecoveryGrades.js';
 import { classroomLaunchTarget, parseClassroomLaunchSearch } from './platform/classroom/classroomLaunchRoute.js';
 import { buildStudentDashboardModel, resolveNextAction, resolveUpNext } from './studentDashboardModel.js';
 import { resolveAssignmentHandoff, resolveSkippedQuestion } from './platform/student/assignmentHandoff.js';
-import { questionIsTerminal, timedSectionWorkableNow } from './platform/student/studentWorkState.js';
 import WhatChangedList from './components/student/WhatChangedList.jsx';
 import {
   buildWhatChanged, countUnseenWhatChanged, markWhatChangedSeen, readWhatChangedSeenAt, rememberWhatChangedFirstSeen, untimedWhatChangedKeys,
@@ -281,30 +270,23 @@ import { buildWaysToRaise, countWaysToRaise } from './platform/student/waysToRai
 import { loadMyReviewWork } from './services/reviewMyWorkService.js';
 import { recoveryStatesFromSummaries } from './platform/student/recoveryStates.js';
 import { buildTestCycleCardRefreshKey } from './platform/student/testCycleDiscovery.js';
-import { whenDateTimeText } from './platform/student/studentWhen.js';
-import { DETOUR_SECTION_LABEL, describeSectionDetour } from './platform/student/sectionDetour.js';
-import { liveChallengeExitLabel, liveChallengeReturnPlace, sectionHoldsLobbyInvite } from './platform/liveChallenge/liveChallengeReturn.js';
+import { liveChallengeExitLabel, sectionHoldsLobbyInvite } from './platform/liveChallenge/liveChallengeReturn.js';
 import { packUpWorkLine } from './platform/student/packUpLine.js';
 import {
-  readRouteOwner,
   readStudentRouteState,
   recoveryModeToRestore,
-  recoveryResultPageRoute,
   studentRouteKey,
   writeStudentRouteState,
 } from './platform/student/browserHistory.js';
-import { resetAddressToHome, studentUrlFor, teacherUrlFor } from './app/routes/browserUrl.js';
-import { parseAppPath } from './app/routes/appUrl.js';
+import { resetAddressToHome } from './app/routes/browserUrl.js';
 import { ARRIVAL_MESSAGES, readUrlArrival } from './app/routes/urlArrival.js';
 import { useUrlArrival } from './app/routes/useUrlArrival.js';
-import { questionAddressFor, studentQuestionEntries } from './app/routes/questionAddress.js';
 import {
   activityTitleForRole,
   assignmentFeedbackWasReleased,
   assignmentHasHeldTeacherFeedback,
   calculateDOLSectionScore,
   captureTimedSectionAccess,
-  createEmptyAssignmentTracker,
   createPracticeAssignmentTracker,
   warmupCaptureWasActive,
 } from './app/student/assignmentRuntimeHelpers.js';
@@ -335,14 +317,6 @@ import {
   TestCycleCard,
   WarmupChallengeGate,
 } from './app/lazyScreens.js';
-import {
-  TEACHER_HISTORY_DOCUMENT_ID,
-  planTeacherHistoryWrite,
-  readTeacherHistoryEntry,
-  teacherRouteKey,
-  teacherRouteSignature,
-  writeTeacherRouteState,
-} from './platform/teacher/teacherBrowserHistory.js';
 import { questionAssessmentFramework } from './platform/student/questionAssessmentFramework.js';
 // The assessments' names alone: the crosswalk loads with the screens that use it (PF01).
 import { FRAMEWORK_LABELS } from './platform/ccmr/frameworkLabels.js';
@@ -378,7 +352,6 @@ import {
 } from './platform/recovery/studentRecoveryNotices.js';
 import { loadStudentRecoveryKit, loadedStudentRecoveryKit } from './app/student/studentRecoveryKitLoader.js';
 import { RecoveryInlineNotice } from './components/student/RecoveryOpportunities.jsx';
-import { recoveryErrorCode, startSectionRecovery } from './services/sectionRecoveryService.js';
 import StudentIdentityBar, { STUDENT_IDENTITY_STACK_OFFSET } from './components/student/StudentIdentityBar.jsx';
 import { ASSIGNMENT_NAV_HEIGHT_VAR, stickyHeightRef } from './platform/layout/stickyHeightRef.js';
 import { practicePassEligibleAssignments } from './platform/rewards/practicePassClientEligibility.js';
@@ -473,6 +446,10 @@ import { useTeacherActionCenterData } from './app/teacher/useTeacherActionCenter
 import { useLiveTeachingPreviewSync } from './app/teacher/useLiveTeachingPreviewSync.js';
 import { useTeacherRosterData } from './app/teacher/useTeacherRosterData.js';
 import { useTeacherLearningPaths } from './app/teacher/useTeacherLearningPaths.js';
+import { useTeacherBrowserHistory } from './app/teacher/useTeacherBrowserHistory.js';
+import { createTeacherPreviewNavigation } from './app/teacher/teacherPreviewNavigation.js';
+import { createStudentNavigation } from './app/student/studentNavigation.js';
+import { useStudentBrowserHistory } from './app/student/useStudentBrowserHistory.js';
 
 // What a teacher's controls are before the teacher kit has loaded, and for a
 // student always: none. Only the teacher's screen reads them, and it waits for
@@ -1040,208 +1017,14 @@ function App() {
   // Which assignment the in-memory preview tracker belongs to, so Back into a
   // preview resumes it only when the work on screen is that assignment's.
   const previewTrackerAssignmentIdRef = useRef(null);
-  const studentBrowserRoute = useMemo(() => {
-    if (user?.role !== 'student') return null;
-    if (activeView === 'assignment') {
-      return {
-        surface: 'assignment',
-        assignmentId: activeAssignmentId || '',
-        questionIndex: currentQuestionIndex,
-        // A section-scoped Classroom launch, kept in this tab's entry (NV03).
-        ...(activeClassroomSectionKey ? { sectionScope: activeClassroomSectionKey } : {}),
-      };
-    }
-    // Assignment Result is its own entry so the required Back chain —
-    // Practice -> Result -> Grades -> Home — has a browser entry per screen.
-    if (activeView === 'assignmentResult') {
-      const resultAssignmentId = assignmentResultRoute?.assignmentId || activeAssignmentId || '';
-      return {
-        surface: 'assignmentResult',
-        assignmentId: resultAssignmentId,
-        sectionKey: assignmentResultRoute?.sectionKey || '',
-        origin: assignmentResultRoute?.origin || 'assignments',
-        // The Recovery open over the page is an entry of its own (NV14).
-        ...(recoverySession?.assignmentId === resultAssignmentId ? { recoverySection: recoverySession.section } : {}),
-      };
-    }
-    return {
-      surface: 'dashboard',
-      dashboardMode: studentDashboardMode || 'assignments',
-      // The test on screen and where it was opened from (NAV-9).
-      ...(studentDashboardMode === 'testCycle'
-        ? { testCycleAssignmentId: activeTestCycleAssignmentId || '', origin: activeTestCycleOrigin }
-        : {}),
-    };
-  }, [user?.role, activeView, activeAssignmentId, currentQuestionIndex, activeClassroomSectionKey, studentDashboardMode, assignmentResultRoute, activeTestCycleAssignmentId, activeTestCycleOrigin, recoverySession?.assignmentId, recoverySession?.section]);
-
-  useEffect(() => {
-    if (!studentBrowserRoute) {
-      studentBrowserHistoryReadyRef.current = false;
-      return;
-    }
-    // The address the page opened at has not been opened yet: writing this
-    // screen now would replace it with Home before sign-in finishes.
-    if (urlArrival) return;
-
-    const current = readStudentRouteState(window.history.state);
-    const currentKey = current ? studentRouteKey(current) : null;
-    const targetKey = studentRouteKey(studentBrowserRoute);
-    // The screen's address: ids and the question's number in its section,
-    // nothing about the work (app/routes/appUrl.js).
-    const url = studentUrlFor(studentBrowserRoute, {
-      question: studentBrowserRoute.surface === 'assignment'
-        ? questionAddressFor(
-          studentQuestionEntriesFor(assignments.find((assignment) => assignment.id === studentBrowserRoute.assignmentId)),
-          studentBrowserRoute.questionIndex,
-        )
-        : null,
-      testCycleAssignmentId: studentBrowserRoute.dashboardMode === 'testCycle' ? activeTestCycleAssignmentId : null,
-    });
-
-    // Mark the document entry the student arrived on as this screen. From
-    // this point onward internal navigation pushes same-document entries.
-    if (!studentBrowserHistoryReadyRef.current) {
-      studentBrowserHistoryReadyRef.current = true;
-      const currentUrl = `${window.location.pathname}${window.location.search}`;
-      const ownEntry = readRouteOwner(window.history.state) === user?.uid;
-      if (currentKey !== targetKey || (url && url !== currentUrl) || !ownEntry) {
-        writeStudentRouteState(studentBrowserRoute, { replace: true, url, owner: user?.uid, fresh: !ownEntry });
-      }
-      studentBrowserUrlRef.current = url;
-      return;
-    }
-
-    // A popstate restoration changes React state AFTER the browser has already
-    // moved to the matching history entry. Seeing the same key here prevents
-    // that restoration from immediately pushing a duplicate entry.
-    if (currentKey !== targetKey) {
-      // A Recovery opened from another screen sits on its result page's own
-      // entry, so Back from it lands on the page (NV14).
-      const resultPage = recoveryResultPageRoute(studentBrowserRoute);
-      if (resultPage && studentRouteKey(resultPage) !== currentKey) writeStudentRouteState(resultPage, { url, owner: user?.uid });
-      writeStudentRouteState(studentBrowserRoute, { url, owner: user?.uid });
-    }
-    studentBrowserUrlRef.current = url;
-    // Only the route decides when to write; the rest is read for its address.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [studentBrowserRoute, urlArrival]);
-  useEffect(() => { studentBrowserRouteRef.current = studentBrowserRoute; }, [studentBrowserRoute]);
-
-  useEffect(() => {
-    if (user?.role !== 'student') return undefined;
-
-    const restoreFromBrowserHistory = (event) => {
-      /*
-       * BACK DOES NOT LEAVE A SECURE EXAM.
-       *
-       * The browser has already moved to the previous entry; put the exam's
-       * entry back and stay. Leaving would unmount the exam mid-question (the
-       * answers are saved, but the student rarely meant it). Submitting, or the
-       * exam's own exit after it is submitted, is the way out.
-       */
-      if (isSecureExamActive()) {
-        if (studentBrowserRouteRef.current) writeStudentRouteState(studentBrowserRouteRef.current, { url: studentBrowserUrlRef.current, owner: historyAccountRef.current });
-        toastInfo('Your test is still open', 'Use Submit test when you are finished. Your answers are saved as you type.');
-        return;
-      }
-      const route = readStudentRouteState(event.state);
-      if (!route) return;
-      // An entry another account wrote (the previous student on this
-      // Chromebook): never restored. This screen's entry takes its place.
-      if (readRouteOwner(event.state) !== historyAccountRef.current) {
-        if (studentBrowserRouteRef.current) {
-          writeStudentRouteState(studentBrowserRouteRef.current, {
-            replace: true, url: studentBrowserUrlRef.current, owner: historyAccountRef.current, fresh: true,
-          });
-        }
-        return;
-      }
-
-      if (route.surface === 'assignment') {
-        // Back/Forward onto a lesson the teacher has since paused or archived
-        // lands on its result page, like every other way in (NAV-4).
-        const closedNow = teacherClosedState(assignmentsRef.current.find((item) => item.id === route.assignmentId));
-        if (closedNow) {
-          setPathLaunchTeks(null);
-          setActiveAssignmentId(route.assignmentId);
-          setActiveClassroomSectionKey(null);
-          setAssignmentResultRoute({
-            assignmentId: route.assignmentId,
-            sectionKey: 'whole',
-            sectionLabel: null,
-            questionIndex: 0,
-            origin: NAV_LEVEL.ASSIGNMENTS,
-            notice: describeOpenNotice({ kind: closedNow }),
-          });
-          setActiveView('assignmentResult');
-          return;
-        }
-        setStudentDashboardMode('assignments');
-        setPathLaunchTeks(null);
-        setActiveAssignmentId(route.assignmentId || null);
-        // Back onto a section-scoped launch shows that section again (NV03).
-        setActiveClassroomSectionKey(route.sectionScope || null);
-        setCurrentQuestionIndex(route.questionIndex || 0);
-        setActiveView('assignment');
-        return;
-      }
-
-      // Back onto a result entry restores the same assignment — and the same
-      // Classroom section, when the student arrived through a split link.
-      if (route.surface === 'assignmentResult') {
-        setPathLaunchTeks(null);
-        setActiveAssignmentId(route.assignmentId || null);
-        setActiveClassroomSectionKey(route.sectionKey || null);
-        setAssignmentResultRoute((current) => (
-          current && current.assignmentId === route.assignmentId && current.origin === route.origin
-            ? current
-            : {
-              assignmentId: route.assignmentId || '',
-              sectionKey: route.sectionKey || 'whole',
-              sectionLabel: null,
-              questionIndex: 0,
-              origin: route.origin || 'assignments',
-            }
-        ));
-        // Back or Forward onto a Recovery's entry opens it again, where the
-        // page's panel still offers it (mode null: the panel decides, below
-        // the summary); onto the page itself, the Recovery closes (NV14).
-        setRecoverySession((current) => {
-          if (!route.recoverySection) return null;
-          if (current?.assignmentId === route.assignmentId && current.section === route.recoverySection) return current;
-          return { assignmentId: route.assignmentId, section: route.recoverySection, mode: null };
-        });
-        setActiveView('assignmentResult');
-        return;
-      }
-
-      setActiveView('dashboard');
-      setAssignmentResultRoute(null);
-      setActiveClassroomSectionKey(null);
-      setActiveAssignmentId(null);
-      // Back onto a Test Cycle restores that test and its Back (NAV-9). An
-      // entry written before it carried the test falls back to the address
-      // (/test-cycle/<id>); with neither, Assignments rather than a blank card.
-      if (route.dashboardMode === 'testCycle') {
-        const fromAddress = parseAppPath(window.location.pathname)?.extras?.testCycleAssignmentId || null;
-        const testCycleId = route.testCycleAssignmentId || fromAddress;
-        if (!testCycleId) {
-          setActiveTestCycleAssignmentId(null);
-          setStudentDashboardMode('assignmentsCenter');
-          return;
-        }
-        setActiveTestCycleAssignmentId(testCycleId);
-        setActiveTestCycleOrigin(normalizeOrigin(NAV_LEVEL.TEST_CYCLE, route.origin));
-      } else {
-        setActiveTestCycleAssignmentId(null);
-      }
-      setStudentDashboardMode(route.dashboardMode || 'assignments');
-      if (route.dashboardMode !== 'mathPath') setPathLaunchTeks(null);
-    };
-
-    window.addEventListener('popstate', restoreFromBrowserHistory);
-    return () => window.removeEventListener('popstate', restoreFromBrowserHistory);
-  }, [user?.role]);
+  const [studentBrowserRoute, studentQuestionEntriesFor] = useStudentBrowserHistory(
+    toastInfo, user, hasPracticePassFor, studentRequiredFor, urlArrival, assignmentResultRoute,
+    setAssignmentResultRoute, activeClassroomSectionKey, setActiveClassroomSectionKey, activeView, setActiveView,
+    assignments, assignmentsRef, setPathLaunchTeks, activeAssignmentId, setActiveAssignmentId, currentQuestionIndex,
+    setCurrentQuestionIndex, recoverySession, setRecoverySession, setStudentDashboardMode, studentDashboardMode,
+    activeTestCycleAssignmentId, setActiveTestCycleAssignmentId, activeTestCycleOrigin, setActiveTestCycleOrigin,
+    studentBrowserHistoryReadyRef, studentBrowserRouteRef, studentBrowserUrlRef, historyAccountRef,
+  );
 
   const { liveChallengeInvite } = useLiveChallengeInvite({ user });
   const [assignmentSearch, setAssignmentSearch] = useState('');
@@ -4236,435 +4019,6 @@ function App() {
     setTeacherWorksheetBusy, teacherMasteryProfilesByStudentId, teacherLearningProfiles,
   ) : NO_TEACHER_CONTROLS;
 
-  const startAssignment = (assignmentId, requestedQuestionIndex = 0, options = {}) => {
-    assignmentOpenSpanRef.current?.finish({ status: 'superseded' });
-    assignmentOpenSpanRef.current = startPerformanceSpan('assignment_open_ms', { flow: 'student_assignment' });
-    const assignmentData = assignments.find(
-      (assignment) => assignment.id === assignmentId,
-    );
-    /*
-     * A TEST CYCLE IS NEVER ENTERED DIRECTLY.
-     *
-     * Every path into an assignment comes through here — Home, the Assignments
-     * Center, the Grade Center's practice button, a Classroom launch. If any
-     * one of them could open the raw runtime on a Test Cycle, a student could
-     * reach Corrections content for a test they passed, or Review content
-     * during the secure Test. So the card is the only door, and the card asks
-     * the SERVER which stage is open.
-     *
-     * `cycleStage` is the card calling back in to open the instructional stage
-     * it was told to open, which is the one case that is not a redirect.
-     */
-    const cycleStage = String(options.cycleStage || '').trim();
-    if (isTestCycleAssignment(assignmentData) && !cycleStage) {
-      setActiveTestCycleAssignmentId(assignmentId);
-      // Where its Back goes (NAV-9): the screen that opened it.
-      setActiveTestCycleOrigin(normalizeOrigin(NAV_LEVEL.TEST_CYCLE, options.origin));
-      return openStudentDashboardMode('testCycle');
-    }
-    const assignmentQuestions = getStoredAssignmentQuestions(assignmentData);
-    if (!assignmentQuestions.length) return;
-    if (user?.role === 'student' && !assignmentIsForStudent(assignmentData, { classId: user.classId || null, classPeriod: user.classPeriod })) {
-      toastWarning('Not assigned to your class', 'This assignment is not assigned to your class period.');
-      return;
-    }
-    /*
-     * A START THAT CANNOT HAPPEN LANDS ON THE RESULT PAGE (NAV-4, NAV-10).
-     *
-     * Paused or archived by the teacher, an earlier lesson to finish first,
-     * not open yet, excused: the assignment's result page says so in its
-     * "what opens when" panel, where the student can read it for as long as
-     * they need — not in a toast that is gone in five seconds. Every path in
-     * comes through here: Home, Assignments, Grades, Ways to raise, a
-     * Classroom link, an address.
-     */
-    const resultOrigin = normalizeOrigin(NAV_LEVEL.ASSIGNMENT_RESULT, options.origin);
-    const landOnResult = (notice) => openStudentAssignmentResult(assignmentId, { origin: resultOrigin, notice });
-    const closedByTeacher = user?.role === 'student' ? teacherClosedState(assignmentData) : null;
-    if (closedByTeacher) {
-      landOnResult(describeOpenNotice({ kind: closedByTeacher }));
-      return;
-    }
-    const access = prerequisiteAccess({ assignment: assignmentData, classworkGradesByAssignment, nowValue: Date.now() });
-    // Waiting on the prerequisite says so; a quiz waiting only for its date
-    // (RT17) is told when it opens, below, like any scheduled work.
-    if (user?.role === 'student' && !access.open && access.reason === 'prerequisiteRequired') {
-      landOnResult(describeOpenNotice({
-        kind: OPEN_NOTICE.PREREQUISITE,
-        prerequisiteTitle: assignments.find((assignment) => assignment.id === access.prerequisiteId)?.title || '',
-        opensAtText: whenDateTimeText(assignmentData.releaseAt),
-      }));
-      return;
-    }
-    const lifecycle = getAssignmentLifecycle(assignmentData, Date.now(), {
-      studentId: user?.role === 'student' ? user.id : undefined,
-    });
-    if (lifecycle.isScheduled && access.reason !== 'prerequisiteMet') {
-      if (user?.role === 'student') {
-        landOnResult(describeOpenNotice({ kind: OPEN_NOTICE.NOT_OPEN_YET, opensAtText: whenDateTimeText(assignmentData.releaseAt) }));
-      } else {
-        toastInfo('Not open yet', `This assignment opens ${formatDateTime(assignmentData.releaseAt)}.`);
-      }
-      return;
-    }
-    // EXCUSED WORK IS NOT OPENED AS GRADED WORK. Home and Assignments leave
-    // it out; a typed address, a bookmark or a Classroom link lands on its
-    // result page instead. Voluntary practice and the result page's own
-    // Review/Practice buttons (returnToResult) are unchanged.
-    if (user?.role === 'student' && !cycleStage && !lifecycle.isPracticeOnly && !options?.returnToResult
-      && resolveStudentOverride({ assignment: assignmentData, studentId: user.id })?.excused === true) {
-      landOnResult(describeOpenNotice({ kind: OPEN_NOTICE.EXCUSED }));
-      return;
-    }
-
-    const currentContent = projectCurrentAssignmentContent(assignmentData);
-    const requestedSectionKey = String(options?.sectionKey || '').trim().toLowerCase();
-    const scopedSectionKey = ['warmup', 'classwork', 'practice', 'dol'].includes(requestedSectionKey)
-      ? requestedSectionKey
-      : null;
-
-    /*
-     * A GRANTED PRACTICE PASS EXCUSES PRACTICE FROM REQUIRED NAVIGATION.
-     *
-     * A Test Cycle assignment can never carry a Practice Pass (it is not
-     * eligible for one -- see classPointRewards.mjs), so `cycleStage` and
-     * `hasPracticePass` are mutually exclusive in practice; the `!cycleStage`
-     * guard just keeps that explicit. Explicitly asking to open Practice as
-     * required graded work is refused outright, never reopened as graded
-     * Practice -- voluntary post-deadline practice is a completely separate
-     * tracker this never touches.
-     */
-    const hasPracticePass = !cycleStage
-      && !lifecycle.isPracticeOnly
-      && hasPracticePassFor(assignmentId);
-    if (scopedSectionKey === 'practice' && hasPracticePass) {
-      toastInfo('Practice excused', 'Practice is already excused with your Practice Pass.');
-      return;
-    }
-
-    // A Test Cycle stage sees only its own questions. A granted Practice Pass
-    // removes Practice's own current-content questions the same way. Neither
-    // filter applies to Teacher Preview or an ordinary un-redeemed assignment,
-    // which keeps every existing assignment identical.
-    const stageEntries = cycleStage
-      ? currentContent.entries.filter((entry) => entry.logicalRole === cycleStage)
-      : hasPracticePass
-        ? currentContent.entries.filter((entry) => entry.logicalRole !== 'practice')
-        : currentContent.entries;
-    // A reduced-item-count accommodation leaves this student fewer required
-    // items (never in a Test Cycle stage, a preview or voluntary practice).
-    const studentRequired = !cycleStage && user?.role === 'student' && !lifecycle.isPracticeOnly
-      ? new Set(studentRequiredFor(assignmentData, { hasPracticePass }).indices)
-      : null;
-    const includedQuestionIndices = stageEntries
-      .map((entry) => entry.storageIndex)
-      .filter((index) => !studentRequired || studentRequired.has(index));
-    if (!includedQuestionIndices.length) {
-      toastWarning('Nothing to show yet', 'This assignment has no questions for you right now.');
-      return;
-    }
-    const requested = Number(requestedQuestionIndex) || 0;
-    let safeQuestionIndex = resolveCurrentContentStorageIndex(assignmentData, requested)
-      ?? includedQuestionIndices[0];
-    // A requested index resolved against the FULL projection could still land
-    // on a waived Practice question (e.g. resuming exactly where a Classroom
-    // link or the Grade Center last left off) even when no section was
-    // explicitly requested. Never open one for a real student who holds the pass.
-    if ((hasPracticePass || studentRequired) && !includedQuestionIndices.includes(safeQuestionIndex)) {
-      safeQuestionIndex = includedQuestionIndices[0];
-    }
-
-    // Enter usable work, not merely the first stored question. Warm-Up and DOL
-    // have time windows of their own; Classwork and Practice use their section
-    // access policy. This changes navigation only — it never opens a locked
-    // section or rewrites its schedule. An explicit Classroom section launch is
-    // constrained to that section rather than silently jumping elsewhere.
-    if (user?.role === 'student' && !lifecycle.isPracticeOnly) {
-      const entryNow = Date.now();
-      const studentContext = { classId: user.classId || null, classPeriod: user.classPeriod };
-      const roleIsActionable = (role) => {
-        // The same predicate as Home's Today rule (studentWorkState.js): a
-        // Warm-Up/DOL with its class window switched off is open like
-        // Classwork; otherwise only an active window is.
-        if (role === 'warmup') {
-          return timedSectionWorkableNow(getWarmupState({ assignment: assignmentData, schedule: classSchedule, ...studentContext, nowValue: entryNow }));
-        }
-        if (role === 'dol') {
-          return timedSectionWorkableNow(getDOLState({ assignment: assignmentData, schedule: classSchedule, ...studentContext, nowValue: entryNow }));
-        }
-        if (role === 'classwork' || role === 'practice') {
-          return getSectionAccessState({
-            assignment: assignmentData,
-            activityRole: role,
-            ...studentContext,
-            studentId: user.id,
-            nowValue: entryNow,
-          }).isOpen;
-        }
-        return true;
-      };
-      // A question's own address keeps that question only while its section
-      // is open now; otherwise it resolves exactly as Continue does (the first
-      // unfinished question open now), never onto finished work elsewhere.
-      const requestedRole = stageEntries.find((entry) => entry.storageIndex === safeQuestionIndex)?.logicalRole || null;
-      const keepRequested = Boolean(options?.returnToResult)
-        || Boolean(options?.keepRequestedQuestion && roleIsActionable(requestedRole));
-      const actionableIndex = resolveStudentAssignmentEntry({
-        entries: stageEntries,
-        includedQuestionIndices,
-        requestedQuestionIndex: safeQuestionIndex,
-        roleIsActionable,
-        restrictToRole: scopedSectionKey,
-        // Start/Continue lands on the first unfinished question open now;
-        // Review My Work (returnToResult) keeps the question it asked for, and
-        // so does a question's own address (a reload, a link): the student
-        // returns to the question they were on, if its section is open now.
-        // Finished means what Home means: correct, or out of tries (a
-        // teacher-granted extra DOL try reopens an expired DOL question).
-        isFinished: keepRequested
-          ? null
-          : (index) => questionIsTerminal({
-            record: tracker?.[assignmentId]?.[index],
-            role: stageEntries.find((entry) => entry.storageIndex === index)?.logicalRole || null,
-            question: assignmentQuestions[index],
-            assignment: assignmentData,
-            classId: user.classId || null,
-            studentId: user.id,
-            // Its tries counted on the question it dealt, as the list counts them.
-            ...terminalCountingFor(assignmentData, index, tracker?.[assignmentId]?.[index]),
-          }),
-      });
-      if (actionableIndex === null && options?.returnToResult) {
-        // Asked from the result page: going "back" to the same page would do
-        // nothing visible, so say why instead.
-        toastInfo('Nothing to open right now', 'None of this assignment is open to you at the moment. The result page shows what opens when.');
-        return;
-      }
-      if (actionableIndex === null && user?.role === 'student' && !scopedSectionKey) {
-        // No dead end: with nothing open this minute, show the assignment's
-        // result page — its sections, what opens when, and what to do next.
-        openStudentAssignmentResult(assignmentId, { origin: resultOrigin });
-        return;
-      }
-      if (actionableIndex === null) {
-        toastInfo(
-          scopedSectionKey ? 'This section is not open right now' : 'Nothing open right now',
-          scopedSectionKey
-            ? 'This section is not open now. It may open later in class, or it has closed.'
-            : 'Nothing in this assignment is open for you to work on right now.',
-        );
-        return;
-      }
-      if (options?.keepRequestedQuestion && actionableIndex !== safeQuestionIndex) {
-        // A question's address names a question whose section is not open now.
-        // Said once the workspace is on screen, not over Home (review S2).
-        showWhenWorkspaceOpens({ title: 'That question is not open right now', body: 'It opened where you can work now.' });
-      }
-      // A Classroom post for a section that is not open yet opens where the
-      // student can work now; say why, in the navigator's words (NAV-22).
-      const launchedRole = String(options?.launchedSectionKey || '').trim().toLowerCase();
-      if (DETOUR_SECTION_LABEL[launchedRole] && !roleIsActionable(launchedRole)) {
-        const detour = describeSectionDetour({
-          requestedRole: launchedRole,
-          landingRole: stageEntries.find((entry) => entry.storageIndex === actionableIndex)?.logicalRole || null,
-          access: describeSectionAccess({
-            role: launchedRole,
-            label: DETOUR_SECTION_LABEL[launchedRole],
-            timedDol: launchedRole === 'dol',
-            lifecycle,
-            warmupState: getWarmupState({ assignment: assignmentData, schedule: classSchedule, ...studentContext, nowValue: entryNow }),
-            dolState: getDOLState({ assignment: assignmentData, schedule: classSchedule, ...studentContext, nowValue: entryNow }),
-            manualState: getSectionAccessState({ assignment: assignmentData, activityRole: launchedRole, ...studentContext, studentId: user.id, nowValue: entryNow }),
-            nowValue: entryNow,
-          }),
-        });
-        if (detour) showWhenWorkspaceOpens(detour);
-      }
-      safeQuestionIndex = actionableIndex;
-    }
-    setActiveClassroomSectionKey(scopedSectionKey);
-    // When Practice/Review was launched from Assignment Result, preserve that
-    // route so the visible in-app Back control returns to the result instead of
-    // skipping straight to the dashboard. Grade Center launches do not set this
-    // flag and keep their existing Grades -> Practice -> Grades behavior.
-    if (!options?.returnToResult) setAssignmentResultRoute(null);
-    setActiveAssignmentId(assignmentId);
-    setCurrentQuestionIndex(safeQuestionIndex);
-    setAssignmentNavigationCollapsed(true);
-    setAssignmentOverviewExpanded(false);
-    lastActivityRef.current = Date.now();
-    pendingAssignmentSecondsRef.current = 0;
-    liveSessionActiveSecondsRef.current = { assignmentId, seconds: 0 };
-    liveSessionAttemptBaselineRef.current = {
-      assignmentId,
-      totalAttemptsByIndex: Object.fromEntries(
-        includedQuestionIndices.map((index) => [
-          index,
-          Number(normalizeQuestionRecord(tracker?.[assignmentId]?.[index]).totalAttempts) || 0,
-        ]),
-      ),
-    };
-    liveFocusLossRef.current = { assignmentId, count: 0, hiddenAt: null };
-    setIsIdle(false);
-
-    if (lifecycle.isPracticeOnly) {
-      setPracticeTracker((current) => ({
-        ...current,
-        [assignmentId]: current[assignmentId] || createPracticeAssignmentTracker(
-          assignmentQuestions,
-          tracker[assignmentId] || {},
-        ),
-      }));
-      pendingAssignmentSecondsRef.current = 0;
-    } else if (!tracker[assignmentId]) {
-      setTracker((current) => ({
-        ...current,
-        [assignmentId]: createEmptyAssignmentTracker(assignmentQuestions),
-      }));
-    }
-
-    setActiveView('assignment');
-    // The workspace is opening (a caller that has something to say once it is
-    // on screen waits for this: the arrival notice, below).
-    return true;
-  };
-
-  /*
-   * STUDENT NAVIGATION.
-   *
-   * Five destinations plus the assignment result, each one browser entry, so
-   * Back walks Practice -> Result -> Assignments (or Grades) -> Home instead of
-   * leaving MathMaster. `studentBrowserRoute` turns these state changes into
-   * history entries; these helpers only have to leave the state unambiguous.
-   */
-  // Every student destination leaves the app in the same shape: no result
-  // route, no active assignment, no Path launch left over from somewhere else.
-  // Written once so a new destination cannot forget one of them.
-  const openStudentDashboardMode = (mode) => {
-    setAssignmentResultRoute(null);
-    setActiveClassroomSectionKey(null);
-    setActiveAssignmentId(null);
-    if (mode !== 'mathPath') setPathLaunchTeks(null);
-    setPathLaunchTab(null);
-    setPathLaunchFramework(null);
-    if (mode !== 'testCycle') setActiveTestCycleAssignmentId(null);
-    setStudentDashboardMode(mode);
-    setActiveView('dashboard');
-  };
-
-  // "Practise this skill" on a released test review or the Test Cycle card:
-  // a course standard opens Path practice on it; a practice test's exam
-  // domain starts that exam's practice on the CCMR tab (practiceSkillLaunch).
-  const practiseSkillFromResults = (destination) => {
-    const launch = practiceSkillLaunch(destination);
-    if (!launch) return;
-    openStudentDashboardMode('mathPath');
-    setPathLaunchTeks(launch.teksCode);
-    setPathLaunchTab(launch.tab);
-    setPathLaunchFramework(launch.framework ? { teksCode: launch.teksCode, framework: launch.framework } : null);
-  };
-
-  const openStudentGradeCenter = () => openStudentDashboardMode('grades');
-  const openStudentAssignmentsCenter = () => openStudentDashboardMode('assignmentsCenter');
-
-  /**
-   * The one place a student destination turns into app state.
-   *
-   * StudentGlobalNav hands back a destination name; everything else about
-   * getting there is here, so Home, Assignments, Grades and My Math Path cannot
-   * disagree about what "Grades" means.
-   */
-  const navigateStudent = (destination) => {
-    if (destination === STUDENT_DESTINATION.ASSIGNMENTS) return openStudentAssignmentsCenter();
-    if (destination === STUDENT_DESTINATION.GRADES) return openStudentGradeCenter();
-    if (destination === STUDENT_DESTINATION.REWARDS) return openStudentDashboardMode('rewards');
-    if (destination === STUDENT_DESTINATION.MATH_PATH) return openStudentDashboardMode('mathPath');
-    if (destination === STUDENT_DESTINATION.SECURE_EXAMS) return openStudentDashboardMode('secureExams');
-    return openStudentDashboardMode('assignments');
-  };
-
-  // A navigation level a Back control returns to (NAV-9).
-  const openStudentOriginLevel = (level) => {
-    if (level === NAV_LEVEL.HOME) return openStudentDashboardMode('assignments');
-    if (level === NAV_LEVEL.GRADES) return openStudentGradeCenter();
-    if (level === NAV_LEVEL.SECURE_EXAMS) return openStudentDashboardMode('secureExams');
-    return openStudentAssignmentsCenter();
-  };
-
-  const openStudentAssignmentResult = (assignmentId, options = {}) => {
-    const id = String(assignmentId || '').trim();
-    if (!id) return;
-    const sectionKey = String(options.sectionKey || '').trim().toLowerCase() || 'whole';
-    setAssignmentResultRoute({
-      assignmentId: id,
-      sectionKey,
-      sectionLabel: options.sectionLabel || null,
-      questionIndex: Number(options.questionIndex) || 0,
-      // Which screen sent the student here (Home, Assignments or Grades), so
-      // the visible Back control names and returns to it rather than guessing.
-      // Browser Back already does the right thing; this keeps the on-screen
-      // control agreeing with it (NAV-9).
-      origin: normalizeOrigin(NAV_LEVEL.ASSIGNMENT_RESULT, options.origin),
-      // Why a start landed here instead of opening (studentOpenGate.js), for
-      // the page's "what opens when" panel. Null for an ordinary visit.
-      notice: options.notice || null,
-    });
-    setActiveClassroomSectionKey(sectionKey === 'whole' ? null : sectionKey);
-    setActiveAssignmentId(id);
-    // A reload of a Recovery's entry (useUrlArrival) opens it again, where
-    // the page's panel still offers it (NV14; mode null: the panel decides).
-    if (options.recoverySection) setRecoverySession({ assignmentId: id, section: options.recoverySection, mode: null });
-    setActiveView('assignmentResult');
-  };
-
-  /*
-   * JOINING AND LEAVING THE LIVE CHALLENGE (NAV-25). Joining keeps the place
-   * the student is on — the question they were working, a result page, a
-   * screen — and the game's exit returns there instead of to Home.
-   */
-  const joinLiveChallenge = () => {
-    setLiveChallengeReturn(liveChallengeReturnPlace({
-      activeView, activeAssignmentId, currentQuestionIndex, studentDashboardMode, assignmentResultRoute,
-    }));
-    if (activeView === 'assignment' && activeAssignmentId) flushAssignmentActivity(activeAssignmentId).catch(() => {});
-    openStudentDashboardMode('liveChallenge');
-  };
-  const leaveLiveChallenge = () => {
-    const place = liveChallengeReturn;
-    setLiveChallengeReturn(null);
-    if (place?.kind === 'assignment' && assignments.some((assignment) => assignment.id === place.assignmentId)) {
-      // The question they were on, if its section is still open; otherwise
-      // where they can work now (and a start that cannot open says why).
-      startAssignment(place.assignmentId, place.questionIndex, { keepRequestedQuestion: true });
-      return;
-    }
-    if (place?.kind === 'result' && assignments.some((assignment) => assignment.id === place.assignmentId)) {
-      openStudentAssignmentResult(place.assignmentId, { sectionKey: place.sectionKey, origin: place.origin });
-      return;
-    }
-    openStudentDashboardMode(place?.kind === 'screen' ? place.mode : 'assignments');
-  };
-
-  /*
-   * A QUESTION'S ADDRESS (app/routes/questionAddress.js).
-   *
-   * The student's questions in the order and numbering the workspace uses:
-   * less the items a reduced-item-count accommodation omits (never in
-   * voluntary practice), exactly as renderAssignmentWorkspace builds
-   * `projectedEntries`. The address bar, Home's Resume and the workspace
-   * header therefore name the same "Classwork Question 2".
-   */
-  const studentQuestionEntriesFor = (assignmentData) => {
-    if (!assignmentData) return [];
-    const lifecycle = getAssignmentLifecycle(assignmentData, Date.now(), {
-      studentId: user?.role === 'student' ? user.id : undefined,
-    });
-    const required = user?.role === 'student' && !lifecycle.isPracticeOnly
-      ? studentRequiredFor(assignmentData, { hasPracticePass: hasPracticePassFor(assignmentData.id) })
-      : null;
-    return studentQuestionEntries(assignmentData, { omittedIndices: required?.omitted || [] });
-  };
-
   /*
    * OPENING THE ADDRESS THE PAGE ARRIVED AT.
    *
@@ -4686,388 +4040,24 @@ function App() {
     if (pathLaunchFramework && (studentDashboardMode !== 'mathPath' || activeView !== 'dashboard')) setPathLaunchFramework(null);
   }, [pathLaunchFramework, studentDashboardMode, activeView]);
 
-  // Starting a Recovery is the server's decision: it re-checks eligibility,
-  // builds the fresh questions and pins them before anything is shown.
-  const startStudentRecovery = async (assignmentId, section) => {
-    if (!assignmentId || recoveryBusySection) return;
-    setRecoveryBusySection(section);
-    try {
-      const result = await startSectionRecovery({ assignmentId, section });
-      if (result?.record) mergeSectionRecoveryRecord(assignmentId, section, result.record);
-      setRecoverySession({ assignmentId, section, mode: 'assessment' });
-    } catch (error) {
-      const code = recoveryErrorCode(error);
-      toastWarning(
-        'Recovery not started',
-        code === 'recovery-locked'
-          ? 'More Practice is needed before this Recovery unlocks.'
-          : code === 'recovery-window-ended'
-            ? 'The final submission date has passed, so Recovery is closed.'
-            : 'A fresh Recovery could not be prepared right now. Try again in a moment.',
-      );
-    } finally {
-      setRecoveryBusySection(null);
-    }
-  };
-
-  // One door into a Recovery from anywhere a student finds it — Home, the
-  // Assignments Center, or the assignment's own header. It lands on the
-  // assignment's Results route, where the panel and the runner already live,
-  // and opens the practice, the server-built second try, or the one in
-  // progress. Leaving an open assignment saves its activity first, as Back does.
-  const openStudentRecovery = (opportunity) => {
-    const assignmentId = opportunity?.assignmentId;
-    const section = opportunity?.section;
-    if (!assignmentId || !section) return;
-    if (activeView === 'assignment' && activeAssignmentId) flushAssignmentActivity(activeAssignmentId).catch(() => {});
-    openStudentAssignmentResult(assignmentId, { origin: 'assignments' });
-    if (opportunity.action === 'start') {
-      startStudentRecovery(assignmentId, section);
-      return;
-    }
-    setRecoverySession({ assignmentId, section, mode: opportunity.action === 'continue' ? 'assessment' : 'practice' });
-  };
-
-  const startTeacherPreview = (assignmentId, { lessonRuntime = false } = {}) => {
-    const assignmentData = assignments.find(
-      (assignment) => assignment.id === assignmentId,
-    );
-    // A Test Cycle is not a lesson. "View as Student" opens the student's own
-    // card at every stage and the real secure Test items; the lesson runtime is
-    // used only when that preview asks for it, to play the Review.
-    if (!lessonRuntime && isTestCycleAssignment(assignmentData)) {
-      setTestCyclePreviewAssignment(assignmentData);
-      return;
-    }
-    const assignmentQuestions = getStoredAssignmentQuestions(assignmentData);
-    if (!assignmentQuestions.length) return;
-
-    // Preview trackers were already ephemeral, but question/tool drafts live in
-    // localStorage. Clear that preview-only draft family too so "View as
-    // Student" really begins at a blank first attempt every time.
-    removeAssignmentDrafts({ studentId: 'teacher-preview', assignmentId });
-    forgetAssignmentToolDrafts({ studentId: 'teacher-preview', assignmentId });
-    setPreviewSessionId((current) => current + 1);
-    setActiveAssignmentId(assignmentId);
-    setCurrentQuestionIndex(getCurrentContentQuestionIndices(assignmentData)[0] ?? 0);
-    setAssignmentNavigationCollapsed(true);
-    setAssignmentOverviewExpanded(false);
-    setPreviewTracker(createEmptyAssignmentTracker(assignmentQuestions));
-    setPreviewScratchpads(EMPTY_SCRATCHPAD_CACHE);
-    previewTrackerAssignmentIdRef.current = assignmentId;
-    setActiveView('teacherPreview');
-  };
-
-  /*
-   * LIVE TEACHING (Classroom Live, Phase 2).
-   *
-   * Teaching happens from the SAME preview runtime as "View as Student" — no
-   * second renderer, no fake teacher-only responses, same preview isolation.
-   * The only addition is a small, separate Live Teaching session record of
-   * where the teacher's exemplar actually is, so the room's pace reference
-   * can be the teacher's real position instead of a disconnected manual
-   * counter. See platform/teacher/liveTeachingSession.js.
-   */
-  const teachAssignmentLive = async (assignmentId, { forceRestart = false, classId: requestedClassId = null } = {}) => {
-    // The class the Live Classroom panel was showing when the teacher chose the
-    // lesson. Home can show the class in session while App's activeClass is a
-    // different one; teaching must never be filed under the wrong class.
-    const classId = requestedClassId || activeClass?.classId || null;
-    if (!classId || !assignmentId) return;
-    const assignmentData = assignments.find((assignment) => assignment.id === assignmentId);
-    if (!assignmentData) return;
-    // Only live work for THIS class can be taught (assignmentAvailability.js) —
-    // the same rule that decides what the panel offers.
-    if (!walkthroughEligibility({ assignment: assignmentData, classId, nowValue: Date.now(), gradingPeriodSettings }).eligible) return;
-    const startIndex = getCurrentContentQuestionIndices(assignmentData)[0] ?? 0;
-    const startRole = resolveQuestionActivityRole({
-      question: getStoredAssignmentQuestions(assignmentData)[startIndex],
-      assignment: assignmentData,
-    });
-    const startFresh = () => {
-      // Reuse the exact isolated student-preview runtime. This happens locally;
-      // a slow/failed Firestore lookup must never block a teacher from teaching.
-      // Live Teaching walks the lesson runtime, a Test Cycle's Review included;
-      // the Test Cycle student preview is a different screen.
-      startTeacherPreview(assignmentId, { lessonRuntime: true });
-      setLiveTeachingSession(startLiveTeachingSession({
-        classId,
-        assignmentId,
-        assignment: assignmentData,
-        storageQuestionIndex: startIndex,
-        activityRole: startRole,
-        nowValue: Date.now(),
-        teacherUid: user?.id || null,
-        teacherEmail: user?.email || null,
-        suggestedWorkSeconds: getStoredAssignmentQuestions(assignmentData)[startIndex]?.suggestedWorkSeconds,
-      }));
-    };
-
-    if (forceRestart) {
-      startFresh();
-      return;
-    }
-
-    const sessionId = walkthroughSessionId({ teacherUid: user?.id || user?.email, classId, assignmentId });
-    try {
-      // Resume is a convenience, never a launch dependency. Give Firestore a
-      // very small budget to return an already-active session; after that we
-      // start locally so classroom instruction is not held hostage by network.
-      const lookup = await Promise.race([
-        getDoc(doc(db, 'walkthroughSessions', sessionId)),
-        new Promise((resolve) => window.setTimeout(() => resolve(null), 180)),
-      ]);
-      const saved = lookup?.exists() ? lookup.data() : null;
-      const savedCheck = saved ? validatePersistedWalkthroughSession({
-        session: saved,
-        classId,
-        assignmentId,
-        teacherUid: user?.id || null,
-        assignments,
-        nowValue: Date.now(),
-        gradingPeriodSettings,
-      }) : null;
-      if (saved?.active && !savedCheck?.valid) {
-        // A saved session this class can no longer use is retired, not
-        // restored; the teacher gets a fresh start below.
-        setDoc(doc(db, 'walkthroughSessions', sessionId), { ...saved, active: false, updatedAt: Date.now() })
-          .catch((error) => console.warn('Could not retire a stale Walkthrough session:', error));
-      }
-      if (savedCheck?.valid) {
-        const resumed = saved;
-        walkthroughWriteRef.current = Number(resumed.updatedAt) || 0;
-        setLiveTeachingSession(resumed);
-        setActiveAssignmentId(assignmentId);
-        setCurrentQuestionIndex(Math.max(0, Number(resumed.storageQuestionIndex) || 0));
-        setAssignmentNavigationCollapsed(true);
-        setAssignmentOverviewExpanded(false);
-        setActiveView('teacherPreview');
-        return;
-      }
-    } catch (error) {
-      console.warn('Walkthrough resume lookup unavailable; starting fresh:', error);
-    }
-
-    startFresh();
-  };
-
-  // Re-enters the exemplar at the teacher's last real position without
-  // resetting previewTracker/previewScratchpads/previewSessionId, which are
-  // untouched by simply switching activeView away and back.
-  const resumeLiveTeaching = () => {
-    if (!liveTeachingSession?.active || !liveTeachingSession.assignmentId) return;
-    const assignmentData = assignments.find((assignment) => assignment.id === liveTeachingSession.assignmentId);
-    if (!assignmentData) return;
-    setActiveAssignmentId(liveTeachingSession.assignmentId);
-    setCurrentQuestionIndex(liveTeachingSession.storageQuestionIndex);
-    setAssignmentNavigationCollapsed(true);
-    setAssignmentOverviewExpanded(false);
-    setActiveView('teacherPreview');
-  };
-
-  /*
-   * BROWSER BACK AND FORWARD FOR THE TEACHER.
-   *
-   * The teacher workspace is state-driven, like the student side, so without
-   * History API entries the browser treats every teacher screen as one page and
-   * a single Back press leaves MathMaster — the classic way to lose the room
-   * mid-lesson. Each screen (a sidebar tab, an Administration tab, the "View as
-   * Student" / Live Teaching preview) and each panel opened over a screen (an
-   * assignment's hub, a student's drawer, case review, support report, the Test
-   * Cycle preview) gets its own entry. The rules live in
-   * platform/teacher/teacherBrowserHistory.js.
-   *
-   * The arrival entry is marked as where the teacher started. Back from there
-   * still leaves the site — that is the browser's, not MathMaster's, to take.
-   */
-  const teacherBrowserRoute = useMemo(() => {
-    if (user?.role !== 'teacher') return null;
-    if (activeView === 'teacherPreview') {
-      return { surface: 'preview', assignmentId: activeAssignmentId || '', questionIndex: currentQuestionIndex };
-    }
-    const administrationVisible = teacherWorkspaceMode === 'administration'
-      && (user.isRootAdmin === true || isRootAdminEmail(user.email));
-    if (administrationVisible) return { surface: 'administration', adminTab };
-    return {
-      surface: 'workspace',
-      tab: teacherTab,
-      panels: {
-        hubAssignmentId: assignmentHubTarget?.assignmentId,
-        hubClassId: assignmentHubTarget?.classId,
-        studentId: profileDrawerStudentId,
-        caseReviewStudentId,
-        supportReportStudentId,
-        testCyclePreviewAssignmentId: testCyclePreviewAssignment?.id,
-      },
-    };
-  }, [
-    user?.role, user?.isRootAdmin, user?.email, activeView, activeAssignmentId, currentQuestionIndex,
-    teacherWorkspaceMode, adminTab, teacherTab, assignmentHubTarget, profileDrawerStudentId,
-    caseReviewStudentId, supportReportStudentId, testCyclePreviewAssignment?.id,
-  ]);
-
-  useEffect(() => {
-    if (!teacherBrowserRoute) {
-      teacherBrowserHistoryReadyRef.current = false;
-      return;
-    }
-    // The address the page opened at has not been opened yet (urlArrival).
-    if (urlArrival) return;
-    // The screen's address: the tab and an open assignment monitor only —
-    // never a student's drawer, case review or report (app/routes/appUrl.js).
-    const url = teacherUrlFor(teacherBrowserRoute);
-    // The entry the teacher arrived on (sign-in, a reload, a bookmark) becomes
-    // this screen. Later screens are pushed after it.
-    if (!teacherBrowserHistoryReadyRef.current) {
-      teacherBrowserHistoryReadyRef.current = true;
-      writeTeacherRouteState(teacherBrowserRoute, {
-        replace: true, documentId: TEACHER_HISTORY_DOCUMENT_ID, url, owner: user?.uid,
-        fresh: readRouteOwner(window.history.state) !== user?.uid,
-      });
-      return;
-    }
-
-    // A step back is in flight: the browser is about to land on the entry this
-    // screen already matches, and its popstate clears the mark.
-    if (Date.now() - teacherHistoryStepBackAtRef.current < 1000) return;
-
-    const plan = planTeacherHistoryWrite({
-      entry: readTeacherHistoryEntry(window.history.state),
-      target: teacherBrowserRoute,
-      documentId: TEACHER_HISTORY_DOCUMENT_ID,
-    });
-    if (plan.action === 'back') {
-      teacherHistoryStepBackAtRef.current = Date.now();
-      window.history.back();
-      return;
-    }
-    if (plan.action === 'replace' || plan.action === 'push') {
-      writeTeacherRouteState(teacherBrowserRoute, {
-        replace: plan.action === 'replace',
-        fromKey: plan.fromKey,
-        documentId: plan.documentId,
-        url,
-        owner: user?.uid,
-      });
-    }
-  }, [teacherBrowserRoute, urlArrival]);
-
-  // A dialog that can hold work or a decision. Back never acts underneath one:
-  // the page it would reveal is not the page the dialog belongs to, and an
-  // editor's unsaved changes are not something Back should be able to discard.
-  // These render only over the teacher workspace, so only there do they block.
-  const teacherDialogOpen = teacherBrowserRoute?.surface === 'workspace' && Boolean(
-    questionEditorAssignment || contentUpgradeRequest || assignmentPreflight || deleteDialog
-    || classroomSyncProposal || teacherWorksheetDialog || exportJsonAssignment
-    || teacherScratchpadDialog || responseInspectorTarget,
+  const [startTeacherPreview, teachAssignmentLive, resumeLiveTeaching] = createTeacherPreviewNavigation(
+    user, setActiveView, activeClass, liveTeachingSession, setLiveTeachingSession, walkthroughWriteRef, assignments,
+    setActiveAssignmentId, setPreviewTracker, setPreviewScratchpads, setPreviewSessionId, setCurrentQuestionIndex,
+    setAssignmentNavigationCollapsed, setAssignmentOverviewExpanded, gradingPeriodSettings,
+    previewTrackerAssignmentIdRef, setTestCyclePreviewAssignment,
   );
 
-  // Re-assigned every render so the listener below always restores with the
-  // newest assignments and Live Teaching session, without re-subscribing.
-  teacherHistoryRestoreRef.current = (event) => {
-    const ownStepBack = Date.now() - teacherHistoryStepBackAtRef.current < 1000;
-    teacherHistoryStepBackAtRef.current = 0;
-    const entry = readTeacherHistoryEntry(event.state);
-    if (!entry) return;
-    const route = entry.route;
-    // An entry another account wrote (platform/student/browserHistory.js):
-    // never restored; this screen's entry takes its place.
-    if (readRouteOwner(event.state) !== user?.uid) {
-      if (teacherBrowserRoute) {
-        writeTeacherRouteState(teacherBrowserRoute, {
-          replace: true, documentId: TEACHER_HISTORY_DOCUMENT_ID, url: teacherUrlFor(teacherBrowserRoute), owner: user?.uid, fresh: true,
-        });
-      }
-      return;
-    }
-
-    // The popstate from closing a panel: the screen already shows this entry
-    // (that is why App stepped back to it). Nothing to restore — and a dialog
-    // opened by the same click (the hub's "Edit questions") must not read it
-    // as the teacher pressing Back.
-    if (ownStepBack) {
-      if (teacherBrowserRoute && teacherRouteSignature(route) !== teacherRouteSignature(teacherBrowserRoute)) {
-        writeTeacherRouteState(teacherBrowserRoute, { replace: true, fromKey: entry.fromKey, documentId: entry.documentId, url: teacherUrlFor(teacherBrowserRoute), owner: user?.uid });
-      }
-      return;
-    }
-
-    if (teacherDialogOpen) {
-      // The browser has already moved; put this screen's entry back and stay.
-      if (teacherBrowserRoute) {
-        writeTeacherRouteState(teacherBrowserRoute, { fromKey: teacherRouteKey(route), documentId: TEACHER_HISTORY_DOCUMENT_ID, url: teacherUrlFor(teacherBrowserRoute), owner: user?.uid });
-      }
-      toastInfo('Close the open window first', 'Save or close what is open, then use Back. Nothing was changed.');
-      return;
-    }
-
-    setQuickSearchOpen(false);
-
-    if (route.surface === 'preview') {
-      const assignmentData = assignments.find((assignment) => String(assignment.id) === route.assignmentId);
-      const isLiveLesson = liveTeachingSession?.active && String(liveTeachingSession.assignmentId) === route.assignmentId;
-      if (assignmentData && isLiveLesson) {
-        resumeLiveTeaching();
-        return;
-      }
-      if (assignmentData && previewTrackerAssignmentIdRef.current === route.assignmentId) {
-        // The preview's in-memory work is still this assignment's: step back
-        // into it where the teacher left it.
-        setActiveAssignmentId(assignmentData.id);
-        setCurrentQuestionIndex(route.questionIndex);
-        setActiveView('teacherPreview');
-        return;
-      }
-      if (assignmentData && getStoredAssignmentQuestions(assignmentData).length) {
-        // Preview is in-memory and always starts blank; another preview has
-        // run since, so this one starts again from the top.
-        startTeacherPreview(assignmentData.id, { lessonRuntime: true });
-        return;
-      }
-      // The assignment is gone. Stay on the current screen and make this entry
-      // say so, rather than leave Back pointing at a preview that cannot open.
-      if (teacherBrowserRoute) {
-        writeTeacherRouteState(teacherBrowserRoute, { replace: true, fromKey: entry.fromKey, documentId: entry.documentId, url: teacherUrlFor(teacherBrowserRoute), owner: user?.uid });
-      }
-      return;
-    }
-
-    // Leaving the preview by Back is the same as its own exit button: the
-    // Live Teaching session stays running, with Resume on Live Classroom.
-    if (activeView === 'teacherPreview') setActiveAssignmentId(null);
-    setActiveView('dashboard');
-
-    if (route.surface === 'administration') {
-      setTeacherWorkspaceMode('administration');
-      setAdminTab(route.adminTab);
-      return;
-    }
-
-    setTeacherWorkspaceMode('teacher');
-    if (route.tab !== teacherTab) {
-      setTeacherTab(route.tab);
-      // The same one-shot hand-offs the sidebar clears on a tab change. The
-      // Gradebook's class and assignment are left alone: Back into Grades
-      // should show the assignment the teacher was reading.
-      setHomeNavigationPeriod(null);
-      setLiveFocus(null);
-    }
-    const { panels } = route;
-    setAssignmentHubTarget((current) => {
-      if (!panels.hubAssignmentId) return null;
-      return current?.assignmentId === panels.hubAssignmentId
-        ? current
-        : { assignmentId: panels.hubAssignmentId, classId: panels.hubClassId || null };
-    });
-    setProfileDrawerStudentId(panels.studentId || null);
-    setCaseReviewStudentId(panels.caseReviewStudentId || null);
-    setSupportReportStudentId(panels.supportReportStudentId || null);
-    setTestCyclePreviewAssignment((current) => {
-      if (!panels.testCyclePreviewAssignmentId) return null;
-      if (current?.id === panels.testCyclePreviewAssignmentId) return current;
-      return assignments.find((assignment) => String(assignment.id) === panels.testCyclePreviewAssignmentId) || null;
-    });
-  };
+  useTeacherBrowserHistory(
+    toastInfo, user, urlArrival, activeView, setActiveView, setTeacherTab, teacherTab, setTeacherWorkspaceMode,
+    teacherWorkspaceMode, adminTab, setAdminTab, setHomeNavigationPeriod, liveTeachingSession, assignments,
+    profileDrawerStudentId, setProfileDrawerStudentId, setSupportReportStudentId, supportReportStudentId,
+    caseReviewStudentId, setCaseReviewStudentId, assignmentHubTarget, setAssignmentHubTarget, setLiveFocus,
+    classroomSyncProposal, setQuickSearchOpen, activeAssignmentId, setActiveAssignmentId, teacherScratchpadDialog,
+    responseInspectorTarget, teacherWorksheetDialog, currentQuestionIndex, setCurrentQuestionIndex,
+    questionEditorAssignment, contentUpgradeRequest, teacherBrowserHistoryReadyRef, teacherHistoryStepBackAtRef,
+    teacherHistoryRestoreRef, previewTrackerAssignmentIdRef, assignmentPreflight, exportJsonAssignment, deleteDialog,
+    setTestCyclePreviewAssignment, testCyclePreviewAssignment, startTeacherPreview, resumeLiveTeaching,
+  );
 
   useLiveTeachingTimer(user, liveTeachingSession, setLiveTeachingSession, teacherHistoryRestoreRef);
 
@@ -8278,6 +7268,23 @@ function App() {
   const { classroomAnnouncementText } = useClassroomAnnouncement({ user, secureExamActive, liveChallengeInvite, studentSpotlightRequest, lobbyInviteHeldHere });
 
   const { showWhenWorkspaceOpens } = useWorkspaceArrivalNotices({ toastInfo, activeView });
+
+  const [
+    startAssignment, openStudentDashboardMode, practiseSkillFromResults, openStudentGradeCenter,
+    openStudentAssignmentsCenter, navigateStudent, openStudentOriginLevel, openStudentAssignmentResult,
+    joinLiveChallenge, leaveLiveChallenge, startStudentRecovery, openStudentRecovery,
+  ] = createStudentNavigation(
+    toastInfo, toastWarning, user, hasPracticePassFor, studentRequiredFor, assignmentResultRoute,
+    setAssignmentResultRoute, setActiveClassroomSectionKey, activeView, setActiveView, assignments, setPathLaunchTeks,
+    setPathLaunchTab, setPathLaunchFramework, activeAssignmentId, setActiveAssignmentId, setTracker, tracker,
+    setPracticeTracker, currentQuestionIndex, setCurrentQuestionIndex, setAssignmentNavigationCollapsed,
+    setAssignmentOverviewExpanded, classSchedule, classworkGradesByAssignment, getSectionAccessState,
+    setRecoverySession, recoveryBusySection, setRecoveryBusySection, setStudentDashboardMode, studentDashboardMode,
+    liveChallengeReturn, setLiveChallengeReturn, setActiveTestCycleAssignmentId, setActiveTestCycleOrigin,
+    mergeSectionRecoveryRecord, lastActivityRef, liveFocusLossRef, liveSessionActiveSecondsRef,
+    liveSessionAttemptBaselineRef, pendingAssignmentSecondsRef, flushAssignmentActivity, assignmentOpenSpanRef,
+    setIsIdle, terminalCountingFor, showWhenWorkspaceOpens,
+  );
 
   useUrlArrival({
     urlArrival,
