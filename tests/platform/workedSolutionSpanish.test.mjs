@@ -19,8 +19,10 @@
  * sentence each family writes, for every real question it claims:
  *   - it translates with the Spanish pack, in full;
  *   - its mathematics comes through untouched;
- *   - the headline and steps still translate read as Solution Review reads
- *     them, one text: a step that ends without a stop runs on into the next.
+ *   - it is a line of its own in what Solution Review hands Translate
+ *     (closedQuestionReview.js translationText, a part a line), so it is
+ *     translated there as it is here: an answer summary, which has no stop,
+ *     or a step that ends on "…", no longer runs on into the next part.
  * (A step that is only mathematics has nothing to translate and is shown as
  * it is.) The families are found in the directory, and checked against the
  * ones the platform routes to (families/index.js), so a new one is held here
@@ -48,6 +50,7 @@ import {
   compileTemplates, loadLanguagePack, translateWithPack, TRANSLATION_COVERAGE,
 } from '../../src/platform/language/translationProviders.js';
 import { ALL_FAMILY_MODULES } from '../../src/platform/supports/families/index.js';
+import { buildClosedQuestionReview } from '../../src/platform/supports/review/closedQuestionReview.js';
 
 const ROOT = new URL('../../', import.meta.url);
 const ROOT_PATH = fileURLToPath(ROOT);
@@ -99,21 +102,18 @@ const workedSolutions = () => {
     if (!claims) return;
     claimed[family] += 1;
     const worked = module.workedSolution(question);
-    if (worked) solutions.push({ family, questionId: stored.questionId, worked });
+    if (worked) solutions.push({ family, questionId: stored.questionId, question, worked });
   }));
   return solutions;
 };
 const stepsOf = (worked) => (Array.isArray(worked?.steps) ? worked.steps : [])
   .map((step) => (typeof step === 'string' ? step : (step?.text || step?.explanation || '')));
 const textOf = (value) => (typeof value === 'string' ? value.trim() : '');
-/** Every text Solution Review translates from this worked solution. */
+/** Every text Solution Review translates from this worked solution, each a line of its own there. */
 const partsOf = (worked) => [
   { kind: 'headline', text: textOf(worked.headline) },
   ...stepsOf(worked).map((step, index) => ({ kind: `step ${index + 1}`, text: textOf(step) })),
   { kind: 'answer summary', text: textOf(worked.answerSummary) },
-  // closedQuestionReview.js joins the parts with a space before they are
-  // translated, so a sentence is cut where the joined text has a stop.
-  { kind: 'headline and steps read as one text', text: [textOf(worked.headline), ...stepsOf(worked).map(textOf)].filter(Boolean).join(' '), joined: true },
 ].filter((part) => part.text);
 
 /* ------------------------------------------------------------ the checks */
@@ -182,12 +182,25 @@ test('every sentence of every family\'s worked solutions of the real lessons is 
   const lost = [];
   const notFull = [];
   const tally = Object.fromEntries(FAMILIES.map(([family]) => [family, { solutions: 0, sentences: 0 }]));
-  workedSolutions().forEach(({ family, questionId, worked }) => {
+  const notALine = [];
+  let reviewed = 0;
+  workedSolutions().forEach(({ family, questionId, question, worked }) => {
     tally[family].solutions += 1;
-    partsOf(worked).forEach(({ kind, text, joined = false }) => {
+    // What Solution Review hands Translate for this question, when the family
+    // wrote its review: every part the family wrote is a whole line of it, so
+    // it is translated there exactly as it is below.
+    const review = buildClosedQuestionReview({ question });
+    if (review?.fromFamily) {
+      reviewed += 1;
+      const lines = review.translationText.split('\n');
+      const inReview = partsOf(worked).filter(({ text }) => review.speechParts.some((part) => part.text === text));
+      if (!stepsOf(worked).map(textOf).filter(Boolean).every((step) => inReview.some(({ text }) => text === step))) notALine.push(`${family} ${questionId}: its steps are not the review's`);
+      inReview.filter(({ text }) => !lines.includes(text)).forEach(({ kind }) => notALine.push(`${family} ${questionId} (${kind})`));
+    }
+    partsOf(worked).forEach(({ kind, text }) => {
       const result = translateWithPack(text, pack);
       result.sentences.filter((sentence) => !sentence.mathOnly).forEach((sentence) => {
-        if (!joined) tally[family].sentences += 1;
+        tally[family].sentences += 1;
         if (sentence.translated) return;
         // One entry per sentence shape, however many numbers it was drawn with.
         const template = asPackTemplate(sentence.source);
@@ -213,6 +226,28 @@ test('every sentence of every family\'s worked solutions of the real lessons is 
   if (gaps.size) assert.fail(spanishGapReport([...gaps.values()]));
   assert.deepEqual(notFull, [], 'every part translates in full');
   assert.deepEqual(lost, [], 'the mathematics of every sentence survives');
+  assert.ok(reviewed >= 100, `${reviewed} real questions whose review a family wrote`);
+  assert.deepEqual(notALine, [], 'each part is a line of its own in what Solution Review hands Translate');
+});
+
+test('an answer summary with no stop is a sentence of its own for Translate, and Read aloud reads the review as it did', async () => {
+  const pack = await loadLanguagePack('es');
+  // dol3-review-q01: functionFeatures writes the review, and the teacher's
+  // common error follows its answer summary, which has no stop.
+  const { question } = realQuestions().find(({ stored }) => stored.questionId === 'dol3-review-q01');
+  const review = buildClosedQuestionReview({ question });
+  assert.equal(review.fromFamily, true);
+  const summary = review.authored.answerSummary;
+  const at = review.speechParts.findIndex((part) => part.text === summary);
+  assert.ok(at >= 0 && at < review.speechParts.length - 1 && !/[.?!]$/.test(summary), `${summary}, then ${review.speechParts[at + 1]?.text}`);
+  const texts = review.speechParts.map((part) => part.text);
+  assert.equal(review.translationText, texts.join('\n'), 'Translate gets the parts a line each');
+  assert.equal(review.speechText, texts.join(' '), 'Read aloud gets what it got');
+  const summaryOf = (text) => translateWithPack(text, pack).sentences.find((sentence) => sentence.source === summary);
+  assert.equal(summaryOf(review.speechText), undefined, 'joined with a space, it runs on into the next part');
+  const own = summaryOf(review.translationText);
+  assert.equal(own?.translated, true, summary);
+  assert.ok(mathSurvives(summary, own.text), own.text);
 });
 
 test('a worked-solution sentence with no Spanish is reported with its family file, the template to paste and where it goes', () => {

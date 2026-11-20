@@ -544,6 +544,34 @@ test('when a text cannot be translated, the student is told why — never a dead
   assert.equal(resolveTranslationNow({ text: 'Solve x.', language: 'vi' }).reason, TRANSLATION_GAP.NO_PACK);
 });
 
+test('Solution Review hands Translate its parts a line each, so an answer summary with no stop is a sentence of its own', async () => {
+  const { SupportedTextActions } = await vite.ssrLoadModule('/src/platform/supports/SupportedText.jsx');
+  await (await vite.ssrLoadModule('/src/platform/language/translationProviders.js')).loadLanguagePack('es');
+  const actions = (props) => renderToStaticMarkup(React.createElement(SupportedTextActions, {
+    readAloud: null, translation: { language: 'es' }, label: 'the worked solution', ...props,
+  }));
+  // An answer, then the next part. Joined with a space they are one sentence,
+  // which no pack knows; a line each, both are Spanish.
+  const parts = ['No solution', 'Check the order of your slope fraction.'];
+  assert.match(actions({ text: parts.join(' ') }), /No Spanish translation for this text yet\./);
+  assert.match(actions({ text: parts.join(' '), translationText: parts.join('\n') }), /data-translate-ready=""/, 'Translate reads translationText');
+  await loadLanguagePack('es');
+  assert.equal(resolveTranslationNow({ text: parts.join('\n'), language: 'es' }).text, 'No tiene solución\nRevisa el orden de tu fracción de la pendiente.');
+  // Read aloud still says `text`: the words it said before, as it said them.
+  assert.match(code('src/platform/supports/SupportedText.jsx'), /const spoken = shown \? translated\.text : readText;/);
+
+  // A real review whose answer ("No solution") ran on into the next part: it
+  // had no Spanish at all, and now Translate is offered beside it.
+  const SolutionReviewPanel = (await vite.ssrLoadModule('/src/SolutionReviewPanel.jsx')).default;
+  const question = real('m3t2l5-cw-7');
+  const html = renderToStaticMarkup(React.createElement(SolutionReviewPanel, { question, translation: { language: 'es' } }));
+  assert.match(html, /aria-label="Translate the worked solution"/);
+  assert.doesNotMatch(html, /data-translation-unavailable/);
+  // The English the screen shows does not change: Translate's text is not drawn.
+  const english = renderToStaticMarkup(React.createElement(SolutionReviewPanel, { question }));
+  assert.equal(html.split('<span data-supported-text-actions')[0], english.replace(/<\/section>$/, ''));
+});
+
 test('a translation never reaches anything outside MathMaster', () => {
   // No machine-translation provider is registered, and none is called.
   const providers = code('src/platform/language/translationProviders.js');

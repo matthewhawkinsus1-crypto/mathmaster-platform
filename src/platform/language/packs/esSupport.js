@@ -1809,8 +1809,9 @@ const supportFamilyWorkedSolutions = [
   ['A sequence is defined only at whole-number positions {1}, so plot those points without connecting them.', 'Una sucesión solo está definida en posiciones {1} que son números enteros, así que marca esos puntos sin unirlos.'],
   ['The terms are {1}, {2}, {3}, {4}, …', 'Los términos son {1}, {2}, {3}, {4}, …'],
   ['Differences: {1}, {2}, {3} are all equal, while the ratios are not, so the terms have a common difference of {4}.', 'Diferencias: {1}, {2}, {3} son todas iguales, mientras que las razones no, así que los términos tienen una diferencia común de {4}.'],
-  // The two steps above as Solution Review reads them: it translates the steps
-  // as one text, and the first ends with "…", not a stop, so they are one sentence.
+  // The two steps above read as one text, as a similar worked example's steps
+  // are (HintPanel.jsx joins them with a space): the first ends with "…", not a
+  // stop, so they are one sentence. Solution Review reads them a line each.
   ['The terms are {1}, {2}, {3}, {4}, … Differences: {5}, {6}, {7} are all equal, while the ratios are not, so the terms have a common difference of {8}.', 'Los términos son {1}, {2}, {3}, {4}, … Diferencias: {5}, {6}, {7} son todas iguales, mientras que las razones no, así que los términos tienen una diferencia común de {8}.'],
   ['So the table values are {1}, {2}, {3}, {4}, {5}, {6}, the graph is those separate points and the sequence is arithmetic with a common difference of {7}.', 'Así que los valores de la tabla son {1}, {2}, {3}, {4}, {5}, {6}, la gráfica son esos puntos separados y la sucesión es aritmética con una diferencia común de {7}.'],
   // A linear model on a time interval.
