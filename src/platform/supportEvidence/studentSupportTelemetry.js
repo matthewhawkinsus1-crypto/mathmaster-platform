@@ -45,10 +45,12 @@ const TIMED_ROLES = new Set(['warmup', 'dol', 'quiz', 'test']);
 // ticket, quiz or test because of it (platform/graph/connectPointsPolicy.js).
 // The graph read-out is provided only where a graph was read out in full
 // (src/platform/supports/graphReadOut.js), never because an assignment opened.
+// See every part at once is provided where a multi-part answer that would have
+// opened one part at a time showed every part because of it (QuestionEngine).
 const RECORDED_IN_QUESTION = new Set([
   'text-to-speech', 'calculator', 'calculator-override-computation',
   'translation', 'glossary-lookup', 'chunked-directions', 'sentence-frames',
-  'keyboard-access', 'graph-read-out',
+  'keyboard-access', 'graph-read-out', 'every-part-at-once',
 ]);
 // Not a platform fact in an assignment.
 const NOT_RECORDED_AT_LAUNCH = new Set(['extra-attempts']);

@@ -1289,6 +1289,9 @@ export function createAssignmentWorkspaceView(
               adaptation={currentAdaptation}
               // Rebuilt with every tracker change (the mastery profile under
               // it); kept while it says the same.
+              // A multi-part answer opens one part at a time for the student
+              // (MultiAnswerGrader); the teacher's preview shows every part.
+              partByPart={!preview}
               studentProfile={preview ? null : renderMemo('studentProfile', [adaptiveStudentProfile || user?.profile], () => adaptiveStudentProfile || user?.profile, sameStableValue)}
               guidedMode={['classwork', 'practice'].includes(runtimeActivityRole) && currentGuidedNotesMode !== 'off'}
               guidedNotesMode={currentGuidedNotesMode}

@@ -358,6 +358,12 @@ function QuestionEngineBody({
   // decides it from the student's own plan for a test). Null: from
   // `studentProfile` for this activity.
   graphReadOut: graphReadOutChoice = null,
+  // A multi-part answer-box question opens one part at a time
+  // (MultiAnswerGrader, part by part; docs/platform/SHOWING_THE_PROCESS.md).
+  // Only the student answering a classroom item or a secure Test item asks
+  // for it; every other host (a teacher's preview or review, Path, Live
+  // Challenge, Recovery) draws every part at once, as before.
+  partByPart = false,
   // Supplied by the QuestionEngine wrapper: prepare this question again from
   // scratch (a remount). Offered only for a failure a retry can clear.
   onResolutionRetry = null,
@@ -733,6 +739,16 @@ function QuestionEngineBody({
     // A modification that actually changed this item (never one that did not).
     (supportUsage.modifications || []).forEach((modificationId) => reportSupportEvidence(modificationId, 'provided'));
   }, [stableQuestion, supportPresentation.textToSpeech, supportUsage]); // eslint-disable-line react-hooks/exhaustive-deps
+  // SEE EVERY PART AT ONCE: the student's support turns part by part off.
+  // Provided where it changed what this question shows: a multi-part answer
+  // its host would have opened one part at a time.
+  const walkAnswerParts = partByPart === true && supportPresentation.everyPartAtOnce !== true;
+  const everyPartShownBySupport = partByPart === true && supportPresentation.everyPartAtOnce === true
+    && processedQuestion?.type === 'multiAnswer'
+    && (Array.isArray(processedQuestion?.answerFields) ? processedQuestion.answerFields.filter((field) => field?.id).length : 0) > 1;
+  useEffect(() => {
+    if (everyPartShownBySupport) reportSupportEvidence('every-part-at-once', 'provided');
+  }, [stableQuestion, everyPartShownBySupport]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // LANGUAGE SUPPORT TOOLS for this item — from the same effective profile as
   // every other support, shown only when entitled and backed by a resource
@@ -2517,7 +2533,7 @@ function QuestionEngineBody({
       case 'multiAnswer':
         // An exit ticket, a quiz or a test before its release: the keypad says
         // nothing about the answer (N56, withheldVerdictKeypad.js).
-        return <MultiAnswerGrader {...commonModuleProps} verdictsWithheld={!showOutcomeFeedback} />;
+        return <MultiAnswerGrader {...commonModuleProps} verdictsWithheld={!showOutcomeFeedback} partByPart={walkAnswerParts} />;
       case 'relationshipModel':
         return <RelationshipModel {...commonModuleProps} />;
       case 'graphScenarioMatch':
