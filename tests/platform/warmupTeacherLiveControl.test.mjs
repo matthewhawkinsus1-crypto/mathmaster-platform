@@ -93,7 +93,10 @@ test('Warm-Up countdown is visible across teacher and student surfaces', () => {
   assert.match(dashboard, /Warm-Up active now/);
   assert.match(dashboard, /DOLCountdown endsAt=\{state\.endsAt\}/);
   assert.match(app, /renderStudentWarmupBanner/);
-  assert.match(app, /WARM-UP ACTIVE/);
+  // Since the App split (slice 7), createStudentShellViews owns the banner
+  // App draws on the student's screens (appFactorySource holds the seam).
+  assert.match(app, /\{renderStudentWarmupBanner\(\)\}/);
+  assert.match(region(appFactorySource('createStudentShellViews'), 'const renderStudentWarmupBanner = () => {', 'const renderIdleOverlay = () => {', 'the Warm-Up banner'), /WARM-UP ACTIVE/);
   // Since the App split, app/student/useTimedSectionReminders.js owns the
   // reminder toasts: App hands it the toast and the state they read.
   assert.match(app, /useTimedSectionReminders\(\{\s*toastSuccess, toastWarning, user, studentRequiredFor, activeView, assignments, activeAssignmentId, tracker,\s*currentQuestionIndex, now, classSchedule,/);

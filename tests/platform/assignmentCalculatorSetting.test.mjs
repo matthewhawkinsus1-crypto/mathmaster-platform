@@ -24,6 +24,7 @@ import { CALCULATOR_MODES, calculatorKeyPointsShown, resolveCalculatorPolicy } f
 import { ENTRY_KINDS, findGraphFeatures, parseGraphEntry } from '../../src/platform/assessment/graphingCalculatorModel.js';
 import { isSingleLineAnswerTarget, shouldSubmitAnswerOnEnter } from '../../src/platform/interaction/answerEntryUx.js';
 import { executableSource, region } from './helpers/sourceContract.mjs';
+import { appFactorySeam, appFactorySource } from './helpers/appScreens.mjs';
 
 const source = (relative) => readFileSync(new URL(`../../${relative}`, import.meta.url), 'utf8');
 const { BASIC, SCIENTIFIC, GRAPHING, NONE, SQUARE_ROOT } = CALCULATOR_MODES;
@@ -239,7 +240,11 @@ test('zeros, minimum and maximum are listed only where they cannot state an unre
 });
 
 test('the student assignment screen forwards the assignment\'s calculator setting, and QuestionEngine resolves with it', () => {
-  const app = source('src/App.jsx');
+  // Since the App split (slice 7), createAssignmentWorkspaceView mounts the
+  // question; `assignment` there is the activeAssignmentData App hands it.
+  const app = appFactorySource('createAssignmentWorkspaceView');
+  assert.ok(appFactorySeam('createAssignmentWorkspaceView').parameters.includes('activeAssignmentData'), 'App hands the workspace view the assignment');
+  assert.match(region(app, 'const renderAssignmentWorkspace = (preview = false) => {', '<QuestionEngine\n', 'the workspace up to the question'), /\n\s*const assignment = activeAssignmentData;\n/);
   // The element is the branch App renders once the family engine is loaded
   // (familyEngineLoading), hence the `}` after it.
   const engineElement = region(app, '<QuestionEngine\n              key={`${activeAssignmentId}-', '/>}\n            {/* SAVE HEALTH', 'App student QuestionEngine element');

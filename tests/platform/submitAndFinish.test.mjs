@@ -256,7 +256,15 @@ test('App wires the save line: the model it imports, an answer marked as sent on
   // no render of its own, appRenderWork.test.mjs).
   assert.match(app, /const studentSaveSubject = renderFold\('saveSubject', studentSaveSubjectState, \(subject\) => nextSaveSubject\(subject, \{ type: 'status', status: studentPersistenceStatus, pendingGradeCount: studentPendingGradeCount \}\)\);/);
   assert.match(app, /const studentSaveLine = describeRuntimeSaveLine\(\{ persistenceStatus: studentPersistenceStatus, subject: studentSaveSubject,/);
-  const mount = region(app, '<QuestionEngine\n              key={`${activeAssignmentId}', '/>', 'the assignment question mount');
+  // Since the App split (slice 7) createAssignmentWorkspaceView draws the
+  // workspace (src/app/student/assignmentWorkspaceView.jsx): the question
+  // mount, the save line and its announcement. App works the line out and
+  // hands it over.
+  const workspace = executableSource(appFactorySource('createAssignmentWorkspaceView'));
+  for (const input of ['studentSaveLine', 'studentSaveLineShown', 'studentSaveLineAnnouncement', 'studentPersistenceStatus', 'handleGradeSubmit', 'handleStepGrade']) {
+    assert.ok(appFactorySeam('createAssignmentWorkspaceView').parameters.includes(input), `App hands the workspace view ${input}`);
+  }
+  const mount = region(workspace, '<QuestionEngine\n              key={`${activeAssignmentId}', '/>', 'the assignment question mount');
   // An answer is marked as sent only once it is in the device queue — the
   // submit and step paths, right after their enqueue — never by pressing
   // Submit (a no-credit practice submit queues nothing).
@@ -280,14 +288,14 @@ test('App wires the save line: the model it imports, an answer marked as sent on
   // Shown whenever there is a status (and not as a draft line beside Batch 3's
   // unsaved-work notice: draftSaveFailureNotice.test.mjs).
   assert.match(region(app, 'const studentSaveLineShown = ', ';\n', 'when the line shows'), /^const studentSaveLineShown = studentPersistenceStatus !== 'idle'/);
-  const saveLine = region(app, '{!preview && studentSaveLineShown && (', '</p>', 'the save line');
+  const saveLine = region(workspace, '{!preview && studentSaveLineShown && (', '</p>', 'the save line');
   assert.match(saveLine, /\{studentSaveLine\s*\? studentSaveLine\s*: studentPersistenceStatus === 'rejected'/);
   assert.doesNotMatch(saveLine, /Recorded by MathMaster|Syncing ·/);
   // A routine save is not a second announcement of the result: the shown line
   // is not a live region; one always-mounted region says only what needs the
   // student, and only its words change.
   assert.doesNotMatch(saveLine, /role=|aria-live/);
-  const region2 = region(app, '{!preview && (\n              <span role="status" aria-live="polite" data-save-line-announcement=""', '</span>', 'the save announcement');
+  const region2 = region(workspace, '{!preview && (\n              <span role="status" aria-live="polite" data-save-line-announcement=""', '</span>', 'the save announcement');
   assert.match(region2, /\{studentSaveLineAnnouncement\}/);
   const said = region(app, 'const studentSaveLineAnnouncement = ', ";\n", 'what is said');
   assert.match(said, /\['offline', 'needs-review'\]\.includes\(studentPersistenceStatus\) \? studentSaveLine \|\| '' : ''/);
@@ -302,8 +310,11 @@ test('finishing lands on the results page, Up next riding along for it', () => {
   assert.deepEqual(resolveAssignmentHandoff({}), { kind: 'results', label: 'your results', upNext: null });
   assert.deepEqual(resolveAssignmentHandoff({ nextIncompleteSection: { role: 'practice' }, nextIncompleteSectionLabel: 'Practice', upNext }), { kind: 'section', label: 'Practice' });
   assert.equal(resolveAssignmentHandoff({ student: false }), null);
-  const app = code('src/App.jsx');
-  const handoff = region(app, 'const continueAfterSection = !assignmentHandoff', ';\n', 'the hand-off');
+  // Since the App split (slice 7) createAssignmentWorkspaceView owns the
+  // hand-off; App hands it the way to the results page.
+  const workspace = executableSource(appFactorySource('createAssignmentWorkspaceView'));
+  assert.ok(appFactorySeam('createAssignmentWorkspaceView').parameters.includes('openStudentAssignmentResult'), 'App hands the workspace view the way to the results');
+  const handoff = region(workspace, 'const continueAfterSection = !assignmentHandoff', ';\n', 'the hand-off');
   assert.doesNotMatch(handoff, /startAssignment|upNext/, 'the button never opens the next lesson');
   assert.match(handoff, /: \(\) => openStudentAssignmentResult\(activeAssignmentId, \{ origin: 'assignments' \}\)/);
 });
@@ -329,8 +340,12 @@ test('a skipped question is the way back, named in the student\'s words', () => 
   assert.equal(resolveSkippedQuestion({ ...base, isComplete: () => true }), null, 'nothing left: no way back');
   assert.equal(resolveSkippedQuestion({ ...base, isWorkable: (entry) => entry.index === 1 }), null, 'a locked DOL is not offered');
 
-  const app = code('src/App.jsx');
-  assert.match(app, /import \{ resolveAssignmentHandoff, resolveSkippedQuestion \} from '\.\/platform\/student\/assignmentHandoff\.js';/);
+  // Since the App split (slice 7) createAssignmentWorkspaceView resolves the
+  // skipped question and mounts the engine, so it is the module that imports
+  // the model; App hands it changeQuestion.
+  const app = executableSource(appFactorySource('createAssignmentWorkspaceView'));
+  assert.ok(appFactorySeam('createAssignmentWorkspaceView').parameters.includes('changeQuestion'), 'App hands the workspace view changeQuestion');
+  assert.match(app, /import \{ resolveAssignmentHandoff, resolveSkippedQuestion \} from '\.\.\/\.\.\/platform\/student\/assignmentHandoff\.js';/);
   const skipped = region(app, 'const skippedQuestion = ', '      : null;', 'the skipped question');
   assert.match(skipped, /^const skippedQuestion = !nextQuestionEntry && !currentNavigationSection\?\.complete\s*\? resolveSkippedQuestion\(\{/);
   assert.match(skipped, /isWorkable: entryIsWorkableNow,/);

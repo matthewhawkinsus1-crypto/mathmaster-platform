@@ -2,9 +2,14 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import { region } from './helpers/sourceContract.mjs';
+import { appFactorySource } from './helpers/appScreens.mjs';
 import { describeNavigatorQuestion, describeNavigatorSectionProgress } from '../../src/platform/student/assignmentNavigator.js';
 
-const app = fs.readFileSync(new URL('../../src/App.jsx', import.meta.url), 'utf8');
+// Since the App split (slice 7), createAssignmentWorkspaceView owns
+// renderAssignmentWorkspace: the section progress, the section tabs and the
+// QuestionEngine mount these contracts read (appFactorySource checks App
+// builds it once and the seam lines up, name for name).
+const app = appFactorySource('createAssignmentWorkspaceView');
 const engine = fs.readFileSync(new URL('../../src/QuestionEngine.jsx', import.meta.url), 'utf8');
 const css = fs.readFileSync(new URL('../../src/App.css', import.meta.url), 'utf8');
 

@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
+import { appFactorySeam, appFactorySource } from './helpers/appScreens.mjs';
 
 import {
   WARMUP_CHALLENGE_ROUTE,
@@ -68,7 +69,10 @@ test('the panel never shows on any other route', () => {
 });
 
 test('App.jsx uses the rule rather than the raw route', () => {
-  const app = readFileSync(new URL('../../src/App.jsx', import.meta.url), 'utf8');
+  // Since the App split (slice 7), createAssignmentWorkspaceView draws the
+  // open assignment, the waiting panel with it; App hands it the invite.
+  assert.ok(appFactorySeam('createAssignmentWorkspaceView').parameters.includes('liveChallengeInvite'), 'App hands the workspace view the invite');
+  const app = appFactorySource('createAssignmentWorkspaceView');
   assert.match(app, /shouldShowWarmupWaitingPanel\(\{ decision: warmupChallengeDecision, invite: liveChallengeInvite \}\)/);
 });
 

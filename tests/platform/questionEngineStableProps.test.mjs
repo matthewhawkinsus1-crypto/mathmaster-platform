@@ -15,6 +15,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { createRenderMemo, createStableCallbacks, sameStableValue } from '../../src/platform/performance/renderStability.js';
 import { executableSource, region } from './helpers/sourceContract.mjs';
+import { appFactorySeam, appFactorySource } from './helpers/appScreens.mjs';
 
 const read = (path) => readFileSync(new URL(`../../${path}`, import.meta.url), 'utf8');
 
@@ -206,7 +207,16 @@ const literalValue = (text) => {
 
 test('App hands QuestionEngine no function or object made in its render', () => {
   const app = executableSource(read('src/App.jsx'));
-  const { props, spreads } = questionEngineElement(app);
+  // Since the App split (slice 7), createAssignmentWorkspaceView owns
+  // renderAssignmentWorkspace, which mounts QuestionEngine: a function App
+  // calls in its render (not a component), handed App's own stableCallbacks
+  // and renderMemo, so "made in App's render" is made in that function.
+  const view = executableSource(appFactorySource('createAssignmentWorkspaceView'));
+  const viewInputs = appFactorySeam('createAssignmentWorkspaceView').parameters;
+  for (const input of ['stableCallbacks', 'renderMemo', 'activeQuestions', 'activeAssignmentData', 'tracker', 'practiceTracker', 'familyDelivery', 'publishSpotlightWork', 'studentSpotlightRequest']) {
+    assert.ok(viewInputs.includes(input), `App hands the workspace view ${input}`);
+  }
+  const { props, spreads } = questionEngineElement(view);
   assert.ok(props.size >= 30, `read ${props.size} props`);
   // Every handler, one function for App's life that calls the latest
   // (renderStability.js): spread from one stableCallbacks({ … }) call.
@@ -233,7 +243,9 @@ test('App hands QuestionEngine no function or object made in its render', () => 
     assert.equal(literalValue(rest), null, `${name}: an object or list made in App's render`);
   }
   // The objects it is handed are made once per change of what they mean.
-  const workspace = app.slice(app.indexOf('const renderAssignmentWorkspace'), app.indexOf('<QuestionEngine'));
+  const workspaceStart = view.indexOf('const renderAssignmentWorkspace');
+  assert.ok(workspaceStart >= 0 && view.indexOf('<QuestionEngine') > workspaceStart, 'the workspace view mounts QuestionEngine inside renderAssignmentWorkspace');
+  const workspace = view.slice(workspaceStart, view.indexOf('<QuestionEngine'));
   assert.equal(props.get('question'), 'questions[currentQuestionIndex]');
   assert.match(workspace, /const questions = activeQuestions;/);
   assert.match(app, /const activeQuestions = useMemo\(\(\) => getStoredAssignmentQuestions\(activeAssignmentData\), \[activeAssignmentData\]\);/);
@@ -252,7 +264,11 @@ test('App hands QuestionEngine no function or object made in its render', () => 
   assert.match(workspace, /const askTeacherContext = renderMemo\('askTeacherContext', \[askMyTeacher\.mode, askMyTeacher\.acknowledgement, askTeacherQuestion, onSendQuestion\], /);
   assert.match(props.get('studentProfile'), /^preview \? null : renderMemo\('studentProfile', /);
   // Made once per App, among its hooks, before any render path can return.
-  const top = app.slice(app.indexOf('function App()'), app.indexOf('const renderAssignmentWorkspace'));
+  // (Up to where App builds the workspace view, createAssignmentWorkspaceView's call.)
+  const appStart = app.indexOf('function App()');
+  const viewBuilt = app.indexOf('const [renderAssignmentWorkspace] = createAssignmentWorkspaceView(');
+  assert.ok(appStart >= 0 && viewBuilt > appStart, 'App builds the workspace view');
+  const top = app.slice(appStart, viewBuilt);
   // (And the fold that follows App's renders: appRenderWork.test.mjs.)
   assert.match(top, /\n {2}const \[stableCallbacks, renderMemo, renderFold\] = useRenderStability\(\);\n/);
   assert.doesNotMatch(top.slice(0, top.indexOf('useRenderStability()')), /\n {2}(if \([^\n]*\) )?return\b/, 'no return before it');
@@ -283,7 +299,16 @@ test('App works out the bell windows, the lifecycle and the grades once per chan
   // The workspace reads those, for the same assignment, instead of working
   // them out again (a preview is a teacher's: its lifecycle names no student,
   // as activeLifecycle's does not for a teacher).
-  const workspace = app.slice(app.indexOf('const renderAssignmentWorkspace'), app.indexOf('const lifecycleBadge'));
+  // (Since the App split, slice 7: renderAssignmentWorkspace is
+  // createAssignmentWorkspaceView's; App hands it what it worked out above.)
+  const view = executableSource(appFactorySource('createAssignmentWorkspaceView'));
+  const viewInputs = appFactorySeam('createAssignmentWorkspaceView').parameters;
+  for (const input of ['activeAssignmentData', 'activeLifecycle', 'activeDOLState', 'renderMemo', 'classSchedule', 'now']) {
+    assert.ok(viewInputs.includes(input), `App hands the workspace view ${input}`);
+  }
+  const workspaceStart = view.indexOf('const renderAssignmentWorkspace');
+  assert.ok(workspaceStart >= 0 && view.indexOf('const lifecycleBadge') > workspaceStart, 'the workspace reads them before its lifecycle badge');
+  const workspace = view.slice(workspaceStart, view.indexOf('const lifecycleBadge'));
   assert.match(workspace, /\n\s*const assignment = activeAssignmentData;\n/);
   assert.match(workspace, /\n\s*const lifecycle = activeLifecycle;\n/);
   assert.match(workspace, /\n\s*const dolState = activeDOLState;\n/);
@@ -296,13 +321,23 @@ test('App works out the bell windows, the lifecycle and the grades once per chan
   assert.equal((workspace.match(/\bsplitGrade(?:sBySection)?\(|calculatePracticeProgress\(|calculateGrade\(/g) || []).length, 4, 'worked out only inside that memo');
   // No records yet: one object, so the memos above are not defeated by a
   // fresh `{}` on every render.
-  assert.match(app, /\nconst NO_RECORDS = Object\.freeze\(\{\}\);\n/);
+  // (Since the App split the constant is src/app/student/noRecords.js, which
+  // the workspace view imports and falls back to.)
+  assert.match(executableSource(read('src/app/student/noRecords.js')), /\nexport const NO_RECORDS = Object\.freeze\(\{\}\);\n/);
+  assert.match(view, /^import \{ NO_RECORDS \} from '\.\/noRecords\.js';$/m);
+  assert.match(workspace, /const recordedTracker = tracker\[activeAssignmentId\] \|\| NO_RECORDS;/);
   // Every lesson's Warm-Up window, asked twice a render (the banner and the
   // workspace's status chip), worked out once per change of what it reads:
   // the windows on the student, the lessons, the schedule and the clock (not
   // the tracker, which a Submit changes), the questions left on the records
   // of the lessons whose Warm-Up is open.
-  const warmup = region(app, 'const studentActiveWarmup = () => {', 'const renderStudentWarmupBanner = () => {', 'the active Warm-Up');
+  // (Since the App split, slice 7: studentActiveWarmup is
+  // createStudentShellViews', handed App's renderMemo.)
+  const shell = executableSource(appFactorySource('createStudentShellViews'));
+  for (const input of ['renderMemo', 'tracker', 'classSchedule', 'now']) {
+    assert.ok(appFactorySeam('createStudentShellViews').parameters.includes(input), `App hands the shell views ${input}`);
+  }
+  const warmup = region(shell, 'const studentActiveWarmup = () => {', 'const renderStudentWarmupBanner = () => {', 'the active Warm-Up');
   assert.match(warmup, /const open = renderMemo\('openWarmups', \[user, secureExamActive, assignments, classSchedule, now\], \(\) => \{/);
   assert.match(warmup, /return renderMemo\('activeWarmup', \[open, \.\.\.open\.map\(\(\{ assignment \}\) => tracker\?\.\[assignment\.id\]\)\], \(\) => open\s*\.map\(/);
   const windows = region(warmup, "const open = renderMemo('openWarmups'", "return renderMemo('activeWarmup'", 'the open Warm-Ups');

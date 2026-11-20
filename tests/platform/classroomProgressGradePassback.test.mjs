@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import { createRequire } from 'node:module';
 import { executableSource, region } from './helpers/sourceContract.mjs';
-import { appHookSource, appSurfaceSource } from './helpers/appScreens.mjs';
+import { appFactorySeam, appFactorySource, appHookSource, appSurfaceSource } from './helpers/appScreens.mjs';
 import { functionsBackendSource, topLevelDeclaration } from './helpers/functionsBackendSource.mjs';
 
 const require = createRequire(import.meta.url);
@@ -185,8 +185,13 @@ test('student UI watches confirmed Classroom receipts and labels progress versus
   assert.match(receipts, /toastSuccess\(\s*'Updated grade released to Google Classroom'/);
   assert.match(receipts, /toastSuccess\(\s*'Final grade sent to Google Classroom'/);
   assert.match(receipts, /toastSuccess\(\s*'Due-date grade sent to Google Classroom'/);
-  assert.match(app, /Google Classroom shows/);
-  assert.match(app, /classroomReceiptGrade != null && classroomReceiptStudentVisible && \(/);
+  // Since the App split (slice 7), createAssignmentWorkspaceView draws the
+  // open assignment's header, the Classroom receipt line with it; App hands
+  // it the receipts the listener above keeps.
+  assert.ok(appFactorySeam('createAssignmentWorkspaceView').parameters.includes('classroomSyncStatusByAssignment'), 'App hands the workspace view the receipts');
+  const workspaceView = appFactorySource('createAssignmentWorkspaceView');
+  assert.match(workspaceView, /Google Classroom shows/);
+  assert.match(workspaceView, /classroomReceiptGrade != null && classroomReceiptStudentVisible && \(/);
   // Home is the student's quick view: it labels the live number plainly
   // ("Grade so far") and repeats a Classroom receipt only when the student can
   // see that grade in Google Classroom. The teacher-draft / checkpoint

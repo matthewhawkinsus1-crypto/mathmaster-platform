@@ -35,7 +35,7 @@ import { dolExtraTimeForClass } from '../../src/platform/teacher/dolExtraTimeRos
 import { normalizeStudentProfile } from '../../src/studentSupport.js';
 import { normalizeTeacherRosterSummary } from '../../src/platform/teacher/teacherRosterSummary.js';
 import { executableSource, region } from './helpers/sourceContract.mjs';
-import { appHookSource, appSurfaceSource, teacherControlsSeam, teacherControlsSource } from './helpers/appScreens.mjs';
+import { appFactorySeam, appFactorySource, appHookSource, appSurfaceSource, teacherControlsSeam, teacherControlsSource } from './helpers/appScreens.mjs';
 
 const require = createRequire(import.meta.url);
 const secureExamNavigation = require('../../functions/lib/secureExamNavigation.js');
@@ -395,16 +395,23 @@ test('the student is told their own close time while they work, in student words
 
 test('the assignment screen hands the student\'s own window to the DOL copy', () => {
   const app = executableSource(readFileSync(new URL('../../src/App.jsx', import.meta.url), 'utf8'));
-  const call = region(app, 'const currentDolCopy = currentIsDOL && !preview', ': null;', 'the DOL copy call');
+  // Since the App split (slice 7), createAssignmentWorkspaceView owns
+  // renderAssignmentWorkspace, which makes the DOL copy; App hands it the
+  // student's own window (activeDOLState) and assignment.
+  const view = executableSource(appFactorySource('createAssignmentWorkspaceView'));
+  for (const input of ['activeDOLState', 'activeAssignmentData']) {
+    assert.ok(appFactorySeam('createAssignmentWorkspaceView').parameters.includes(input), `App hands the workspace view ${input}`);
+  }
+  const call = region(view, 'const currentDolCopy = currentIsDOL && !preview', ': null;', 'the DOL copy call');
   assert.match(call, /describeDolClose\(\{[^}]*extendedTime: dolState\.extendedTime[^}]*endsAt: dolState\.endsAt[^}]*\}\)/);
   // …and dolState there is the student's: getDOLState on the projected
   // assignment, worked out once per tick of App's clock as activeDOLState
   // (the workspace's `assignment` is that same activeAssignmentData).
   assert.match(app, /const activeDOLState = useMemo\(\(\) => getDOLState\(\{ assignment: activeAssignmentData, schedule: classSchedule, classId: user\?\.classId \|\| null, classPeriod: user\?\.classPeriod, nowValue: now \}\), \[activeAssignmentData, classSchedule, user\?\.classId, user\?\.classPeriod, now\]\);/);
-  const workspace = region(app, 'const renderAssignmentWorkspace = (preview = false) => {', 'const currentDolCopy', 'the workspace up to the DOL copy');
+  const workspace = region(view, 'const renderAssignmentWorkspace = (preview = false) => {', 'const currentDolCopy', 'the workspace up to the DOL copy');
   assert.match(workspace, /\n\s*const assignment = activeAssignmentData;\n/);
   assert.match(workspace, /\n\s*const dolState = activeDOLState;\n/);
-  assert.match(app, /import \{ describeDolClose, DOL_OPEN_NOTICE \} from '\.\/platform\/assessment\/dolCloseCopy\.js';/);
+  assert.match(view, /import \{ describeDolClose, DOL_OPEN_NOTICE \} from '\.\.\/\.\.\/platform\/assessment\/dolCloseCopy\.js';/);
 });
 
 test('the teacher\'s live view knows who still has extra time, and never says so on the projector', () => {
@@ -462,13 +469,20 @@ test('the class pack-up banner stands aside while the student is on their exit t
   // Another class's lesson is not theirs.
   assert.equal(studentExtraTimeDolOpen({ assignments: own(LEGACY_EXTRA_TIME), schedule, classId: 'class-b', classPeriod: 'Period 1', nowValue: at(9, 27) }), false);
 
-  const app = executableSource(readFileSync(new URL('../../src/App.jsx', import.meta.url), 'utf8'));
+  // Since the App split (slice 7), createStudentShellViews owns the pack-up
+  // line (its identity shell draws it); App hands it the lessons, the
+  // schedule, the clock and its renderMemo.
+  const app = executableSource(appFactorySource('createStudentShellViews'));
+  for (const input of ['assignments', 'classSchedule', 'now', 'renderMemo']) {
+    assert.ok(appFactorySeam('createStudentShellViews').parameters.includes(input), `App hands the shell views ${input}`);
+  }
+  assert.match(app, /notice=\{preview \? null : renderStudentPackUpNotice\(\)\}/, 'the shell draws the pack-up line');
   const banner = region(app, 'const renderStudentPackUpNotice = (', 'const renderStudentWarmupBanner = () => {', 'the pack-up line');
   // In the pack-up window the line stands aside while this student's own
   // exit ticket is open; the check is kept until the lessons, the schedule,
   // the class or the clock it reads change (App's render work).
   assert.match(banner, /if \(packUp\.status !== 'active'\) return null;\s*if \(renderMemo\('packUpExtraTime', \[assignments, classSchedule, user\.classId, user\.classPeriod, now\], \(\) => studentExtraTimeDolOpen\(\{ assignments, schedule: classSchedule, classId: user\.classId \|\| null, classPeriod: user\.classPeriod, nowValue: now \}\)\)\) return null;/);
-  const lifecycleImport = region(app, "import {\n  CLASS_PERIODS,", "} from './assignmentLifecycle';", 'the assignmentLifecycle import');
+  const lifecycleImport = region(app, "import {\n  assignmentIsForStudent,", "} from '../../assignmentLifecycle';", 'the assignmentLifecycle import');
   assert.match(lifecycleImport, /\n {2}studentExtraTimeDolOpen,\n/);
 });
 

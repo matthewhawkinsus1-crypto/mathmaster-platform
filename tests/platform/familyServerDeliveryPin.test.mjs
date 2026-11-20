@@ -36,6 +36,7 @@ import {
 } from '../../functions/shared/workspaceDraftSchema.mjs';
 import { FAMILY_PIN_SERVER_WAIT_MS, createWorkspaceDraftSync } from '../../src/platform/persistence/workspaceDraftSync.js';
 import { executableSource, region } from './helpers/sourceContract.mjs';
+import { appFactorySeam, appFactorySource, appSurfaceSource } from './helpers/appScreens.mjs';
 
 const CLASS = 'class-p4';
 const ASSIGNMENT_ID = 'asg-server-pins';
@@ -258,14 +259,20 @@ test('App reads the server\'s pins with the draft copy, waits for them before a 
   assert.ok(FAMILY_PIN_SERVER_WAIT_MS > 0 && FAMILY_PIN_SERVER_WAIT_MS <= 5000, 'the wait is short');
 
   // The question's context reads them; a fresh allocation waits for them.
-  const view = region(app, 'const renderAssignmentWorkspace = (preview = false) => {', 'const currentAdaptation = ', 'the question context');
+  // (Since the App split, slice 7: renderAssignmentWorkspace is
+  // createAssignmentWorkspaceView's; App hands it the pins it read.)
+  const workspaceView = executableSource(appFactorySource('createAssignmentWorkspaceView'));
+  for (const input of ['serverDeliveryPins', 'activeAssignmentUsesWorkspaceDrafts', 'isTeacherPreview', 'familyDelivery']) {
+    assert.ok(appFactorySeam('createAssignmentWorkspaceView').parameters.includes(input), `App hands the workspace view ${input}`);
+  }
+  const view = region(workspaceView, 'const renderAssignmentWorkspace = (preview = false) => {', 'const currentAdaptation = ', 'the question context');
   assert.match(view, /serverPins: serverPinsRead \? serverDeliveryPins\.pins : null,/);
   assert.match(view, /const serverPinsRead = serverDeliveryPins\.assignmentId === assignment\.id && serverDeliveryPins\.known;/);
   const pending = region(view, 'const familyPinPending = ', ';', 'familyPinPending');
   for (const condition of [/!preview/, /user\?\.role === 'student'/, /!isTeacherPreview/, /activeAssignmentUsesWorkspaceDrafts/, /!serverPinsRead/, /!currentFamilyContext\.pin\b/, /!currentFamilyContext\.pinUnreadable/]) {
     assert.match(pending, condition, `the wait requires ${condition}`);
   }
-  assert.match(app, /\{familyEngineLoading \|\| familyPinPending \? <p role="status"[^>]*>Loading this question…<\/p> : <QuestionEngine/);
+  assert.match(workspaceView, /\{familyEngineLoading \|\| familyPinPending \? <p role="status"[^>]*>Loading this question…<\/p> : <QuestionEngine/);
   // The wait ends in a transition, both ways (pins read, or the wait timed out):
   // the question it held back mounts while QuestionEngine's code may still be
   // loading, and an ordinary update would hide the workspace behind the app's
@@ -274,7 +281,8 @@ test('App reads the server\'s pins with the draft copy, waits for them before a 
   assert.match(app, /const stopWaitingForPins = \(\) => startTransition\(\(\) => setServerDeliveryPins\(/);
   assert.match(app, /startTransition\(\(\) => setServerDeliveryPins\(\{ assignmentId: activeAssignmentId, known: true, pins: deliveryPins \}\)\);/);
   // Every update that ends the wait is one of those two.
-  assert.equal(app.match(/setServerDeliveryPins\(\{ assignmentId: activeAssignmentId, known: true/g)?.length, 1);
+  // (Counted across App and every module its code moved into.)
+  assert.equal(executableSource(appSurfaceSource()).match(/setServerDeliveryPins\(\{ assignmentId: activeAssignmentId, known: true/g)?.length, 1);
 
   // What is shown is pinned on the server too, replacing a pin it had to drop.
   const delivery = region(app, 'const handleFamilyDelivery = useCallback(', '}, [user?.role, user?.id, isTeacherPreview]);', 'handleFamilyDelivery');
