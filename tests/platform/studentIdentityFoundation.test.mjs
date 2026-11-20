@@ -2,21 +2,28 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { executableSource, region } from './helpers/sourceContract.mjs';
+import { appFactorySource } from './helpers/appScreens.mjs';
 
 const read = (path) => readFileSync(new URL(`../../${path}`, import.meta.url), 'utf8');
+// Since the App split (slice 7) the identity shell, the pack-up line and the
+// Warm-Up banner are createStudentShellViews' (src/app/student/studentShellViews.jsx),
+// which App calls once, by position.
+const shellViewsSource = () => appFactorySource('createStudentShellViews');
 
 test('authenticated student render paths use the identity shell with the student record', () => {
   const app = read('src/App.jsx');
-  // Ends where the "this screen belongs to the signed-in account" guard begins.
-  const shell = region(app, 'const renderStudentIdentityShell =', 'const userIsSignedInAccount', 'authenticated student shell');
-  assert.match(app, /import StudentIdentityBar(?:, \{[^}]+\})? from ['"].\/components\/student\/StudentIdentityBar\.jsx['"]/);
+  // The shell is createStudentShellViews' since the App split: it ends where
+  // the next function of that module, renderStudentScreen, begins.
+  const shellViews = shellViewsSource();
+  const shell = region(shellViews, 'const renderStudentIdentityShell =', 'const renderStudentScreen =', 'authenticated student shell');
+  assert.match(shellViews, /import StudentIdentityBar(?:, \{[^}]+\})? from ['"]\.\.\/\.\.\/components\/student\/StudentIdentityBar\.jsx['"]/);
   assert.match(shell, /data-authenticated-student-shell=/);
   assert.match(shell, /<StudentIdentityBar[\s\S]*student=\{preview \? null : \{ \.\.\.studentRecord, \.\.\.user \}\}/);
   assert.match(shell, /onLogout=\{preview \? null : handleLogout\}/);
 
   const studentRoutes = region(app, "if (user.role === 'student' && activeView === 'dashboard')", 'return null;', 'student route rendering');
   // renderStudentScreen is the identity shell with a main landmark (NAV-15).
-  assert.match(app, /const renderStudentScreen = \(content\) => renderStudentIdentityShell\(content, \{ main: true \}\);/);
+  assert.match(shellViews, /const renderStudentScreen = \(content\) => renderStudentIdentityShell\(content, \{ main: true \}\);/);
   assert.match(studentRoutes, /renderStudent(?:IdentityShell|Screen)\(\s*<>[\s\S]{0,300}<LiveChallengeStudent/);
   assert.match(studentRoutes, /renderStudentIdentityShell\(renderAssignmentWorkspace\(false\)\)/);
 });
@@ -39,8 +46,10 @@ test('identity bar shows a full natural name, period, and normal not-you logout 
 test('classroom alerts stack below the measured identity bar instead of competing at top zero', () => {
   const app = read('src/App.jsx');
   const identity = read('src/components/student/StudentIdentityBar.jsx');
-  const packUp = region(app, 'const renderStudentPackUpNotice =', 'const renderStudentWarmupBanner =', 'Pack-Up line');
-  const warmUp = region(app, 'const renderStudentWarmupBanner =', 'const renderIdleOverlay =', 'Warm-Up alert');
+  // (createStudentShellViews' since the App split.)
+  const shellViews = shellViewsSource();
+  const packUp = region(shellViews, 'const renderStudentPackUpNotice =', 'const renderStudentWarmupBanner =', 'Pack-Up line');
+  const warmUp = region(shellViews, 'const renderStudentWarmupBanner =', 'const renderIdleOverlay =', 'Warm-Up alert');
 
   assert.match(identity, /STUDENT_IDENTITY_STACK_OFFSET/);
   // The offset must follow the wrapped mobile identity height: measured again
@@ -67,7 +76,7 @@ test('classroom alerts stack below the measured identity bar instead of competin
   assert.match(noticeRow, /ref=\{noticeRef\}/);
   assert.match(noticeRow, /position: 'sticky', top: `var\(\$\{STUDENT_IDENTITY_BAR_HEIGHT\}, 38px\)`/);
   // Every student screen gets it through the one shell, never a teacher preview.
-  const shell = region(app, 'const renderStudentIdentityShell = ', 'const renderStudentScreen = ', 'identity shell');
+  const shell = region(shellViews, 'const renderStudentIdentityShell = ', 'const renderStudentScreen = ', 'identity shell');
   assert.match(shell, /notice=\{preview \? null : renderStudentPackUpNotice\(\)\}/);
   assert.doesNotMatch(app, /renderStudentPackUpBanner/);
   // Work saves itself, so it says so, unless this device still holds unsent work.
@@ -76,7 +85,7 @@ test('classroom alerts stack below the measured identity bar instead of competin
   assert.match(packUp, /data-pack-up-notice=\{workLine\.kind\}/);
   assert.match(packUp, /<strong role="alert" style=\{\{ fontWeight: 900 \}\}>\s*\{workLine\.sentence\}\s*<\/strong>/);
   // A student mid-Test is never interrupted by it.
-  const guards = region(app, 'const renderStudentPackUpNotice =', 'return (', 'Pack-Up guards');
+  const guards = region(shellViews, 'const renderStudentPackUpNotice =', 'return (', 'Pack-Up guards');
   assert.match(guards, /if \(secureExamActive\) return null;/);
 });
 

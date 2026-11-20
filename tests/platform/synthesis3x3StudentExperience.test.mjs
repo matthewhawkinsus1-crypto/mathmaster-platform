@@ -4,6 +4,7 @@ import fs from 'node:fs';
 
 import { verificationTokenNeeded } from '../../src/tools/systemsWorkspace/verificationTokenState.js';
 import { region } from './helpers/sourceContract.mjs';
+import { appFactorySource } from './helpers/appScreens.mjs';
 
 test('verification keeps a solved value selected until every original equation has received it', () => {
   // The equations carry their text: whether one still needs a value depends on
@@ -30,7 +31,9 @@ test('completed Warm-Up no longer keeps the active banner on screen', () => {
   // wording. Assert the behaviour inside the banner builder: a flag that is
   // true when every Warm-Up question is correct or expired, and that flag
   // withholding the banner — not either side's variable names.
-  const app = fs.readFileSync('src/App.jsx', 'utf8');
+  // Since the App split (slice 7) both are createStudentShellViews'
+  // (src/app/student/studentShellViews.jsx), which App calls once, by position.
+  const app = appFactorySource('createStudentShellViews');
   // The banner's choice lives in studentActiveWarmup (pass 3: the phone's
   // status chip offers the same Warm-Up; worked out once per change of what
   // it reads); the banner renders its answer.

@@ -2,8 +2,12 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import { executableSource, region } from './helpers/sourceContract.mjs';
+import { appFactorySource, appSurfaceSource } from './helpers/appScreens.mjs';
 
-const app = fs.readFileSync('src/App.jsx', 'utf8');
+// Since the App split (slice 7) the open assignment (the navigator, Overview
+// and its grade lines) is drawn by createAssignmentWorkspaceView
+// (src/app/student/assignmentWorkspaceView.jsx), which App calls once, by position.
+const app = appFactorySource('createAssignmentWorkspaceView');
 const engine = fs.readFileSync('src/QuestionEngine.jsx', 'utf8');
 const viewport = fs.readFileSync('src/components/student/MobileViewportContainer.jsx', 'utf8');
 const preflight = fs.readFileSync('src/platform/preflight/assignmentV5PreflightModel.js', 'utf8');
@@ -23,7 +27,8 @@ test('Overview shows the live grade and attempted-work accuracy, in student word
   const overview = region(app, 'className="mathmaster-overview-grade"', '</section>', 'Overview\'s grade');
   assert.match(overview, /\{gradeSoFarLine\}/);
   assert.match(overview, /\{gradeDetailLine && <span/);
-  assert.doesNotMatch(executableSource(app), /if submitted now/i);
+  // Refused across App and every module its code moved into, so it cannot return by moving.
+  assert.doesNotMatch(executableSource(appSurfaceSource()), /if submitted now/i);
   // Overview is reachable from the compact navigator too: its button is not
   // inside the expanded-only branch.
   const nav = region(app, '<nav ref={stickyHeightRef(ASSIGNMENT_NAV_HEIGHT_VAR)}', '</nav>', 'the navigator');

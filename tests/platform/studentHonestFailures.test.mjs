@@ -320,8 +320,11 @@ test('a student\'s own later close says "extra time" only once the class\'s own 
   assert.match(pill, /const extraTime = saysExtraTime\(extraTimeFrom, nowMs\);/, 'the pill decides on its own one-second clock');
   assert.match(pill, /\{compact \? null : `\$\{label\} open\$\{extraTime \? ` · \$\{EXTRA_TIME_WORDS\}` : ''\}`\}/);
   assert.match(pill, /`\$\{label\} is open\$\{extraTime \? ` \(\$\{EXTRA_TIME_WORDS\}\)` : ''\}/, 'and in the words a screen reader is given');
-  assert.match(app, /<SectionTimeLeft label=\{EXIT_TICKET\}[^>]*extraTimeFrom=\{extraTimeFrom\(dolState\)\} \/>/);
-  assert.match(app, /^import \{ extraTimeFrom \} from '\.\/platform\/assessment\/extraTimeWords\.js';$/m);
+  // The pill is drawn in the open assignment, createAssignmentWorkspaceView's
+  // (src/app/student/assignmentWorkspaceView.jsx) since the App split (slice 7).
+  const workspace = executableSource(appFactorySource('createAssignmentWorkspaceView'));
+  assert.match(workspace, /<SectionTimeLeft label=\{EXIT_TICKET\}[^>]*extraTimeFrom=\{extraTimeFrom\(dolState\)\} \/>/);
+  assert.match(workspace, /^import \{ extraTimeFrom \} from '\.\.\/\.\.\/platform\/assessment\/extraTimeWords\.js';$/m);
 });
 
 /* ---- 4. "not being saved" across a reload of the tab ---------------------- */

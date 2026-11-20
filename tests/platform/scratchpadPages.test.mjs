@@ -201,7 +201,13 @@ test('every scratchpad control clears the Chromebook touch minimum', () => {
 });
 
 test('the teacher sees every page, not the first third of an answer', () => {
-  const source = codeOf('src/App.jsx');
+  // Since the App split (slice 7) the dialog that shows the pages is
+  // createTeacherDialogViews' renderTeacherScratchpadDialog (the teacher kit),
+  // which the teacher's screen calls.
+  const source = codeOf(teacherControlsSeam('createTeacherDialogViews').path);
+  assert.ok(teacherControlsSource('createTeacherDialogViews'), 'App builds the dialog');
+  assert.match(source, /\n {2}const renderTeacherScratchpadDialog = \(\) => \{\n[\s\S]*teacherScratchpadDialog\.pages[\s\S]*\n {2}return \[[^\]]*\brenderTeacherScratchpadDialog\b[^\]]*\];/);
+  assert.match(codeOf('src/app/teacher/TeacherWorkspace.jsx'), /\{renderTeacherScratchpadDialog\(\)\}/);
   // Since the App split the opener is createTeacherScratchpadControls' (the
   // teacher kit), which App hands the every-page reader loadScratchpadRecord.
   const controls = teacherControlsSource('createTeacherScratchpadControls');
