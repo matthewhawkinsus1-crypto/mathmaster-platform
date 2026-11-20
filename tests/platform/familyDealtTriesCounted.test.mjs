@@ -52,7 +52,7 @@ import {
 } from '../../functions/shared/attemptPolicy.mjs';
 import { planSeatAdditions } from '../../functions/shared/questionGenerationIdentity.mjs';
 import { executableSource, region } from './helpers/sourceContract.mjs';
-import { appFactorySource, appHookSource } from './helpers/appScreens.mjs';
+import { appFactorySeam, appFactorySource, appHookSource, appModulePaths } from './helpers/appScreens.mjs';
 import {
   CLASS_ID,
   DAY,
@@ -359,10 +359,18 @@ test('App.jsx tells the question list what is not known before the family engine
   // The same input as the count itself, so the two cannot disagree.
   // Since the App split it is createGradingControls's (src/app/student/gradingControls.js); App takes it from its one call.
   assert.match(region(executableSource(appFactorySource('createGradingControls')), 'const countedQuestionKnownFor = ', ');', 'countedQuestionKnownFor'), /=> countedQuestionKnown\(\s*triesCountingFor\(assignment, questionIndex, record, preview\),\s*$/);
-  const question = region(app, 'const navigatorQuestionFor = (entry) => {', '\n    };', 'navigatorQuestionFor');
+  // Since the App split the question list is drawn by the open assignment's
+  // workspace, which createAssignmentWorkspaceView owns
+  // (src/app/student/assignmentWorkspaceView.jsx); App hands it the counts, the
+  // engine and the engine's rule by name.
+  const workspaceSource = appFactorySource('createAssignmentWorkspaceView');
+  const workspace = executableSource(workspaceSource);
+  const handed = appFactorySeam('createAssignmentWorkspaceView').parameters;
+  for (const name of ['countedQuestionFor', 'countedQuestionKnownFor', 'familyDelivery', 'isPersonalizedBlueprint']) assert.ok(handed.includes(name), `App hands the workspace view ${name}`);
+  const question = region(workspace, 'const navigatorQuestionFor = (entry) => {', '\n    };', 'navigatorQuestionFor');
   assert.match(question, /triesKnown: countedQuestionKnownFor\(assignment, entry\.index, workingTracker\?\.\[entry\.index\], preview\),/);
   assert.match(question, /maximumAttempts: entryMaximumAttempts\(entry\),/);
-  assert.match(region(app, 'const entryMaximumAttempts = (entry) => {', '};', 'entryMaximumAttempts'), /question: countedQuestionFor\(assignment, entry\.index, workingTracker\?\.\[entry\.index\], questions\[entry\.index\], preview\),/);
+  assert.match(region(workspace, 'const entryMaximumAttempts = (entry) => {', '};', 'entryMaximumAttempts'), /question: countedQuestionFor\(assignment, entry\.index, workingTracker\?\.\[entry\.index\], questions\[entry\.index\], preview\),/);
   // Whether it can vary is the engine's answer, and known only once it is here.
   assert.match(question, /canGenerateFresh: isPersonalizedBlueprint\(questions\[entry\.index\]\),/);
   // Since the App split, useFamilyDeliveryEngine owns the engine and this rule; App takes both from its one call.
@@ -372,13 +380,16 @@ test('App.jsx tells the question list what is not known before the family engine
   assert.match(familyEngine, /return \{ familyDelivery, loadFamilyDelivery, isPersonalizedBlueprint \};/);
   assert.match(question, /replacementKnown: Boolean\(familyDelivery\) \|\| !resolveQuestionReplacementAllowed\(\{ activityPolicy: policy, canGenerateFresh: true \}\),/);
   // Every place a section's count is printed holds it while a question is pending.
-  const printed = source.split('\n').filter((line) => line.includes('section.progress.done'));
+  // (Counted across App and every module its code moved into: both are the workspace view's.)
+  const everywhere = [source, ...appModulePaths().map((path) => readFileSync(new URL(`../../${path}`, import.meta.url), 'utf8'))].join('\n');
+  const printed = everywhere.split('\n').filter((line) => line.includes('section.progress.done'));
+  assert.equal(workspaceSource.split('\n').filter((line) => line.includes('section.progress.done')).length, 2, 'both in the workspace view');
   assert.equal(printed.length, 2, 'the tab\'s title and the Overview');
   printed.forEach((line) => assert.match(line, /section\.progress\.pending \?/, line.trim()));
   // The strip tells a pending number from one not started (the class is its status).
   const css = readFileSync(new URL('../../src/App.css', import.meta.url), 'utf8');
   assert.match(region(css, '.mathmaster-question-number.is-pending {', '}', 'the pending number'), /border-style: dotted;/);
-  assert.match(region(source, 'className="mathmaster-question-number-strip"', '</div>', 'the number strip'), /className=\{`mathmaster-question-number is-\$\{shown\.status\}/);
+  assert.match(region(workspaceSource, 'className="mathmaster-question-number-strip"', '</div>', 'the number strip'), /className=\{`mathmaster-question-number is-\$\{shown\.status\}/);
 });
 
 test('the teacher\'s case review counts Warm-Up 2 on the question dealt', async () => {

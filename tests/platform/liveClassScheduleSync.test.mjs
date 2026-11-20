@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
+import { appFactorySource } from './helpers/appScreens.mjs';
 
 const app = fs.readFileSync('src/App.jsx', 'utf8');
 
@@ -20,10 +21,13 @@ test('signed-in clients subscribe to live class schedule changes', () => {
 });
 
 test('student pack-up message remains final-five-minutes only', () => {
-  const start = app.indexOf('const renderStudentPackUpNotice');
-  const end = app.indexOf('const renderStudentWarmupBanner', start);
+  // Since the App split the pack-up line is drawn by createStudentShellViews
+  // (src/app/student/studentShellViews.jsx), which App calls once, by position.
+  const shell = appFactorySource('createStudentShellViews');
+  const start = shell.indexOf('const renderStudentPackUpNotice');
+  const end = shell.indexOf('const renderStudentWarmupBanner', start);
   assert.ok(start >= 0 && end > start, 'student pack-up line block must exist');
-  const block = app.slice(start, end);
+  const block = shell.slice(start, end);
 
   assert.match(block, /minutesBeforeEnd: 5/);
   assert.match(block, /if \(packUp\.status !== 'active'\) return null/);

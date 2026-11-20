@@ -45,7 +45,7 @@ import representationMatchGrader from '../../functions/shared/serverGrading/tool
 import { gradeWorkWithGrader } from '../../functions/shared/serverGrading/toolWorkGrading.mjs';
 import { selectRestorableDraftEntries } from '../../functions/shared/workspaceDraftSchema.mjs';
 import { executableSource, region } from './helpers/sourceContract.mjs';
-import { teacherControlsSource } from './helpers/appScreens.mjs';
+import { appFactorySource, teacherControlsSource } from './helpers/appScreens.mjs';
 import { describeDolClose } from '../../src/platform/assessment/dolCloseCopy.js';
 
 const read = (path) => readFileSync(new URL(`../../${path}`, import.meta.url), 'utf8');
@@ -538,7 +538,9 @@ test('the card sort reads its draft through the normaliser', () => {
 });
 
 test('the time-ended receipt belongs to a closed window, not a reopened one', () => {
-  const app = executableSource(read('src/App.jsx'));
+  // Since the App split the receipt and the "when time ends" notices are drawn by
+  // the open assignment's workspace, which createAssignmentWorkspaceView owns.
+  const app = executableSource(appFactorySource('createAssignmentWorkspaceView'));
   // While the Warm-Up (or DOL) is open again, the student is told their work
   // will be submitted when time ends — not that time already ended.
   assert.match(app, /const currentSectionOpenNow = /);

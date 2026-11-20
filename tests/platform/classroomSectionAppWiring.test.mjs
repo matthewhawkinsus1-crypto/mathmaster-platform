@@ -2,14 +2,21 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import { assertCapability, region } from './helpers/sourceContract.mjs';
+import { appFactorySource } from './helpers/appScreens.mjs';
 
 const source = fs.readFileSync(
   new URL('../../src/App.jsx', import.meta.url),
   'utf8',
 );
 
+// Since the App split the open assignment's workspace, with its section
+// scores, is drawn by createAssignmentWorkspaceView
+// (src/app/student/assignmentWorkspaceView.jsx; App calls it once, by position).
+const workspaceView = () => appFactorySource('createAssignmentWorkspaceView');
+
 test('App consumes canonical section grade and Classroom launch helpers', () => {
-  assert.match(source, /splitGradesBySection/);
+  // The section grades are the workspace's to work out; the launch is still App's.
+  assert.match(workspaceView(), /splitGradesBySection/);
   assert.match(source, /parseClassroomLaunchSearch/);
   assert.match(source, /classroomLaunchTarget/);
 });
@@ -31,10 +38,11 @@ test('teacher gradebook exposes Overall, Warm-Up, Classwork, Practice, and DOL a
 });
 
 test('student workspace shows the active section score instead of only the whole-assignment score', () => {
-  assert.match(source, /currentSectionGrade/);
-  assert.match(source, /currentSectionOfficialGrade/);
-  assert.match(source, /currentSectionMeta\.label/);
-  assert.match(source, /section score/i);
+  const workspace = workspaceView();
+  assert.match(workspace, /currentSectionGrade/);
+  assert.match(workspace, /currentSectionOfficialGrade/);
+  assert.match(workspace, /currentSectionMeta\.label/);
+  assert.match(workspace, /section score/i);
 });
 
 test('Classroom split launch preserves exact section and closed links stop on frozen report first', () => {

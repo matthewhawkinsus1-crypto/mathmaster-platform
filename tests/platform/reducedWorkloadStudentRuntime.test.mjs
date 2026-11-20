@@ -152,7 +152,11 @@ test('every student-runtime site reads the closure', () => {
   assert.match(start, /new Set\(studentRequiredFor\(assignmentData, \{ hasPracticePass \}\)\.indices\)/);
   assert.match(start, /\.filter\(\(index\) => !studentRequired \|\| studentRequired\.has\(index\)\)/);
 
-  const workspace = executableSource(region(app, 'const renderAssignmentWorkspace = (preview = false) => {', 'const visibleQuestionEntries', 'workspace head'));
+  // Since the App split, createAssignmentWorkspaceView owns the workspace
+  // (renderAssignmentWorkspace); App builds it once and hands it the closure.
+  const workspaceView = executableSource(appFactorySource('createAssignmentWorkspaceView'));
+  assert.ok(appFactorySeam('createAssignmentWorkspaceView').parameters.includes('studentRequiredFor'), 'App hands createAssignmentWorkspaceView the closure');
+  const workspace = region(workspaceView, 'const renderAssignmentWorkspace = (preview = false) => {', 'const visibleQuestionEntries', 'workspace head');
   assert.match(workspace, /studentRequiredFor\(assignment, \{ hasPracticePass \}\)/);
   assert.match(workspace, /\.filter\(\(entry\) => !studentRequiredSet \|\| studentRequiredSet\.has\(entry\.storageIndex\)\)/);
   // Only the student's own profile is added: a Practice Pass keeps its
@@ -163,8 +167,8 @@ test('every student-runtime site reads the closure', () => {
   assert.match(workspace, /const recordedGrade = questions\.length \? gradeSplit\.score \?\? 0 : 0;/);
   // The recorded grade is the real grade in post-deadline Practice Mode too.
   assert.match(workspace, /const officialSupportProfile = !preview && user\?\.role === 'student' \? user\.profile : null;/);
-  assert.match(code, /const sectionPosition = studentRequiredSet \? requiredSectionPosition\.get\(index\) : entry\.logicalPosition;/, 'numbering inside a reduced section');
-  assert.match(code, /splitGradesBySection\(\{ tracker: recordedTracker, assignment, supportProfile: officialSupportProfile \}\)/);
+  assert.match(workspaceView, /const sectionPosition = studentRequiredSet \? requiredSectionPosition\.get\(index\) : entry\.logicalPosition;/, 'numbering inside a reduced section');
+  assert.match(workspaceView, /splitGradesBySection\(\{ tracker: recordedTracker, assignment, supportProfile: officialSupportProfile \}\)/);
 
   // Since the App split, createQuestionNavigation owns changeQuestion; App
   // builds it once and hands it the closure.
@@ -188,7 +192,11 @@ test('every student-runtime site reads the closure', () => {
   assert.match(grading, /const dolOmitted = new Set\(studentRequiredFor\(assignment, \{ assignmentTracker: updatedTracker\?\.\[activeAssignmentId\] \|\| null \}/);
   assert.match(grading, /questionIndices: studentDolIndices,/, 'the live DOL projection');
   assert.match(timedSections, /&& !warmupOmitted\.has\(index\)/, 'Warm-Up reminder');
-  assert.match(code, /&& !bannerOmitted\.has\(index\)/, 'Warm-Up banner');
+  // Since the App split, createStudentShellViews owns the Warm-Up banner's
+  // count (studentActiveWarmup); App hands it the closure too.
+  const activeWarmup = region(executableSource(appFactorySource('createStudentShellViews')), 'const studentActiveWarmup = () => {', 'const renderStudentWarmupBanner = () => {', 'the active Warm-Up');
+  assert.ok(appFactorySeam('createStudentShellViews').parameters.includes('studentRequiredFor'), 'App hands createStudentShellViews the closure');
+  assert.match(activeWarmup, /&& !bannerOmitted\.has\(index\)/, 'Warm-Up banner');
   assert.match(code, /questionStates: encodeQuestionStates\(activeWorkingTracker, included, \{ notRequired \}\),/, 'presence');
   // Since the App split, createStudentWorksheetExport owns the student's PDF;
   // App hands it the closure as well.

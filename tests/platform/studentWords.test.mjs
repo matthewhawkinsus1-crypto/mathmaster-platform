@@ -88,8 +88,10 @@ test('NAV-17: Home, Grades, Assignments and the workspace take the closed-work a
     assert.match(source, /\{SEE_RESULTS\}/, path);
     assert.match(source, /^import \{[^}]*\bSEE_RESULTS\b[^}]*\} from '\.\.\/\.\.\/platform\/student\/studentWords\.js';$/m, `${path} imports what it prints`);
   }
-  const app = executableSource(read('src/App.jsx'));
-  assert.match(app, /^import \{ CLOSED_WORK, EXIT_TICKET, EXIT_TICKET_SPELLED_OUT, exitTicketInSentence \} from '\.\/platform\/student\/studentWords\.js';$/m);
+  // Since the App split the workspace is drawn by createAssignmentWorkspaceView
+  // (src/app/student/assignmentWorkspaceView.jsx), which imports the words it prints.
+  const app = executableSource(appFactorySource('createAssignmentWorkspaceView'));
+  assert.match(app, /^import \{ CLOSED_WORK, EXIT_TICKET, EXIT_TICKET_SPELLED_OUT, exitTicketInSentence \} from '\.\.\/\.\.\/platform\/student\/studentWords\.js';$/m);
   // The workspace badge and the phone's status chip name the state from the list.
   const badge = region(app, 'const lifecycleBadge = lifecycle.isPracticeOnly', ': lifecycle.isLate', 'workspace badge');
   assert.match(badge, /\{ label: CLOSED_WORK\.label, /);
@@ -180,7 +182,9 @@ test('NAV-18: Home and the workspace print the whole lines, not the old label an
   const home = executableSource(read('src/components/student/StudentDashboardView.jsx'));
   assert.match(home, /\{dates\.dueLine\}\{dates\.finalLine \? ` · \$\{dates\.finalLine\}` : ''\}/);
   assert.doesNotMatch(home, /dates\.dueLabel|dates\.finalLabel/);
-  const app = executableSource(read('src/App.jsx'));
+  // (Drawn by createAssignmentWorkspaceView since the App split, with App's own renderMemo.)
+  const app = executableSource(appFactorySource('createAssignmentWorkspaceView'));
+  assert.ok(appFactorySeam('createAssignmentWorkspaceView').parameters.includes('renderMemo'), 'App hands the workspace view its renderMemo');
   // The workspace header's lines, from the student's own lifecycle (kept
   // until the assignment or that lifecycle changes: App's render work).
   assert.match(app, /const dates = renderMemo\('dueDateLines', \[assignment, lifecycle\], \(\) => studentDueDateLines\(assignment, lifecycle\)\); return <>\{dates\.dueLine\}\{dates\.finalLine \? <><br \/>\{dates\.finalLine\}<\/> : null\}<\/>;/);
