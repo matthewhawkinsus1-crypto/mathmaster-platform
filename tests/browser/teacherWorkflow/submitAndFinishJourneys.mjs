@@ -25,6 +25,8 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { newSchoolContext } from './schoolClock.mjs';
 
+import { answerParts } from '../support/partByPart.mjs';
+
 const { chromium } = await import(process.env.PLAYWRIGHT_MODULE || '/opt/node22/lib/node_modules/playwright/index.mjs');
 const ORIGIN = process.env.TEACHER_HARNESS_ORIGIN || 'http://127.0.0.1:5188';
 const ARTIFACTS = path.join(path.dirname(fileURLToPath(import.meta.url)), '../artifacts/submitAndFinish');
@@ -67,8 +69,17 @@ const typeInto = async (page, field, value) => {
   await page.keyboard.type(value);
   await settle(page, 200);
 };
+const WORKSPACE = '.mathmaster-question-tool-workspace';
 const answerAll = async (page, values) => {
-  const fields = page.locator('.mathmaster-question-tool-workspace').locator('math-field:visible, input[type="text"]:visible, input:not([type]):visible');
+  // A multi-part answer opens one part at a time (MultiAnswerGrader): each
+  // part is answered, then Next part, to Review all parts. After a miss the
+  // wrong parts are open together, and the boxes on screen are filled below.
+  if (await page.locator(WORKSPACE).getByRole('button', { name: /^(Next part|Review all parts)$/ }).count()) {
+    const parts = await page.locator(`${WORKSPACE} [data-answer-part-count]`).first().getAttribute('data-answer-part-count');
+    await answerParts(page, values.slice(0, Number(parts)), { root: WORKSPACE, type: (field, value) => typeInto(page, field, value) });
+    return Number(parts);
+  }
+  const fields = page.locator(WORKSPACE).locator('math-field:visible, input[type="text"]:visible, input:not([type]):visible');
   const count = await fields.count();
   for (let index = 0; index < count && index < values.length; index += 1) {
     const label = (await fields.nth(index).getAttribute('aria-label')) || '';

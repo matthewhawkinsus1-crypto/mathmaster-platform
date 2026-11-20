@@ -514,7 +514,11 @@ export const buildTeacherWorkflowFixture = ({ now = Date.now(), Timestamp, param
   const changed = fixture[`grades/${p3[2].id}`];
   changed.gradesByAssignment['a-lastweek'] = { ...changed.gradesByAssignment['a-lastweek'], 2: correct };
 
-  addSupportEvidence({ fixture, now, Timestamp, supported: p3[1], legacy: p3[4] });
+  // `&everyPartAtOnce=1`: the supported student (910002) also has See every
+  // part at once in both revisions, so a multi-part answer shows all of its
+  // boxes, as it did before part by part (MultiAnswerGrader). For the journeys
+  // about two boxes on screen at once (restoredDraftFocusRaceJourneys.mjs).
+  addSupportEvidence({ fixture, now, Timestamp, supported: p3[1], legacy: p3[4], everyPartAtOnce: params?.get?.('everyPartAtOnce') === '1' });
   addCaseReviewEvidence({ fixture, now, Timestamp, student: p3[1] });
   // Opt-in (`&reduced=1`) so every other journey sees the school unchanged.
   if (params?.get?.('reduced') === '1') addReducedWorkloadScenario({ fixture, now, Timestamp, classRecord: byId['c-alg1-p5'] });
@@ -911,7 +915,7 @@ const addReducedWorkloadScenario = ({ fixture, now, Timestamp, classRecord }) =>
  * and service minutes. `legacy` has a pre-versioning flat profile and graded
  * work with no timing — the "0 min" case the old report showed.
  */
-const addSupportEvidence = ({ fixture, now, Timestamp, supported, legacy }) => {
+const addSupportEvidence = ({ fixture, now, Timestamp, supported, legacy, everyPartAtOnce = false }) => {
   const at = (ms) => Timestamp.fromMillis(ms);
   const base = `grades/${supported.id}`;
   const revisionInput = (effectiveStart, withExtraTime) => normalizeSupportRevisionInput({
@@ -924,6 +928,7 @@ const addSupportEvidence = ({ fixture, now, Timestamp, supported, legacy }) => {
       { id: 'calculator' },
       { id: 'check-for-understanding' },
       ...(withExtraTime ? [{ id: 'extra-time', params: { dueDateExtension: { mode: 'school-days', value: 1 } } }] : []),
+      ...(everyPartAtOnce ? [{ id: 'every-part-at-once' }] : []),
     ],
     modifications: [{ id: 'reduce-complexity' }],
     serviceExpectations: [{ serviceType: 'inclusion-support', minutesPerWeek: 100 }],

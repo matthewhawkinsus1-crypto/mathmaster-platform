@@ -77,6 +77,9 @@
 // Exit code 1 on any failure.
 
 import { newSchoolContext, schoolNow } from './schoolClock.mjs';
+// The line question opens one part at a time (MultiAnswerGrader, part by
+// part): its answers are read, and typed, part by part.
+import { openPart, openPartIndex, partValues, typeIntoPart } from '../support/partByPart.mjs';
 
 const { chromium } = await import(process.env.PLAYWRIGHT_MODULE || '/opt/node22/lib/node_modules/playwright/index.mjs');
 
@@ -141,29 +144,26 @@ const openDevice = async (label, { server = null, storageState = null, params = 
 
 const openAssignment = async (page) => {
   await page.getByRole('button', { name: /^(Continue|Resume Question|Start)/ }).first().click();
-  await page.locator('.mathmaster-question-stage math-field').first().waitFor({ timeout: 60000 });
+  await page.locator('.mathmaster-question-stage :is(math-field, [data-part-state])').first().waitFor({ timeout: 60000 });
   await page.waitForTimeout(400);
 };
 
 const stageText = (page) => page.evaluate(() => (document.querySelector('.mathmaster-question-stage')?.innerText || '').replace(/\s+/g, ' '));
-const fields = (page) => page.evaluate(() => [...document.querySelectorAll('.mathmaster-question-stage math-field')].map((field) => field.value));
+// Every part's answer, in order: the open part's box, an answered part's line,
+// '' for a part not reached yet (partByPart.mjs partValues).
+const fields = (page) => partValues(page);
 const goTo = async (page, question) => {
   for (let step = 0; step < 6 && !question.prompt.test(await stageText(page)); step += 1) {
     const index = position(await stageText(page));
     await page.getByRole('button', { name: index > question.index ? 'Previous question' : 'Next question' }).first().click();
     await page.waitForTimeout(500);
   }
-  await page.locator('.mathmaster-question-stage math-field').first().waitFor({ timeout: 30000 });
+  // A box, or (every part answered, in review) a part's line.
+  await page.locator('.mathmaster-question-stage :is(math-field, [data-part-state])').first().waitFor({ timeout: 30000 });
   await page.waitForTimeout(300);
 };
-const typeInto = async (page, index, text) => {
-  const field = page.locator('.mathmaster-question-stage math-field').nth(index);
-  await field.click();
-  await page.keyboard.press('Control+a');
-  await page.keyboard.press('Backspace');
-  await page.keyboard.type(text, { delay: 25 });
-  await page.keyboard.press('Tab');
-};
+// Into part `index`: opened first (Change) when it is an answered line.
+const typeInto = (page, index, text) => typeIntoPart(page, index, text);
 // What the screen shows, once it has settled on `expected` (a restore lands
 // when the read does, and remounts the question) — or what it shows after
 // `ms` if it never does.
@@ -357,18 +357,26 @@ if (wanted('directions')) {
 
 if (wanted('late')) {
   // The read is slower than the student: B is on the line question, with the
-  // cursor in the intercept box, before A's work arrives.
+  // cursor in its answer box, before A's work arrives. The question opens
+  // one part at a time, so that box is the open part, the slope; the read
+  // brings A's slope, and the question opens on the part A had not answered,
+  // the intercept, with the cursor in its box: what the student types next
+  // goes there, never over the slope A wrote.
   const L = await openDevice('L late read', { server: serverAfterA, params: { draftReadMs: '5000' } });
   await openAssignment(L.page);
   await goTo(L.page, Q_LINE);
   const before = await fields(L.page);
   check(same(before, ['', '']), 'late: before the read lands, the boxes are this device\'s own (empty)', JSON.stringify(before));
-  await L.page.locator('.mathmaster-question-stage math-field').nth(1).click();
+  check(await openPartIndex(L.page) === 0, 'late: before the read lands, the open part is the first (the slope)');
+  await L.page.locator('.mathmaster-question-stage [data-part-state="open"] math-field').first().click();
   const restored = await shows(L.page, ['-\\frac23', ''], 12000);
   check(same(restored, ['-\\frac23', '']), 'late: the read lands and shows A\'s slope', JSON.stringify(restored));
   await L.page.waitForTimeout(300);
-  const cursorIn = await L.page.evaluate(() => [...document.querySelectorAll('.mathmaster-question-stage math-field')].indexOf(document.activeElement));
-  check(cursorIn === 1, 'late: the cursor is back in the intercept box the student had clicked', `focused box ${cursorIn}`);
+  const cursorIn = await L.page.evaluate(() => {
+    const open = document.querySelector('.mathmaster-question-stage [data-part-state="open"]');
+    return { part: open ? Number(open.getAttribute('data-part-index')) : null, inIt: Boolean(open?.querySelector('math-field') && open.querySelector('math-field') === document.activeElement) };
+  });
+  check(cursorIn.part === 1 && cursorIn.inIt, 'late: the intercept part is open and the cursor is in its box, where the student was typing', JSON.stringify(cursorIn));
   // Typing straight on, without clicking again.
   await L.page.keyboard.type('4', { delay: 25 });
   await L.page.keyboard.press('Tab');
@@ -504,6 +512,9 @@ if (wanted('other')) {
   // while `arrive` brings the other question's work in behind them.
   const typeThrough = async (page, arrive, landed, tag) => {
     await engineTag(page);
+    // The slope is an answered line (the question opens on the intercept,
+    // the part with no answer): the student opens it to edit it.
+    if (await openPartIndex(page) !== 0) await openPart(page, 0);
     await page.locator('.mathmaster-question-stage math-field').first().click();
     await page.keyboard.press('End');
     await page.keyboard.press('ArrowLeft');
@@ -610,10 +621,13 @@ if (wanted('next')) {
   await B.page.getByRole('button', { name: 'Next question' }).first().click();
   await B.page.waitForFunction(() => window.__journeyNext.released, null, { timeout: 30000 });
   const drawn = await B.page.evaluate(() => window.__journeyNext.released);
-  check(drawn.boxes === 2, 'next: the read lands as soon as the line question, read from B\'s own older copy, is in the page', JSON.stringify(drawn));
+  // One part at a time: B's own older copy has a slope, so the line question
+  // opens on the intercept, its one box on screen.
+  check(drawn.boxes === 1, 'next: the read lands as soon as the line question, read from B\'s own older copy, is in the page', JSON.stringify(drawn));
   const shown = await shows(B.page, ['34', '']);
   check(same(shown, ['34', '']), 'next: the line question shows A\'s newer slope', JSON.stringify(shown));
-  // The student types on in the slope box.
+  // The student opens the slope (an answered line) and types on in its box.
+  await openPart(B.page, 0);
   await B.page.locator('.mathmaster-question-stage math-field').first().click();
   await B.page.keyboard.press('End');
   await B.page.keyboard.type('9', { delay: 25 });

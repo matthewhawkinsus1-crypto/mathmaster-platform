@@ -1,7 +1,17 @@
 # Showing the process: answer boxes one screenshot cannot answer
 
-Status: **decided by the owner on 2026-11-20; not built yet.** This page pairs with
+Status: **decided by the owner on 2026-11-20. Slice P1 (part by part, Review all
+parts, See every part at once) is built; P2 to P5 are not.** This page pairs with
 `docs/platform/WORKED_EXAMPLES.md`.
+
+Where P1 lives: `src/MultiAnswerGrader.jsx` (`partByPart`), asked for by the
+student's assignment (`assignmentWorkspaceView.jsx`, not a teacher preview) and a
+secure Test's tool item (`RichQuestionRuntime.jsx`, not Corrections or the
+teacher's Test preview); every other host draws every part at once. The support
+is `every-part-at-once` (`functions/shared/supportCatalog.mjs`). A secure Test's
+*field* item (several `responseFields`, drawn by `RichQuestionRuntime`'s
+`FieldItem`, not `MultiAnswerGrader`) still shows every field at once. Drivers
+answer part by part through `tests/browser/support/partByPart.mjs`.
 
 ## 1. The problem
 

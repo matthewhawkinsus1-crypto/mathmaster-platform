@@ -37,6 +37,7 @@
 
 import { watchUnimplementedCallables } from './journeyChecks.mjs';
 import { newSchoolContext } from './schoolClock.mjs';
+import { answerParts, walksParts } from '../support/partByPart.mjs';
 
 const { chromium } = await import(process.env.PLAYWRIGHT_MODULE || '/opt/node22/lib/node_modules/playwright/index.mjs');
 
@@ -126,18 +127,26 @@ const RELATIONS = [
   [/is more than|is greater than|exceeds/, '>'],
   [/is less than|is fewer than|is under/, '<'],
 ];
-// Classwork 2, four statements: a wrong symbol for each.
+// Classwork 2, four statements: a wrong symbol for each. The question opens
+// one statement at a time (MultiAnswerGrader, part by part): each is answered
+// in its turn, then Next part, to Review all parts, and Submit.
+const STAGE = '.mathmaster-question-stage';
+const pickWrong = async (group) => {
+  const statement = (await group.getAttribute('aria-label')) || (await group.innerText());
+  const right = RELATIONS.find(([pattern]) => pattern.test(statement))?.[1];
+  const radios = group.locator('[role=radio]');
+  const names = await radios.evaluateAll((nodes) => nodes.map((node) => node.getAttribute('aria-label') || node.innerText));
+  await radios.nth(names.findIndex((name) => !name.includes(right))).click();
+};
 const missEveryStatement = async (page) => {
-  const groups = page.locator('.mathmaster-question-stage [role=radiogroup]');
-  const count = await groups.count();
-  for (let index = 0; index < count; index += 1) {
-    const group = groups.nth(index);
-    const statement = (await group.getAttribute('aria-label')) || (await group.innerText());
-    const right = RELATIONS.find(([pattern]) => pattern.test(statement))?.[1];
-    const radios = group.locator('[role=radio]');
-    const names = await radios.evaluateAll((nodes) => nodes.map((node) => node.getAttribute('aria-label') || node.innerText));
-    await radios.nth(names.findIndex((name) => !name.includes(right))).click();
+  if (await walksParts(page, { root: STAGE })) {
+    const count = Number(await page.locator(`${STAGE} [data-answer-part-count]`).first().getAttribute('data-answer-part-count'));
+    await answerParts(page, Array.from({ length: count }, () => 'wrong'), { root: STAGE, type: (group) => pickWrong(group) });
+    return count;
   }
+  const groups = page.locator(`${STAGE} [role=radiogroup]`);
+  const count = await groups.count();
+  for (let index = 0; index < count; index += 1) await pickWrong(groups.nth(index));
   return count;
 };
 
