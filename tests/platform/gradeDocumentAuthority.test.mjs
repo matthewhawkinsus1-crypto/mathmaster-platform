@@ -18,7 +18,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync, readdirSync } from 'node:fs';
 import { executableSource, region } from './helpers/sourceContract.mjs';
-import { appHookSource, appSurfaceSource } from './helpers/appScreens.mjs';
+import { appFactorySource, appHookSource, appSurfaceSource } from './helpers/appScreens.mjs';
 import {
   GRADE_FIELDS_EMPTY_ON_STUDENT_CREATE,
   MIXED_AUTHORITY_GRADE_FIELDS,
@@ -161,8 +161,10 @@ test('the student app addresses no server-owned grade field by path', () => {
 });
 
 test('the only direct student transaction writes a response checkpoint, never a canonical record', () => {
+  // Since the App split the outbox's dispatcher and its direct path are
+  // createStudentOutbox's (src/app/student/studentOutbox.js), which App calls.
   const direct = executableSource(region(
-    app, 'const reconcileThroughClientTransaction', 'const reconcileDurableStudentAction', 'direct checkpoint path',
+    appFactorySource('createStudentOutbox'), 'const reconcileThroughClientTransaction', 'const reconcileDurableStudentAction', 'direct checkpoint path',
   ));
   assert.match(direct, /if \(INGESTIBLE_KINDS\.includes\(action\.kind\)\) \{\s*throw new Error\(/);
   assert.match(direct, /if \(action\.kind !== 'responseCheckpoint'\) \{\s*throw new Error\(/);
@@ -172,8 +174,11 @@ test('the only direct student transaction writes a response checkpoint, never a 
 });
 
 test('elapsed-time progress is delivered to server ingestion, through an imported builder', () => {
+  // Since the App split the dispatcher is createStudentOutbox's
+  // (src/app/student/studentOutbox.js), and so is the import it calls through.
+  const outbox = appFactorySource('createStudentOutbox');
   const dispatcher = executableSource(region(
-    app, 'const reconcileDurableStudentAction', 'const drainStudentOutbox', 'durable dispatcher',
+    outbox, 'const reconcileDurableStudentAction', 'const drainStudentOutbox', 'durable dispatcher',
   ));
   assert.match(dispatcher, /const elapsedTime = PROGRESS_KINDS\.includes\(action\.kind\)/);
   assert.match(dispatcher, /if \(INGESTIBLE_KINDS\.includes\(action\.kind\) \|\| elapsedTime\)/);
@@ -182,7 +187,7 @@ test('elapsed-time progress is delivered to server ingestion, through an importe
   assert.match(dispatcher, /return reconcileThroughClientTransaction\(action\);\s*\};?\s*$/);
   // App.jsx is .jsx: nothing imports it, so a call with no import would be a
   // runtime ReferenceError that passes every other check (AGENTS.md).
-  assert.match(app, /import \{[^}]*\bPROGRESS_KINDS\b[^}]*\bbuildProgressEnvelopeForAction\b[^}]*\} from '\.\/services\/submissionIngestionService\.js'/);
+  assert.match(outbox, /import \{[^}]*\bPROGRESS_KINDS\b[^}]*\bbuildProgressEnvelopeForAction\b[^}]*\} from '\.\.\/\.\.\/services\/submissionIngestionService\.js'/);
   // And the courier forwards progress envelopes instead of dropping them.
   assert.match(courier, /\.map\(normalizeIngestionEnvelope\)/);
   assert.match(courier, /export const buildProgressEnvelopeForAction = \(action\) => buildProgressEnvelope\(/);

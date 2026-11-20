@@ -56,6 +56,7 @@ import {
   stepActionCountsAttempt,
 } from '../../functions/shared/serverGrading/stepAlgebraStepVerification.mjs';
 import { executableSource, region } from './helpers/sourceContract.mjs';
+import { appFactorySource } from './helpers/appScreens.mjs';
 import { functionsBackendSource } from './helpers/functionsBackendSource.mjs';
 
 const CAPTURED_AT = Date.parse('2026-09-14T15:20:00Z');
@@ -595,13 +596,17 @@ test('step work survives the device, the queue and the wire unchanged, and carri
 const read = (relative) => readFileSync(new URL(`../../${relative}`, import.meta.url), 'utf8');
 
 test('App forwards the step\'s raw work in the durable step submission, and imports what it calls', () => {
-  const app = executableSource(read('src/App.jsx'));
-  const handler = region(app, 'const handleStepGrade = async', 'const handleRequestNewQuestion', 'handleStepGrade');
+  // Since the App split handleStepGrade is createGradingControls's
+  // (src/app/student/gradingControls.js) and the envelope builder is
+  // createStudentOutbox's (src/app/student/studentOutbox.js); App calls both.
+  const grading = executableSource(appFactorySource('createGradingControls'));
+  const outbox = executableSource(appFactorySource('createStudentOutbox'));
+  const handler = region(grading, 'const handleStepGrade = async', 'const handleRequestNewQuestion', 'handleStepGrade');
   assert.match(handler, /\(\{[^}]*\bstepWork\b[^}]*\}\)\s*=>/, 'handleStepGrade receives the step work');
   const payload = region(handler, "kind: 'stepSubmission'", 'setStudentOutboxDepth(', 'the step submission payload');
   assert.match(payload, /stepWork:\s*normalizeStepWork\(stepWork\)/, 'the payload carries the bounded step work');
-  assert.match(app, /import\s*\{[^}]*\bnormalizeStepWork\b[^}]*\}\s*from\s*'\.\.\/functions\/shared\/submissionEnvelope\.mjs'/, 'normalizeStepWork is imported (a missing import is a runtime ReferenceError no check catches)');
-  const builder = region(app, 'const buildSubmissionEnvelopeForAction', '});', 'buildSubmissionEnvelopeForAction');
+  assert.match(grading, /import\s*\{[^}]*\bnormalizeStepWork\b[^}]*\}\s*from\s*'\.\.\/\.\.\/\.\.\/functions\/shared\/submissionEnvelope\.mjs'/, 'normalizeStepWork is imported (a missing import is a runtime ReferenceError no check catches)');
+  const builder = region(outbox, 'const buildSubmissionEnvelopeForAction', '});', 'buildSubmissionEnvelopeForAction');
   assert.match(builder, /stepWork:\s*payload\.stepWork/, 'the envelope carries it to the server');
 });
 

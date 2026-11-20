@@ -43,6 +43,7 @@ import {
 } from '../../src/platform/performance/durableActionOutbox.js';
 import { normalizeQuestionRecord, recordQuestionAttempt } from '../../functions/shared/attemptPolicy.mjs';
 import { region } from './helpers/sourceContract.mjs';
+import { appFactorySeam, appFactorySource } from './helpers/appScreens.mjs';
 import { functionsBackendSource } from './helpers/functionsBackendSource.mjs';
 
 const appSource = readFileSync(new URL('../../src/App.jsx', import.meta.url), 'utf8');
@@ -413,8 +414,12 @@ test('temporary network loss leaves the work locally durable and retries later',
 });
 
 test('the submission path still captures durably first and reconciles in the background', () => {
-  const start = appSource.indexOf('const handleGradeSubmit = async (');
-  const block = appSource.slice(start, appSource.indexOf('const handleStepGrade', start));
+  // Since the App split handleGradeSubmit is createGradingControls's
+  // (src/app/student/gradingControls.js); the reconcile it launches is the
+  // one App takes from createStudentOutbox and hands it.
+  const block = region(appFactorySource('createGradingControls'), 'const handleGradeSubmit = async (', 'const handleStepGrade', 'handleGradeSubmit');
+  assert.ok(appFactorySeam('createStudentOutbox').taken.includes('reconcileAndReportStudentOutbox'), 'App takes the reconcile from the outbox');
+  assert.ok(appFactorySeam('createGradingControls').parameters.includes('reconcileAndReportStudentOutbox'), 'and hands it to the grading controls');
   // The student's click waits on IndexedDB, never on Firestore.
   assert.match(block, /queuedAction = await enqueueDurableAction\(createDurableAction\(\{/);
   // Delivery now wraps the drain with pre/post device reports; it is still
@@ -423,7 +428,7 @@ test('the submission path still captures durably first and reconciles in the bac
   const capture = block.indexOf('enqueueDurableAction');
   const uiUpdate = block.indexOf('setTracker(updatedTracker)');
   const network = block.indexOf('reconcileAndReportStudentOutbox');
-  assert.ok(capture < uiUpdate && uiUpdate < network, 'capture, then UI, then network');
+  assert.ok(capture >= 0 && capture < uiUpdate && uiUpdate < network, 'capture, then UI, then network');
 });
 
 test('response checkpointing is debounced and hands off to the outbox, never awaited by a tool', () => {
@@ -431,8 +436,9 @@ test('response checkpointing is debounced and hands off to the outbox, never awa
   const block = engineSource.slice(start, engineSource.indexOf('const isMultipart', start));
   assert.match(block, /window\.setTimeout\(\s*\n?\s*\(\) => flushResponseCheckpoint\('debounce'\),\s*\n?\s*CHECKPOINT_DEBOUNCE_MS/);
   assert.doesNotMatch(block, /await /);
-  const handlerStart = appSource.indexOf('const handleResponseCheckpoint = useCallback');
-  const handler = appSource.slice(handlerStart, appSource.indexOf('const handleGradeSubmit', handlerStart));
+  // Since the App split what follows the handler in App is its call of
+  // createGradingControls (handleGradeSubmit moved there).
+  const handler = region(appSource, 'const handleResponseCheckpoint = useCallback', '= createGradingControls(', 'handleResponseCheckpoint');
   assert.match(handler, /void drainStudentOutbox\(\)/);
   // A response that has not changed does not queue a write at all.
   assert.match(handler, /if \(checkpointFingerprintRef\.current\.get\(documentId\) === fingerprint\) return;/);

@@ -12,8 +12,8 @@
  */
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { assertCapability, executableSource } from './helpers/sourceContract.mjs';
-import { appHookSource } from './helpers/appScreens.mjs';
+import { assertCapability, executableSource, region } from './helpers/sourceContract.mjs';
+import { appFactorySource, appHookSource } from './helpers/appScreens.mjs';
 import { readFileSync } from 'node:fs';
 
 import {
@@ -1199,7 +1199,8 @@ test('checkpoint and workspace writes live outside the grades document', () => {
   // syncGradeToClassroom triggers on grades/{studentId}. Keeping drafts out of
   // that document is the whole reason a keystroke cannot reach Classroom.
   assert.match(functionsSource, /exports\.syncGradeToClassroom = onDocumentWritten\(\s*\{\s*document: "grades\/\{studentId\}"/);
-  assert.match(appSource, /doc\(db, 'studentResponseCheckpoints', action\.payload\.documentId\)/);
+  // Since the App split the direct checkpoint write is createStudentOutbox's (src/app/student/studentOutbox.js).
+  assert.match(appFactorySource('createStudentOutbox'), /doc\(db, 'studentResponseCheckpoints', action\.payload\.documentId\)/);
   assert.match(workspaceStoreSource, /WORKSPACE_DRAFT_COLLECTION = 'studentWorkspaceDrafts'/);
   assert.doesNotMatch(workspaceStoreSource, /'grades'/);
 });
@@ -1260,8 +1261,9 @@ test('a checkpoint with nothing to queue never sets the save line to "Saving…"
   // No close the scheduler could finalize at: nothing is built, so nothing is queued.
   assert.ok(buildResponseCheckpointAction(input), 'with a close, a checkpoint is built');
   assert.equal(buildResponseCheckpointAction({ ...input, finalizeAt: null }), null);
-  const start = appSource.indexOf('const handleResponseCheckpoint = useCallback');
-  const handler = executableSource(appSource.slice(start, appSource.indexOf('const handleGradeSubmit', start)));
+  // Since the App split what follows the handler in App is its call of
+  // createGradingControls (handleGradeSubmit moved there).
+  const handler = executableSource(region(appSource, 'const handleResponseCheckpoint = useCallback', '= createGradingControls(', 'handleResponseCheckpoint'));
   // The handler asks the same builder before it says anything is being saved.
   const guard = handler.indexOf('if (!buildResponseCheckpointAction(checkpoint)) return;');
   const capturing = handler.indexOf("setStudentPersistenceStatus('capturing');");
@@ -1270,8 +1272,9 @@ test('a checkpoint with nothing to queue never sets the save line to "Saving…"
 });
 
 test('the checkpoint handler builds a draft, and derives no grade of its own', () => {
-  const start = appSource.indexOf('const handleResponseCheckpoint = useCallback');
-  const block = appSource.slice(start, appSource.indexOf('const handleGradeSubmit', start));
+  // Since the App split what follows the handler in App is its call of
+  // createGradingControls (handleGradeSubmit moved there).
+  const block = region(appSource, 'const handleResponseCheckpoint = useCallback', '= createGradingControls(', 'handleResponseCheckpoint');
   assert.match(block, /enqueueResponseCheckpoint\(/);
   assert.match(block, /resolveAuthoritativeClose\(/);
   // The defect this replaces: the handler used to run the attempt policy, build

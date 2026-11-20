@@ -39,7 +39,7 @@ import { extraTimeFrom, saysExtraTime } from '../../src/platform/assessment/extr
 import { resolveNextAction } from '../../src/studentDashboardModel.js';
 import { executableSource, region } from './helpers/sourceContract.mjs';
 import { draftHealthAccountEffect, replayAccounts } from './helpers/draftHealthAccountEffect.mjs';
-import { appHookSource, appSurfaceSource } from './helpers/appScreens.mjs';
+import { appFactorySource, appHookSource, appSurfaceSource } from './helpers/appScreens.mjs';
 
 const read = (path) => executableSource(readFileSync(new URL(`../../${path}`, import.meta.url), 'utf8'));
 const app = read('src/App.jsx');
@@ -78,17 +78,22 @@ test('the two results say "not saved": no verdict, no credit, no attempt, and ea
 });
 
 test('App.jsx: a step or a new problem it could not queue is answered with the result, never null and never a toast', () => {
-  assert.match(app, /^import \{ REPLACEMENT_NOT_QUEUED, STEP_NOT_QUEUED, SUBMISSION_NOT_QUEUED \} from '\.\/platform\/student\/submissionNotQueued\.js';$/m, 'imported next to its use');
-  const step = region(app, 'const handleStepGrade = async (', 'const handleRequestNewQuestion = async (');
+  // Since the App split both handlers are createGradingControls's
+  // (src/app/student/gradingControls.js), which App calls and which makes the import.
+  const grading = executableSource(appFactorySource('createGradingControls'));
+  assert.match(grading, /^import \{ REPLACEMENT_NOT_QUEUED, STEP_NOT_QUEUED, SUBMISSION_NOT_QUEUED \} from '\.\.\/\.\.\/platform\/student\/submissionNotQueued\.js';$/m, 'imported next to its use');
+  const step = region(grading, 'const handleStepGrade = async (', 'const handleRequestNewQuestion = async (');
   const stepQueue = step.indexOf("kind: 'stepSubmission'");
+  assert.notEqual(stepQueue, -1, 'the step is queued in handleStepGrade');
   const stepFailure = step.slice(step.indexOf('} catch (error) {', stepQueue), step.indexOf('setTracker(updatedTracker);', stepQueue));
   assert.match(stepFailure, /setStudentPersistenceStatus\('volatile'\);\s*return STEP_NOT_QUEUED;/);
   assert.doesNotMatch(stepFailure, /return null;/);
   assert.doesNotMatch(stepFailure, /toast(?:Warning|Error|Info|Success)\(/, 'one announcement: the solver\'s');
-  // Since the App split what follows it in App is its call of
-  // createAssignmentPreflightControls, which holds V5_COMPILER_PLUMBING_ERROR.
-  const replace = region(app, 'const handleRequestNewQuestion = async (', 'const [V5_COMPILER_PLUMBING_ERROR');
+  // It is the last function of the grading controls: what follows it is the
+  // array the factory returns.
+  const replace = region(grading, 'const handleRequestNewQuestion = async (', '\n  return [');
   const replaceQueue = replace.indexOf("kind: 'questionReplacement'");
+  assert.notEqual(replaceQueue, -1, 'the new problem is queued in handleRequestNewQuestion');
   const replaceFailure = replace.slice(replace.indexOf('} catch (error) {', replaceQueue), replace.indexOf('setTracker(updatedTracker);', replaceQueue));
   assert.match(replaceFailure, /setStudentPersistenceStatus\('volatile'\);\s*return REPLACEMENT_NOT_QUEUED;/);
   assert.doesNotMatch(replaceFailure, /toast(?:Warning|Error|Info|Success)\(/);
