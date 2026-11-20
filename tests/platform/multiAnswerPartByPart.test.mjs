@@ -258,7 +258,7 @@ test('after a graded miss the wrong parts are open and the right ones stay shrun
   const allRight = { isCorrect: true, partGrades: LINE.answerFields.map((field) => ({ id: field.id, isCorrect: true })) };
   view.update({ question: LINE, onStateChange: () => {}, onUndoStateChange: () => {}, draftKey: null, partByPart: true, feedback: allRight });
   assert.deepEqual(partsOf(view).map(([, state]) => state), ['answered', 'answered', 'answered', 'answered']);
-  assert.ok(!headings(view).some((text) => /^Review/.test(text)), 'a graded question is not a review before submitting');
+  assert.ok(!headings(view).some((text) => text.startsWith('Review')), 'a graded question is not a review before submitting');
 });
 
 /* ---------------------------------------------- all at once, as before */

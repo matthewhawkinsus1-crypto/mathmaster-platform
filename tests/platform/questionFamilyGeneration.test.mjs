@@ -419,7 +419,9 @@ const LEGACY_GOLDEN = {
 // proves the generated question itself is unchanged, and each must read as a
 // support this default student does not have. keyboardAccess: TS02, "Connect
 // my points" on an assessment for a student with keyboard access.
-const PRESENTATION_KEYS_ADDED_SINCE = { keyboardAccess: false };
+// everyPartAtOnce: See every part at once, a multi-part answer drawn whole for
+// a student with that support (MultiAnswerGrader, part by part).
+const PRESENTATION_KEYS_ADDED_SINCE = { keyboardAccess: false, everyPartAtOnce: false };
 const asRecorded = (question) => {
   const supportPresentation = { ...question.supportPresentation };
   for (const [key, value] of Object.entries(PRESENTATION_KEYS_ADDED_SINCE)) {
