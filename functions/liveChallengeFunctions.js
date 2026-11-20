@@ -689,15 +689,20 @@ async function buildLiveChallengePublicQuestion(db, { roomId, roundIndex, questi
   };
 }
 
+/**
+ * Update this teacher's invites for one room, found by a query on the room,
+ * where no roster is at hand (a stale room's cleanup, a room retired before
+ * play). The query only finds them: each is written through
+ * updateLiveChallengeInvitesForRoom, which reads it again in a transaction
+ * and writes it only if it still points at this room. A newer game can
+ * re-invite a student between the query and the write, and a cancelled status
+ * on that newer invite would hide the new game's lobby from them
+ * (warmupChallengeLink.js shouldShowChallengeLobbyInvite).
+ */
 async function updateLiveChallengeInvitesByRoom(db, { roomId, teacherEmail, fields }) {
   const snapshot = await db.collection(LIVE_CHALLENGE_INVITES).where("roomId", "==", roomId).get();
-  const ownedInvites = snapshot.docs.filter((invite) => invite.data()?.teacherEmail === teacherEmail);
-  for (let start = 0; start < ownedInvites.length; start += 450) {
-    const batch = db.batch();
-    ownedInvites.slice(start, start + 450).forEach((invite) => batch.set(invite.ref, fields, { merge: true }));
-    // eslint-disable-next-line no-await-in-loop
-    await batch.commit();
-  }
+  const studentIds = snapshot.docs.filter((invite) => invite.data()?.teacherEmail === teacherEmail).map((invite) => invite.id);
+  await updateLiveChallengeInvitesForRoom(db, { roomId, studentIds, fields });
 }
 
 const liveChallengePrivateStateIsRecoverable = (privateSnapshot, { roomId, teacherEmail }) => {

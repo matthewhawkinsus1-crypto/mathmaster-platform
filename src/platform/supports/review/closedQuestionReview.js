@@ -29,7 +29,8 @@ import { familyFor } from '../families/index.js';
  *             answer it states to the item's key. Asked only when no family
  *             wrote steps. Today that is the District DOL #2 review's seven
  *             tasks (functions/shared/districtDol2WorkedSolution.mjs, CT02).
- *   hasContent / hasSteps / intro / speechText
+ *   hasContent / hasSteps / intro / speechText (Read aloud) / translationText
+ *             (Translate: the same parts, one a line)
  *
  * Pure and safe on any input: a builder or family that throws is "no tool
  * review" / "no family review".
@@ -245,7 +246,13 @@ export const buildClosedQuestionReview = ({ question = null, isToolQuestion = fa
     ...(legacy ? legacyReviewSpeechLines(question, legacyReview) : []).map((line) => ({ text: line })),
   ].map((part) => ({ ...part, text: clean(part.text) })).filter((part) => part.text);
   const speechText = speechParts.map((part) => part.text).join(' ');
-  return { authored, tool, legacy, fromFamily, fromBuilder, hasContent, hasSteps, intro, speechText, speechParts };
+  // What Translate reads: the same parts, one a line, so each is a sentence of
+  // its own there. An answer summary has no stop ("The domain: all real
+  // numbers; the range: y ≥ -4"), and joined with a space it ran on into the
+  // next part ("… y ≥ -4 Step 1 — State the domain."): a sentence the pack
+  // cannot know, so both stayed English. Read aloud still reads speechText.
+  const translationText = speechParts.map((part) => part.text).join('\n');
+  return { authored, tool, legacy, fromFamily, fromBuilder, hasContent, hasSteps, intro, speechText, translationText, speechParts };
 };
 
 /** Does this closed question have a worked solution to point at? */

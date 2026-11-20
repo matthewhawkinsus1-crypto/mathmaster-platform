@@ -77,8 +77,12 @@ const actionStyle = {
 // when they wrote some ({ text, coverage? }; authoredSupportText.js): a hint, a
 // worked solution. They are shown only if they carry the English's mathematics
 // exactly (translationProviders.js), and then need no language pack at all.
-export const SupportedTextActions = ({ text, readAloud = null, translation = null, onEvidence = null, label = 'this', authored = null }) => {
+// `translationText`, when given, is what Translate reads in place of `text`: the
+// same words put together for it (a worked solution's parts, one a line, so each
+// is a sentence of its own; closedQuestionReview.js). Read aloud says `text`.
+export const SupportedTextActions = ({ text: readText, translationText = null, readAloud = null, translation = null, onEvidence = null, label = 'this', authored = null }) => {
   const language = translation?.language || null;
+  const text = translationText || readText;
   // The translation of THIS text in THIS language, looked up once it is shown.
   const lookupKey = `${language || ''}|${text || ''}|${authored?.text || ''}`;
   // Known at once when the student's pack is already loaded (or there is no
@@ -109,7 +113,7 @@ export const SupportedTextActions = ({ text, readAloud = null, translation = nul
   const unavailable = translation && result && !translated && !nothingToTranslate;
   const shown = showTranslated && translated;
   const read = () => {
-    const spoken = shown ? translated.text : text;
+    const spoken = shown ? translated.text : readText;
     const spokenLanguage = shown ? language : (readAloud.language || 'en');
     if (speakAloud(spoken, { language: spokenLanguage })) onEvidence?.('text-to-speech', 'used');
   };

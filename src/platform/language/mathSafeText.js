@@ -447,6 +447,40 @@ export const segmentMathText = (input, { language = 'en', speech = false, spans 
     });
   }
 
+  // 3c. A suspended hyphen is a word's, not a minus (Translate's split, not
+  //     Read aloud's): "the x- and y-intercepts", "the x- or y-axis", "the
+  //     x-, y-, and z-coefficients". A lone letter pressed against "-", then
+  //     a space and "and" or "or", or a comma and "and", "or" or the next
+  //     letter's "-", is the first half of a hyphenated word. As math it was
+  //     carried into a translation as "x-" ("con el eje x- y con el eje y").
+  //     "x- 3" is still a minus. Read aloud says the letter and leaves the
+  //     hyphen unsaid (speechText.js), and its split is unchanged.
+  if (!speech) {
+    const solidAt = (index) => {
+      let cursor = index;
+      while (atoms[cursor]?.kind === 'space') cursor += 1;
+      return cursor;
+    };
+    const conjunction = (index) => atoms[index]?.kind === 'text' && /^(?:and|or)$/.test(atoms[index].value);
+    // The letter is no operand: nothing mathematical before it ("y = x- and"
+    // keeps its math), and the "-" is pressed against it.
+    const letterAndHyphen = (index) => atoms[index]?.kind === 'math' && /^[A-Za-z]$/.test(atoms[index].value)
+      && atoms[nearest(index, -1)]?.kind !== 'math' && atoms[index + 1]?.kind === 'math' && atoms[index + 1].value === '-';
+    const suspended = (index) => {
+      if (!letterAndHyphen(index)) return false;
+      const next = index + 2;
+      if (atoms[next]?.kind === 'space') return conjunction(solidAt(next));
+      if (atoms[next]?.value !== ',') return false;
+      const listed = solidAt(next + 1);
+      return conjunction(listed) || letterAndHyphen(listed);
+    };
+    atoms.map((atom, index) => suspended(index)).forEach((isSuspended, index) => {
+      if (!isSuspended) return;
+      atoms[index].kind = 'text';
+      atoms[index + 1].kind = 'text';
+    });
+  }
+
   // 4. Join: consecutive math atoms (with only spaces between) become one run.
   //    A sentence-final period after math stays text; a comma or semicolon
   //    between math atoms ends the run (so "A, B, C" stays three runs and the
