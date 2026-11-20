@@ -1857,6 +1857,9 @@ const rangeStep = (spec, shown) => {
 const VERTEX_TYPES = Object.freeze(['quadratic', 'absolute']);
 const CENTER_TYPES = Object.freeze(['cubic', 'cubeRoot', 'rational']);
 
+/** Where a sign is tested: between the zeros the sentence has just named, or, with none, in each piece of the domain (1/x has two). */
+const piecesTested = (zeros) => (zeros.length ? 'each piece between them' : 'each piece of the domain');
+
 /** The worked steps of a graph sibling, one per kind of part: [[step, short answer], …]. */
 const workGraph = (spec, parts) => {
   const out = [];
@@ -1893,7 +1896,7 @@ const workGraph = (spec, parts) => {
       const intervals = signIntervals(spec, kind === 'positive' ? 1 : -1);
       return intervals.length ? [`${kind} on ${showIntervals(intervals)}`, `${kind} ${showIntervals(intervals)}`] : [`never ${kind}`, `${kind} never`];
     });
-    out.push([`${solve}; testing one x-value in each piece between them, the function is ${joinClauses(described.map(([step]) => step))}.`, described.map(([, answer]) => answer).join('; ')]);
+    out.push([`${solve}; testing one x-value in ${piecesTested(zeros)}, the function is ${joinClauses(described.map(([step]) => step))}.`, described.map(([, answer]) => answer).join('; ')]);
   }
   parts.filter((part) => text(part.kind) === 'point').forEach((part) => {
     const feature = text(part.feature) || 'vertex';
@@ -2954,7 +2957,7 @@ const signSentence = (spec, kinds) => {
     const intervals = signIntervals(spec, kind === 'positive' ? 1 : -1);
     return intervals.length ? `${kind} on ${showIntervals(intervals)}` : `never ${kind}`;
   });
-  return `${solve}; testing one x-value in each piece between them, the function is ${joinClauses(said)}.`;
+  return `${solve}; testing one x-value in ${piecesTested(zeros)}, the function is ${joinClauses(said)}.`;
 };
 
 const signParts = (spec, kind) => signIntervals(spec, kind === 'positive' ? 1 : -1);
@@ -3574,7 +3577,7 @@ const sequenceWorked = (question, model) => {
     const test = sequenceTest(spec, terms, stepWord);
     if (!test) return false;
     steps.push(`The terms are ${terms.map(dec).join(', ')}, …`, test);
-    said.push(`${spec.kind} with ${stepWord}`);
+    said.push(`the sequence is ${spec.kind} with ${stepWord}`);
     return true;
   };
   if (model.mode === 'analyze') {
