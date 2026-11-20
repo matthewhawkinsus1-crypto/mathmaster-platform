@@ -279,6 +279,40 @@ test('a callable the harness does not implement fails loudly, never with {}', as
   assert.deepEqual(role.data, { role: 'teacher' });
 });
 
+// A failure the app records (a question MathMaster could not show, say) has the
+// device ask reportClientCrashes, 3 s later, whether to send its count
+// (src/platform/runtime/crashReporter.js). The harness had no fake for it, so a
+// journey that stayed that long after such a question found the callable
+// missing: the throttled held-Recovery journey, every night.
+test('the crash reporter is answered as a platform with reporting off answers it, and asks no more that day', async () => {
+  const functions = await loadFake('fakeFunctions.js', '?reset=1&as=student&studentId=910002', 'crashReports');
+  const { CRASH_REPORT_STORAGE_KEY, createCrashReporter } = await import('../../src/platform/runtime/crashReporter.js');
+  const { resolveCrashReportingMode } = await import('../../functions/shared/crashReport.mjs');
+  const sent = [];
+  const transport = async (payload) => {
+    sent.push(payload);
+    return (await functions.httpsCallable(functions.getFunctions(), 'reportClientCrashes')(payload)).data;
+  };
+  const memory = new Map();
+  const storage = { getItem: (key) => memory.get(key) ?? null, setItem: (key, value) => memory.set(key, String(value)) };
+  const reporter = createCrashReporter({ storage, transport, now: () => Date.UTC(2026, 10, 20, 15), setTimer: () => 1, clearTimer: () => {} });
+  const failure = {
+    kind: 'question-resolution-failure', source: 'question-resolution', build: 'abc123def456', screen: '/assignments/recovery-1',
+    message: 'pin-fingerprint-mismatch', family: 'intercepts', questionType: 'multiAnswer', assignmentId: 'recovery-1', questionId: 'q3',
+  };
+  assert.equal(reporter.reportCrash(failure), true, 'the failure is counted on the device');
+  await reporter.flush();
+  assert.deepEqual(sent, [{ probe: true }], 'the device asks first, and sends nothing about the failure');
+  assert.deepEqual(globalThis.window.__mmHarness.unimplementedCalls, [], 'the harness answers it');
+  const state = JSON.parse(memory.get(CRASH_REPORT_STORAGE_KEY));
+  assert.equal(state.mode, resolveCrashReportingMode(null), 'the mode a platform with no crash-reporting flag has');
+  assert.equal(state.mode, 'off');
+  assert.deepEqual(state.queue, {}, 'reporting is off: the count is dropped');
+  assert.equal(reporter.reportCrash(failure), false, 'and the next failure that day is not counted');
+  await reporter.flush();
+  assert.equal(sent.length, 1, 'nor asked about again');
+});
+
 test('the callables the journeys reach answer as their real functions do — shape, authorization and order', async () => {
   const functions = await loadFake('fakeFunctions.js', '?reset=1', 'contracts');
   // fakeFunctions.js reads and writes the store its own import of fakeFirestore.js holds.

@@ -157,6 +157,9 @@ export function createSimStudent({ studentId, call, responseFor, profile: profil
     deviceId: null,
     roomId: null,
     invite: null,
+    // What this screen's invite listener has heard since it was attached: how
+    // many snapshots, and the room the last one named (null: no invite).
+    inviteHeard: null,
     room: null,
     roomFromCache: false,
     everInSync: false,
@@ -790,7 +793,9 @@ export function createSimStudent({ studentId, call, responseFor, profile: profil
     async followInvites() {
       if (!device.service) await loadDevice();
       device.stops.invite?.();
+      device.inviteHeard = { snapshots: 0, roomId: null, attachedAtMs: Date.now(), lastAtMs: null };
       device.stops.invite = counted('invite', device.service.watchLiveChallengeInvite(studentId, (invite) => {
+        device.inviteHeard = { ...device.inviteHeard, snapshots: device.inviteHeard.snapshots + 1, roomId: invite?.roomId || null, lastAtMs: Date.now() };
         if (device.closed || !invite?.roomId || invite.roomId === device.roomId) return;
         device.invite = invite;
         openRoom(invite.roomId);
@@ -812,6 +817,7 @@ export function createSimStudent({ studentId, call, responseFor, profile: profil
         invite: device.invite ? { roomId: device.invite.roomId, playerKey: device.invite.playerKey } : null,
         // Whether this screen follows its invite pointer now (followInvites).
         inviteListener: Boolean(device.stops.invite),
+        inviteHeard: device.inviteHeard ? { ...device.inviteHeard } : null,
         room: room ? { roomId: room.roomId, status: room.status, currentRound: room.currentRound, roundState: room.roundState, roundVersion: room.roundVersion, phase: room.phase } : null,
         stage: stage(),
         clockReady: clockReady(),
