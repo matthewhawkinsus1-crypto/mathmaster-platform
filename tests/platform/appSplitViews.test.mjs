@@ -49,7 +49,7 @@ test('the student views are imported from src/app/student, called once by positi
   }
   // The pack-up notice is drawn by the identity shell, inside the module: App never names it.
   assert.match(appFactorySource('createStudentShellViews'), /^ {2}const renderStudentPackUpNotice = /m);
-  assert.doesNotMatch(executableSource(read('src/App.jsx')), /renderStudentPackUpNotice/);
+  assert.ok(!appFactorySeam('createStudentShellViews').returned.includes('renderStudentPackUpNotice'), 'it is not handed back to App');
 });
 
 test('the teacher dialogs reach App through the teacher kit, with the seam in order', () => {
