@@ -19,7 +19,7 @@ import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { region } from './helpers/sourceContract.mjs';
-import { appHookSource, appSurfaceSource } from './helpers/appScreens.mjs';
+import { appFactorySeam, appFactorySource, appHookSource, appSurfaceSource } from './helpers/appScreens.mjs';
 
 const repo = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
 const EXTENSIONS = ['', '.js', '.jsx', '.mjs', '/index.js', '/index.jsx'];
@@ -133,8 +133,16 @@ test('App loads the question generator where a student prints, not with Home', (
   // Since the App split, useFamilyDeliveryEngine owns the engine and this rule; App takes both from its one call.
   assert.match(app, /const \{ familyDelivery, loadFamilyDelivery, isPersonalizedBlueprint \} = useFamilyDeliveryEngine\(\{ activeAssignmentId \}\);/);
   assert.match(appHookSource('useFamilyDeliveryEngine'), /const isPersonalizedBlueprint = \(question\) => Boolean\(familyDelivery\?\.canGenerateDistinctVariants\(question\)\);/);
-  const exportPdf = region(app, 'const exportAssignmentWorksheetPdf = async', 'const resolvedQuestion = normalizeContextualQuestion(generateQuestion(', 'the student worksheet export');
-  assert.match(exportPdf, /let generateQuestion;\s*let buildStudentFamilyContext;\s*try \{[^}]*\(\{ generateQuestion \} = await import\('\.\/problemGenerator'\)\);\s*\(\{ buildStudentFamilyContext \} = await loadFamilyDelivery\(\)\);\s*\} catch \(error\) \{[^}]*toastError\('Could not export PDF'[^}]*return;/);
+  // Since the App split the export is createStudentWorksheetExport's
+  // (src/app/student, so the generator is two folders up), which App imports
+  // statically, calls once and hands loadFamilyDelivery. The generator is still
+  // a dynamic import there, and no module App's code moved into imports it
+  // statically.
+  const worksheetExport = appFactorySource('createStudentWorksheetExport');
+  assert.ok(appFactorySeam('createStudentWorksheetExport').parameters.includes('loadFamilyDelivery'), 'the export is handed the family engine loader');
+  assert.doesNotMatch(appSurfaceSource(), /^import [^\n]*problemGenerator(?:\.js)?';$/m);
+  const exportPdf = region(worksheetExport, 'const exportAssignmentWorksheetPdf = async', 'const resolvedQuestion = normalizeContextualQuestion(generateQuestion(', 'the student worksheet export');
+  assert.match(exportPdf, /let generateQuestion;\s*let buildStudentFamilyContext;\s*try \{[^}]*\(\{ generateQuestion \} = await import\('\.\.\/\.\.\/problemGenerator'\)\);\s*\(\{ buildStudentFamilyContext \} = await loadFamilyDelivery\(\)\);\s*\} catch \(error\) \{[^}]*toastError\('Could not export PDF'[^}]*return;/);
 });
 
 // Every family's generator (the registry and its family modules) loads with

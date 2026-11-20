@@ -17,7 +17,7 @@ import {
 } from '../../functions/shared/attemptPolicy.mjs';
 import { dolTeacherRecoveryActiveAt, resolveDolWindow } from '../../functions/shared/sectionDeadline.mjs';
 import { region } from './helpers/sourceContract.mjs';
-import { appHookSource, teacherControlsSeam, teacherControlsSource } from './helpers/appScreens.mjs';
+import { appFactorySource, appHookSource, appModulePaths, teacherControlsSeam, teacherControlsSource } from './helpers/appScreens.mjs';
 
 // ASSESSMENT RECOVERY — REOPEN, EXTRA ATTEMPTS, AND THE RECORD OF BOTH (Job 6).
 //
@@ -180,7 +180,11 @@ test('the teacher controls and the server are wired to the one model', () => {
   assert.match(fs.readFileSync('src/app/teacher/TeacherWorkspace.jsx', 'utf8'), /(onClick|onGrant)=\{\(\) => handleGrantDOLAttemptForStudents\(selectedAssignment, \[student\]\)\}/);
   assert.match(region(reminders, 'A REOPENED DOL OR AN EXTRA ATTEMPT MUST REACH THE STUDENT', '// Warm-Up reminders'), /summarizeStudentRecovery\(\{ assignment, classId: user\.classId \|\| null, studentId: user\.id/);
   // Every student-side maximum includes this student's own grant.
-  assert.equal((app.match(/studentId: user\?\.role === 'student' \? user\.id : null,/g) || []).length, 4);
+  // (Since the App split two of the four are in createGradingControls, which
+  // App calls once: they are counted across App and every module it moved into.)
+  appFactorySource('createGradingControls');
+  const appAndModules = [app, ...appModulePaths().map((path) => fs.readFileSync(path, 'utf8'))].join('\n');
+  assert.equal((appAndModules.match(/studentId: user\?\.role === 'student' \? user\.id : null,/g) || []).length, 4);
 
   const ingestion = fs.readFileSync('functions/shared/submissionIngestion.mjs', 'utf8');
   assert.match(region(ingestion, 'const teacherGrantedExtraAttempts = resolveTeacherGrantedExtraAttempts({', '});'), /studentId: envelope\?\.studentId/);

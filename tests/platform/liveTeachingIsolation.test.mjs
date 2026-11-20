@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import { executableSource, region } from './helpers/sourceContract.mjs';
-import { appFactorySource, positionalHookSeam, positionalHookSource } from './helpers/appScreens.mjs';
+import { appFactorySeam, appFactorySource, positionalHookSeam, positionalHookSource } from './helpers/appScreens.mjs';
 
 /*
  * Live Teaching (Classroom Live, Phase 2) MUST be exactly as isolated as the
@@ -38,10 +38,21 @@ test('teachAssignmentLive and resumeLiveTeaching both enter through activeView =
 });
 
 test('a Live Teaching exemplar cannot write a grade — handleGradeSubmit short-circuits to the local preview tracker under isTeacherPreview', () => {
-  const start = app.indexOf('const handleGradeSubmit = async');
-  const guard = app.indexOf('if (isTeacherPreview) {', start);
+  // Since the App split handleGradeSubmit is createGradingControls', which App
+  // calls once and hands its own isTeacherPreview and the preview tracker
+  // (appFactorySource holds App's arguments to the factory's parameters, name
+  // for name).
+  const grading = appFactorySource('createGradingControls');
+  const { parameters } = appFactorySeam('createGradingControls');
+  for (const input of ['isTeacherPreview', 'previewTracker', 'setPreviewTracker']) {
+    assert.ok(parameters.includes(input), `App hands createGradingControls ${input}`);
+  }
+  const start = grading.indexOf('const handleGradeSubmit = async');
+  assert.ok(start >= 0, 'handleGradeSubmit is in createGradingControls');
+  const guard = grading.indexOf('if (isTeacherPreview) {', start);
   assert.ok(guard > start, 'handleGradeSubmit must check isTeacherPreview before any student-role grade path');
-  const guardBody = region(app, 'if (isTeacherPreview) {\n      const outcome = applyAttempt(previewTracker[currentQuestionIndex]);', 'if (user?.role !== \'student\') return null;', 'handleGradeSubmit preview branch');
+  assert.ok(guard < grading.indexOf('const handleStepGrade = async'), 'the check is inside handleGradeSubmit');
+  const guardBody = region(grading, 'if (isTeacherPreview) {\n      const outcome = applyAttempt(previewTracker[currentQuestionIndex]);', 'if (user?.role !== \'student\') return null;', 'handleGradeSubmit preview branch');
   assert.match(guardBody, /setPreviewTracker\(/);
   assert.doesNotMatch(guardBody, /setDoc|updateDoc|writeBatch|runTransaction/, 'the preview branch must never touch Firestore');
 });

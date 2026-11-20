@@ -119,13 +119,29 @@ test('I item 4: getSectionAccessState is the signed-in student\'s binding everyw
   const navigationBuiltAt = code.indexOf('] = createStudentNavigation(');
   assert.notEqual(navigationBuiltAt, -1, 'App builds the student navigation');
   assert.ok(navigationBuiltAt > at, 'the navigation is built after the binding it is handed');
+  // Since slice 6 of the App split the student's PDF asks once in
+  // createStudentWorksheetExport, and Submit and a counted step ask in
+  // createGradingControls. They are counted with App's too, and each factory
+  // is handed the same binding by name, below where it is bound.
+  const grading = executableSource(appFactorySource('createGradingControls'));
+  const movedCalls = { createStudentWorksheetExport: 1, createGradingControls: 2 };
+  let movedCallCount = 0;
+  for (const [factory, expected] of Object.entries(movedCalls)) {
+    const factoryCalls = [...executableSource(appFactorySource(factory)).matchAll(/\bgetSectionAccessState\(/g)];
+    assert.equal(factoryCalls.length, expected, `${factory} asks the binding ${expected} time(s)`);
+    assert.ok(appFactorySeam(factory).parameters.includes('getSectionAccessState'), `App hands ${factory} the binding`);
+    const builtAt = code.indexOf(`] = ${factory}(`);
+    assert.notEqual(builtAt, -1, `App builds ${factory}`);
+    assert.ok(builtAt > at, `${factory} is built after the binding it is handed`);
+    movedCallCount += factoryCalls.length;
+  }
   // No other module App's code moved into calls it: one would not be asking the binding.
   assert.equal(
     [...executableSource(appSurfaceSource()).matchAll(/\bgetSectionAccessState\(/g)].length,
-    calls.length + navigationCalls.length,
-    'every section-access call is App\'s or the student navigation\'s',
+    calls.length + navigationCalls.length + movedCallCount,
+    'every section-access call is App\'s, the student navigation\'s, the worksheet export\'s or the grading controls\'',
   );
-  assert.ok(calls.length + navigationCalls.length >= 6, `every section-access call (found ${calls.length + navigationCalls.length})`);
+  assert.ok(calls.length + navigationCalls.length + movedCallCount >= 6, `every section-access call (found ${calls.length + navigationCalls.length + movedCallCount})`);
   const navigatorAccess = region(code, 'const sectionAccessFor = (entry) => {', 'sectionAccessCache.set(', 'the navigator\'s section access');
   assert.match(navigatorAccess, /manualState: getSectionAccessState\(\{/);
   assert.ok(calls.every((index) => index > at), 'no call before the binding');
@@ -133,7 +149,8 @@ test('I item 4: getSectionAccessState is the signed-in student\'s binding everyw
   const providers = region(code, 'function buildStudentDashboardNow() {', 'function studentUpNextDashboard() {', 'the dashboard providers');
   assert.match(providers, /\n\s+getSectionAccessState,\n/);
   // Both capture proofs (Submit and a counted step) record the bound state.
-  const proofs = [...code.matchAll(/captureSectionAccessProof\(\{\s*sectionAccess: getSectionAccessState\(\{/g)];
+  // (Both are createGradingControls' since the App split: handleGradeSubmit and handleStepGrade.)
+  const proofs = [...grading.matchAll(/captureSectionAccessProof\(\{\s*sectionAccess: getSectionAccessState\(\{/g)];
   assert.equal(proofs.length, 2, 'both capture proofs ask the binding');
   // The plain function is used exactly once: the teacher's own section
   // toggle, which must never read a student's grades.

@@ -8,7 +8,7 @@ import {
 import { region } from './helpers/sourceContract.mjs';
 import { describeWarmupControl } from '../../src/platform/teacher/classLessonControls.js';
 import { applyWarmupTeacherControl } from '../../functions/shared/sectionDeadline.mjs';
-import { appAndTeacherWorkspaceSource, appHookSource, teacherControlsSource } from './helpers/appScreens.mjs';
+import { appAndTeacherWorkspaceSource, appFactorySeam, appFactorySource, appHookSource, teacherControlsSource } from './helpers/appScreens.mjs';
 
 const read = (path) => fs.readFileSync(path, 'utf8');
 
@@ -103,7 +103,11 @@ test('Warm-Up countdown is visible across teacher and student surfaces', () => {
 });
 
 test('a reopened Warm-Up bypasses Practice Mode and reaches the canonical durable save path', () => {
-  const app = appAndTeacherWorkspaceSource();
+  // Since the App split both handlers are createGradingControls', which App
+  // calls once and hands the role of the question on screen (appFactorySource
+  // holds App's arguments to the factory's parameters, name for name).
+  const app = appFactorySource('createGradingControls');
+  assert.ok(appFactorySeam('createGradingControls').parameters.includes('activeQuestionRole'), 'App hands createGradingControls the question\'s role');
   const submit = region(app, 'const handleGradeSubmit', 'const handleStepGrade', 'ordinary grade submit');
   assert.match(submit, /const teacherReopenedWarmupIsActive = activeQuestionRole === 'warmup'/);
   assert.match(submit, /warmupCaptureWasActive\(timedSectionAccess, submissionCapturedAt\)/);
@@ -119,9 +123,10 @@ test('a reopened Warm-Up bypasses Practice Mode and reaches the canonical durabl
 });
 
 test('teacher-reopened Warm-Up work remains canonical even if the assignment or section closes again before sync', () => {
-  const app = appAndTeacherWorkspaceSource();
-  const submit = region(app, 'const handleGradeSubmit', 'const handleStepGrade', 'ordinary grade submit');
-  const reconcile = region(app, 'const buildSubmissionEnvelopeForAction', 'const drainStudentOutbox', 'durable reconciliation');
+  // Since the App split the submit is createGradingControls' and the
+  // reconciliation createStudentOutbox's; App calls each once.
+  const submit = region(appFactorySource('createGradingControls'), 'const handleGradeSubmit', 'const handleStepGrade', 'ordinary grade submit');
+  const reconcile = region(appFactorySource('createStudentOutbox'), 'const buildSubmissionEnvelopeForAction', 'const drainStudentOutbox', 'durable reconciliation');
 
   assert.match(submit, /createdAt: submissionCapturedAt/);
   assert.match(submit, /activityRole: activeQuestionRole,[\s\S]*timedSectionAccess,[\s\S]*record: outcome\.record/);
