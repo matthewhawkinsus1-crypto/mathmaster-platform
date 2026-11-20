@@ -233,6 +233,43 @@ test('two creates at once (two tabs) build one lobby; the other is retired befor
   await call('cancelLiveChallenge', teacher({ roomId }));
 });
 
+/* ============ a stale room's cleanup and a newer game's invites ============ */
+
+// A room whose private state is gone is cancelled as stale, and its invites are
+// found by a query on the room and marked cancelled. Only those that still name
+// it when written: a newer game's invite marked cancelled would hide that
+// game's lobby from the student (updateLiveChallengeInvitesByRoom writes
+// through updateLiveChallengeInvitesForRoom; the race between the query and the
+// write is held by tests/platform/liveChallengeInviteCleanup.test.mjs).
+test('cancelling a room whose private state is gone marks only the invites still naming it', async () => {
+  await clearActive();
+  const { roomId } = await create();
+  const moved = STUDENTS.slice(0, 2);
+  const newer = `hardening-newer-${randomUUID().slice(0, 8)}`;
+  for (const studentId of moved) {
+    // eslint-disable-next-line no-await-in-loop
+    await db.collection('liveChallengeInvites').doc(studentId).set({ roomId: newer, teacherEmail: TEACHER, status: 'invited' }, { merge: true });
+  }
+  await db.recursiveDelete(privateRef(roomId));
+  const cancelled = await call('cancelLiveChallenge', teacher({ roomId }));
+  assert.equal(cancelled.status, 'cancelled');
+  assert.equal((await roomOf(roomId)).staleSession, true, 'retired as stale');
+  const invites = new Map((await Promise.all(STUDENTS.map((studentId) => db.collection('liveChallengeInvites').doc(studentId).get())))
+    .map((invite) => [invite.id, invite.data()]));
+  for (const studentId of STUDENTS.slice(2)) {
+    assert.equal(invites.get(studentId).roomId, roomId, studentId);
+    assert.equal(invites.get(studentId).status, 'cancelled', `${studentId}: its invite still named the stale room`);
+    assert.equal(invites.get(studentId).staleSession, true);
+  }
+  for (const studentId of moved) {
+    assert.equal(invites.get(studentId).roomId, newer, studentId);
+    assert.equal(invites.get(studentId).status, 'invited', `${studentId}: the newer game's invite is left as it was`);
+    assert.equal(invites.get(studentId).staleSession, undefined);
+  }
+  const pointer = (await db.collection('liveChallengeTeacherActive').doc(TEACHER).get()).data();
+  assert.notEqual(pointer?.roomId, roomId, 'the teacher can create the next game');
+});
+
 /* ================= a class crossing the closing threshold at once ================= */
 
 test('a class answering at once starts the closing countdown exactly once, and every answer is recorded', async () => {

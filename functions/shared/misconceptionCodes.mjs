@@ -340,8 +340,8 @@ export const MISCONCEPTION_REGISTRY = Object.freeze([
     concept: 'radical-simplest-form',
     domain: 'nonlinear',
     label: 'Right value, radical not simplified',
-    teacherMeaning: 'The answer has the key\'s value in the key\'s notation, but it is not in simplest form: a perfect power left under a root, like terms not combined, or a root in a denominator.',
-    evidenceRequired: 'multiAnswer field graded with gradingMode "simplestRadicalForm": the field was graded wrong, and the submitted expression has the key\'s value in the key\'s notation (simplestRadicalFormEquivalence.mjs radicalFormMiss).',
+    teacherMeaning: 'The answer has the key\'s value, but it is not in simplest form: a perfect power left under a root, like terms not combined, a root in a denominator, or a root left where the key has none.',
+    evidenceRequired: 'multiAnswer field graded with gradingMode "simplestRadicalForm": the field was graded wrong, and the submitted expression has the key\'s value with a step of simplifying left, in the key\'s notation or as a root or rational exponent where the key has neither (simplestRadicalFormEquivalence.mjs radicalFormMiss).',
     teks: ['A2.7G'],
   }),
   code({
