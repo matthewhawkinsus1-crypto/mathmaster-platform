@@ -14,17 +14,18 @@
 // invites already were.
 //
 // The race cannot be timed against the emulator, so the wiring is read as
-// source here; tests/integration/liveChallengeHardening.test.mjs cancels a
-// stale room against a real Firestore.
+// source here, the whole backend through functionsBackendSource and each
+// helper as its own top-level statement (AGENTS.md);
+// tests/integration/liveChallengeHardening.test.mjs cancels a stale room
+// against a real Firestore.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
 
-import { region } from './helpers/sourceContract.mjs';
+import { functionsBackendSource, topLevelDeclaration } from './helpers/functionsBackendSource.mjs';
 
-const server = readFileSync(new URL('../../functions/liveChallengeFunctions.js', import.meta.url), 'utf8');
-const byRoom = region(server, 'async function updateLiveChallengeInvitesByRoom(', '\n}\n', 'the by-room cleanup');
-const forRoom = region(server, 'async function updateLiveChallengeInvitesForRoom(', '\n}\n', 'the for-room update');
+const backend = functionsBackendSource();
+const byRoom = topLevelDeclaration(backend, 'function updateLiveChallengeInvitesByRoom');
+const forRoom = topLevelDeclaration(backend, 'function updateLiveChallengeInvitesForRoom');
 
 test('the by-room cleanup finds this teacher\'s invites by a query and writes them only through the for-room update', () => {
   assert.match(byRoom, /\.where\("roomId", "==", roomId\)\.get\(\)/);
@@ -41,7 +42,9 @@ test('the for-room update reads each invite again in a transaction and writes it
 });
 
 test('the three cleanups with no roster at hand use it, and only the create writes invites in a batch', () => {
-  assert.equal((server.match(/await updateLiveChallengeInvitesByRoom\(db, \{/g) || []).length, 3);
-  // The create writes the new game's own invites, in the batch with its seats.
-  assert.equal((server.match(/batch\.set\(db\.collection\(LIVE_CHALLENGE_INVITES\)/g) || []).length, 1);
+  assert.equal((backend.match(/await updateLiveChallengeInvitesByRoom\(db, \{/g) || []).length, 3);
+  // The create writes the new game's own invites, in the batch with its seats;
+  // every other write of an invite is in a transaction that read it.
+  assert.equal((backend.match(/batch\.set\(db\.collection\(LIVE_CHALLENGE_INVITES\)/g) || []).length, 1);
+  assert.match(topLevelDeclaration(backend, 'exports.createLiveChallenge'), /batch\.set\(db\.collection\(LIVE_CHALLENGE_INVITES\)\.doc\(player\.studentId\), \{/);
 });
