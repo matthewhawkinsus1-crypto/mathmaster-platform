@@ -1,26 +1,32 @@
 /*
- * THE WORKED SOLUTION IN SPANISH, AS FOUR SUPPORT FAMILIES WRITE IT.
+ * THE WORKED SOLUTION IN SPANISH, AS THE SUPPORT FAMILIES WRITE IT.
  *
  * Solution Review (src/SolutionReviewPanel.jsx) offers Translate beside a
  * closed question's worked solution (SupportedTextActions). When the lesson
  * wrote no steps, the steps are the question's support family's own
  * (closedQuestionReview.js: familyFor(question).workedSolution), and so are the
- * headline and the answer summary where the lesson wrote none. For the real
- * lessons four families write them, functionFeatures, inverseComposition,
- * perpendicularLines and transformations, and their sentences had almost no
- * Spanish: over teacher-import-jsons, 631 of the 853 sentences of their steps
- * and 374 of the 378 of their headlines and answer summaries stayed English,
- * so Translate showed a student a worked solution that was mostly English.
+ * headline and the answer summary where the lesson wrote none. Nine families
+ * write one (every file in src/platform/supports/families that exports
+ * workedSolution), and for the real lessons their sentences had little Spanish:
+ * over teacher-import-jsons, 1,005 of the 1,231 sentences of functionFeatures,
+ * inverseComposition, perpendicularLines and transformations stayed English,
+ * and 493 of the 1,146 of linearEquations, linesAndSlope, pointsAndIntervals
+ * and systems, so Translate showed a student a worked solution that was partly
+ * or mostly English. (fractions claims none of the real lessons' questions.)
  *
  * The Spanish pack (src/platform/language/packs/esSupport.js) matches a
  * sentence exactly, after its mathematics is masked. So this holds every
- * sentence those families write, for every real question each one claims:
+ * sentence each family writes, for every real question it claims:
  *   - it translates with the Spanish pack, in full;
  *   - its mathematics comes through untouched;
- *   - the headline and steps still translate read as Solution Review reads
- *     them, one text: a step that ends without a stop runs on into the next.
+ *   - it is a line of its own in what Solution Review hands Translate
+ *     (closedQuestionReview.js translationText, a part a line), so it is
+ *     translated there as it is here: an answer summary, which has no stop,
+ *     or a step that ends on "…", no longer runs on into the next part.
  * (A step that is only mathematics has nothing to translate and is shown as
- * it is.)
+ * it is.) The families are found in the directory, and checked against the
+ * ones the platform routes to (families/index.js), so a new one is held here
+ * without being named.
  *
  * STRICT ON PURPOSE, like the family test in readAloudAndTranslate.test.mjs
  * (its "DECISION (CI14, C2-85): THIS TEST STAYS STRICT"): a sentence a family
@@ -43,16 +49,25 @@ import { maskMath } from '../../src/platform/language/mathSafeText.js';
 import {
   compileTemplates, loadLanguagePack, translateWithPack, TRANSLATION_COVERAGE,
 } from '../../src/platform/language/translationProviders.js';
-import * as functionFeatures from '../../src/platform/supports/families/functionFeatures.js';
-import * as inverseComposition from '../../src/platform/supports/families/inverseComposition.js';
-import * as perpendicularLines from '../../src/platform/supports/families/perpendicularLines.js';
-import * as transformations from '../../src/platform/supports/families/transformations.js';
+import { ALL_FAMILY_MODULES } from '../../src/platform/supports/families/index.js';
+import { buildClosedQuestionReview } from '../../src/platform/supports/review/closedQuestionReview.js';
 
 const ROOT = new URL('../../', import.meta.url);
 const ROOT_PATH = fileURLToPath(ROOT);
 
-const FAMILIES = Object.entries({ functionFeatures, inverseComposition, perpendicularLines, transformations });
-const familyFile = (family) => `src/platform/supports/families/${family}.js`;
+const FAMILY_DIR = 'src/platform/supports/families/';
+const familyFile = (family) => `${FAMILY_DIR}${family}.js`;
+// Every family file that exports a worked solution, found in the directory
+// rather than named here, so a new family is held to the rule as it lands.
+const FAMILIES = [];
+for (const name of readdirSync(new URL(FAMILY_DIR, ROOT)).filter((file) => file.endsWith('.js') && file !== 'index.js').sort()) {
+  const module = await import(new URL(`${FAMILY_DIR}${name}`, ROOT).href);
+  if (typeof module.workedSolution === 'function') FAMILIES.push([name.replace(/\.js$/, ''), module]);
+}
+// A family that claims no question of the real lessons (fraction arithmetic
+// is in none of them). Every other family must still claim and write for
+// some, so the check below is never passed by a family that quietly stopped.
+const CLAIMS_NO_REAL_QUESTION = new Set(['fractions']);
 const SPANISH_SUPPORT_PACK = 'src/platform/language/packs/esSupport.js';
 const PACK_LIST = 'supportFamilyWorkedSolutions';
 
@@ -75,8 +90,9 @@ const realQuestions = () => {
   return lessons;
 };
 
-// Each family's worked solution of every real question it claims.
+// Each family's worked solution of every real question it claims, and how many it claims.
 let solutions = null;
+const claimed = Object.fromEntries(FAMILIES.map(([family]) => [family, 0]));
 const workedSolutions = () => {
   if (solutions) return solutions;
   solutions = [];
@@ -84,22 +100,20 @@ const workedSolutions = () => {
     let claims = false;
     try { claims = module.matches(question) === true; } catch { claims = false; }
     if (!claims) return;
+    claimed[family] += 1;
     const worked = module.workedSolution(question);
-    if (worked) solutions.push({ family, questionId: stored.questionId, worked });
+    if (worked) solutions.push({ family, questionId: stored.questionId, question, worked });
   }));
   return solutions;
 };
 const stepsOf = (worked) => (Array.isArray(worked?.steps) ? worked.steps : [])
   .map((step) => (typeof step === 'string' ? step : (step?.text || step?.explanation || '')));
 const textOf = (value) => (typeof value === 'string' ? value.trim() : '');
-/** Every text Solution Review translates from this worked solution. */
+/** Every text Solution Review translates from this worked solution, each a line of its own there. */
 const partsOf = (worked) => [
   { kind: 'headline', text: textOf(worked.headline) },
   ...stepsOf(worked).map((step, index) => ({ kind: `step ${index + 1}`, text: textOf(step) })),
   { kind: 'answer summary', text: textOf(worked.answerSummary) },
-  // closedQuestionReview.js joins the parts with a space before they are
-  // translated, so a sentence is cut where the joined text has a stop.
-  { kind: 'headline and steps read as one text', text: [textOf(worked.headline), ...stepsOf(worked).map(textOf)].filter(Boolean).join(' '), joined: true },
 ].filter((part) => part.text);
 
 /* ------------------------------------------------------------ the checks */
@@ -154,18 +168,39 @@ const spanishGapReport = (gaps) => {
   ].join('\n');
 };
 
-test('every sentence of the four families\' worked solutions of the real lessons is in Spanish, its mathematics untouched', async () => {
+test('the families held here are every family the platform routes to that writes a worked solution', () => {
+  const routed = ALL_FAMILY_MODULES.filter((module) => typeof module.workedSolution === 'function');
+  const found = FAMILIES.map(([, module]) => module);
+  assert.ok(found.length >= 9, `${found.length} families with a worked solution in ${FAMILY_DIR}`);
+  assert.deepEqual(routed.filter((module) => !found.includes(module)).map((module) => module.family), [], 'a routed family no file here exports');
+  assert.deepEqual(found.filter((module) => !routed.includes(module)).map((module) => module.family), [], 'a family file families/index.js does not route to');
+});
+
+test('every sentence of every family\'s worked solutions of the real lessons is in Spanish, its mathematics untouched', async () => {
   const pack = await loadLanguagePack('es');
   const gaps = new Map();
   const lost = [];
   const notFull = [];
   const tally = Object.fromEntries(FAMILIES.map(([family]) => [family, { solutions: 0, sentences: 0 }]));
-  workedSolutions().forEach(({ family, questionId, worked }) => {
+  const notALine = [];
+  let reviewed = 0;
+  workedSolutions().forEach(({ family, questionId, question, worked }) => {
     tally[family].solutions += 1;
-    partsOf(worked).forEach(({ kind, text, joined = false }) => {
+    // What Solution Review hands Translate for this question, when the family
+    // wrote its review: every part the family wrote is a whole line of it, so
+    // it is translated there exactly as it is below.
+    const review = buildClosedQuestionReview({ question });
+    if (review?.fromFamily) {
+      reviewed += 1;
+      const lines = review.translationText.split('\n');
+      const inReview = partsOf(worked).filter(({ text }) => review.speechParts.some((part) => part.text === text));
+      if (!stepsOf(worked).map(textOf).filter(Boolean).every((step) => inReview.some(({ text }) => text === step))) notALine.push(`${family} ${questionId}: its steps are not the review's`);
+      inReview.filter(({ text }) => !lines.includes(text)).forEach(({ kind }) => notALine.push(`${family} ${questionId} (${kind})`));
+    }
+    partsOf(worked).forEach(({ kind, text }) => {
       const result = translateWithPack(text, pack);
       result.sentences.filter((sentence) => !sentence.mathOnly).forEach((sentence) => {
-        if (!joined) tally[family].sentences += 1;
+        tally[family].sentences += 1;
         if (sentence.translated) return;
         // One entry per sentence shape, however many numbers it was drawn with.
         const template = asPackTemplate(sentence.source);
@@ -179,11 +214,40 @@ test('every sentence of the four families\' worked solutions of the real lessons
       if (!mathSurvives(text, result.text)) lost.push(`${family} ${questionId} (${kind}): ${text}\n  → ${result.text}`);
     });
   });
-  // Not vacuous: each family still claims real questions and writes for them.
-  FAMILIES.forEach(([family]) => assert.ok(tally[family].solutions >= 10 && tally[family].sentences >= 50, `${family}: ${JSON.stringify(tally[family])}`));
+  // Not vacuous: each family still claims real questions and writes for them,
+  // all but the ones that claim none, and those still claim none.
+  FAMILIES.forEach(([family]) => {
+    if (CLAIMS_NO_REAL_QUESTION.has(family)) {
+      assert.equal(claimed[family], 0, `${family} now claims real questions: take it off CLAIMS_NO_REAL_QUESTION`);
+      return;
+    }
+    assert.ok(tally[family].solutions >= 10 && tally[family].sentences >= 50, `${family}: ${claimed[family]} claimed, ${JSON.stringify(tally[family])}`);
+  });
   if (gaps.size) assert.fail(spanishGapReport([...gaps.values()]));
   assert.deepEqual(notFull, [], 'every part translates in full');
   assert.deepEqual(lost, [], 'the mathematics of every sentence survives');
+  assert.ok(reviewed >= 100, `${reviewed} real questions whose review a family wrote`);
+  assert.deepEqual(notALine, [], 'each part is a line of its own in what Solution Review hands Translate');
+});
+
+test('an answer summary with no stop is a sentence of its own for Translate, and Read aloud reads the review as it did', async () => {
+  const pack = await loadLanguagePack('es');
+  // dol3-review-q01: functionFeatures writes the review, and the teacher's
+  // common error follows its answer summary, which has no stop.
+  const { question } = realQuestions().find(({ stored }) => stored.questionId === 'dol3-review-q01');
+  const review = buildClosedQuestionReview({ question });
+  assert.equal(review.fromFamily, true);
+  const summary = review.authored.answerSummary;
+  const at = review.speechParts.findIndex((part) => part.text === summary);
+  assert.ok(at >= 0 && at < review.speechParts.length - 1 && !/[.?!]$/.test(summary), `${summary}, then ${review.speechParts[at + 1]?.text}`);
+  const texts = review.speechParts.map((part) => part.text);
+  assert.equal(review.translationText, texts.join('\n'), 'Translate gets the parts a line each');
+  assert.equal(review.speechText, texts.join(' '), 'Read aloud gets what it got');
+  const summaryOf = (text) => translateWithPack(text, pack).sentences.find((sentence) => sentence.source === summary);
+  assert.equal(summaryOf(review.speechText), undefined, 'joined with a space, it runs on into the next part');
+  const own = summaryOf(review.translationText);
+  assert.equal(own?.translated, true, summary);
+  assert.ok(mathSurvives(summary, own.text), own.text);
 });
 
 test('a worked-solution sentence with no Spanish is reported with its family file, the template to paste and where it goes', () => {

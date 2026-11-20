@@ -32,7 +32,7 @@ import { resolveReferenceInfo } from '../../src/referenceInfo.js';
 import { questionReadingParts, questionReadingText, readingFunctionNames } from '../../src/platform/language/questionReading.js';
 import { definedFunctionNames, mathToSpeech, speechTextFor } from '../../src/platform/language/speechText.js';
 import { spokenMathLabel } from '../../src/platform/language/mathSpeechLabel.js';
-import { maskMath } from '../../src/platform/language/mathSafeText.js';
+import { maskMath, segmentMathText } from '../../src/platform/language/mathSafeText.js';
 import {
   compileTemplates, loadLanguagePack, resolveTranslation, resolveTranslationNow, translateWithPack, TRANSLATION_COVERAGE, TRANSLATION_GAP,
 } from '../../src/platform/language/translationProviders.js';
@@ -142,6 +142,37 @@ test('a hyphen joining mathematics to a word is part of the word: "$x$-terms" is
   assert.equal(speechTextFor('Get the $x$-terms on one side, and the $y$-intercept is 4.'), 'Get the x terms on one side, and the y intercept is 4.');
   assert.equal(speechTextFor('Solve $x$-3 = 4.'), 'Solve x minus 3 equals 4.', 'a minus before a number is still a minus');
   assert.deepEqual(maskMath('The $x$-terms are both $3x$.').tokens, ['$x$', '$3x$'], 'the hyphen is not carried into a translation slot');
+});
+
+test('a suspended hyphen is a word\'s for Translate: "the x- and y-intercepts" has no "x-" to carry, and Read aloud is unchanged', async () => {
+  // Translate's split: a lone letter and its "-" before "and" or "or", or
+  // before a comma and the next letter's "-", are words. As a slot, "x-"
+  // reached the Spanish as "con el eje x- y con el eje y".
+  assert.deepEqual(maskMath('It looks like the x- and y-intercepts traded places.').tokens, []);
+  assert.deepEqual(maskMath('Name the x- or y-axis.').tokens, []);
+  assert.deepEqual(maskMath('the x-, y- and z-coordinates').tokens, []);
+  assert.deepEqual(maskMath('each row holds the x-, y-, and z-coefficients of one equation').tokens, [], 'with the list comma before "and"');
+  // Narrow: a minus with an operand is a minus, and a letter that is an operand stays math.
+  assert.deepEqual(maskMath('Solve x- 3 = 5.').tokens, ['x- 3 = 5']);
+  assert.deepEqual(maskMath('y = x- and').tokens, ['y = x-']);
+  assert.deepEqual(maskMath('2x- and y-values').tokens, ['2x-']);
+
+  const pack = await loadLanguagePack('es');
+  assert.equal(
+    translateWithPack(MISCONCEPTION_STUDENT_MESSAGES['intercepts-swapped'], pack).text,
+    'Parece que las intersecciones con el eje x y con el eje y intercambiaron lugares. La intersección con el eje x está donde y = 0, y la intersección con el eje y está donde x = 0.',
+  );
+  assert.equal(
+    translateWithPack('Read each feature from the function: where it crosses the axes, where it turns, how it behaves, and which x- and y-values it uses.', pack).text,
+    'Lee cada característica de la función: dónde cruza los ejes, dónde da la vuelta, cómo se comporta y qué valores de x y de y usa.',
+    'the functionFeatures headline',
+  );
+  assert.equal(translateWithPack('Find the x- and y-intercepts of 3x + 4y = 24.', pack).text, 'Halla las intersecciones con el eje x y con el eje y de 3x + 4y = 24.', 'es.js had this sentence, and it never matched');
+
+  // Read aloud keeps its own split, and what it says.
+  assert.deepEqual(segmentMathText('Find the x- and y-intercepts.', { speech: true }).filter((segment) => segment.kind === 'math').map((segment) => segment.value), ['x-']);
+  assert.equal(speechTextFor('Find the x- and y-intercepts of 3x + 4y = 24.'), 'Find the x- and y-intercepts of 3x plus 4y equals 24.');
+  assert.equal(speechTextFor('Solve x- 3 = 5 and the x- or y-axis.'), 'Solve x minus 3 equals 5 and the x- or y-axis.');
 });
 
 test('the labels other tools speak are unchanged where they had no price, defined function or matrix', () => {
@@ -511,6 +542,34 @@ test('when a text cannot be translated, the student is told why — never a dead
   assert.deepEqual([now.coverage, now.text], [later.coverage, later.text]);
   assert.equal(now.text, 'Revisa el orden de tu fracción de la pendiente.');
   assert.equal(resolveTranslationNow({ text: 'Solve x.', language: 'vi' }).reason, TRANSLATION_GAP.NO_PACK);
+});
+
+test('Solution Review hands Translate its parts a line each, so an answer summary with no stop is a sentence of its own', async () => {
+  const { SupportedTextActions } = await vite.ssrLoadModule('/src/platform/supports/SupportedText.jsx');
+  await (await vite.ssrLoadModule('/src/platform/language/translationProviders.js')).loadLanguagePack('es');
+  const actions = (props) => renderToStaticMarkup(React.createElement(SupportedTextActions, {
+    readAloud: null, translation: { language: 'es' }, label: 'the worked solution', ...props,
+  }));
+  // An answer, then the next part. Joined with a space they are one sentence,
+  // which no pack knows; a line each, both are Spanish.
+  const parts = ['No solution', 'Check the order of your slope fraction.'];
+  assert.match(actions({ text: parts.join(' ') }), /No Spanish translation for this text yet\./);
+  assert.match(actions({ text: parts.join(' '), translationText: parts.join('\n') }), /data-translate-ready=""/, 'Translate reads translationText');
+  await loadLanguagePack('es');
+  assert.equal(resolveTranslationNow({ text: parts.join('\n'), language: 'es' }).text, 'No tiene solución\nRevisa el orden de tu fracción de la pendiente.');
+  // Read aloud still says `text`: the words it said before, as it said them.
+  assert.match(code('src/platform/supports/SupportedText.jsx'), /const spoken = shown \? translated\.text : readText;/);
+
+  // A real review whose answer ("No solution") ran on into the next part: it
+  // had no Spanish at all, and now Translate is offered beside it.
+  const SolutionReviewPanel = (await vite.ssrLoadModule('/src/SolutionReviewPanel.jsx')).default;
+  const question = real('m3t2l5-cw-7');
+  const html = renderToStaticMarkup(React.createElement(SolutionReviewPanel, { question, translation: { language: 'es' } }));
+  assert.match(html, /aria-label="Translate the worked solution"/);
+  assert.doesNotMatch(html, /data-translation-unavailable/);
+  // The English the screen shows does not change: Translate's text is not drawn.
+  const english = renderToStaticMarkup(React.createElement(SolutionReviewPanel, { question }));
+  assert.equal(html.split('<span data-supported-text-actions')[0], english.replace(/<\/section>$/, ''));
 });
 
 test('a translation never reaches anything outside MathMaster', () => {

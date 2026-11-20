@@ -62,6 +62,11 @@ export default function SolutionReviewPanel({
   const { authored, tool, legacy, hasContent } = review;
   const partRows = hasContent && !isToolQuestion ? buildPartReviewRows({ question, parts: yourParts }) : [];
   const speechText = [partReviewSpeech(partRows), review.speechText].filter(Boolean).join(' ');
+  // Translate reads the same words a part a line (closedQuestionReview.js
+  // translationText), so an answer summary with no stop is a sentence of its
+  // own and not the start of the next part's. What the screen shows, and what
+  // Read aloud says, are unchanged.
+  const translationText = [partReviewSpeech(partRows), review.translationText].filter(Boolean).join('\n');
   // The teacher's own words for this solution in the student's language, if
   // they wrote some (TT22): each sentence of theirs that keeps the English's
   // mathematics replaces that sentence in what Translate shows; the rest stays
@@ -130,7 +135,7 @@ export default function SolutionReviewPanel({
       {legacy && <SolutionReview question={question} incorrectParts={incorrectParts} embedded hideAnswerDetails={partRows.length > 0} />}
 
       {hasContent && (
-        <SupportedTextActions text={speechText} readAloud={readAloud} translation={translation} label="the worked solution" onEvidence={onSupportEvidence} authored={teachersWords} />
+        <SupportedTextActions text={speechText} translationText={translationText} readAloud={readAloud} translation={translation} label="the worked solution" onEvidence={onSupportEvidence} authored={teachersWords} />
       )}
 
       {allowReplacement && (
