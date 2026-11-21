@@ -1014,9 +1014,79 @@ const keypadSurface = async () => {
   }
 };
 
+/* --------------------------------------------------------- worked example */
+
+// The worked-example player (WE-A). Where it may be (Practice, Classwork) it
+// is offered or opens by itself; on a DOL, quiz or test, and on a DOL, quiz or
+// test section replayed as practice after its due date, there is no player,
+// no example, no offer of one and none of its words anywhere in the document,
+// before Submit or after a miss, whether the lesson wrote an example or the
+// platform would work its own.
+const EXAMPLE_CONTROLS = '[data-worked-example-player], [data-similar-example], [data-similar-offer]';
+const exampleControls = (page) => page.locator(EXAMPLE_CONTROLS).count();
+const exampleOffers = (page) => page.getByRole('button', { name: /Try a similar one|See a similar problem worked/ }).count();
+const workedExample = async () => {
+  await scenario('practice worked-example', async () => {
+    const page = await open('practice', 'worked-example');
+    check(await page.locator('.mathmaster-hint-panel [data-worked-example-player]').count() === 0, 'practice worked-example: it does not open by itself');
+    await page.locator('[data-hint-control]').click();
+    const offer = page.locator('.mathmaster-hint-panel').getByRole('button', { name: 'Try a similar one' });
+    check(await offer.count() === 1, 'practice worked-example: offered on request');
+    await offer.click();
+    await settle(page, 300);
+    const player = page.locator('.mathmaster-hint-panel [data-worked-example-player]');
+    check(await player.getAttribute('data-example-kind') === 'authored' && /LEAKCHECK-EXAMPLE-STEP: rise 10, run 2/.test(await player.innerText()), 'practice worked-example: the lesson\'s example plays', (await player.innerText().catch(() => '')).slice(0, 120));
+    await typeAnswer(page, '-\\frac{3}{4}');
+    await submitAnswer(page);
+    const grade = await lastGrade(page);
+    check(grade?.isCorrect === false && grade?.supportUsage?.workedExampleUsed === true && grade?.supportUsage?.isMathematicallyIndependent === false, 'practice worked-example: opening it is recorded with the attempt, which is still graded', JSON.stringify(grade?.supportUsage));
+  });
+  await scenario('classwork worked-example', async () => {
+    const page = await open('classwork', 'worked-example');
+    const player = page.locator('.mathmaster-hint-panel [data-worked-example-player]');
+    check(await player.count() === 1 && await player.getAttribute('data-example-slide') === '1', 'classwork worked-example: it opens by itself, on its first step');
+  });
+  await scenario('classwork worked-example (built-in)', async () => {
+    const page = await open('classwork', 'worked-example', '&authored=0');
+    const player = page.locator('.mathmaster-hint-panel [data-worked-example-player]');
+    check(await player.count() === 1 && await player.getAttribute('data-example-kind') === 'builtIn', 'classwork worked-example: the platform\'s own sibling opens where the lesson wrote none');
+  });
+  const WITHHELD = [
+    ['dol', ''], ['quiz', ''], ['test', ''],
+    // A DOL, quiz or test section replayed as practice is still what it is.
+    ['practice', '&section=dol'], ['practice', '&section=quiz'], ['practice', '&section=test'],
+  ];
+  for (const [role, extra] of WITHHELD) {
+    for (const authored of ['', '&authored=0']) {
+      const label = `${role}${extra ? ` (${extra.slice(1)})` : ''} worked-example${authored ? ' (built-in)' : ''}`;
+      await scenario(label, async () => {
+        const page = await open(role, 'worked-example', `${extra}${authored}`);
+        const before = { controls: await exampleControls(page), offers: await exampleOffers(page), leaks: (await ladderLeaks(page)).filter((text) => !extra || /LEAKCHECK|similar|example|Your question uses|Go to my question/.test(text)) };
+        check(before.controls === 0 && before.offers === 0, `${label}: no player, no example and no offer of one`, JSON.stringify(before));
+        check(before.leaks.length === 0, `${label}: none of its words in the document`, before.leaks.join(' | '));
+        // Opening the Hint panel, where a replayed section has one, shows no offer either.
+        if (await page.locator('[data-hint-control]').count()) {
+          await page.locator('[data-hint-control]').click();
+          await settle(page, 200);
+          check(await exampleControls(page) === 0 && await exampleOffers(page) === 0, `${label}: the Hint panel offers none`);
+        }
+        await typeAnswer(page, '-\\frac{3}{4}');
+        await submitAnswer(page);
+        const grade = await lastGrade(page);
+        check(grade?.isCorrect === false && grade?.supportUsage?.workedExampleUsed !== true, `${label}: a wrong answer is graded wrong, with no example recorded`, JSON.stringify(grade?.supportUsage));
+        const after = { controls: await exampleControls(page), offers: await exampleOffers(page) };
+        check(after.controls === 0 && after.offers === 0, `${label}: nor after a miss`, JSON.stringify(after));
+        const html = await page.evaluate(() => document.documentElement.outerHTML);
+        check(!/LEAKCHECK-EXAMPLE|A similar problem, worked out|Go to my question|Your question uses different numbers/.test(html), `${label}: nothing of the example in the document after Submit`);
+      });
+    }
+  }
+};
+
 /* ----------------------------------------------------------------- runner */
 
 const SURFACES = {
+  'worked-example': workedExample,
   'systems-3x3': systems3x3,
   'systems-2x2': systems2x2,
   'inequality-build': inequalityBuild,

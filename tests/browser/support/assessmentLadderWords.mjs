@@ -14,6 +14,7 @@ import { MISCONCEPTION_STUDENT_MESSAGES } from '../../../functions/shared/miscon
 import { GENERIC_MISS_MESSAGES } from '../../../src/platform/supports/feedback/genericMissChecks.js';
 import { FALLBACK_HINTS } from '../../../src/platform/supports/hints/questionHints.js';
 import { PENDING_RUNG_TEXT } from '../../../src/platform/supports/hints/hintCopy.js';
+import { EXAMPLE_PLAYER_LEAK_TEXTS } from '../../../src/platform/supports/workedExample/lessonExample.js';
 
 // Authored supports (marked LEAKCHECK in the fixtures) and the ladder's own
 // words.
@@ -25,7 +26,10 @@ export const LADDER_WORDS = Object.freeze(['LEAKCHECK', 'A hint is ready', 'Show
   // every fallback (none may reach a DOL or test).
   'These hints are general', ...Object.values(FALLBACK_HINTS).flat(),
   // Hint-ladder timing: the line a rung shows while its tool loads.
-  PENDING_RUNG_TEXT]);
+  PENDING_RUNG_TEXT,
+  // The worked-example player (WE-A): its heading, its "Your turn" lines and
+  // its own buttons. Never on a DOL, quiz or test.
+  ...EXAMPLE_PLAYER_LEAK_TEXTS]);
 
 // Every misconception and generic miss message.
 export const MISS_MESSAGES = Object.freeze([...Object.values(MISCONCEPTION_STUDENT_MESSAGES), ...Object.values(GENERIC_MISS_MESSAGES)]);

@@ -10,10 +10,30 @@ steps done in a tool. The decisions behind them are in two specs:
 The rules are checked by `src/platform/contract/lessonSupportsV5.js`.
 
 **What works today.** Every field is optional. The compiler carries each one
-into the compiled assignment unchanged, and the validator refuses a malformed
-one with a message that names the field. Nothing a student sees reads them yet.
-They are read by the packages being built on them:
-- the example player (WE-A, with tool replays in WE-C to WE-E);
+into the compiled assignment unchanged, the validator refuses a malformed one
+with a message that names the field, and `lessonSupports` is stored with the
+assignment.
+
+**Students see worked examples (WE-A).** The example player steps through an
+example one slide at a time, with Next and Back, the step's `why` under it,
+and a last slide, "Your turn", that returns the student to their own question.
+- **What plays:** an authored step card (an example with `steps`), and the
+  platform's built-in example where it has one.
+- **What does not play yet:** a tool replay (an example with `moves`, WE-C to
+  WE-E). A question that names one gets the built-in example, if there is one,
+  and otherwise none.
+- **Where:** as rule 1 to rule 3 say. It also plays for a later Classwork
+  question on the same skill, on request.
+- **Fading (`fade.fromStep`):** the question that names the example gets all
+  of it. A later Classwork question on the same skill gets the steps before
+  `fromStep`, then "Your turn", with a button for the rest. `fromStep: 1`
+  fades nothing.
+- **An example that gives the answer away is not shown** (section 3, "A
+  sibling's numbers"). Pre-Flight warns, and names the step.
+- **An assignment created before this shipped** did not store its
+  `lessonSupports`: import it again.
+
+The other fields are read by packages still being built:
 - reference cards (WE-H);
 - follow-through grading (SP-3);
 - checkpoints (SP-4).
@@ -115,6 +135,21 @@ The three sources:
 - `fromStep: 3` lets the student do step 3 onward.
 
 Either number is at least 1 and no more than the example's steps or moves.
+
+**A sibling's numbers.** The player shows an authored step card on a question
+only when it cannot give that question's answer away. It is not shown, and
+Pre-Flight warns with the step's number, when:
+- its `problem` or `sibling` is the question's own prompt or equation;
+- a step's `show` or `why`, or the `problem`, contains one of the question's
+  answers that is not a bare number: an equation, an expression, a point or a
+  word;
+- a step states, as a result, a number that is one of the question's answers:
+  after an `=` or a colon, between commas, or after "so", "is" or "gives".
+  For a question whose slope is 3, `m = 6 / 2 = 3` is refused, and so is
+  "The slope is 3." A number the example only uses on the way is fine: the
+  point `(3, 8)` does not state a slope of 3.
+
+So choose a sibling whose answers are all different from the question's.
 
 ```json
 {
@@ -293,7 +328,8 @@ How it follows the rules:
 - **CW 4** has three parts:
   - the slope carries a `pickPoints` checkpoint;
   - the equation follows through from the slope and the intercept;
-  - its example is a step card for a sibling line.
+  - its example is a step card for a sibling line, whose slope, intercept and
+    equation are all different from CW 4's.
 - **CW 5** explains a mistake, so it is exempt (`"none": "explain"`).
 - **The reference card** is pinned on Classwork and Practice.
 - **Practice 1** offers the same example on request.
@@ -333,12 +369,12 @@ How it follows the rules:
         "id": "ex-line-two-points",
         "skill": "lines.equationFromTwoPoints",
         "source": "authored",
-        "problem": "A line passes through (1, 2) and (3, 8). Find its slope, its y-intercept and its equation.",
+        "problem": "A line passes through (1, 4) and (5, 24). Find its slope, its y-intercept and its equation.",
         "steps": [
-          { "show": "m = (8 - 2) / (3 - 1) = 6 / 2 = 3", "why": "Slope is the change in y over the change in x." },
-          { "show": "2 = 3(1) + b, so b = -1", "why": "Put one point and the slope into y = mx + b to find b." },
-          { "show": "y = 3x - 1", "why": "Write the slope and the y-intercept into y = mx + b." },
-          { "show": "8 = 3(3) - 1", "why": "Check with the other point." }
+          { "show": "m = (24 - 4) / (5 - 1) = 20 / 4 = 5", "why": "Slope is the change in y over the change in x." },
+          { "show": "4 = 5(1) + b, so b = -1", "why": "Put one point and the slope into y = mx + b to find b." },
+          { "show": "y = 5x - 1", "why": "Write the slope and the y-intercept into y = mx + b." },
+          { "show": "24 = 5(5) - 1", "why": "Check with the other point." }
         ],
         "fade": { "fromStep": 3 }
       }
@@ -502,11 +538,11 @@ stored assignment. The message leads with the question it is about.
 - **An authored example with nothing to play.**
 
   ```json
-  { "id": "ex-line-two-points", "source": "authored", "problem": "A line passes through (1, 2) and (3, 8)." }
+  { "id": "ex-line-two-points", "source": "authored", "problem": "A line passes through (1, 4) and (5, 24)." }
   ```
 
   > lessonSupports.examples[1] is authored but has nothing to play: give it steps ([{ "show", "why" }]) or moves (the tool's own actions).
-- **A step with no `why`.** `{ "show": "2 = 3(1) + b, so b = -1" }`:
+- **A step with no `why`.** `{ "show": "4 = 5(1) + b, so b = -1" }`:
 
   > lessonSupports.examples[1].steps[1].why is required: every step says why it is done.
 - **A follow-through from a later part.** On the intercept part:

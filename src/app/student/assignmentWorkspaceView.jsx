@@ -26,7 +26,7 @@ import {
 import { SR_ONLY_STYLE } from '../../ui/srOnly.js';
 import { sameStableValue } from '../../platform/performance/renderStability.js';
 import { questionRecordView } from '../../platform/performance/questionRecordView.js';
-import { getEffectiveActivityPolicy } from '../../platform/policies/activityPolicies';
+import { getEffectiveActivityPolicy, resolveQuestionActivityRole } from '../../platform/policies/activityPolicies';
 import { walkthroughTimerRemaining } from '../../platform/teacher/liveTeachingSession.js';
 import { describeClassworkPace } from '../../platform/teacher/classworkModel.js';
 import { projectCurrentAssignmentContent } from '../../platform/assignments/currentContentProjection.js';
@@ -1326,6 +1326,18 @@ export function createAssignmentWorkspaceView(
               // Practice sections only, by the section's own role (a DOL in
               // post-due practice runs as 'practice' but is still a DOL).
               practiceLikeThisAllowed={['classwork', 'practice'].includes(activeQuestionRole)}
+              // The worked example (WE-A): the lesson's own examples, each
+              // question's section role (this one's as the screen resolved
+              // it, a DOL in post-due practice included) and this question's
+              // place. The engine reads them (lessonExample.js): Classwork
+              // opens the example before the first question on a skill,
+              // Practice on request, a DOL, quiz or test never.
+              workedExampleLesson={renderMemo('workedExampleLesson', [questions, assignment, currentQuestionIndex, activeQuestionRole], () => ({
+                questions,
+                index: currentQuestionIndex,
+                sectionRoles: questions.map((question, index) => (index === currentQuestionIndex ? activeQuestionRole : resolveQuestionActivityRole({ question, assignment }))),
+                lessonSupports: assignment?.lessonSupports || null,
+              }))}
               activityPolicy={runtimeQuestionActivityPolicy}
               // The assignment's calculator setting (e.g. "graphing"), above the
               // question's own: calculatorPolicy.js resolveCalculatorPolicy.

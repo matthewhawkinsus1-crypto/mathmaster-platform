@@ -38,7 +38,7 @@ import { matchesSmartView, SMART_VIEWS } from '../../assignmentSmartViews';
 import { assignmentFolderMatches, normalizeFolderPath, titleOrFolderMatches } from '../../assignmentFolders';
 import { buildDestinationGroups, destinationAssignmentKey, findAssignmentKeyConflict, isLibraryAssignment, resolveAssignmentDates, resolveCreationMode } from '../../assignmentDestinations';
 import { flattenV5Sections, rebuildV5SectionsFromQuestions } from '../../platform/contract/assignmentSchemaV5.js';
-import { canonicalV5PersistencePatch, getStoredAssignmentQuestions, getStoredAssignmentTypeProjection, getStoredAssignmentVariantMode, getStoredSectionVariantModes, storedAssignmentToV5, testCycleContractFields } from '../../platform/contract/storedAssignmentV5.js';
+import { canonicalV5PersistencePatch, getStoredAssignmentQuestions, getStoredAssignmentTypeProjection, getStoredAssignmentVariantMode, getStoredSectionVariantModes, lessonSupportFields, storedAssignmentToV5, testCycleContractFields } from '../../platform/contract/storedAssignmentV5.js';
 import { contentVersionOf, contentVersionLabel, latestCurrentLibraryRelease } from '../../platform/assignments/assignmentContentVersion.js';
 import { normalizeQuestionWeight } from '../../platform/grading/questionWeights.js';
 import { normalizeLessonPublishingIntentV5 } from '../../platform/authoring/lessonPublishingIntent.js';
@@ -719,6 +719,9 @@ export default function TeacherWorkspace({
         // sections, and this payload used to drop all three — so a Test Cycle
         // authored here was saved as a Review with no secure Test behind it.
         ...testCycleContractFields(reviewedV5),
+        // Nor are the lesson's worked examples and reference cards: without
+        // them a question's `example` id names nothing a student can be shown.
+        ...lessonSupportFields(reviewedV5),
         ...(assignmentPreflight?.sourceContentLineage ? {
           contentLineage: assignmentPreflight?.sourceContentLineage,
         } : {}),

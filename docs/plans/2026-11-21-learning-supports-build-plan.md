@@ -47,6 +47,7 @@ gate, and merges with a merge commit when CI is green.
 | Showing the process spec | #586 |
 | SP P1: part by part, Review all parts, See every part at once | #587 |
 | SP P1 in Recovery | this PR |
+| WE-A: the worked-example player and the section rules, for authored step cards and the built-in examples (tool replays wait for WE-C to WE-E). Hosting only. | `af9980dd` (build session E, no PR yet) |
 
 ## Track SP: showing the process
 
