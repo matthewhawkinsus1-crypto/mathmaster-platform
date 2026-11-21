@@ -11,6 +11,7 @@ import { generateStableId } from './idUtils.mjs';
 import { toCanonicalKey } from './teksUtils.mjs';
 import { describeAdaptation } from './adaptationNarrative.mjs';
 import { trustedMisconceptionFindings } from './misconceptionCodes.mjs';
+import { attemptIsBeyondRolePolicy } from './attemptPolicy.mjs';
 
 const unique = (values = []) => [...new Set(values.filter(Boolean))];
 
@@ -113,6 +114,11 @@ export const buildAttemptEvidenceEvent = ({
   const partialCredit = Number(attemptResult?.partialCredit ?? attemptRecord?.partialCredit ?? 0);
   const score = attemptResult?.isCorrect ? 1 : Math.max(0, Math.min(1, partialCredit / 100));
   const misconception = attemptMisconceptionEvidence(misconceptionEvidence);
+  // An attempt past the role's own number of tries, possible only in an
+  // assignment that declares unlimited attempts (attemptPolicy.mjs
+  // attemptIsBeyondRolePolicy): supported evidence for mastery, never an
+  // independent success. False for every other event, which keeps its shape.
+  const beyondRolePolicy = attemptIsBeyondRolePolicy({ assignment, question, activityRole, record: attemptRecord });
 
   return {
     schemaVersion: 1,
@@ -175,7 +181,8 @@ export const buildAttemptEvidenceEvent = ({
       attemptNumber,
       status: String(attemptRecord?.status || attemptResult?.status || 'attempted'),
       partialCredit: Math.max(0, Math.min(100, partialCredit)),
-      isMathematicallyIndependent: supportUsage.isMathematicallyIndependent !== false,
+      isMathematicallyIndependent: supportUsage.isMathematicallyIndependent !== false && !beyondRolePolicy,
+      ...(beyondRolePolicy ? { attemptBeyondRolePolicy: true } : {}),
       // Present only when a server classifier proved one: an attempt without a
       // code keeps exactly the shape every earlier event has. The plain code
       // list sits beside its provenance; readers trust the provenance only
@@ -200,7 +207,7 @@ export const buildAttemptEvidenceEvent = ({
       backUpStepUsed: Boolean(supportUsage.backUpStepUsed),
       feedbackAssisted: Boolean(supportUsage.feedbackAssisted),
       calculatorUsed: Boolean(supportUsage.calculatorUsed),
-      isMathematicallyIndependent: supportUsage.isMathematicallyIndependent !== false,
+      isMathematicallyIndependent: supportUsage.isMathematicallyIndependent !== false && !beyondRolePolicy,
     },
     supportTelemetry: supportTelemetryFromUsage(supportUsage),
   };

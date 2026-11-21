@@ -1,5 +1,5 @@
 import { resolveStudentDolExtraAttempts } from './studentAssignmentOverrides.mjs';
-import { attemptsAreUnlimited } from './activityPolicies.mjs';
+import { attemptsAreUnlimited, getEffectiveActivityPolicy } from './activityPolicies.mjs';
 
 export const MAX_ATTEMPTS_PER_QUESTION = 3;
 
@@ -161,6 +161,29 @@ export const resolveQuestionMaximumAttempts = ({
   const base = isChoiceOnlyQuestion(question) ? 1 : requested;
   const teacherBonus = Math.max(0, Math.min(20, Math.floor(Number(teacherGrantedExtraAttempts) || 0)));
   return base + teacherBonus;
+};
+
+/*
+ * AN ATTEMPT THE ROLE POLICY ALONE WOULD NOT HAVE ALLOWED.
+ *
+ * In an assignment that declares unlimited attempts a student can reach the
+ * right answer on a 4th or a 20th try, and on a choice-only question by
+ * trying each option. That answer is full credit for the GRADE, as a correct
+ * 2nd or 3rd attempt always was. As MASTERY evidence it is not the same thing
+ * as getting it within the tries the section gives everywhere else, so an
+ * attempt past that number counts as supported evidence (masteryScoring.mjs
+ * SUPPORTED_CREDIT, masteryEngine.js): worth less than an independent
+ * success and never counted as one. Attempts within the role's own number,
+ * and every attempt of an assignment that does not declare unlimited
+ * attempts, are untouched — this is false for all of them.
+ *
+ * `record` is the question's record as it stands after the attempt.
+ */
+export const attemptIsBeyondRolePolicy = ({ assignment = null, question = {}, activityRole = null, record = null } = {}) => {
+  if (getEffectiveActivityPolicy(activityRole, assignment).attemptsUnlimited !== true) return false;
+  const rolePolicy = getEffectiveActivityPolicy(activityRole);
+  const ordinary = resolveQuestionMaximumAttempts({ question, maximumAttempts: rolePolicy.attempts, activityPolicy: rolePolicy });
+  return (Number(record?.attemptCount) || 0) > ordinary;
 };
 
 /*
