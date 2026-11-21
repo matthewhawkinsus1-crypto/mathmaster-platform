@@ -68,30 +68,38 @@ export const reviewAttemptSignal = async ({ db, studentId, signalId, teacherEmai
 const shared = new Map();
 const EMPTY = Object.freeze({ signals: Object.freeze([]), failed: false, loaded: false });
 
-export const sharedAttemptSignals = ({ db, studentId, assignmentId }) => {
-  const key = `${clean(studentId)}|${clean(assignmentId)}`;
-  const entry = () => shared.get(key);
-  return {
-    subscribe(listener) {
-      if (!clean(studentId)) return () => {};
-      if (!shared.has(key)) {
-        const created = { state: EMPTY, listeners: new Set(), stop: null };
-        shared.set(key, created);
-        const publish = (state) => { created.state = state; created.listeners.forEach((each) => each()); };
-        created.stop = watchAttemptSignals({
-          db, studentId, assignmentId,
-          onChange: (signals) => publish({ signals, failed: false, loaded: true }),
-          onError: () => publish({ signals: [], failed: true, loaded: true }),
-        });
-      }
-      entry().listeners.add(listener);
-      return () => {
-        const current = entry();
-        if (!current) return;
-        current.listeners.delete(listener);
-        if (!current.listeners.size) { current.stop?.(); shared.delete(key); }
-      };
-    },
-    read: () => entry()?.state || EMPTY,
+const sharedKey = ({ studentId, assignmentId }) => `${clean(studentId)}|${clean(assignmentId)}`;
+
+/** Join the shared watch of one student's signals on one assignment; returns the way out. */
+export const subscribeSharedAttemptSignals = ({ db, studentId, assignmentId }, listener) => {
+  if (!clean(studentId)) return () => {};
+  const key = sharedKey({ studentId, assignmentId });
+  const first = !shared.has(key);
+  if (first) shared.set(key, { state: EMPTY, listeners: new Set(), stop: null });
+  const entry = shared.get(key);
+  entry.listeners.add(listener);
+  const publish = (state) => { entry.state = state; entry.listeners.forEach((each) => each()); };
+  // The first reader opens the watch; whoever leaves last closes it.
+  const stop = first
+    ? watchAttemptSignals({
+      db, studentId, assignmentId,
+      onChange: (signals) => publish({ signals, failed: false, loaded: true }),
+      onError: () => publish({ signals: [], failed: true, loaded: true }),
+    })
+    : null;
+  if (stop) entry.stop = stop;
+  return () => {
+    entry.listeners.delete(listener);
+    if (entry.listeners.size) return;
+    if (stop) stop();
+    else entry.stop?.();
+    if (shared.get(key) === entry) shared.delete(key);
   };
+};
+
+/** The shared watch as React's useSyncExternalStore takes it: { subscribe, read }. */
+export const sharedAttemptSignals = (source) => {
+  // React calls this and keeps what it returns, which leaves the watch.
+  const subscribeToShared = (listener) => subscribeSharedAttemptSignals(source, listener);
+  return { subscribe: subscribeToShared, read: () => shared.get(sharedKey(source))?.state || EMPTY };
 };

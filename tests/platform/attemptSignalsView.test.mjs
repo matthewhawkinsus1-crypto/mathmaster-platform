@@ -181,9 +181,10 @@ test("in the assignment's results: a student's signals beside the question they 
   assert.match(notes, /useSyncExternalStore\(source\.subscribe, source\.read, source\.read\)/);
   assert.match(notes, /if \(!studentId \|\| !assignmentId \|\| !signals\.length\) return null;/, 'nothing for a question with none');
   const store = executableSource(read('src/platform/teacher/attemptSignalsStore.js'));
-  const shared = region(store, 'export const sharedAttemptSignals', '\n};\n', 'sharedAttemptSignals');
-  assert.match(shared, /if \(!shared\.has\(key\)\) \{/);
-  assert.match(shared, /if \(!current\.listeners\.size\) \{ current\.stop\?\.\(\); shared\.delete\(key\); \}/);
+  const shared = region(store, 'export const subscribeSharedAttemptSignals', '\n};\n', 'subscribeSharedAttemptSignals');
+  assert.match(shared, /const first = !shared\.has\(key\);/);
+  assert.match(shared, /const stop = first\s*\? watchAttemptSignals\(\{/, 'only the first reader opens the watch');
+  assert.match(shared, /if \(entry\.listeners\.size\) return;\s*if \(stop\) stop\(\);\s*else entry\.stop\?\.\(\);/, 'whoever leaves last closes it');
   assert.match(shared, /onError: \(\) => publish\(\{ signals: \[\], failed: true, loaded: true \}\)/);
 });
 
