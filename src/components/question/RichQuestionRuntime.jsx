@@ -27,7 +27,7 @@ import { readQuestionDraftFamily, restoreQuestionDrafts, subscribeToQuestionDraf
 import { withoutPersistedUndo } from '../../platform/workView/persistedMathUndo.js';
 import { createToolWorkGate } from './toolWorkGate.js';
 import { draftNormalizer, draftShape } from '../../tools/shared/toolDraftShape.js';
-import { assessmentSupportProfile } from '../../studentSupport.js';
+import { assessmentSupportProfile, getStudentSupportPresentation } from '../../studentSupport.js';
 import { SUBMIT_VERB, submitActionLabel, submitTryCost } from '../../platform/student/submitCost.js';
 
 /*
@@ -177,7 +177,21 @@ const restoredRegression = (payload) => {
  * given the raw profile, because the flattened assessment profile loses the
  * plan's per-activity limits). Nothing here reads or computes correctness.
  */
-const FieldItem = ({ question, policy, calculatorPolicy, studentSupportProfile, rawStudentSupportProfile = null, graphReadOut = false, initialResponsePayload, busy, closed, feedback, attempt = null, navigationMode = false, calculatorInToolbar = false, examType = null, mainLandmark = true, onSubmit, onDraftChange }) => {
+// Part-by-part lines and buttons, as MultiAnswerGrader draws them.
+const SR_ONLY = { position: 'absolute', width: 1, height: 1, padding: 0, margin: -1, overflow: 'hidden', clip: 'rect(0, 0, 0, 0)', whiteSpace: 'nowrap', border: 0 };
+const PART_LINE_STYLE = {
+  display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '6px 14px', padding: '10px 14px',
+  borderRadius: '10px', background: 'var(--mm-surface-sunken)', color: 'var(--mm-text)', minWidth: 0, border: '2px solid var(--mm-border)',
+};
+const partButtonStyle = (enabled, quiet = false) => ({
+  minHeight: '44px', padding: quiet ? '6px 14px' : '8px 18px', borderRadius: '8px',
+  border: `2px solid ${enabled ? 'var(--mm-primary)' : 'var(--mm-border)'}`,
+  background: enabled ? 'var(--mm-surface)' : 'var(--mm-surface-control-strong)',
+  color: enabled ? 'var(--mm-primary-text)' : 'var(--mm-disabled-text)',
+  fontSize: 'calc(15 * var(--mm-px))', fontWeight: 800, cursor: enabled ? 'pointer' : 'not-allowed',
+});
+
+const FieldItem = ({ question, policy, calculatorPolicy, studentSupportProfile, rawStudentSupportProfile = null, graphReadOut = false, initialResponsePayload, busy, closed, feedback, attempt = null, navigationMode = false, calculatorInToolbar = false, examType = null, mainLandmark = true, partByPart = false, onSubmit, onDraftChange }) => {
   const Landmark = mainLandmark ? 'main' : 'div';
   const [responses, setResponses] = useState(() => restoredFieldResponses(initialResponsePayload));
   const [calculatorUsed, setCalculatorUsed] = useState(false);
@@ -222,10 +236,64 @@ const FieldItem = ({ question, policy, calculatorPolicy, studentSupportProfile, 
   }));
   const complete = fields.every((field) => String(responses[field.id] ?? '').trim()) && !Object.values(entryProblems).some(Boolean);
   const locked = busy || closed;
+
+  // PART BY PART (SP-1b; docs/platform/SHOWING_THE_PROCESS.md section 3), as
+  // MultiAnswerGrader does it for a tool item: a field item of two or more
+  // fields, answered by the student in a secure test, opens one field at a
+  // time inside the item. A field before the open one that has an answer is
+  // one line (its label, the answer and Change); a field after it is not
+  // drawn; once every field has an answer, "Review all parts, then submit"
+  // lists them all before the item's own action (or, in a test the student
+  // moves around in, before the test's Next). Next part and Change save
+  // nothing new and grade nothing: the draft is the responses, as before, so
+  // a reload comes back to the first field with no answer. See every part at
+  // once (a per-student support) and a closed item draw every field.
+  const walkFields = partByPart === true && !closed && fields.length > 1
+    && getStudentSupportPresentation(studentSupportProfile).everyPartAtOnce !== true;
+  const fieldDone = (field) => Boolean(String(responses[field.id] ?? '').trim()) && !entryProblems[field.id];
+  const firstOpenField = () => fields.find((field) => !fieldDone(field))?.id ?? null;
+  const [walk, setWalk] = useState(() => ({ open: firstOpenField(), focus: 0, announcement: '' }));
+  // A field emptied since it was passed (a restored draft) opens again.
+  const openFieldId = (walk.open !== null && fields.some((field) => field.id === walk.open)) ? walk.open : firstOpenField();
+  const reviewHeading = 'Review all parts, then submit';
+  const fieldPartName = (id) => `Part ${fields.findIndex((field) => field.id === id) + 1} of ${fields.length}`;
+  const fieldState = (field) => {
+    if (!walkFields) return 'open';
+    if (field.id === openFieldId) return 'open';
+    return fieldDone(field) ? 'answered' : 'hidden';
+  };
+  // Where Next part goes: the next field with no answer, else an earlier one,
+  // else Review all parts.
+  const nextField = (id) => {
+    const index = fields.findIndex((field) => field.id === id);
+    const waiting = [...fields.slice(index + 1), ...fields.slice(0, Math.max(0, index))].find((field) => !fieldDone(field));
+    return waiting ? waiting.id : null;
+  };
+  const moveToField = (id) => setWalk((current) => ({
+    open: id, focus: current.focus + 1, announcement: id === null ? reviewHeading : fieldPartName(id),
+  }));
+  // Focus goes to the new part's heading (or the review's), only after the
+  // student moved, never on mount.
+  const partFocusRef = useRef(null);
+  useEffect(() => {
+    if (!walk.focus) return;
+    const target = partFocusRef.current;
+    if (typeof target?.focus !== 'function') return;
+    target.focus({ preventScroll: true });
+    target.scrollIntoView?.({ block: 'nearest' });
+  }, [walk.focus]);
+  const inReview = walkFields && openFieldId === null;
   const supportUsage = (used = calculatorUsed) => ({ calculatorUsed: used, accommodations: studentSupportProfile?.accommodations || [], modifications: studentSupportProfile?.modifications || [] });
 
   const submit = async (event) => {
     event.preventDefault();
+    // Part by part: Enter in the open field is Next part, once it has an
+    // answer, and never records the item.
+    if (walkFields && openFieldId !== null) {
+      const open = fields.find((field) => field.id === openFieldId);
+      if (open && fieldDone(open) && !locked) moveToField(nextField(openFieldId));
+      return;
+    }
     // Navigation mode: Enter in an answer box records nothing and moves
     // nowhere. The answer is already autosaving as a draft.
     if (navigationMode || !complete || locked) return;
@@ -276,11 +344,47 @@ const FieldItem = ({ question, policy, calculatorPolicy, studentSupportProfile, 
           onDraftChange?.({ responses, toolState: { linearRegression: next } }, supportUsage(true));
         }} />}
         <form onSubmit={submit}>
-          <div style={{ display: 'grid', gap: 15 }}>
+          <div style={{ display: 'grid', gap: 15 }} {...(walkFields ? { 'data-answer-part-count': fields.length } : {})}>
+            {walkFields && <p role="status" data-part-announcer="true" style={SR_ONLY}>{walk.announcement}</p>}
+            {inReview && (
+              <h2 ref={partFocusRef} tabIndex={-1} style={{ margin: 0, color: 'var(--mm-text-strong)', fontSize: 'calc(17 * var(--mm-px))' }}>{reviewHeading}</h2>
+            )}
             {fields.map((field, fieldIndex) => {
               const fieldChoices = field.choices?.length ? field.choices : fields.length === 1 ? choices : [];
+              const state = fieldState(field);
+              if (state === 'hidden') return null;
+              if (state === 'answered') {
+                const value = String(responses[field.id] ?? '');
+                const chosen = fieldChoices.find((choice) => choice.id === value);
+                const label = field.label || `Response ${fieldIndex + 1}`;
+                return (
+                  <div key={field.id} data-part-state="answered" data-part-id={field.id} data-part-index={fieldIndex} data-part-value={value} style={PART_LINE_STYLE}>
+                    <MathText style={{ fontWeight: 800 }}>{`${label}${field.unit ? ` (${field.unit})` : ''}`}</MathText>
+                    <span style={{ color: 'var(--mm-text-strong)', fontSize: 'calc(17 * var(--mm-px))', minWidth: 0, overflowWrap: 'anywhere' }}>
+                      {chosen
+                        ? <MathText>{chosen.label}</MathText>
+                        : (normalizeInteractionInputProfile(field.inputProfile) || 'text') === 'text' ? value : <MathDisplay value={value} format="latex" inline />}
+                    </span>
+                    <button
+                      type="button"
+                      disabled={locked}
+                      onClick={() => moveToField(field.id)}
+                      // Named by the part, and starting with what it says (WCAG 2.5.3).
+                      aria-label={`Change part ${fieldIndex + 1}, ${label}`}
+                      style={{ ...partButtonStyle(!locked, true), marginLeft: 'auto' }}
+                    >
+                      Change
+                    </button>
+                  </div>
+                );
+              }
+              const next = walkFields ? nextField(field.id) : undefined;
+              const done = fieldDone(field);
               return (
-                <fieldset key={field.id} style={{ border: 0, padding: 0, margin: 0 }}>
+                <fieldset key={field.id} style={{ border: 0, padding: 0, margin: 0 }} {...(walkFields ? { 'data-part-state': 'open', 'data-part-id': field.id, 'data-part-index': fieldIndex, 'data-part-value': String(responses[field.id] ?? '') } : {})}>
+                  {walkFields && (
+                    <h2 ref={partFocusRef} tabIndex={-1} style={{ margin: '0 0 8px', color: 'var(--mm-text-strong)', fontSize: 'calc(15 * var(--mm-px))' }}>{fieldPartName(field.id)}</h2>
+                  )}
                   <legend style={{ fontSize: 'calc(13 * var(--mm-px))', fontWeight: 900, color: 'var(--mm-text)', marginBottom: 7 }}>
                     <MathText>{field.label || `Response ${fieldIndex + 1}`}{field.unit ? ` (${field.unit})` : ''}</MathText>
                   </legend>
@@ -298,7 +402,7 @@ const FieldItem = ({ question, policy, calculatorPolicy, studentSupportProfile, 
                       value={responses[field.id] ?? ''}
                       onChange={(next) => updateResponse(field.id, next)}
                       readOnly={locked}
-                      autoFocus={fieldIndex === 0}
+                      autoFocus={walkFields ? (walk.focus === 0 && field.id === openFieldId) : fieldIndex === 0}
                       ariaLabel={field.label || `Response ${fieldIndex + 1}`}
                       prompt={question?.prompt || ''}
                       // A practice exam's number line keeps its test's rule
@@ -307,6 +411,11 @@ const FieldItem = ({ question, policy, calculatorPolicy, studentSupportProfile, 
                     />
                   )}
                   <TypedEntryNotice message={locked ? '' : entryProblems[field.id]} entry={responses[field.id] ?? ''} />
+                  {walkFields && (
+                    <button type="button" disabled={!done || locked} onClick={() => moveToField(next)} style={{ ...partButtonStyle(done && !locked), marginTop: 10 }}>
+                      {next === null ? 'Review all parts' : 'Next part'}
+                    </button>
+                  )}
                 </fieldset>
               );
             })}
@@ -316,7 +425,7 @@ const FieldItem = ({ question, policy, calculatorPolicy, studentSupportProfile, 
               visible answer. In navigation mode there is no per-question
               action at all: nothing is gated on answering, and moving on is
               the container's Previous/Next. */}
-          {!navigationMode && <button type="submit" disabled={!enabled} style={{ width: '100%', minHeight: 48, marginTop: 22, border: 0, borderRadius: 9, background: !enabled ? 'var(--mm-surface-control-strong)' : 'var(--mm-primary)', color: !enabled ? 'var(--mm-disabled-text)' : 'var(--mm-on-primary)', fontWeight: 900, cursor: !enabled ? 'not-allowed' : 'pointer' }}>{actionLabel}</button>}
+          {!navigationMode && (!walkFields || inReview) && <button type="submit" disabled={!enabled} style={{ width: '100%', minHeight: 48, marginTop: 22, border: 0, borderRadius: 9, background: !enabled ? 'var(--mm-surface-control-strong)' : 'var(--mm-primary)', color: !enabled ? 'var(--mm-disabled-text)' : 'var(--mm-on-primary)', fontWeight: 900, cursor: !enabled ? 'not-allowed' : 'pointer' }}>{actionLabel}</button>}
         </form>
         <InstructionalSupport policy={policy} feedback={feedback} isToolItem={false} supportProfile={rawStudentSupportProfile || studentSupportProfile} />
       </section>
@@ -631,6 +740,10 @@ export default function RichQuestionRuntime({
   }
   return (
     <FieldItem
+      // A secure test's student opens a field item of several fields one part
+      // at a time (SP-1b), as its tool item does; Corrections and a teacher's
+      // preview draw every field.
+      partByPart={policy.secure && executionScope === 'student'}
       question={question}
       policy={policy}
       calculatorPolicy={calculatorPolicy}
