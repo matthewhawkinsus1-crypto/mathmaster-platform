@@ -1,4 +1,4 @@
-import { getQuestionCredit, normalizeQuestionRecord } from './attemptPolicy.js';
+import { attemptIsBeyondRolePolicy, getQuestionCredit, normalizeQuestionRecord } from './attemptPolicy.js';
 import {
   getQuestionPrimaryTeksCodes,
   normalizeQuestionInstructionalMetadata,
@@ -116,7 +116,7 @@ const resolveQuestionEvidenceWeight = ({ question, assignment, standardEntry, re
   // independent one. It belongs on the CREDIT instead: a supported success is
   // still evidence (it stays in the denominator at full weight), it is just
   // worth less than doing it yourself.
-  const supported = usedMathematicalAssistance(record.supportUsage);
+  const usedAssistance = usedMathematicalAssistance(record.supportUsage);
   const classificationFactor = CLASSIFICATION_WEIGHT[standard?.classification] || 1;
   const evidenceLevelFactor = EVIDENCE_LEVEL_WEIGHT[standardEntry.level] || 1;
   const dokFactor = DOK_WEIGHT[dok] || 0.9;
@@ -130,6 +130,10 @@ const resolveQuestionEvidenceWeight = ({ question, assignment, standardEntry, re
   });
   const activityPolicy = getEffectiveActivityPolicy(activityRole);
   const activityEvidenceWeight = Math.max(0, Number(activityPolicy.mastery.evidenceWeight) || 0);
+  // In an assignment that declares unlimited attempts, an answer reached past
+  // the role's own number of tries is supported evidence too
+  // (attemptPolicy.mjs attemptIsBeyondRolePolicy). False everywhere else.
+  const supported = usedAssistance || attemptIsBeyondRolePolicy({ assignment, question, activityRole, record });
 
   return {
     rawWeight: base,
@@ -211,7 +215,7 @@ export const collectStudentEvidence = ({ student, assignments = [] } = {}) => {
           workedExampleUsed: Boolean(record.supportUsage?.workedExampleUsed),
           contextScaffoldUsed: Boolean(record.supportUsage?.contextScaffoldUsed),
           calculatorUsed: Boolean(record.supportUsage?.calculatorUsed),
-          isMathematicallyIndependent: !usedMathematicalAssistance(record.supportUsage),
+          isMathematicallyIndependent: !weights.supported,
           accommodations: record.supportUsage?.accommodations || [],
           modifications: record.supportUsage?.modifications || [],
           lastAttemptAt: record.lastAttemptAt || null,
