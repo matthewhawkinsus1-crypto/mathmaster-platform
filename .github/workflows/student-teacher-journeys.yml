@@ -34,6 +34,15 @@ name: Student and Teacher Journeys
 #                          (D7: a student with extra time keeps working after
 #                          the class's DOL closed and reads their own close;
 #                          a classmate's is closed; Live view lists who)
+#   teacher signals        tests/browser/teacherWorkflow/teacherSignalsJourneys.mjs
+#                          (in the teacher job, SP-2: a paste, leaving the page
+#                          then a burst of right parts, and right first time
+#                          on a hard question are stored as facts with no
+#                          contents; the grade is the same as a classmate's;
+#                          a support that explains the pattern raises none;
+#                          the Live tile and the student's results show
+#                          "Worth a conversation" with a Dismiss; never on
+#                          the projector or a student's screen)
 #   a teacher's code that  tests/browser/teacherWorkflow/teacherCodeRecovery.mjs
 #   cannot load            (in the teacher job: the authoring code the
 #                          workspace loads on demand, and a screen's own
@@ -252,6 +261,11 @@ jobs:
         env:
           PLAYWRIGHT_MODULE: playwright
         run: node tests/browser/teacherWorkflow/recoveryDraftCrossDeviceJourneys.mjs
+      - name: Teacher signals — facts only, "worth a conversation" in Live view and the student's results
+        if: ${{ !cancelled() }}
+        env:
+          PLAYWRIGHT_MODULE: playwright
+        run: node tests/browser/teacherWorkflow/teacherSignalsJourneys.mjs
       - name: A teacher's code that cannot load reaches "MathMaster was just updated"
         if: ${{ !cancelled() }}
         env:

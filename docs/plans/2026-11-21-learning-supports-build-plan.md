@@ -47,7 +47,8 @@ gate, and merges with a merge commit when CI is green.
 | Showing the process spec | #586 |
 | SP P1: part by part, Review all parts, See every part at once | #587 |
 | SP P1 in Recovery | #588 |
-| SP-1c: Read aloud reads only the parts on the screen | this PR |
+| SP-1c: Read aloud reads only the parts on the screen | #595 |
+| SP-2: teacher signals, "worth a conversation" (the evidence items follow) | #591 |
 
 ## Track SP: showing the process
 

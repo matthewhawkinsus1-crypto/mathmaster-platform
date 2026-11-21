@@ -26,13 +26,13 @@ import { createIdlePrefetch } from '../student/studentScreenPrefetch.js';
 import { whenOnline } from './onDemandCode.js';
 import {
   AssignmentHub, ClassroomSyncReview, StudentPersistenceRecoveryPanel, StudentProfileDrawer, StudentSpotlightView, SupportEvidenceReportView,
-  TeacherQuickSearch, promptMath,
+  TeacherQuickSearch, WorthAConversationTile, promptMath,
 } from './teacherPanels.js';
 
 // In the order a teacher is likeliest to want them.
 export const TEACHER_PANEL_PREFETCH = Object.freeze([
   AssignmentHub, StudentProfileDrawer, TeacherQuickSearch, promptMath, SupportEvidenceReportView, ClassroomSyncReview, StudentSpotlightView,
-  StudentPersistenceRecoveryPanel,
+  StudentPersistenceRecoveryPanel, WorthAConversationTile,
 ]);
 
 const prefetchOnce = createIdlePrefetch();

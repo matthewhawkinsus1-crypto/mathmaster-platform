@@ -65,7 +65,7 @@ test('the panel is for real student work only, and an opened link is a recorded 
   assert.ok(appFactorySeam('createAssignmentWorkspaceView').parameters.includes('recordStudentSupportEvidence'));
   assert.match(readFileSync(new URL('../../src/App.jsx', import.meta.url), 'utf8'), /^ {2}const recordStudentSupportEvidence = \(\{$/m);
   const mount = region(app, '{!preview && user?.role === \'student\' && (\n                <StudentSupportTools', '/>', 'Support tools mount');
-  assert.match(mount, /onResourceOpened=\{\(supportId\) => recordStudentSupportEvidence\(\{ supportId, eventType: 'used'/);
+  assert.match(mount, /onResourceOpened=\{\(supportId\) => \{ (?:notePlatformLinkOpened\(\); )?recordStudentSupportEvidence\(\{ supportId, eventType: 'used'/);
   const panel = readFileSync(new URL('../../src/components/student/StudentSupportTools.jsx', import.meta.url), 'utf8');
   assert.match(panel, /rel="noopener noreferrer"/);
   assert.match(panel, /onClick=\{\(\) => onResourceOpened\?\.\(resource\.supportId\)\}/);
@@ -106,7 +106,7 @@ test('where the assignment header is hidden, the same panel is behind the always
   assert.doesNotMatch(nav, /\{!assignmentNavigationCollapsed && !preview && user\?\.role === 'student' && \(\s*<StudentSupportTools/, 'not only in the expanded navigator');
   const narrow = region(chipPanel, "{!preview && user?.role === 'student' && (", '/>', 'narrow Support tools mount');
   assert.match(narrow, /<StudentSupportTools\s+className="mathmaster-narrow-support-tools"/);
-  assert.match(narrow, /onResourceOpened=\{\(supportId\) => recordStudentSupportEvidence\(\{ supportId, eventType: 'used'/);
+  assert.match(narrow, /onResourceOpened=\{\(supportId\) => \{ (?:notePlatformLinkOpened\(\); )?recordStudentSupportEvidence\(\{ supportId, eventType: 'used'/);
   const panel = readFileSync(new URL('../../src/components/student/StudentSupportTools.jsx', import.meta.url), 'utf8');
   assert.match(panel, /className=\{`mathmaster-support-tools\$\{className \? ` \$\{className\}` : ''\}`\}/);
 
