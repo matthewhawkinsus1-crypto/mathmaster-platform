@@ -1,4 +1,5 @@
 import { normalizeAssignmentV5, validateAssignmentV5, flattenV5Sections } from '../contract/assignmentSchemaV5.js';
+import { validateLessonSupportsV5 } from '../contract/lessonSupportsV5.js';
 import { validateAssignmentQuestions } from '../../assignmentBlueprint.js';
 import { validateQuestionsSemantics } from '../contract/semanticValidation.js';
 import { validateAlignments, auditAlignmentSpecificity } from '../contract/alignments.js';
@@ -109,6 +110,15 @@ export const buildAssignmentV5PreflightModel = (input = {}, { titleOverride = nu
   const runtimeSource = runtimeRepair.assignment;
 
   const structural = validateAssignmentV5(source);
+  // Worked examples, reference cards, follow-through and checkpoints
+  // (lessonSupportsV5.js): optional fields of new assignments, judged on the
+  // stored assignment as the compiler judged them on the authored one. One
+  // that carries none of them gains no error here. (Kept out of
+  // validateAssignmentV5, which the student app loads, so the rules cost the
+  // student's first load nothing.)
+  const supports = validateLessonSupportsV5(source);
+  structural.errors.push(...supports.errors);
+  structural.warnings.push(...supports.warnings);
   const sections = (runtimeSource.sections || []).map(withRuntimeSectionMetadata);
   const persistenceSections = (source.sections || []).map(withRuntimeSectionMetadata);
 

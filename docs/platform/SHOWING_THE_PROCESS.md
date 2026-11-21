@@ -99,6 +99,8 @@ into its prompt. The grader keys the later part to the student's earlier value
 Pre-Flight checks that every `{name}` in a label or answer names an earlier
 part.
 
+How to write `followThrough` and `checkpoint`, with an example lesson: `docs/assignments/AUTHORING_LEARNING_SUPPORTS.md`.
+
 ## 5. Show the step (new assignments)
 
 A part may carry one `checkpoint`, a step the student does in a tool before the

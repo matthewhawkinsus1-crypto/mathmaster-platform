@@ -1,0 +1,168 @@
+{
+  "schemaVersion": 5,
+  "assignment": {
+    "title": "Lines and Equations with Learning Supports (authoring example)",
+    "courseId": "algebra1",
+    "instructionalPurpose": "lesson",
+    "gradingPurpose": "classwork"
+  },
+  "variantPolicy": { "mode": "shared" },
+  "lessonSupports": {
+    "referenceCards": [
+      { "id": "slope-intercept", "skill": "lines.slopeInterceptForm", "sections": ["classwork", "practice"] }
+    ],
+    "examples": [
+      {
+        "id": "ex-both-sides",
+        "skill": "solve.variablesOnBothSides",
+        "tool": "stepAlgebra",
+        "source": "authored",
+        "sibling": { "equation": "5x + 3 = 2x - 9" },
+        "roles": ["classwork", "practice"],
+        "moves": [
+          { "op": "subtract", "operand": "2x", "why": "Collect the x-terms on one side." },
+          { "op": "subtract", "operand": "3", "why": "Collect the numbers on the other side." },
+          { "op": "divide", "operand": "3", "why": "Undo the multiplication by 3." },
+          { "check": true, "why": "Put x = -4 back into both sides: each side is -17." }
+        ],
+        "fade": { "handOverAfter": 1 }
+      },
+      {
+        "id": "ex-line-two-points",
+        "skill": "lines.equationFromTwoPoints",
+        "source": "authored",
+        "problem": "A line passes through (1, 2) and (3, 8). Find its slope, its y-intercept and its equation.",
+        "steps": [
+          { "show": "m = (8 - 2) / (3 - 1) = 6 / 2 = 3", "why": "Slope is the change in y over the change in x." },
+          { "show": "2 = 3(1) + b, so b = -1", "why": "Put one point and the slope into y = mx + b to find b." },
+          { "show": "y = 3x - 1", "why": "Write the slope and the y-intercept into y = mx + b." },
+          { "show": "8 = 3(3) - 1", "why": "Check with the other point." }
+        ],
+        "fade": { "fromStep": 3 }
+      }
+    ]
+  },
+  "sections": [
+    {
+      "id": "classwork",
+      "role": "classwork",
+      "title": "Classwork",
+      "questions": [
+        {
+          "questionId": "ls-cw-1",
+          "standard": "A.2C",
+          "dok": 2,
+          "studentActions": ["multipleResponses"],
+          "prompt": "A taxi ride costs $4 to start and $2 for every mile. The cost is y = 2x + 4, where x is the number of miles.",
+          "responses": [
+            {
+              "id": "start",
+              "label": "In this situation, the 4 is …",
+              "type": "choice",
+              "options": ["the cost to start the ride", "the cost of each mile", "the number of miles"],
+              "answer": "the cost to start the ride"
+            },
+            { "id": "three-miles", "label": "The cost of a 3-mile ride, in dollars", "answer": "10" }
+          ],
+          "example": { "none": "setup" }
+        },
+        {
+          "questionId": "ls-cw-2",
+          "standard": "A.5A",
+          "dok": 2,
+          "studentActions": ["solveStepByStep"],
+          "prompt": "Solve 4x + 7 = x - 8 step by step.",
+          "equation": "4x + 7 = x - 8",
+          "example": "ex-both-sides"
+        },
+        {
+          "questionId": "ls-cw-3",
+          "standard": "A.5A",
+          "dok": 2,
+          "studentActions": ["solveStepByStep"],
+          "prompt": "Solve 6x - 5 = 2x + 11 step by step.",
+          "equation": "6x - 5 = 2x + 11"
+        },
+        {
+          "questionId": "ls-cw-4",
+          "standard": "A.2B",
+          "dok": 2,
+          "studentActions": ["multipleResponses"],
+          "prompt": "A line passes through (0, -2) and (2, 4).",
+          "responses": [
+            {
+              "id": "slope",
+              "label": "Slope of the line",
+              "answer": "3",
+              "checkpoint": { "kind": "pickPoints", "count": 2 }
+            },
+            {
+              "id": "intercept",
+              "label": "The y-intercept",
+              "answer": "-2"
+            },
+            {
+              "id": "equation",
+              "label": "Using your slope of {slope} and y-intercept of {intercept}, write the equation of the line",
+              "answer": "y = 3x - 2",
+              "followThrough": { "from": ["slope", "intercept"], "answer": "y = {slope}x + {intercept}" }
+            }
+          ],
+          "example": "ex-line-two-points"
+        },
+        {
+          "questionId": "ls-cw-5",
+          "standard": "A.2B",
+          "dok": 2,
+          "studentActions": ["multipleResponses"],
+          "prompt": "Maya says the line through (0, -2) and (2, 4) has slope 1/3. Explain the mistake she made.",
+          "responses": [
+            {
+              "id": "why",
+              "label": "Maya's mistake",
+              "type": "choice",
+              "options": [
+                "She divided the change in x by the change in y.",
+                "She subtracted the points in different orders.",
+                "She used the wrong y-intercept."
+              ],
+              "answer": "She divided the change in x by the change in y."
+            }
+          ],
+          "example": { "none": "explain" }
+        }
+      ]
+    },
+    {
+      "id": "practice",
+      "role": "practice",
+      "title": "Practice",
+      "questions": [
+        {
+          "questionId": "ls-pr-1",
+          "standard": "A.5A",
+          "dok": 2,
+          "studentActions": ["solveStepByStep"],
+          "prompt": "Solve 3x + 10 = -2x - 5 step by step.",
+          "equation": "3x + 10 = -2x - 5",
+          "example": "ex-both-sides"
+        }
+      ]
+    },
+    {
+      "id": "dol",
+      "role": "dol",
+      "title": "DOL",
+      "questions": [
+        {
+          "questionId": "ls-dol-1",
+          "standard": "A.5A",
+          "dok": 2,
+          "studentActions": ["solveStepByStep"],
+          "prompt": "Solve 7x - 2 = 3x + 10 step by step.",
+          "equation": "7x - 2 = 3x + 10"
+        }
+      ]
+    }
+  ]
+}

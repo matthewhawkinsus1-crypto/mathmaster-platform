@@ -67,6 +67,8 @@ import Dialog from '../../ui/Dialog.jsx';
 import { SR_ONLY_STYLE } from '../../ui/srOnly.js';
 import RepresentationAudit from './RepresentationAudit';
 import RecoveryReadinessPanel from './RecoveryReadinessPanel.jsx';
+import ClassworkExampleCoveragePanel from './ClassworkExampleCoveragePanel.jsx';
+import { classworkExampleCoverage } from '../../platform/supports/workedExample/classworkCoverage.js';
 import { RECOVERY_REPAIR_INSTRUCTION } from '../../platform/recovery/recoveryReadinessCopy.js';
 import SectionBalanceRigorAudit from './SectionBalanceRigorAudit.jsx';
 import {
@@ -319,6 +321,14 @@ export const LessonPreflightModal = ({
     [reviewedAssignmentV5, preflightClassSize],
   );
   const effectiveAssignmentV5 = preflightModel.assignmentV5;
+  // WORKED EXAMPLES (WE-B): how many Classwork questions an example covers,
+  // judged on the runtime view students are given. Information for the Check
+  // step only, never a readiness finding; each question's built-in check is
+  // kept between edits (classworkCoverage.js).
+  const classworkExamples = useMemo(
+    () => classworkExampleCoverage({ sections: preflightModel.sections, lessonSupports: effectiveAssignmentV5?.lessonSupports }),
+    [preflightModel.sections, effectiveAssignmentV5],
+  );
   const publishingIntent = useMemo(() => normalizeLessonPublishingIntentV5({
     classroom: effectiveAssignmentV5.classroomIntegration,
     lessonResources: { notesPdf: effectiveAssignmentV5.outputProfiles?.lessonNotesPdf },
@@ -2051,6 +2061,12 @@ export const LessonPreflightModal = ({
       )}
 
       {renderRecoveryReadiness()}
+
+      {/* WORKED EXAMPLES (WE-B): a warning on a new or newly imported
+          assignment, information only on an existing one; it never stops
+          anything (ClassworkExampleCoveragePanel.jsx). Its heading is one
+          below the step's, which a phone does not draw. */}
+      <ClassworkExampleCoveragePanel coverage={classworkExamples} isNew={!isUpdateMode} headingLevel={isNarrow ? 4 : 5} />
 
       {/* The advice below, counted (TT14, TT21), every panel of it, each
           count in the number it needs ("1 hint that states the answer"): it

@@ -131,6 +131,8 @@ Pre-Flight checks:
 Built-in examples need nothing in the JSON. An assignment adds fields only where
 it wants its own example, an exemption or a reference card.
 
+How to write each field, with an example lesson: `docs/assignments/AUTHORING_LEARNING_SUPPORTS.md`.
+
 ```jsonc
 {
   "lessonSupports": {

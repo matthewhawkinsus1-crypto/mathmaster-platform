@@ -19,6 +19,7 @@ import { hasLocalFamilyTemplate, lostTemplatePlaceholders } from '../../../funct
 import { isValidLogBase } from '../../../functions/shared/toolMath/exponentialLog/exponentialLogMath.mjs';
 import { asksSingularReasonByDefault } from '../../../functions/shared/toolMath/matrixLab/matrixLabModel.mjs';
 import { radicalEquationOpensRelationWorkspace } from './radicalEquationIntent.js';
+import { lessonSupportsPassThroughErrors, validateLessonSupportsV5 } from './lessonSupportsV5.js';
 
 const asArray = (value) => Array.isArray(value) ? value : value == null ? [] : [value];
 const isObject = (value) => value && typeof value === 'object' && !Array.isArray(value);
@@ -194,7 +195,11 @@ const copyCommon = (source, target = {}) => {
   // down" restatement for a student whose plan gives chunked directions
   // (directionChunks.js reads it first). It was dropped here too, so every
   // student got the rule-based split instead of the steps the author wrote.
-  ['scaffold','prompt','activityRole','dok','difficultyBand','purpose','evidenceWeight','differentiation','calculator','calculatorPolicy','examCalculatorMode','assessmentContext','context','familyId','familyVersion','assessedConstruct','taskType','representation','ccmrChallengeTier','ccmrFamilyRole','ccmrAuthenticLanguage','assessmentItemFormat','ccmrSource','solutionReview','attemptFeedback','misconceptions','supportHints','hints','hint','translations','guidedNotes','guidedSteps','directionSteps','referenceInfo','referenceSheet','representSolution','solutionRepresentations','representationAsk','showEquation'].forEach((key) => {
+  // `example` (an id of a lessonSupports.examples entry, or { none: "setup" |
+  // "explain" }) names the worked example a new assignment's question is
+  // covered by (AG-1; lessonSupportsV5.js). Carried as authored; nothing reads
+  // it yet, and a question that has none compiles exactly as before.
+  ['example','scaffold','prompt','activityRole','dok','difficultyBand','purpose','evidenceWeight','differentiation','calculator','calculatorPolicy','examCalculatorMode','assessmentContext','context','familyId','familyVersion','assessedConstruct','taskType','representation','ccmrChallengeTier','ccmrFamilyRole','ccmrAuthenticLanguage','assessmentItemFormat','ccmrSource','solutionReview','attemptFeedback','misconceptions','supportHints','hints','hint','translations','guidedNotes','guidedSteps','directionSteps','referenceInfo','referenceSheet','representSolution','solutionRepresentations','representationAsk','showEquation'].forEach((key) => {
     if (source[key] != null) target[key] = source[key];
   });
   // Canonical V5 questions keep the normalized mathematical intent that chose
@@ -2356,6 +2361,14 @@ export const compileAuthoringIntentV5 = (input = {}) => {
     throw new Error(`Instructional scope check failed:\n- ${scope.errors.join('\n- ')}`);
   }
 
+  // Learning supports are judged as the author wrote them, in the author's own
+  // positions and names (responses[], not the compiled answerFields), before
+  // anything is compiled. An assignment with none of the fields passes.
+  const supports = validateLessonSupportsV5(input);
+  if (supports.errors.length) {
+    throw new Error(`Assignment V5 validation failed:\n- ${supports.errors.join('\n- ')}`);
+  }
+
   const repairs = [];
   const decisions = [];
   const compileWarnings = [];
@@ -2419,6 +2432,10 @@ export const compileAuthoringIntentV5 = (input = {}) => {
   delete packageOut.lessonResources;
 
   const validation = validateAssignmentV5(packageOut);
+  // Every learning-support field reaches the compiled assignment unchanged,
+  // or the compile is refused: a destination that keeps no answer parts would
+  // otherwise drop a part's followThrough or checkpoint without a word.
+  validation.errors.push(...lessonSupportsPassThroughErrors(input, packageOut));
   if (validation.errors.length) {
     throw new Error(`Assignment V5 validation failed:\n- ${validation.errors.join('\n- ')}`);
   }
