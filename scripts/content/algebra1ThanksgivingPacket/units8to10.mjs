@@ -230,7 +230,7 @@ const UNIT_9 = unit({
       backUp: ['If y = 2x, then in x + y = 12 you can replace y with…', ['2x', '12'], '2x'],
       notes: [
         ['Substitution', 'If one equation is solved for a variable, put that expression in place of the variable in the OTHER equation. Solve, then go back to find the second variable.'],
-        ['Worked example', 'y = 3x and x + y = 8: x + 3x = 8, so 4x = 8 and x = 2. Then y = 3(2) = 6. The solution is (2, 6).'],
+        ['Worked example', 'y = 6x and x + y = 63: x + 6x = 63, so 7x = 63 and x = 9. Then y = 6(9) = 54. The solution is (9, 54).'],
       ],
       solution: {
         reasoning: [

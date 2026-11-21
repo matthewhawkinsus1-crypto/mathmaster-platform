@@ -47,6 +47,7 @@ import {
 import { ADVISORY_FINDING_GROUPS } from '../../src/platform/preflight/assignmentV5PreflightModel.js';
 import { HONORS_CCMR_STATUS } from '../../src/platform/assignments/canonicalCcmrHydration.js';
 import { classworkExampleCoverage, exampleSkillOf } from '../../src/platform/supports/workedExample/classworkCoverage.js';
+import { authoredExampleProblem, authoredStepCard, lessonExampleContext } from '../../src/platform/supports/workedExample/lessonExample.js';
 import { validateLessonSupportsV5 } from '../../src/platform/contract/lessonSupportsV5.js';
 import { backUpStepFor, backUpStepWritten } from '../../src/platform/supports/feedback/backUpStep.js';
 import { auditAssignmentSolutionReviews, hasAuthoredCommonError } from '../../src/platform/preflight/solutionReviewPreflight.js';
@@ -318,6 +319,22 @@ for (const [name, packet] of PACKETS) {
       assert.equal(exact.equal(mine.boundary, theirs.boundary), false, `${question.questionId}: its example ${question.example} must not have the same answer`);
     });
     assert.ok(compared >= 8, `${compared} equation and inequality examples compared`);
+
+    // The player's own safety rule (lessonExample.js): an example is not shown
+    // on a question when its problem or a step holds one of that question's
+    // answers. Every example is shown on the question that names it, and on
+    // each later question of its skill that borrows it on request.
+    const shown = { own: 0, earlierSameSkill: 0 };
+    packet.questions.forEach((question, index) => {
+      const context = lessonExampleContext({ questions: packet.questions, index, lessonSupports: raw.lessonSupports, roleOf: () => 'classwork' });
+      const card = authoredStepCard(context?.example);
+      if (!card) return;
+      const refused = authoredExampleProblem(question, card);
+      assert.equal(refused, null, `${question.questionId}: ${card.id} (${context.from}) is refused: ${refused?.reason}`);
+      shown[context.from] += 1;
+    });
+    assert.equal(shown.own, examples.length, 'each example is shown on the question that names it');
+    assert.ok(shown.earlierSameSkill >= 10, `${shown.earlierSameSkill} later questions borrow an example`);
 
     // Each example is a step card of small steps, each with its reason; and a
     // sibling problem, never an item of the packet.

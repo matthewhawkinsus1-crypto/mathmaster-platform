@@ -282,7 +282,7 @@ const UNIT_2 = unit({
       backUp: ['Slope is…', ['rise divided by run', 'run divided by rise'], 'rise divided by run'],
       notes: [
         ['Slope from a graph', 'Slope = rise ÷ run: the change in y divided by the change in x between any two points of the line.'],
-        ['Worked example', 'From (0, 1) to (2, 7) the rise is 6 and the run is 2, so the slope is 6 ÷ 2 = 3.'],
+        ['Worked example', 'From (0, 4) to (3, 13) the rise is 9 and the run is 3, so the slope is 9 ÷ 3 = 3.'],
       ],
       solution: {
         reasoning: [
@@ -430,7 +430,7 @@ const UNIT_2 = unit({
       backUp: ['In a table, the y-intercept is the y-value in the row where…', ['x = 0', 'y = 0'], 'x = 0'],
       notes: [
         ['Table to y = mx + b', 'm is the constant rate of change, Δy ÷ Δx. b is the y-value where x = 0.'],
-        ['Worked example', 'Rows (0, 2), (2, 8), (5, 17): every rate is 3 and y = 2 when x = 0, so y = 3x + 2.'],
+        ['Worked example', 'Rows (0, 5), (2, 13), (5, 25): every rate is 4 and y = 5 when x = 0, so y = 4x + 5.'],
       ],
       solution: {
         reasoning: [
@@ -460,7 +460,7 @@ const UNIT_2 = unit({
       backUp: ['To find the x-intercept of an equation, you replace…', ['y with 0', 'x with 0'], 'y with 0'],
       notes: [
         ['Graph from Ax + By = C', 'Find the two intercepts: let y = 0 to get the x-intercept, and let x = 0 to get the y-intercept. Plot both and draw the line.'],
-        ['Worked example', 'x + 2y = 8: y = 0 gives x = 8, so (8, 0). x = 0 gives 2y = 8, so (0, 4).'],
+        ['Worked example', '5x + 2y = 10: y = 0 gives 5x = 10, so (2, 0). x = 0 gives 2y = 10, so (0, 5).'],
       ],
       solution: {
         reasoning: [
@@ -491,7 +491,7 @@ const UNIT_2 = unit({
       backUp: ['In y − y₁ = m(x − x₁), the numbers x₁ and y₁ come from…', ['a point on the line', 'the slope'], 'a point on the line'],
       notes: [
         ['Line through two points', 'First the slope: m = (y₂ − y₁) ÷ (x₂ − x₁). Then point-slope form: y − y₁ = m(x − x₁). Solve for y to get y = mx + b.'],
-        ['Worked example', '(1, 2) and (3, 8): m = 6 ÷ 2 = 3. y − 2 = 3(x − 1), which becomes y = 3x − 1.'],
+        ['Worked example', '(1, 3) and (3, 11): m = 8 ÷ 2 = 4. y − 3 = 4(x − 1), which becomes y = 4x − 1.'],
       ],
       solution: {
         reasoning: [
@@ -627,7 +627,7 @@ const UNIT_3 = unit({
       backUp: ['In f(n) = f(n − 1) + 5, the part f(n − 1) means…', ['the term just before f(n)', 'the term number minus 1'], 'the term just before f(n)'],
       notes: [
         ['Recursive rule', 'A recursive rule gives the first term and how to get every term from the one before it. Adding the same number each time gives an arithmetic sequence; that number is the common difference.'],
-        ['Worked example', 'f(1) = 2 and f(n) = f(n − 1) + 4: the terms are 2, 6, 10, 14, … and the common difference is 4.'],
+        ['Worked example', 'f(1) = 9 and f(n) = f(n − 1) + 10: the terms are 9, 19, 29, 39, … and the common difference is 10.'],
       ],
       solution: {
         reasoning: [
@@ -754,7 +754,7 @@ const UNIT_3 = unit({
       backUp: ['A sequence where each term is the term before it TIMES the same number is…', ['geometric', 'arithmetic'], 'geometric'],
       notes: [
         ['Geometric sequence', 'When each term is the term before it TIMES the same number, the sequence is geometric. That number is the common ratio.'],
-        ['Worked example', 'f(1) = 81 and f(n) = (1/3)·f(n − 1): the terms are 81, 27, 9, 3, … and the common ratio is 1/3.'],
+        ['Worked example', 'f(1) = 64 and f(n) = (1/4)·f(n − 1): the terms are 64, 16, 4, 1, … and the common ratio is 1/4.'],
       ],
       solution: {
         reasoning: [

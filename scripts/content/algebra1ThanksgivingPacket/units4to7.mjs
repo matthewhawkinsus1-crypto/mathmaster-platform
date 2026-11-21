@@ -97,7 +97,7 @@ const UNIT_4 = unit({
       backUp: ['In g(x) = (1/2)f(x), the 1/2 multiplies…', ['each output, y', 'each input, x'], 'each output, y'],
       notes: [
         ['A number in front stretches or compresses', 'g(x) = a·f(x) multiplies every output by a. If a is greater than 1 the line gets steeper; if a is between 0 and 1 it gets less steep; if a is negative it also flips over the x-axis.'],
-        ['Worked example', 'g(x) = 3f(x) sends (2, 2) to (2, 6): keep x, multiply y by 3.'],
+        ['Worked example', 'g(x) = 3f(x) sends (3, 3) to (3, 9): keep x, multiply y by 3.'],
       ],
       solution: {
         reasoning: [
@@ -329,7 +329,7 @@ const UNIT_5 = unit({
       backUp: ['To get a perpendicular slope from −2/3, you…', ['flip it and change its sign', 'change only its sign'], 'flip it and change its sign'],
       notes: [
         ['Equation of a perpendicular line', 'Find the negative reciprocal slope. Substitute it and the given point into y = mx + b, solve for b, then write the equation.'],
-        ['Worked example', 'Perpendicular to y = (1/4)x through (1, 3): m = −4. 3 = −4(1) + b gives b = 7, so y = −4x + 7.'],
+        ['Worked example', 'Perpendicular to y = (3/4)x + 2 through (3, 1): m = −4/3. 1 = −4 + b gives b = 5, so y = −(4/3)x + 5.'],
       ],
       solution: {
         reasoning: [
