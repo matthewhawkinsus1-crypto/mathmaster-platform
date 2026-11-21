@@ -136,3 +136,11 @@ export const triesLeftText = ({ maximumAttempts = 1, remainingAttempts = 0 } = {
  * wrong. It says what Submit costs instead (D9: Submit always costs a try).
  */
 export const SAME_ANSWER_AGAIN = 'This is the same answer as your last try. Submitting it again uses another try.';
+/*
+ * ...and where tries are unlimited (an assignment that declares
+ * gradingPolicy.attemptPolicy "unlimited"), nothing is spent: the line under
+ * "tries are unlimited on this question" said "uses another try" (browser
+ * check of the Thanksgiving packets, 2026-11-21). It says what to do instead.
+ */
+export const SAME_ANSWER_AGAIN_UNLIMITED = 'This is the same answer as your last try. Change it before you submit again.';
+export const sameAnswerAgainText = ({ maximumAttempts = 1 } = {}) => (attemptsAreUnlimited(maximumAttempts) ? SAME_ANSWER_AGAIN_UNLIMITED : SAME_ANSWER_AGAIN);

@@ -23,7 +23,8 @@ import { TRY_AGAIN_LABEL } from '../../src/platform/student/studentResultNextSte
 import { closedAttemptText } from '../../src/platform/supports/feedback/attemptFeedbackPlan.js';
 import { buildClosedQuestionReview } from '../../src/platform/supports/review/closedQuestionReview.js';
 import { partialCreditBreakdown } from '../../src/platform/supports/feedback/partialCreditBreakdown.js';
-import { SAME_ANSWER_AGAIN } from '../../src/platform/student/submitCost.js';
+import { SAME_ANSWER_AGAIN, SAME_ANSWER_AGAIN_UNLIMITED, sameAnswerAgainText } from '../../src/platform/student/submitCost.js';
+import { UNLIMITED_ATTEMPTS } from '../../functions/shared/activityPolicies.mjs';
 import { questionAddressLabel } from '../../src/app/routes/questionAddress.js';
 import { executableSource, region } from './helpers/sourceContract.mjs';
 import { appFactorySeam, appFactorySource, appSurfaceSource } from './helpers/appScreens.mjs';
@@ -355,7 +356,13 @@ test('HELP-24: the same answer again says what Submit costs; a partial result sa
   assert.equal(SAME_ANSWER_AGAIN, 'This is the same answer as your last try. Submitting it again uses another try.');
   const engine = executableSource(read('src/QuestionEngine.jsx'));
   const results = region(engine, '{sameIncorrectResponse && !isMultipart && !locked && (', ')}', 'same-answer line');
-  assert.match(results, /\{SAME_ANSWER_AGAIN\}/);
+  // The line is chosen by the question's tries: a counted question says what Submit costs,
+  // and one with unlimited tries, where nothing is spent, says what to do instead.
+  assert.match(results, /\{sameAnswerAgainText\(\{ maximumAttempts: resolvedMaximumAttempts \}/);
+  assert.equal(sameAnswerAgainText({ maximumAttempts: 3 }), SAME_ANSWER_AGAIN);
+  assert.equal(sameAnswerAgainText({ maximumAttempts: 1 }), SAME_ANSWER_AGAIN);
+  assert.equal(sameAnswerAgainText({ maximumAttempts: UNLIMITED_ATTEMPTS }), SAME_ANSWER_AGAIN_UNLIMITED);
+  assert.doesNotMatch(SAME_ANSWER_AGAIN_UNLIMITED, /uses another try|tries? left/, 'unlimited tries: nothing is said to be spent');
   const record = { partGrades: [{ label: 'Slope', isCorrect: true }, { label: 'Intercept', isCorrect: false }] };
   assert.equal(partialCreditBreakdown(record), 'last try: 1 of 2 parts right — still to fix: Intercept');
 });

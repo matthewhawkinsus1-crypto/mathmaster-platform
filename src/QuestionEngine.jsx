@@ -31,7 +31,7 @@ import { buildSimilarWorkedExample } from './platform/supports/workedExample/sim
 import { lessonExampleContext, resolveWorkedExample } from './platform/supports/workedExample/lessonExample.js';
 import PracticeLikeThis from './platform/supports/workedExample/PracticeLikeThis.jsx';
 import { chosenOptionReasons, oneTryNotice } from './platform/supports/feedback/oneTryChoice.js';
-import { SAME_ANSWER_AGAIN, focusOnText, missOutcomeText, submitActionLabel, submitTryCost, triesLeftText } from './platform/student/submitCost.js';
+import { focusOnText, missOutcomeText, sameAnswerAgainText, submitActionLabel, submitTryCost, triesLeftText } from './platform/student/submitCost.js';
 import { LANGUAGE_TOOLS, START_OVER, START_QUESTION_OVER, STARTING_OVER } from './platform/student/studentWords.js';
 import './components/student/SubmitCost.css';
 import { closedQuestionEnterAction } from './platform/interaction/closedQuestionEnter.js';
@@ -3159,7 +3159,7 @@ function QuestionEngineBody({
         </p>
       )}
       {sameIncorrectResponse && !isMultipart && !locked && (
-        <p style={{ marginTop: '10px', color: 'var(--mm-text-muted)', fontWeight: 'bold' }}>{SAME_ANSWER_AGAIN}</p>
+        <p style={{ marginTop: '10px', color: 'var(--mm-text-muted)', fontWeight: 'bold' }}>{sameAnswerAgainText({ maximumAttempts: resolvedMaximumAttempts })}</p>
       )}
 
       {/* A question the server cannot grade is not quietly marked wrong: the
