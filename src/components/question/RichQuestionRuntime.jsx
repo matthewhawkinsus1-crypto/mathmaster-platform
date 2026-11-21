@@ -403,6 +403,10 @@ const FieldItem = ({ question, policy, calculatorPolicy, studentSupportProfile, 
                       onChange={(next) => updateResponse(field.id, next)}
                       readOnly={locked}
                       autoFocus={walkFields ? (walk.focus === 0 && field.id === openFieldId) : fieldIndex === 0}
+                      // Part by part: Enter in the open box is Next part once
+                      // it has an answer (the math editor routes Enter only
+                      // to a handler it is given). Otherwise nothing, as before.
+                      onEnter={walkFields ? () => { if (fieldDone(field) && !locked) moveToField(nextField(field.id)); } : null}
                       ariaLabel={field.label || `Response ${fieldIndex + 1}`}
                       prompt={question?.prompt || ''}
                       // A practice exam's number line keeps its test's rule

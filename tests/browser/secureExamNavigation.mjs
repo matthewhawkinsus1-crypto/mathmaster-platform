@@ -957,7 +957,6 @@ const backtrackJourney = async (context, device) => {
   const { page, errors } = await openPage(context, 'backtrack', device);
   const label = (name) => `${device.id} backtrack ${name}`;
   const slope = () => typedAnswer(page, 'Slope');
-  const intercept = () => typedAnswer(page, 'Intercept');
   const regressionX = () => page.locator('input[aria-label="Regression row 1 x"]');
   const openRegression = async () => {
     if (!(await regressionX().isVisible())) await page.locator('summary', { hasText: 'Linear regression calculator' }).click();
@@ -1022,7 +1021,13 @@ const backtrackJourney = async (context, device) => {
   };
   const parts = () => partValues(page, { root: 'main' });
   check(await page.locator('main [data-part-state]').count() === 1 && !(await page.getByRole('button', { name: 'Record answer & continue' }).count()), label('a two-part item opens one part at a time'));
-  await answerParts(page, ['4', '3'], { root: 'main', type: fillPart });
+  // Enter in an answered part is Next part (the math editor routes Enter only
+  // to a handler it is given).
+  await fillPart(page.locator('main [data-part-state="open"] math-field, main [data-part-state="open"] input[type="text"]').first(), '4');
+  await page.keyboard.press('Enter');
+  const enterMoved = await page.waitForFunction(() => document.querySelector('main [data-part-state="open"]')?.getAttribute('data-part-index') === '1', null, { timeout: 5000 }).then(() => true).catch(() => false);
+  check(enterMoved, label('Enter in an answered part opens the next part'));
+  await answerParts(page, ['3'], { root: 'main', type: fillPart });
   await page.getByRole('heading', { name: 'Review all parts, then submit' }).waitFor();
   check((await parts()).join('|') === '4|3', label('Review all parts lists both parts'), (await parts()).join('|'));
   await openRegression();
