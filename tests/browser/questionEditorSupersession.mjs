@@ -97,10 +97,36 @@ const inViewport = async (page, locator) => {
 // `force` only skips Playwright's own "is it enabled" wait: an aria-disabled
 // button still receives a real finger or click, which is exactly the press
 // that must be explained rather than silently ignored.
+//
+// Pre-Flight's findings are drawn after the cards and lengthen the ones above
+// (AssignmentQuestionEditorBase: data-preflight-findings-state is "checking"
+// until they are current). A forced press also skips Playwright's wait for the
+// target to stop moving, so on a slow runner it could land where the button
+// was before the findings pushed it down, and the refused Include then
+// "announced nothing" (#183). Every press waits for the findings to be current
+// and the target to hold still first.
+const settle = async (page, locator) => {
+  await page.waitForFunction(() => !document.querySelector('[data-preflight-findings-state="checking"]'), null, { timeout: 20000 });
+  let last = null;
+  for (let attempt = 0; attempt < 30; attempt += 1) {
+    const box = await locator.boundingBox();
+    if (box && last && Math.abs(box.x - last.x) < 0.5 && Math.abs(box.y - last.y) < 0.5) return;
+    last = box;
+    await page.waitForTimeout(100);
+  }
+};
 const press = async (page, device, locator, { force = false } = {}) => {
+  await settle(page, locator);
   await locator.scrollIntoViewIfNeeded();
+  await settle(page, locator);
   if (device.hasTouch) await locator.tap({ force });
   else await locator.click({ force });
+};
+// Until `test` holds or `ms` pass: a smooth scroll takes longer on a slow runner.
+const within = async (page, test, ms = 3000) => {
+  const until = Date.now() + ms;
+  while (!(await test()) && Date.now() < until) await page.waitForTimeout(100);
+  return test();
 };
 
 const certify = async (browser, device) => {
@@ -193,7 +219,7 @@ const certify = async (browser, device) => {
   await phaseless(async () => {
     await press(page, device, show);
     await page.waitForTimeout(700);
-    if (!(await inViewport(page, replacement))) fail('swap', 'SEES', `"Show Question ${REPLACEMENT_NUMBER}" did not bring the replacement into view`);
+    if (!(await within(page, () => inViewport(page, replacement)))) fail('swap', 'SEES', `"Show Question ${REPLACEMENT_NUMBER}" did not bring the replacement into view`);
     const focused = await page.evaluate(() => document.activeElement?.getAttribute('data-question-card'));
     if (focused !== String(REPLACEMENT_NUMBER)) fail('swap', 'SEES', `focus did not move to Question ${REPLACEMENT_NUMBER} (it is on ${focused || 'nothing'})`);
   }, 'swap', 'SEES');
