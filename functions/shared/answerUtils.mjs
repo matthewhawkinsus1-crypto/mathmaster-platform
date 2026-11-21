@@ -21,6 +21,7 @@ import {
 import { sameEquivalentExpression } from './equivalentExpression.mjs';
 import { exactConstantValue } from './exactConstantValue.mjs';
 import { fieldRequiresSimplifiedPolynomial, isSimplifiedPolynomial } from './simplifiedPolynomialForm.mjs';
+import { refusesTypedEntry } from './typedEntryGuard.mjs';
 
 export const normalizeMathAnswer = normalizeAnswer;
 export const parseNumericAnswer = asNumber;
@@ -333,6 +334,11 @@ export const matchesFieldAnswer = (studentAnswer, field = {}) => {
 
   const choice = pickedChoiceVerdict(studentAnswer, field, acceptedAnswers, fieldValueOptions(field));
   if (choice !== null) return choice;
+
+  // An entry that is not graded: over the length an answer may be, or left
+  // unfinished (typedEntryGuard.mjs; #557, #558). Before any reading below,
+  // so no mode of this field can mark it right or spend time on it.
+  if (refusesTypedEntry(studentAnswer, acceptedAnswers)) return false;
 
   // A field that asks for a polynomial in simplest form (answerForm:
   // 'simplifiedPolynomial') takes only an answer with nothing left to do:

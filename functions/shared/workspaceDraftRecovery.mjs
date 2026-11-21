@@ -35,6 +35,7 @@ import { deliveredQuestionForGrading } from './serverGrading/deliveredQuestion.m
 import { resolveGradingSurfaceId } from './serverGrading/gradingManifest.mjs';
 import { buildLiteralWorkspaceQuestion } from './toolMath/algebra-literal/literalWorkspace.mjs';
 import { normalizeQuestionRecord } from './attemptPolicy.mjs';
+import { TYPED_ANSWER_WIRE_LENGTH } from './typedEntryGuard.mjs';
 
 const text = (value) => String(value ?? '');
 
@@ -144,7 +145,7 @@ export const responseFromDraftEntry = (entry) => {
     .slice(0, 60)
     .map(([id, fieldValue]) => ({
       id: text(id),
-      value: text(fieldValue).slice(0, 240),
+      value: text(fieldValue).slice(0, TYPED_ANSWER_WIRE_LENGTH),
       isComplete: text(fieldValue).trim() !== '',
     }));
   if (!fields.length) return null;

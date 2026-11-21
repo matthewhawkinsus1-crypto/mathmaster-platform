@@ -1,6 +1,8 @@
 import React, { useEffect, useId, useRef } from 'react';
 import MathText from '../common/MathText.jsx';
 import MathInput from '../../MathInput.jsx';
+import TypedEntryNotice from '../common/TypedEntryNotice.jsx';
+import { pathEntryProblem, pathResponseComplete } from '../../platform/path/pathResponseEntry.js';
 import { ChoiceMark, useChoiceGroup } from '../../platform/interaction/choiceGroup.js';
 import { normalizeInteractionInputProfile, toolProfileForInputProfile } from '../../platform/interaction/interactionContract.js';
 
@@ -191,6 +193,7 @@ function WordField({ field, value, onChange, onSubmit, disabled, autoFocus }) {
         style={FIELD_BASE}
       />
       {hint && <MathText style={HINT}>{hint}</MathText>}
+      <TypedEntryNotice message={disabled ? '' : pathEntryProblem(field, value)} entry={value ?? ''} />
     </div>
   );
 }
@@ -235,6 +238,7 @@ function MathField({ field, profile, value, onChange, onSubmit, disabled, autoFo
         inputStatus={disabled ? 'neutral' : 'neutral'}
       />
       {hint && <MathText style={HINT}>{hint}</MathText>}
+      <TypedEntryNotice message={disabled ? '' : pathEntryProblem(field, value)} entry={value ?? ''} />
     </div>
   );
 }
@@ -302,11 +306,7 @@ export const PathResponseFields = ({
   );
 };
 
-/** Which fields still have nothing in them. Used to enable the Check button. */
-export const pathResponseComplete = (fields = [], values = {}) => {
-  const resolved = fields.length ? fields : [{ id: 'answer' }];
-  return resolved.every((field) => String(values[field.id] ?? '').trim() !== '');
-};
+export { pathEntryProblem, pathResponseComplete };
 
 export { normalizeProfile as normalizePathInputProfile };
 

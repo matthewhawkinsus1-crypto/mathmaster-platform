@@ -113,6 +113,12 @@ name: Student Runtime Browser Gates
 #                       Family version, a Path-style template) is graded by one
 #                       rule for every student: lowest terms or the key's own
 #                       form, never the fraction the question showed (B-57)
+#   typedEntryRefusal   an entry left unfinished (`12 +`, `12×`) or longer than
+#                       the 240 characters an answer box keeps cannot be
+#                       submitted in the assignment engine, My Math Path or
+#                       Corrections: the box says why, no try is used, and a
+#                       secure test's box says so while its draft still saves
+#                       (#557, #558)
 #   moduleRecoveryLock  a closed question stays closed after its module fails:
 #                       "Start this question fresh" can be pressed, and the
 #                       fresh module, or the next item under one engine (My
@@ -408,6 +414,12 @@ jobs:
           PLAYWRIGHT_MODULE: playwright
           AUDIT_ORIGIN: "http://127.0.0.1:5199"
         run: node tests/browser/fractionTemplateGrading.mjs
+      - name: An unfinished or over-long entry cannot be submitted, and the box says why
+        if: ${{ !cancelled() }}
+        env:
+          PLAYWRIGHT_MODULE: playwright
+          AUDIT_ORIGIN: "http://127.0.0.1:5199"
+        run: node tests/browser/typedEntryRefusal.mjs
       - name: A closed question stays closed after its module fails
         if: ${{ !cancelled() }}
         env:

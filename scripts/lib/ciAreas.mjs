@@ -312,6 +312,7 @@ export const CI_AREAS = {
     'tests/browser/composedDraftRestore*',
     'tests/browser/draftEditTime.mjs',
     'tests/browser/fractionTemplateGrading*',
+    'tests/browser/typedEntryRefusal*',
     'tests/browser/moduleRecoveryLock*',
     'tests/browser/closedQuestionEnter*',
     'tests/browser/feedbackTeaches*',

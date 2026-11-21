@@ -131,7 +131,9 @@ test('FractionGrader holds a mixed number back with the reason, as MultiAnswerGr
   const source = executableSource(readFileSync(new URL('../../src/FractionGrader.jsx', import.meta.url), 'utf8'));
   assert.match(source, /import \{ fractionFormProblemForResponse \} from '\.\/platform\/interaction\/answerShapeGuard\.js';/);
   assert.match(source, /const formProblem = fractionFormProblemForResponse\(question, answer\);/);
-  assert.match(source, /const isComplete = graded\.isComplete && !formProblem;/);
+  // Not complete while the form problem stands (another reason may hold it
+  // back too: an unfinished or over-long entry, #557 and #558).
+  assert.match(source, /const isComplete = graded\.isComplete && !formProblem(?: && ![A-Za-z]+)*;/);
   assert.match(source, /role="status"[^>]*>\s*\{formProblem\}/);
 });
 

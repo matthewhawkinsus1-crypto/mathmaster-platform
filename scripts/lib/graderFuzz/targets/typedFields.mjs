@@ -40,6 +40,7 @@ import { gradeResponseField } from '../../../../src/grading/fieldGrader.js';
 import { typedFieldCorpus } from '../corpus.mjs';
 import { errorLine, finding } from '../findings.mjs';
 import { INPUT_CLASSES, breakOf, isUnfinished, typedInput } from '../inputs.mjs';
+import { MAX_TYPED_ANSWER_LENGTH, typedEntryNotice } from '../../../../functions/shared/typedEntryGuard.mjs';
 
 const require = createRequire(import.meta.url);
 const mathPath = require('../../../../functions/lib/mathPath.js');
@@ -48,6 +49,8 @@ const secureItems = require('../../../../functions/lib/secureItems.js');
 export const id = 'typedFields';
 
 const THROWN = Symbol('thrown');
+// The box does not let the entry be submitted (unfinished, or too long): no verdict.
+const REFUSED = 'refused-on-screen';
 
 /** The question, field and stored grading a bank field becomes in each product. */
 const surfacesOf = (field) => {
@@ -69,7 +72,10 @@ const wireResponse = (question, typed) => JSON.parse(JSON.stringify(normalizeOrd
 const gradersOf = ({ field, assignmentField, question, grading }) => ({
   value: (typed) => sameValue(typed, field.expected),
   assignment: (typed) => matchesFieldAnswer(typed, assignmentField),
-  device: (typed) => gradeMultiAnswerResponse(question, { answer: typed }).parts[0].isCorrect === true,
+  // The screen: the box's own refusal first (MultiAnswerGrader's entryProblems), then its verdict.
+  device: (typed) => (typedEntryNotice(typed, { keys: [field.expected, ...(Array.isArray(field.accepted) ? field.accepted : [])] })
+    ? REFUSED
+    : gradeMultiAnswerResponse(question, { answer: typed }).parts[0].isCorrect === true),
   server: (typed) => {
     const result = gradeServerResponse({ question, response: wireResponse(question, typed) });
     return result.graded ? result.parts?.[0]?.isCorrect === true : `ungraded:${result.reason}`;
@@ -118,7 +124,17 @@ export const check = async (fuzzCase, { slowMs = 2000 } = {}) => {
 
   // The screen and the gradebook. A value the screen calls blank is not sent.
   const { device, server } = verdicts;
-  if (device !== THROWN && server !== THROWN && device !== server) {
+  if (device === REFUSED) {
+    // Never sent, so there is no verdict to agree on. A tab on an older build
+    // still sends it: no grader a student's credit comes from may mark it right.
+    // (An over-long box travels one character past the limit, so the server
+    // sees that it is over-long: typedEntryGuard.mjs TYPED_ANSWER_WIRE_LENGTH.)
+    const right = ['value', 'assignment', 'path', 'secure', 'server'].filter((name) => verdicts[name] === true);
+    if (right.length) {
+      report('device-server-parity', `refused-on-screen/${input.inputClass}/${right.join('+')}`,
+        `the box refuses ${JSON.stringify(typed.slice(0, 120))}${typed.length > 120 ? `… (${typed.length} characters)` : ''} and ${right.join(', ')} mark it right for key ${JSON.stringify(field.expected)}`);
+    }
+  } else if (device !== THROWN && server !== THROWN && device !== server) {
     const blankOnBoth = typed.trim() === '' && String(server).startsWith('ungraded:');
     if (!blankOnBoth) {
       report('device-server-parity', typed.length > 240 ? 'over-240-characters' : `${input.inputClass}/server=${server}`,
@@ -137,7 +153,7 @@ export const check = async (fuzzCase, { slowMs = 2000 } = {}) => {
   }
 
   // Spaces round the whole value.
-  if (typed.trim() !== '' && typed.length < 240) {
+  if (typed.trim() !== '' && typed.length + 3 <= MAX_TYPED_ANSWER_LENGTH) {
     for (const name of ['assignment', 'device', 'path']) {
       if (!(name in verdicts) || verdicts[name] === THROWN) continue;
       const padded = await ask(name, `  ${typed} `);

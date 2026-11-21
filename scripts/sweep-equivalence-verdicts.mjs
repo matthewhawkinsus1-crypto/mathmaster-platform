@@ -825,7 +825,11 @@ const gradersFrom = async (root) => {
   // functions/lib/mathPath.js valuesEquivalent, without the async import. A
   // field declared interval is stored with `equivalence: 'interval'`
   // (privateGradingDefinition), so it is read so here too.
-  const pathField = (actual, field) => [field.key, ...field.accepted].some((expected) => {
+  // The entry rule comes first there (typedEntryGuard.mjs; #557, #558): an
+  // unfinished or over-long entry is refused before the field's comparison is
+  // asked. A base tree from before the rule has none.
+  const refused = (actual, field) => equivalence.refusesTypedEntry?.(actual, [field.key, ...field.accepted]) === true;
+  const pathField = (actual, field) => !refused(actual, field) && [field.key, ...field.accepted].some((expected) => {
     const tolerance = Math.max(0, Number(field.numericTolerance) || 0);
     const declaredInterval = [field.inputProfile, field.answerFormat].some((value) => String(value || '').toLowerCase() === 'interval');
     switch (field.equivalence || (declaredInterval ? 'interval' : null)) {

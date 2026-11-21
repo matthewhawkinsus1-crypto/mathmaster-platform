@@ -247,7 +247,7 @@ test('each figure publishes the text it describes itself with, and QuestionEngin
   // write their screen-reader descriptions in the reading's words (AX05, slice 2).
   assert.match(engine, /<FigureReadingPortProvider publish=\{publishFigureReading\}>\s*<FigureWordsProvider pack=\{figurePack\}>\{renderModule\(\)\}<\/FigureWordsProvider>\s*<\/FigureReadingPortProvider>/, 'the question\'s own figures, not a practice item or a review beside it');
   assert.match(engine, /const publishFigureReading = useCallback\(\(id, entry\) => setPublishedFigures\(\(current\) => updateFigureReadings\(current, id, entry\)\), \[\]\);/);
-  const reading = region(engine, 'const readingParts = useMemo(', ');', 'the reading');
+  const reading = region(engine, 'const everyReadingPart = useMemo(', ');', 'the reading');
   assert.match(reading, /figures: figureReadings,/);
 });
 

@@ -15,6 +15,10 @@
  *   partial    an answer that is not finished: "2x +", "(", "1/", "="
  *   blank      nothing, spaces, tabs, a non-breaking or zero-width space
  *   long       the same token many times over
+ *   manyTerms  many short terms inside the 240 characters a box may hold:
+ *              48 like terms, a chain of divisions, a run of brackets. What
+ *              a comparison costs is set by its terms, not its characters
+ *              (#558)
  *   oddNumber  1e999, 0x10, 1,000, 1/0, .5, 5., a digit from another script
  *   implicit   products with no sign: Pr, x(x-5), 2πr
  *   hostile    what a paste or a tampered client sends: markup, JSON, the
@@ -141,6 +145,48 @@ export const longInput = (rng, maxLength = 2000) => {
   return (token + other).repeat(Math.ceil(length / (token.length + other.length))).slice(0, length);
 };
 
+/*
+ * MANY SHORT TERMS, INSIDE THE LENGTH A BOX MAY HOLD (#558). A length limit
+ * bounds characters; what a simplifier's rule matcher costs is set by terms.
+ * 48 like terms with varied coefficients fit in 240 characters, and took
+ * about 40 s where one was asked (docs/handoffs/NOVEMBER_BUILD_2026-11.md
+ * section 6, "A long side"). Each shape is cut at a term, never mid-term, so
+ * the value is a finished answer of at most `limit` characters.
+ */
+const MANY_TERMS_SHAPES = [
+  (index, letter) => `${index ? '+' : ''}${index + 2}${letter}`,
+  (index, letter) => `${index ? '-' : ''}${index + 2}${letter}^2`,
+  (index, letter) => `${index ? '+' : ''}${letter}`,
+  (index) => `${index ? '+' : ''}${index + 2}${'xyz'[index % 3]}`,
+  (index, letter) => (index ? `/${index + 1}` : letter),
+  (index, letter) => (index ? '/2' : letter),
+  (index, letter) => (index ? `/${letter}` : '1'),
+  (index, letter) => `(${letter}+${index + 1})`,
+  (index, letter) => `(${letter}+1)`,
+  (index, letter) => (index ? `*${index + 1}` : letter),
+  (index, letter) => (index ? `*${letter}` : letter),
+  (index, letter) => `${index ? '+' : ''}\\frac{${letter}}{${index + 2}}`,
+  (index) => `${index ? '+' : ''}${index + 2}\\sqrt{${index + 2}}`,
+  (index, letter) => `${index ? '+' : ''}\\frac{1}{${letter}+${index + 1}}`,
+  (index, letter) => `${index ? '+' : ''}0.${index + 1}${letter}`,
+  (index, letter) => `${index ? '+' : ''}${letter}^${index + 1}`,
+  (index, letter) => `${index ? '*' : ''}${letter}^${index + 1}`,
+  (index, letter) => `${index ? ' or ' : ''}${letter}>${index}`,
+];
+export const manyTermsInput = (rng, limit = 240) => {
+  const shape = rng.pick(MANY_TERMS_SHAPES);
+  const letter = rng.pick(['x', 'x', 'y', 'n']);
+  const wrap = rng.pick([(text) => text, (text) => text, (text) => `y=${text}`, (text) => `${text}=0`, (text) => `y<${text}`]);
+  const terms = rng.pick([12, 24, 48, 240]);
+  let text = '';
+  for (let index = 0; index < terms; index += 1) {
+    const next = `${text}${shape(index, letter)}`;
+    if (wrap(next).length > limit) break;
+    text = next;
+  }
+  return wrap(text);
+};
+
 /* ------------------------------------------------------------------ from a key */
 
 const SUFFIXES_THAT_FINISH_NOTHING = ['+', ' +', '-', ' -', '*', '/', '^', '=', '(', '+(', '\\cdot', '\\times', '^{', '_', ',', '\\frac{', '<', '\\le'];
@@ -227,11 +273,11 @@ const nearMissesOfKey = (key, field) => {
 /* -------------------------------------------------------------------- the draw */
 
 export const INPUT_CLASSES = Object.freeze([
-  'latex', 'unicode', 'partial', 'blank', 'long', 'oddNumber', 'implicit', 'hostile', 'keySpelling', 'nearMiss', 'keyMutation', 'brokenKey', 'paddedKey', 'key',
+  'latex', 'unicode', 'partial', 'blank', 'long', 'manyTerms', 'oddNumber', 'implicit', 'hostile', 'keySpelling', 'nearMiss', 'keyMutation', 'brokenKey', 'paddedKey', 'key',
 ]);
 
 /** Classes that need no key. */
-export const FREE_CLASSES = Object.freeze(['latex', 'unicode', 'partial', 'blank', 'long', 'oddNumber', 'implicit', 'hostile']);
+export const FREE_CLASSES = Object.freeze(['latex', 'unicode', 'partial', 'blank', 'long', 'manyTerms', 'oddNumber', 'implicit', 'hostile']);
 
 /**
  * One typed value of a class. `key` and `field` are for the classes built
@@ -246,6 +292,7 @@ export const typedInput = (rng, inputClass, { key = null, field = {}, maxLength 
     case 'partial': return of(rng.chance(0.2) ? latexExpression(rng, 2).slice(0, rng.int(1, 12)) : rng.pick(PARTIAL));
     case 'blank': return of(rng.pick(BLANK));
     case 'long': return of(longInput(rng, maxLength));
+    case 'manyTerms': return of(manyTermsInput(rng));
     case 'oddNumber': return of(rng.pick(ODD_NUMBERS));
     case 'implicit': return of(rng.pick(IMPLICIT));
     case 'hostile': return of(rng.pick(HOSTILE));
