@@ -24,6 +24,7 @@
 
 import { normalizeStudentProfile } from '../../studentSupport.js';
 import { translationLanguageOf } from '../../../functions/shared/supportProfileModel.mjs';
+import { SUPPORT_CATALOG } from '../../../functions/shared/supportCatalog.mjs';
 
 export const ATTEMPT_SIGNAL_KIND = Object.freeze({
   LEFT_THEN_RIGHT: 'leftThenRight',
@@ -54,6 +55,10 @@ export const MAX_PART_INDEX = 49;
 export const MAX_PART_COUNT = 50;
 export const MAX_AWAY_SECONDS = 300;
 export const MAX_ATTEMPT_NUMBER = 99;
+// The supports a signal may name beside it: the catalog's own ids, and no
+// more of them than the catalog holds (firestore.rules lists the same ids).
+export const ATTEMPT_SIGNAL_SUPPORT_IDS = Object.freeze(SUPPORT_CATALOG.map((entry) => entry.id));
+export const MAX_SIGNAL_SUPPORTS = 40;
 export const ATTEMPT_SIGNAL_ROLES = Object.freeze(['warmup', 'classwork', 'dol', 'practice', 'quiz', 'test', 'review', 'corrections']);
 
 const list = (value) => (Array.isArray(value) ? value : []);
@@ -93,6 +98,19 @@ export const exemptAttemptSignalKinds = (profile, { nowValue = Date.now() } = {}
   // or without the catalog entry beside it.
   if (translationLanguageOf(normalized.translationLanguage)) exempt.add(ATTEMPT_SIGNAL_KIND.LEFT_THEN_RIGHT);
   return exempt;
+};
+
+/**
+ * The accommodations, modifications and services in effect for this student
+ * today, as catalog ids: stored beside each signal, so whoever reads it later
+ * reads it with the supports the attempt was made under.
+ */
+export const supportsInEffect = (profile, { nowValue = Date.now() } = {}) => {
+  const normalized = normalizeStudentProfile(profile || {}, { nowValue });
+  const known = new Set(ATTEMPT_SIGNAL_SUPPORT_IDS);
+  const ids = new Set([...list(normalized.accommodations), ...list(normalized.modifications)].map(clean).filter((id) => known.has(id)));
+  if (translationLanguageOf(normalized.translationLanguage) && known.has('translation')) ids.add('translation');
+  return [...ids].sort().slice(0, MAX_SIGNAL_SUPPORTS);
 };
 
 /** The question's authored difficulty band, 0 when it has none. */
@@ -318,6 +336,16 @@ export const createAttemptSignalTracker = ({ clock = sharedPageAwayClock(), now 
 };
 
 /**
+ * Which question and section a fact belongs to: where the engine that raised
+ * it was (`at`, the host's own note handed back with the fact), else where
+ * the host is now.
+ */
+export const attemptSignalPlace = (at, now = {}) => ({
+  questionIndex: Number.isInteger(at?.questionIndex) ? at.questionIndex : now.questionIndex,
+  activityRole: at?.activityRole ?? now.activityRole ?? null,
+});
+
+/**
  * One document per fact: a question raises each kind once (a paste once per
  * part), and the first one stands. firestore.rules holds the id to this.
  */
@@ -329,9 +357,9 @@ export const attemptSignalDocumentId = ({ assignmentId, questionIndex, kind, par
 /**
  * The stored record: positions and counts, and nothing a fact could carry in
  * by another name. Null when the fact names no known kind or no assignment.
- * (`recordedAt` is added by the store, as the server's time.)
+ * (`recordedAt` is added by the store, as the server's time: the "when".)
  */
-export const buildAttemptSignalRecord = ({ studentId, assignmentId, questionIndex, activityRole = null, fact = {} } = {}) => {
+export const buildAttemptSignalRecord = ({ studentId, assignmentId, questionIndex, activityRole = null, fact = {}, duringClass = null, supports = null } = {}) => {
   const kind = clean(fact?.kind);
   const student = clean(studentId);
   const assignment = clean(assignmentId);
@@ -346,6 +374,15 @@ export const buildAttemptSignalRecord = ({ studentId, assignmentId, questionInde
   };
   const role = clean(activityRole).toLowerCase();
   if (ATTEMPT_SIGNAL_ROLES.includes(role)) record.activityRole = role;
+  // In the class's scheduled time or outside it, from the bell schedule; left
+  // out when the schedule could not say. Nothing else about where the student
+  // was is recorded or inferred.
+  if (typeof duringClass === 'boolean') record.duringClass = duringClass;
+  // The supports in effect for this attempt (catalog ids only).
+  if (Array.isArray(supports)) {
+    const known = new Set(ATTEMPT_SIGNAL_SUPPORT_IDS);
+    record.supports = [...new Set(supports.map(clean).filter((id) => known.has(id)))].sort().slice(0, MAX_SIGNAL_SUPPORTS);
+  }
   if (kind === ATTEMPT_SIGNAL_KIND.PASTED) {
     record.partIndex = clampInt(fact.partIndex, 0, MAX_PART_INDEX);
   }

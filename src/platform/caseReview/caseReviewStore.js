@@ -94,6 +94,18 @@ export const fetchAttendanceExtensionGrants = async ({ db, studentId, max = 300 
 };
 
 /** Save one student's imported rows with their case file. Read-only analysis; changes no grade. */
+/**
+ * The student's teacher signals (grades/{student}/attemptSignals), reviewed
+ * ones included: a case review reads the whole record. Rules-guarded: only
+ * the student's teacher (or root) can read them.
+ */
+export const fetchAttemptSignals = async ({ db, studentId, max = 500 } = {}) => {
+  const id = clean(studentId);
+  if (!db || !id) return [];
+  const snapshot = await getDocs(query(collection(db, 'grades', id, 'attemptSignals'), orderBy('recordedAt', 'desc'), limit(max)));
+  return snapshot.docs.map((entry) => ({ id: entry.id, ...entry.data() }));
+};
+
 export const saveSisSnapshot = async ({
   db, student, extracted, layout, fileName, confirmedMatches = {}, teacherEmail, nowMs = Date.now(),
 } = {}) => {
@@ -131,7 +143,7 @@ export const loadStudentCaseRecords = async ({
   });
 
   // Optional: each degrades to "not loaded".
-  const [history, transfer, evidence, saved, grants] = await Promise.allSettled([
+  const [history, transfer, evidence, saved, grants, signals] = await Promise.allSettled([
     fetchStudentSupportHistory({ db, teacherEmail, studentId, supportLimit: 300, sessionLimit: 365 }),
     fullStudent.classId ? loadTeacherGradeTransferState({ classIds: [fullStudent.classId] }) : Promise.resolve(null),
     assignmentIds.length && functions
@@ -139,6 +151,7 @@ export const loadStudentCaseRecords = async ({
       : Promise.resolve(null),
     fetchSavedSisSnapshots({ db, studentId }),
     fetchAttendanceExtensionGrants({ db, studentId }),
+    fetchAttemptSignals({ db, studentId }),
   ]);
   const historyValue = settledValue(history);
   const transferValue = settledValue(transfer);
@@ -162,6 +175,8 @@ export const loadStudentCaseRecords = async ({
     savedSnapshotsError: settledError(saved),
     // undefined = not loaded (the model then falls back to the shared stub).
     extensionGrants: grants.status === 'fulfilled' ? grants.value : undefined,
+    // The student's teacher signals; undefined = not loaded.
+    attemptSignals: signals.status === 'fulfilled' ? signals.value : undefined,
     loadedAtMs: nowMs,
   };
 };

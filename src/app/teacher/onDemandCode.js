@@ -189,7 +189,9 @@ export const closedPanel = (load, isOpen, offlineNote) => {
 
 export const drawnPanel = (load, offlineNote) => {
   const code = onDemandCode(load);
-  const DrawnPanel = drawWhenHere(code, () => note(offlineNote, NOTE));
+  // A panel given no words waits without any: one of many small notes on a
+  // screen (a student's signals beside each question) says nothing offline.
+  const DrawnPanel = drawWhenHere(code, () => (offlineNote ? note(offlineNote, NOTE) : null));
   DrawnPanel.prefetch = code.prefetch;
   return DrawnPanel;
 };

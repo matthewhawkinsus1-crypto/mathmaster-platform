@@ -47,7 +47,8 @@ import {
 import { NO_RECORDS } from './noRecords.js';
 import { db } from '../../firebase.js';
 import { recordAttemptSignal } from '../../platform/signals/attemptSignalWriter.js';
-import { notePlatformLinkOpened } from '../../platform/signals/attemptSignalFacts.js';
+import { attemptSignalPlace, notePlatformLinkOpened, supportsInEffect } from '../../platform/signals/attemptSignalFacts.js';
+import { studentClassInSession } from '../../platform/supports/askTeacher.js';
 
 export function createAssignmentWorkspaceView(
   user, studentClassPoints, hasPracticePassFor, studentRequiredFor, assignmentResultRoute, activeClassroomSectionKey,
@@ -1280,7 +1281,7 @@ export function createAssignmentWorkspaceView(
                 // grade path, never in it (attemptSignalWriter.js).
                 onAttemptSignal: preview || lifecycle.isPracticeOnly || user?.role !== 'student' || !user?.id
                   ? null
-                  : (fact) => { void recordAttemptSignal({ db, studentId: user.id, assignmentId: activeAssignmentId, questionIndex: currentQuestionIndex, activityRole: runtimeActivityRole, fact }); },
+                  : (fact, at) => { void recordAttemptSignal({ db, studentId: user.id, assignmentId: activeAssignmentId, ...attemptSignalPlace(at, { questionIndex: currentQuestionIndex, activityRole: runtimeActivityRole }), fact, duringClass: classSchedule && user.classPeriod ? studentClassInSession({ schedule: classSchedule, classPeriod: user.classPeriod, nowValue: Date.now() }) : null, supports: supportsInEffect(user.profile) }); },
                 onAskTeacher: preview || lifecycle.isPracticeOnly || user?.role !== 'student'
                   ? null
                   : (requested) => setHelpRequest(nextHelpRequest({ requested, assignmentId: activeAssignmentId, questionIndex: currentQuestionIndex })),
@@ -1291,6 +1292,8 @@ export function createAssignmentWorkspaceView(
               // follows this prop). Null while there is none to send to.
               onSpotlightFrame={preview ? null : studentSpotlightRequest && publishSpotlightWork}
               draftRestore={draftRestoreFocus?.questionIndex === currentQuestionIndex ? draftRestoreFocus : null}
+              // Which question a teacher signal belongs to, as this engine was shown it.
+              attemptSignalContext={renderMemo('attemptSignalContext', [currentQuestionIndex, runtimeActivityRole], () => ({ questionIndex: currentQuestionIndex, activityRole: runtimeActivityRole }))}
               question={questions[currentQuestionIndex]}
               questionRecord={workingTracker?.[currentQuestionIndex]}
               generationKey={`${activeAssignmentId}|${generationStudentKey}|${currentQuestionIndex}|variant:${currentRecord.variantIndex}`}

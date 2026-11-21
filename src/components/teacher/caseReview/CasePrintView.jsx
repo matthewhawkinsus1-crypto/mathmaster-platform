@@ -255,6 +255,30 @@ export default function CasePrintView({ model, nextSteps = '' }) {
           ? <div style={{ whiteSpace: 'pre-wrap' }}>{nextSteps.trim()}</div>
           : <p>None entered.</p>}
       </section>
+
+      <section data-print-work-patterns>
+        <h2>{title('signals')}</h2>
+        <p><em>{model.workPatterns.note}</em></p>
+        {!model.workPatterns.loaded ? <p>The signal records were not loaded for this case review.</p> : model.workPatterns.total ? (
+          <>
+            <ul>{model.workPatterns.lines.map((line) => <li key={line}>{line}</li>)}</ul>
+            <table>
+              <thead><tr><th>When</th><th>Assignment and question</th><th>What was recorded</th><th>Class time and supports</th><th>Review</th></tr></thead>
+              <tbody>
+                {model.workPatterns.entries.map((entry) => (
+                  <tr key={entry.id}>
+                    <td>{day(entry.recordedAtMs)}</td>
+                    <td>{entry.assignmentTitle || entry.assignmentId}<br />{entry.questionLabel}{entry.partIndex === null ? '' : `, part ${entry.partIndex + 1}`}</td>
+                    <td>{entry.title} ({model.workPatterns.notConclusive.toLowerCase()}). {entry.facts}</td>
+                    <td>{[entry.classTime, entry.supports].filter(Boolean).join('. ') || 'Not recorded'}</td>
+                    <td>{entry.reviewed ? `Reviewed${entry.reviewedBy ? ` by ${entry.reviewedBy}` : ''}${entry.reviewNote ? `: ${entry.reviewNote}` : ''}` : 'Not yet reviewed'}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </>
+        ) : <p>No signal is recorded in this window.</p>}
+      </section>
     </article>
   );
 }

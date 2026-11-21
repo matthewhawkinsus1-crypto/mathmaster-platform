@@ -56,8 +56,8 @@ export const attemptSignalCount = (studentId, assignmentId) => {
  * time it is raised.
  */
 // `store` is Firestore's own doc, setDoc and serverTimestamp; a test passes its own.
-export const recordAttemptSignal = async ({ db, studentId, assignmentId, questionIndex, activityRole = null, fact, store = FIRESTORE } = {}) => {
-  const record = buildAttemptSignalRecord({ studentId, assignmentId, questionIndex, activityRole, fact });
+export const recordAttemptSignal = async ({ db, studentId, assignmentId, questionIndex, activityRole = null, fact, duringClass = null, supports = null, store = FIRESTORE } = {}) => {
+  const record = buildAttemptSignalRecord({ studentId, assignmentId, questionIndex, activityRole, fact, duringClass, supports });
   if (!db || !record) return false;
   const id = attemptSignalDocumentId(record);
   const sentKey = `${record.studentId}|${id}`;

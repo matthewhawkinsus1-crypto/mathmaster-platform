@@ -22,6 +22,7 @@ export const ATTENTION_RULES = Object.freeze({
   lowestDols: 'DOL section grades (MathMaster grade contributions) on DOLs the student answered, lowest first; at most five.',
   exhausted: 'Questions not correct after all available attempts, most recent assignment first.',
   recoverable: 'Work whose final cutoff for this student has not passed, questions with attempts remaining, Recovery in progress, and any Recovery held for your review.',
+  signalsToReview: 'Work-pattern signals recorded in this window that no teacher has marked reviewed. Recorded facts, not conclusive.',
   addressFirst: 'Standards ranked by: DOL at least 15 points below instruction on the same standard; then most questions not correct at the end; then lowest final accuracy. A ranking of recorded results, not a diagnosis.',
 });
 
@@ -136,6 +137,13 @@ export const buildAttentionSummary = (model, { nowValue = Date.now() } = {}) => 
     recoverable,
     supportEvidencePresent,
     evidenceMissing: list(model?.evidenceGaps),
+    // Work-pattern signals a teacher has not yet reviewed: a count to open,
+    // never a finding (workPatternSignals.js).
+    signalsToReview: {
+      loaded: model?.workPatterns?.loaded === true,
+      count: model?.workPatterns?.needsReview ?? 0,
+      total: model?.workPatterns?.total ?? 0,
+    },
     addressFirst,
     rules: ATTENTION_RULES,
     note: 'Ordered by the fixed rules shown. MathMaster suggests where the records point; it does not diagnose the student.',

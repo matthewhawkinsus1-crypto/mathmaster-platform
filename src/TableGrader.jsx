@@ -111,13 +111,13 @@ export default function TableGrader({ question, onStateChange, onUndoStateChange
           <tbody>
             {rows.map((row, rowIndex) => (
               <tr key={`row-${rowIndex}`}>
-                {columns.map((column) => {
+                {columns.map((column, columnIndex) => {
                   const answerKey = `${rowIndex}:${column.key}`;
                   const isBlank = Object.prototype.hasOwnProperty.call(answers, answerKey)
                     || blanks.includes(answerKey);
                   const grade = gradeFor(answerKey);
                   return (
-                    <td key={answerKey} style={{ padding: '12px 20px', border: '1px solid var(--mm-border)', textAlign: 'center', fontSize: 'calc(19 * var(--mm-px))' }}>
+                    <td key={answerKey} data-answer-box-index={isBlank ? rowIndex * columns.length + columnIndex : undefined} style={{ padding: '12px 20px', border: '1px solid var(--mm-border)', textAlign: 'center', fontSize: 'calc(19 * var(--mm-px))' }}>
                       {isBlank ? (
                         <>
                         <input {...FRACTION_ENTRY_PROPS} {...gradedEntryInputProps(grade, `${markIdBase}-${answerKey}`)} value={studentAnswers[answerKey] || ''} onChange={(event) => updateAnswer(answerKey, event.target.value)} aria-label={`Row ${rowIndex + 1}, ${column.label || column.key}`} style={{ width: '82px', padding: '8px', textAlign: 'center', fontSize: 'calc(18 * var(--mm-px))', border: `2px solid ${grade ? (grade.isCorrect ? '#188038' : '#d93025') : '#1a73e8'}`, borderRadius: '6px', background: grade && !grade.isCorrect ? 'var(--mm-error-subtle)' : 'var(--mm-surface)' }} />
