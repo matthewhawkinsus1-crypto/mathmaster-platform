@@ -14,6 +14,7 @@ const MATH_FIELD_SELECTOR = 'math-field';
 // Each answer box names its part (MultiAnswerGrader fieldBox).
 const PART_SELECTOR = '[data-answer-box-index]';
 const PLAIN_FIELD_SELECTOR = 'input, textarea';
+const NONE_EXEMPT = new Set();
 
 /** Where a paste landed: the part's index, or null when it was not an answer field. */
 export const pastedPartIndex = (target) => {
@@ -39,7 +40,8 @@ export function useAttemptSignals({ onAttemptSignal = null, studentProfile = nul
   useEffect(() => { hostRef.current = onAttemptSignal; });
   const trackerRef = useRef(null);
   if (enabled && !trackerRef.current) trackerRef.current = createAttemptSignalTracker();
-  const exempt = useMemo(() => exemptAttemptSignalKinds(studentProfile), [studentProfile]);
+  // Read only where signals are recorded at all.
+  const exempt = useMemo(() => (enabled ? exemptAttemptSignalKinds(studentProfile) : NONE_EXEMPT), [enabled, studentProfile]);
   const exemptRef = useRef(exempt);
   exemptRef.current = exempt;
   const attemptRef = useRef(attemptNumber);

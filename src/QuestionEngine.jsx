@@ -1456,7 +1456,8 @@ function QuestionEngineBody({
           answerState,
           // The marks the host's grading returned, where it returns them.
           gradedParts: Array.isArray(result?.partGrades) ? result.partGrades : null,
-          isCorrect: answerState.isCorrect === true,
+          // The host's verdict where it gives one, else this device's own.
+          isCorrect: typeof result?.isCorrect === 'boolean' ? result.isCorrect : answerState.isCorrect === true,
           attemptNumber: (Number(record.totalAttempts) || 0) + 1,
         });
       }
