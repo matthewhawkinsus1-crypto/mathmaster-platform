@@ -25,6 +25,12 @@
 //              answer, ✗ then ✓ typed with real keys, no grade, the worked
 //              solution with every formula typeset once on screen, another
 //              one.
+//   unlimited  an assignment that declares gradingPolicy.attemptPolicy
+//              "unlimited": a Classwork item takes a 4th and a 5th miss and
+//              then the right answer; the strip says "Unlimited tries on this
+//              question", Submit names no cost, nothing counts down, and the
+//              item's worked solution stays hidden until it is right; a
+//              choice-only item is unlimited too.
 //   factoring  the same for Factoring Polynomials PR 6 (three trinomials):
 //              each box is the item's own factored-form box, so each
 //              polynomial typed back unfactored is ✗ and its factoring,
@@ -37,7 +43,7 @@ import { fileURLToPath } from 'node:url';
 import { screenshotKeepingTouch } from './support/touchEmulation.mjs';
 
 const ORIGIN = process.env.AUDIT_ORIGIN || 'http://127.0.0.1:5199';
-const ARTIFACTS = path.join(path.dirname(fileURLToPath(import.meta.url)), 'artifacts/afterLastMiss');
+const ARTIFACTS = process.env.ARTIFACTS_DIR || path.join(path.dirname(fileURLToPath(import.meta.url)), 'artifacts/afterLastMiss');
 mkdirSync(ARTIFACTS, { recursive: true });
 const { chromium } = await import(process.env.PLAYWRIGHT_MODULE || '/opt/node22/lib/node_modules/playwright/index.mjs');
 const launch = { args: ['--no-sandbox'] };
@@ -407,6 +413,79 @@ for (const device of DEVICES) {
     check(await reachable(page, reasons), `${device.name}: the reason can be reached`);
     await screenshotKeepingTouch(page, { path: path.join(ARTIFACTS, `${device.name}-choice.png`), fullPage: true });
     await noSidewaysScroll(page, `${device.name} choice`);
+    await context.close();
+  }
+
+  /* ---- an assignment that declares unlimited attempts: there is no last miss */
+  // gradingPolicy.attemptPolicy "unlimited" (activityPolicies.mjs). A Classwork
+  // item takes a 4th and a 5th miss and stays open; nothing counts tries down
+  // or prints the number that stands for "unlimited"; the worked solution of
+  // the student's own item is not shown until the answer is right; the similar
+  // problem and the hint stay on offer.
+  {
+    const COUNTED = /Infinity|NaN|1000000|999\d{3}|\d+ (?:of \d+ )?tr(?:y|ies) left|Last try ·|— last try|only try|One try on this question|This question is closed/;
+    const { page, context } = await open(device, 'q=inverse&role=classwork&attempts=unlimited');
+    const strip = page.locator('.mathmaster-question-attempt-strip');
+    const submitButton = page.locator('button:visible', { hasText: /^Submit/ }).first();
+    check((await strip.textContent()).includes('Unlimited tries on this question'), `${device.name} unlimited: the strip says the tries are unlimited`, await strip.textContent());
+    check((await submitButton.getAttribute('aria-label') || (await submitButton.innerText()).trim()) === 'Submit', `${device.name} unlimited: Submit names no cost`, await submitButton.innerText());
+    await screenshotKeepingTouch(page, { path: path.join(ARTIFACTS, `${device.name}-unlimited-open.png`) });
+    for (let miss = 1; miss <= 5; miss += 1) {
+      const count = await workFields(page).count();
+      for (let index = 0; index < count; index += 1) await setField(workFields(page).nth(index), String(40 + miss * 11 + index));
+      await page.waitForTimeout(250);
+      await submit(page);
+      const body = await page.locator('body').innerText();
+      check((await page.evaluate(() => window.__mmGrades.length)) === miss, `${device.name} unlimited: miss ${miss} is recorded as an attempt`);
+      check(!(await page.locator('[data-closed-question-card]').count()), `${device.name} unlimited: miss ${miss} does not close the item`);
+      check(body.includes('Not quite. You can try again — tries are unlimited on this question.'), `${device.name} unlimited: miss ${miss} says to try again`);
+      check(!COUNTED.test(body), `${device.name} unlimited: miss ${miss} counts nothing down`, (body.match(COUNTED) || [])[0]);
+      check(!(await page.locator('[aria-label="Worked solution"]').count()), `${device.name} unlimited: miss ${miss} shows no worked solution of this item`);
+      check(await workFields(page).first().isEnabled(), `${device.name} unlimited: the answer boxes stay open after miss ${miss}`);
+      check((await submitButton.innerText()).trim().startsWith('Submit') && await submitButton.isEnabled(), `${device.name} unlimited: Submit is there for try ${miss + 1}`);
+      if (miss === 1) check(await page.getByRole('button', { name: 'See a similar problem worked' }).count() === 1, `${device.name} unlimited: a similar problem is offered, as after any miss`);
+    }
+    check((await strip.textContent()).includes('Unlimited tries on this question'), `${device.name} unlimited: the strip is unchanged after five misses`);
+    await screenshotKeepingTouch(page, { path: path.join(ARTIFACTS, `${device.name}-unlimited-fifth-miss.png`), fullPage: true });
+    await noSidewaysScroll(page, `${device.name} unlimited`);
+    const answers = await page.evaluate(() => window.__mmAnswers);
+    for (let index = 0; index < answers.length; index += 1) await setField(workFields(page).nth(index), answers[index].answer);
+    await page.waitForTimeout(250);
+    await submit(page);
+    const grades = await page.evaluate(() => window.__mmGrades);
+    check(grades.length === 6 && grades[5].isCorrect === true, `${device.name} unlimited: the sixth try, the right answer, is accepted`, JSON.stringify(grades.map((grade) => grade.isCorrect)));
+    check((await strip.textContent()).includes('Question complete'), `${device.name} unlimited: and completes the item`, await strip.textContent());
+    check(!COUNTED.test(await page.locator('body').innerText()), `${device.name} unlimited: nothing counted on the completed item`);
+    await screenshotKeepingTouch(page, { path: path.join(ARTIFACTS, `${device.name}-unlimited-correct.png`), fullPage: true });
+    await context.close();
+  }
+
+  // The same assignment, a choice-only item: no "one try" notice, a wrong pick
+  // leaves it open with no reason for the option given away, the right pick
+  // completes it.
+  {
+    const { page, context } = await open(device, 'q=choice&role=classwork&attempts=unlimited');
+    check(!(await page.locator('[data-one-try-notice]').count()), `${device.name} unlimited choice: no one-try notice`);
+    const fields = await page.evaluate(() => window.__mmAnswers);
+    const [first, ...rest] = fields;
+    const pick = (field, option) => page.getByRole('radiogroup', { name: field.label, exact: true }).getByRole('radio', { name: option, exact: true }).click();
+    const wrongOptions = first.options.filter((option) => option !== first.answer);
+    for (const field of rest) await pick(field, field.answer);
+    for (let miss = 1; miss <= Math.min(2, wrongOptions.length); miss += 1) {
+      await pick(first, wrongOptions[miss - 1]);
+      await page.waitForTimeout(250);
+      await submit(page);
+      check(!(await page.locator('[data-closed-question-card]').count()), `${device.name} unlimited choice: wrong pick ${miss} does not close the item`);
+      check(!(await page.locator('[data-choice-reasons]').count()), `${device.name} unlimited choice: no reason for the option is given away after pick ${miss}`);
+      check((await page.locator('body').innerText()).includes('tries are unlimited on this question'), `${device.name} unlimited choice: pick ${miss} says to try again`);
+    }
+    await pick(first, first.answer);
+    await page.waitForTimeout(250);
+    await submit(page);
+    const grades = await page.evaluate(() => window.__mmGrades);
+    check(grades.at(-1)?.isCorrect === true, `${device.name} unlimited choice: the right pick is accepted after the misses`, JSON.stringify(grades.map((grade) => grade.isCorrect)));
+    check((await page.locator('.mathmaster-question-attempt-strip').textContent()).includes('Question complete'), `${device.name} unlimited choice: and completes the item`);
+    await screenshotKeepingTouch(page, { path: path.join(ARTIFACTS, `${device.name}-unlimited-choice.png`), fullPage: true });
     await context.close();
   }
 }

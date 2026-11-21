@@ -384,7 +384,8 @@ export const buildCheckpointFinalization = ({
   // Injectable for the grade-independence tests only; production never sets it.
   classify = undefined,
 } = {}) => {
-  const activityPolicy = getEffectiveActivityPolicy(decision.activityRole);
+  // The same resolver, with the same assignment, as a manual Submit.
+  const activityPolicy = getEffectiveActivityPolicy(decision.activityRole, assignment);
   const academicAt = occurredAt === null || occurredAt === undefined
     ? resolveCheckpointOccurrenceAt({ checkpoint, decision, runAt })
     : Number(occurredAt);

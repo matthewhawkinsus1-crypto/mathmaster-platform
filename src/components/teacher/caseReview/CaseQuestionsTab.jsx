@@ -3,6 +3,7 @@ import { CASE_PROVENANCE, CASE_PROVENANCE_LABEL } from '../../../platform/caseRe
 import { QUESTION_OUTCOME } from '../../../platform/caseReview/attemptAnalysis.js';
 import { errorPatternForQuestion, isNamedPart } from '../../../platform/caseReview/errorPatterns.js';
 import { supportLabel } from '../../../../functions/shared/supportCatalog.mjs';
+import { attemptLimitLabel } from '../../../../functions/shared/activityPolicies.mjs';
 import { AttemptChips, ConditionTag, EmptyNote, Prov, pct, when } from './CaseReviewParts.jsx';
 
 /*
@@ -103,7 +104,7 @@ function AssignmentQuestions({ entry, onDrill }) {
                 <td><button type="button" className="cr-linkish" onClick={(event) => { event.stopPropagation(); onDrill({ assignmentId: entry.assignmentId, storageIndex: question.storageIndex }); }}>{question.sectionLabel} Q{question.sectionNumber}</button></td>
                 <td>{question.standards.primary.join(', ') || <span className="cr-note">none in metadata</span>}</td>
                 <td>{question.questionType}</td>
-                <td><AttemptChips attempts={question.attempts} /> <span className="cr-note">of {question.maxAttempts}</span></td>
+                <td><AttemptChips attempts={question.attempts} /> <span className="cr-note">of {attemptLimitLabel(question.maxAttempts)}</span></td>
                 <td><span className="cr-tag" data-kind={OUTCOME_KIND[question.outcome] || ''}>{question.outcomeLabel}</span></td>
                 <td className="cr-num">{question.finalCredit === null ? '—' : `${question.finalCredit}%`}{question.teacherOverride ? ` → ${question.gradedCredit}% (override)` : ''}</td>
                 <td>{question.lastAttemptAtMs ? <>{when(question.lastAttemptAtMs)} <Prov level={question.lastAttemptTimeProvenance} /></> : '—'}</td>
@@ -134,7 +135,7 @@ function QuestionDetail({ entry, question, studentId, onInspectResponse }) {
         <div><dt>Question / family</dt><dd>{question.questionId || '—'}{question.familyId ? ` · family ${question.familyId}` : ''}</dd></div>
         <div><dt>Standard / skill</dt><dd>{question.standards.primary.join(', ') || 'None in metadata'}{question.standardsSource === 'platform-inferred' ? ' (platform-inferred)' : question.standardsSource === 'attempt-evidence' ? ' (from attempt records)' : ''}</dd></div>
         <div><dt>Type</dt><dd>{question.questionType}{question.dok ? ` · DOK ${question.dok}` : ''}</dd></div>
-        <div><dt>Attempts allowed</dt><dd>{question.maxAttempts}{question.replacements ? ` · ${question.replacements} replacement question${question.replacements === 1 ? '' : 's'}` : ''}</dd></div>
+        <div><dt>Attempts allowed</dt><dd>{attemptLimitLabel(question.maxAttempts)}{question.replacements ? ` · ${question.replacements} replacement question${question.replacements === 1 ? '' : 's'}` : ''}</dd></div>
         <div><dt>Outcome</dt><dd>{question.outcomeLabel}</dd></div>
         <div><dt>Final credit (student&apos;s attempts)</dt><dd>{question.finalCredit === null ? '—' : `${question.finalCredit}%`}</dd></div>
         <div><dt>Graded credit</dt><dd>{question.gradedCredit === null ? '—' : `${question.gradedCredit}%`}{question.teacherOverride ? ' (teacher override)' : ''}</dd></div>

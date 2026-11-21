@@ -15,6 +15,13 @@ export {
   normalizeActivityRole,
   getEffectiveActivityPolicy,
   toEnforcedActivityPolicy,
+  ATTEMPT_POLICY,
+  ATTEMPT_POLICY_VALUES,
+  UNLIMITED_ATTEMPTS,
+  UNLIMITED_ATTEMPT_ROLES,
+  attemptsAreUnlimited,
+  attemptLimitLabel,
+  assignmentDeclaresUnlimitedAttempts,
 } from '../../../functions/shared/activityPolicies.mjs';
 
 export const resolveQuestionActivityRole = ({ question = {}, assignment = {}, isDOL = false } = {}) => {

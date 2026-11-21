@@ -131,6 +131,8 @@ const attemptOutcome = [
   // attemptFeedbackPlan.js closedAttemptText): tries, the last one named.
   ['You have {1} tries left.', 'Te quedan {1} intentos.'],
   ['You have {1} try left — your last one.', 'Te queda {1} intento: el último.'],
+  // An assignment with unlimited attempts (submitCost.js UNLIMITED_TRIES_MISS).
+  ['You can try again — tries are unlimited on this question.', 'Puedes intentarlo de nuevo: los intentos son ilimitados en esta pregunta.'],
   ['That was your only try.', 'Ese fue tu único intento.'],
   ['That was your last try ({1} in all).', 'Ese fue tu último intento ({1} en total).'],
   ['Your answer is locked.', 'Tu respuesta está cerrada.'],

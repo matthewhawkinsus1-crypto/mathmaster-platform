@@ -71,12 +71,15 @@ const explicitlyPublished = (assignmentV5 = {}) => (
   || clean(assignmentV5?.authoringState).toLowerCase() === 'published'
 );
 
-const withRuntimeSectionMetadata = (section, index) => ({
+// `assignment` is the Assignment V5 object the section belongs to: its
+// `gradingPolicy.attemptPolicy` may declare unlimited attempts, and Pre-Flight
+// shows the teacher the number the student will actually get.
+const withRuntimeSectionMetadata = (section, index, assignment = null) => ({
   ...section,
   id: clean(section?.id) || `section-${index + 1}`,
   sectionId: clean(section?.id) || `section-${index + 1}`,
   title: clean(section?.title) || titleForRole(section?.role),
-  policy: toEnforcedActivityPolicy(section?.role),
+  policy: toEnforcedActivityPolicy(section?.role, assignment),
   questions: (section?.questions || []).map((question) => ({
     ...question,
     sectionId: question.sectionId || section?.id || `section-${index + 1}`,
@@ -119,8 +122,8 @@ export const buildAssignmentV5PreflightModel = (input = {}, { titleOverride = nu
   const supports = validateLessonSupportsV5(source);
   structural.errors.push(...supports.errors);
   structural.warnings.push(...supports.warnings);
-  const sections = (runtimeSource.sections || []).map(withRuntimeSectionMetadata);
-  const persistenceSections = (source.sections || []).map(withRuntimeSectionMetadata);
+  const sections = (runtimeSource.sections || []).map((section, index) => withRuntimeSectionMetadata(section, index, runtimeSource));
+  const persistenceSections = (source.sections || []).map((section, index) => withRuntimeSectionMetadata(section, index, source));
 
   const questions = flattenV5Sections({ ...runtimeSource, sections });
 

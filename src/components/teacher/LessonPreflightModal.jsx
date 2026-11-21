@@ -1,6 +1,6 @@
 import React, { Suspense, lazy, useDeferredValue, useEffect, useMemo, useRef, useState } from 'react';
 import { MathMasterToolWrapper } from '../../platform/ToolWrapper';
-import { getEffectiveActivityPolicy } from '../../platform/policies/activityPolicies';
+import { attemptLimitLabel, getEffectiveActivityPolicy } from '../../platform/policies/activityPolicies';
 import { PUBLICATION_STRATEGIES, planClassroomPublication } from '../../platform/publishing/publicationPlanner';
 import {
   normalizeLessonPublishingIntentV5,
@@ -642,7 +642,7 @@ export const LessonPreflightModal = ({
   const currentActivity = previewActivities[demoActivityIndex] || null;
   const questions = Array.isArray(currentActivity?.questions) ? currentActivity.questions : [];
   const currentQuestion = questions[demoQuestionIndex] || null;
-  const currentPolicy = currentActivity ? getEffectiveActivityPolicy(currentActivity.role) : null;
+  const currentPolicy = currentActivity ? getEffectiveActivityPolicy(currentActivity.role, effectiveAssignmentV5) : null;
   const honorsOnlyLabel = (() => {
     if (!showingHonorsPreview || !currentQuestion) return '';
     const here = (entry) => entry && entry.sectionIndex === demoActivityIndex && entry.questionIndex === demoQuestionIndex;
@@ -1913,7 +1913,7 @@ export const LessonPreflightModal = ({
       {currentPolicy && (
         <div style={{ background: 'var(--mm-surface)', padding: 10, borderRadius: 6, border: '1px solid var(--mm-border)', marginBottom: 14, fontSize: 'calc(12 * var(--mm-px))', lineHeight: 1.55 }}>
           <strong style={{ color: 'var(--mm-primary)' }}>Enforced section policy</strong>
-          <div>Attempts: {currentPolicy.attempts}</div>
+          <div>Attempts: {attemptLimitLabel(currentPolicy.attempts)}</div>
           <div>Feedback: <code>{currentPolicy.feedback}</code></div>
           <div>Hints: {currentPolicy.hintsAllowed ? 'Allowed' : 'Disabled'}</div>
           <div>Remediation: {currentPolicy.remediationAllowed ? 'Allowed' : 'Disabled'}</div>
@@ -1968,6 +1968,7 @@ export const LessonPreflightModal = ({
           <MathMasterToolWrapper
             key={`${previewVersion}-${currentActivity.id || currentActivity.sectionId}-${currentQuestion.questionId || demoQuestionIndex}-${demoCalculator}-${demoTranslation}`}
             activityRole={currentActivity.role}
+            activityPolicy={currentPolicy}
             question={currentQuestion}
             student={{ id: 'teacher_preview_user', supportProfile: { accommodations: demoCalculator ? ['calculator'] : [], modifications: [], translationLanguage: demoTranslation } }}
             executionScope="teacherPreview"
@@ -2370,7 +2371,7 @@ export const LessonPreflightModal = ({
           <div key={activity.id || activity.sectionId} style={{ padding: 11, border: '1px solid var(--mm-tint-border)', borderRadius: 8, background: 'var(--mm-surface)' }}>
             <strong>{humanRole(activity.role)}</strong>
             <div style={{ fontSize: 'calc(12 * var(--mm-px))', color: 'var(--mm-text-muted)', lineHeight: 1.5 }}>
-              {activity.isModelingLab ? `DOK ${activity.labDefinition?.dokLevel || 3} modeling lab` : `${activity.questions.length} question${activity.questions.length === 1 ? '' : 's'}`} · {activity.policy.attemptsAllowed} attempt{activity.policy.attemptsAllowed === 1 ? '' : 's'} · {activity.policy.feedbackMode}
+              {activity.isModelingLab ? `DOK ${activity.labDefinition?.dokLevel || 3} modeling lab` : `${activity.questions.length} question${activity.questions.length === 1 ? '' : 's'}`} · {attemptLimitLabel(activity.policy.attemptsAllowed)} attempt{activity.policy.attemptsAllowed === 1 ? '' : 's'} · {activity.policy.feedbackMode}
             </div>
           </div>
         ))}
