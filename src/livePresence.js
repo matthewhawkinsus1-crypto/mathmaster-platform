@@ -96,6 +96,7 @@ export const buildLiveStatus = ({
   rapidCorrectCount = 0,
   rapidDeepCorrectCount = 0,
   timedIndependentCorrectCount = 0,
+  attemptSignalCount = 0,
   sessionActiveSeconds = 0,
   lastInteractionAt = null,
   startedAt = null,
@@ -130,6 +131,10 @@ export const buildLiveStatus = ({
   rapidCorrectCount: clampInt(rapidCorrectCount),
   rapidDeepCorrectCount: clampInt(rapidDeepCorrectCount),
   timedIndependentCorrectCount: clampInt(timedIndependentCorrectCount),
+  // Teacher signals (platform/signals/attemptSignalFacts.js): how many facts
+  // this student's attempts have raised on this assignment, so the teacher's
+  // tile reads them only where there are some. A count, never a fact itself.
+  attemptSignalCount: Math.min(999, clampInt(attemptSignalCount)),
   sessionActiveSeconds: clampInt(sessionActiveSeconds),
   lastInteractionAt: toMillis(lastInteractionAt) ?? nowValue,
   startedAt: toMillis(startedAt) ?? nowValue,

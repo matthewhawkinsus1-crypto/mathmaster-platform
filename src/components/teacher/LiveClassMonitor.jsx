@@ -10,7 +10,7 @@ import StudentPerformanceBadge from '../common/StudentPerformanceBadge.jsx';
 // Drawn only while a student presents (a Spotlight they accepted), with MathText and
 // so MathLive: its code arrives then, or before it with the workspace's idle
 // prefetch (app/teacher/teacherPanels.js, teacher's first load).
-import { StudentSpotlightView } from '../../app/teacher/teacherPanels.js';
+import { StudentSpotlightView, WorthAConversationTile } from '../../app/teacher/teacherPanels.js';
 import ClassPointsAwardDialog from './ClassPointsAwardDialog.jsx';
 import ClassPointsHistoryPanel from './ClassPointsHistoryPanel.jsx';
 import HelpAcknowledgeControls from './HelpAcknowledgeControls.jsx';
@@ -194,6 +194,8 @@ function StudentTile({
   showStudentId = true,
   // "Seen" / "On my way" for a raised hand (HelpAcknowledgeControls.jsx).
   teacherEmail = '',
+  // "Worth a conversation" (WorthAConversation.jsx): false on the projector.
+  showAttemptSignals = false,
   // Opens the Response Inspector on the question the student is on, or null:
   // no answer there yet, the question cannot be named for certain, or the
   // tiles are on the projector (liveInspectorTarget.js).
@@ -322,6 +324,17 @@ function StudentTile({
           ))}
           {integritySignal && <span style={{ fontSize: 'calc(11 * var(--mm-px))', fontWeight: 800, padding: '2px 7px', borderRadius: 999, background: 'var(--mm-warning-soft)', border: '1px solid #d9a400', color: 'var(--mm-warning-text)' }}>Integrity review</span>}
         </div>
+      )}
+      {/* Teacher signals: read only for a student whose heartbeat says there
+          are some, and never on the projector (it names a student's attempt). */}
+      {showAttemptSignals && !roomMode && teacherEmail && live?.assignmentId && Number(live?.attemptSignalCount) > 0 && (
+        <WorthAConversationTile
+          compact
+          studentId={row.id}
+          studentName={row.nameMissing ? '' : row.name}
+          assignmentId={live.assignmentId}
+          teacherEmail={teacherEmail}
+        />
       )}
       {!roomMode && row.flags.includes(LIVE_FLAGS.HELP_REQUESTED) && (
         <HelpAcknowledgeControls studentId={row.id} live={live} teacherEmail={teacherEmail} />
@@ -1465,6 +1478,7 @@ export default function LiveClassMonitor({
               onSpotlight={activeClassId && !activeSpotlight ? requestSpotlight : null}
               classPoints={classPointsForRow(row)}
               teacherEmail={teacherEmail}
+              showAttemptSignals={!projecting}
               onInspect={inspectFor(row)}
             />
           ))}

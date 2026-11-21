@@ -4,7 +4,8 @@ import StudentPerformanceBadge from '../common/StudentPerformanceBadge.jsx';
 import StudentLearningProfileView from './StudentLearningProfileView.jsx';
 import { resolveAdaptiveRigorFromProfile } from '../../platform/rigor/courseRigor.js';
 import { courseLabel, courseLevelLabel } from '../../../functions/shared/classModel.mjs';
-import { SUPPORT_EVENT_LABEL, SUPPORT_STAGE_LABEL } from '../../platform/teacher/studentSupportSignals.js';
+import { SUPPORT_EVENT_LABEL, SUPPORT_STAGE_LABEL, buildArchivedIntegrityReviewSignal } from '../../platform/teacher/studentSupportSignals.js';
+import WorthAConversation from './WorthAConversation.jsx';
 import StudentAssignmentsList from './StudentAssignmentsList.jsx';
 import StudentSupportEvidencePanel from './StudentSupportEvidencePanel.jsx';
 import StudentRewardsPanel, { useStudentRewards } from './rewards/StudentRewardsPanel.jsx';
@@ -86,6 +87,9 @@ export default function StudentProfileDrawer({
   // Student Case Review / Academic Evidence Deep Dive. Only an entry point:
   // the case review's code and records load when it is opened.
   onOpenCaseReview = null,
+  // The live tiles are on the projector and this drawer opened over them:
+  // what the room must not read about the student is withheld (TT26).
+  roomProjected = false,
 }) {
   const closeRef = useRef(null);
   const panelRef = useRef(null);
@@ -115,6 +119,19 @@ export default function StudentProfileDrawer({
   }, [open, studentId]);
 
   if (!open) return null;
+
+  // Today's fast-and-right signal, from the sessions already loaded here: the
+  // same rule the Live view and the archive use (studentSupportSignals.js).
+  const fastAndRight = sessionSummaries.slice(0, 8).map((summary) => {
+    const signal = buildArchivedIntegrityReviewSignal(summary);
+    if (!signal) return null;
+    const ended = new Date(Number(summary.endedAt) || 0);
+    return {
+      key: `fast-${summary.id}`,
+      where: [summary.assignmentTitle || 'Assignment session', Number.isNaN(ended.getTime()) || !Number(summary.endedAt) ? '' : ended.toLocaleDateString()].filter(Boolean).join(' · '),
+      facts: `${signal.evidence.rapidCorrect} of ${signal.evidence.timedIndependentCorrect} independent correct answers came faster than the question's expected time; ${signal.evidence.rapidDeepCorrect} were on higher-demand questions.`,
+    };
+  }).filter(Boolean);
 
   // Which of the student's two numbers is which (studentDistrictIdModel.js).
   const district = describeStudentDistrictId({ ...studentRecord, id: studentId || studentRecord?.id });
@@ -186,6 +203,23 @@ export default function StudentProfileDrawer({
                 />
               </div>
             </details>
+          )}
+
+          {/* Teacher signals: facts about this student's attempts, beside the
+              fast-and-right pattern of their archived sessions. Teachers only. */}
+          {teacherEmail && studentId && roomProjected && (
+            <p data-worth-a-conversation-withheld="" style={{ margin: '0 0 20px', padding: '10px 12px', borderRadius: 10, border: '1px solid var(--mm-border)', color: 'var(--mm-text-muted)', fontSize: 'calc(12.5 * var(--mm-px))' }}>
+              Worth a conversation is hidden while the room tiles are projected.
+            </p>
+          )}
+          {teacherEmail && studentId && !roomProjected && (
+            <WorthAConversation
+              studentId={studentId}
+              studentName={studentName}
+              assignments={assignments}
+              teacherEmail={teacherEmail}
+              fastAndRight={fastAndRight}
+            />
           )}
 
           {onOpenCaseReview && studentId && (
