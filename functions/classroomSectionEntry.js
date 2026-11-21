@@ -43,9 +43,9 @@ const {
   classroomGradeReleasePolicy,
   classroomReceiptNeedsWriting,
   deferredClassCheckpoint,
-  noWorkIsMissingNotZero,
   toDate,
 } = require("./lib/classroomGradeRuntime");
+const { noWorkIsMissingNotZero } = require("./lib/classroomMissingWork");
 const { trackerChangedBeyondTimeOnTask } = require("./lib/classroomTrackerChange");
 const { assignmentFeedbackIsHeld } = require("./lib/activityFeedback");
 const sectionRecoveryGrades = require("./lib/sectionRecoveryGrades");
@@ -946,7 +946,7 @@ const syncSectionGradeToClassroom = onDocumentWritten(
         });
         if (!stage) { runTally?.count("notSent"); continue; }
         // No work at the due date: nothing is sent, and Classroom shows the
-        // work as Missing (lib/classroomGradeRuntime.js).
+        // work as Missing (lib/classroomMissingWork.js).
         if (noWorkIsMissingNotZero({ stage, progress: gradeResult })) { runTally?.count("notSent"); continue; }
         const releasePolicy = classroomGradeReleasePolicy({
           stage, assignment, nowValue: stageNow, studentDueAt: ownDeadlines.studentDueAt, studentFinalCutoff: ownDeadlines.studentFinalCutoff,

@@ -26,7 +26,7 @@ const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
 const requireFromFunctions = createRequire(path.join(root, 'functions/package.json'));
 const runs = requireFromFunctions('./lib/classroomReconcileRuns.js');
 const queue = requireFromFunctions('./lib/classroomPushQueue.js');
-const runtime = requireFromFunctions('./lib/classroomGradeRuntime.js');
+const runtime = requireFromFunctions('./lib/classroomMissingWork.js');
 
 test('only a teacher\'s reconcile signal has a scope, and the scope is that teacher', () => {
   const signal = { reason: 'section-grade-reconcile', runId: 'run-1', scopeTeacherUid: 'teacher-a' };

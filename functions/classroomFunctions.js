@@ -38,7 +38,8 @@ const classroomGradeSyncRows = require("./lib/classroomGradeSyncRows");
 // The release rule (whether Classroom shows the student a grade, and whether
 // it is returned) is the lib's: one rule for this whole-assignment trigger and
 // the section trigger (tests/platform/classroomReleasePolicyOneRule.test.mjs).
-const { classroomGradeReleasePolicy, classroomReceiptNeedsWriting, deferredClassCheckpoint, noWorkIsMissingNotZero } = require("./lib/classroomGradeRuntime");
+const { classroomGradeReleasePolicy, classroomReceiptNeedsWriting, deferredClassCheckpoint } = require("./lib/classroomGradeRuntime");
+const { noWorkIsMissingNotZero } = require("./lib/classroomMissingWork");
 // What wakes the two grade triggers: a tracker that moved beyond time on task.
 const { trackerChangedBeyondTimeOnTask } = require("./lib/classroomTrackerChange");
 const {
@@ -3218,7 +3219,7 @@ exports.syncGradeToClassroom = onDocumentWritten(
       if (!stage) continue;
       // No work at the due date: nothing is sent, and Classroom shows the
       // work as Missing, as the section columns do
-      // (lib/classroomGradeRuntime.js noWorkIsMissingNotZero).
+      // (lib/classroomMissingWork.js).
       if (noWorkIsMissingNotZero({ stage, progress })) continue;
 
       const grade = progress.grade;
