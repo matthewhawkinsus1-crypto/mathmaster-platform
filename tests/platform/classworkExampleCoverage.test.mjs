@@ -84,7 +84,7 @@ const compileLesson = () => {
     ],
   });
   const lesson = structuredClone(compiled.package);
-  lesson.lessonSupports = { examples: [{ id: 'ex-simplify', source: 'authored', steps: [{ show: 'Combine like terms.', why: 'They are the same kind of term.' }] }] };
+  lesson.lessonSupports = { examples: [{ id: 'ex-simplify', source: 'authored', problem: 'Simplify 4x + 3 - x + 5.', steps: [{ show: 'Combine like terms.', why: 'They are the same kind of term.' }] }] };
   const classwork = lesson.sections.find((section) => section.role === 'classwork').questions;
   classwork[1].example = 'ex-simplify';
   classwork[3].example = { none: 'setup' };
@@ -353,8 +353,13 @@ test('Pre-Flight\'s Check step draws the panel, a warning only for a new assignm
 
 test('an uncovered Classwork question changes nothing about readiness', () => {
   const lesson = compileLesson();
-  const before = buildAssignmentV5PreflightModel(lesson);
   const classwork = lesson.sections.find((section) => section.role === 'classwork').questions;
+  // Start from a lesson the authoring rules accept (lessonSupportsV5.js refuses
+  // an example id the lesson does not have), so the only change below is
+  // questions losing the examples that covered them.
+  classwork.forEach((question) => { if (question.example === 'ex-not-in-the-lesson') delete question.example; });
+  const before = buildAssignmentV5PreflightModel(lesson);
+  assert.deepEqual(before.errors, [], 'the starting lesson passes the authoring rules');
   classwork.forEach((question) => { delete question.example; });
   const after = buildAssignmentV5PreflightModel(lesson);
   assert.ok(classworkExampleCoverage({ sections: after.sections }).summary.uncovered > classworkExampleCoverage({ sections: before.sections, lessonSupports: lesson.lessonSupports }).summary.uncovered);
