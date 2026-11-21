@@ -133,7 +133,12 @@ before(async () => {
   await db.collection('classroomLinks').doc(SECTION.id).set(publication(SECTION, {
     sectionKey: 'classwork', publicationKind: 'section', gradePassbackEnabled: false, sectionGradePassbackEnabled: true,
   }));
-  await gradeRef().set({ displayName: STUDENT, classId: CLASS, status: 'active', gradesByAssignment: {} });
+  // One question answered: after the due date a student with no work at all
+  // is sent nothing (Classroom shows Missing), so there would be no push to pace.
+  await gradeRef().set({
+    displayName: STUDENT, classId: CLASS, status: 'active',
+    gradesByAssignment: { [ASSIGNMENT]: { 0: { status: 'correct', attemptCount: 1, totalAttempts: 1 } } },
+  });
   for (const target of WHOLE) {
     // eslint-disable-next-line no-await-in-loop
     await db.collection('classroomRosterLinks').doc(rosterLinkDocumentId(target.courseId, STUDENT)).set({
@@ -302,7 +307,8 @@ const notTurnedInError = () => {
 test('a section grade Google will not return is saved and said so, is not asked for again, and is returned on a teacher\'s retry', async () => {
   calls.length = 0;
   refuse = (name, args) => (name === 'returnSubmission' && args.courseWorkId === SECTION.courseworkId ? notTurnedInError() : null);
-  await runSection(await signal({ requestedAt: new Date().toISOString(), reason: 'section-grade-reconcile' }));
+  // A Retry: the column is current after the test above, and only a Retry sends it again.
+  await runSection(await signal({ requestedAt: new Date().toISOString(), reason: 'manual-retry' }));
   assert.deepEqual(calls.map((call) => call.name), ['findSubmissionForStudent', 'patchGrade', 'returnSubmission']);
   const refused = await audit(SECTION.id);
   assert.equal(refused.status, 'graded-not-returned');
@@ -312,10 +318,11 @@ test('a section grade Google will not return is saved and said so, is not asked 
   assert.equal(refused.errorStatus, 'FAILED_PRECONDITION');
   assert.match(refused.message, /^Grade saved in Classroom, not returned/);
 
-  // Sent again by a reconcile: the grade goes, the refused return is not asked for.
+  // A reconcile again: Classroom holds this grade, so nothing is sent and the
+  // refused return is not asked for (a reconcile no longer forces a send).
   calls.length = 0;
   await runSection(await signal({ requestedAt: new Date().toISOString(), reason: 'section-grade-reconcile' }));
-  assert.deepEqual(calls.map((call) => call.name), ['findSubmissionForStudent', 'patchGrade']);
+  assert.deepEqual(calls.map((call) => call.name), []);
   assert.equal((await audit(SECTION.id)).status, 'graded-not-returned');
 
   // The teacher retries once the student has turned it in: Google returns it.
