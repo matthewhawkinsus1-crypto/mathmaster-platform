@@ -249,5 +249,5 @@ export const adminScreenHandlers = {
   listPublishedAssignments: () => ({
     links: harnessStore.paths('classroomLinks/').filter((path) => path.split('/').length === 2).map((path) => ({ id: path.split('/')[1], ...harnessStore.get(path) })),
   }),
-  listClassroomGradeSyncs: () => ({ syncs: [], pushQueue: { waiting: 0 } }),
+  listClassroomGradeSyncs: () => ({ syncs: [], pushQueue: { waiting: 0 }, reconcileRuns: [] }),
 };

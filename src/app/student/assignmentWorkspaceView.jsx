@@ -45,6 +45,9 @@ import {
   shouldShowWarmupWaitingPanel,
 } from '../../platform/liveChallenge/warmupChallengeLink.js';
 import { NO_RECORDS } from './noRecords.js';
+import { db } from '../../firebase.js';
+import { recordAttemptSignal } from '../../platform/signals/attemptSignalWriter.js';
+import { notePlatformLinkOpened } from '../../platform/signals/attemptSignalFacts.js';
 
 export function createAssignmentWorkspaceView(
   user, studentClassPoints, hasPracticePassFor, studentRequiredFor, assignmentResultRoute, activeClassroomSectionKey,
@@ -928,7 +931,7 @@ export function createAssignmentWorkspaceView(
               {!preview && user?.role === 'student' && (
                 <StudentSupportTools
                   profile={user.profile}
-                  onResourceOpened={(supportId) => recordStudentSupportEvidence({ supportId, eventType: 'used', activityRole: runtimeActivityRole })}
+                  onResourceOpened={(supportId) => { notePlatformLinkOpened(); recordStudentSupportEvidence({ supportId, eventType: 'used', activityRole: runtimeActivityRole }); }}
                 />
               )}
             </div>
@@ -1148,7 +1151,7 @@ export function createAssignmentWorkspaceView(
                   <StudentSupportTools
                     className="mathmaster-narrow-support-tools"
                     profile={user.profile}
-                    onResourceOpened={(supportId) => recordStudentSupportEvidence({ supportId, eventType: 'used', activityRole: runtimeActivityRole })}
+                    onResourceOpened={(supportId) => { notePlatformLinkOpened(); recordStudentSupportEvidence({ supportId, eventType: 'used', activityRole: runtimeActivityRole }); }}
                   />
                 )}
               </div>
@@ -1287,6 +1290,12 @@ export function createAssignmentWorkspaceView(
                 onSupportEvidence: preview || lifecycle.isPracticeOnly
                   ? null
                   : (evidence) => recordStudentSupportEvidence({ ...evidence, questionIndex: currentQuestionIndex, activityRole: runtimeActivityRole }),
+                // Teacher signals: facts about an attempt for the teacher's
+                // "worth a conversation", on credit work only. Beside the
+                // grade path, never in it (attemptSignalWriter.js).
+                onAttemptSignal: preview || lifecycle.isPracticeOnly || user?.role !== 'student' || !user?.id
+                  ? null
+                  : (fact) => { void recordAttemptSignal({ db, studentId: user.id, assignmentId: activeAssignmentId, questionIndex: currentQuestionIndex, activityRole: runtimeActivityRole, fact }); },
                 onAskTeacher: preview || lifecycle.isPracticeOnly || user?.role !== 'student'
                   ? null
                   : (requested) => setHelpRequest(nextHelpRequest({ requested, assignmentId: activeAssignmentId, questionIndex: currentQuestionIndex })),

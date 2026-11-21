@@ -39,8 +39,21 @@ const LEGACY_TEACHER = "__legacy__";
 
 const clean = (value) => String(value ?? "").trim();
 
-function queueEntryId(assignmentId, studentId, reason) {
-  return [assignmentId, studentId, reason].map((part) => encodeURIComponent(clean(part))).join("__");
+// `scope` is the teacher a reconcile run acts for (lib/classroomReconcileRuns.js).
+// Two teachers' runs for one student are two entries, so neither replaces the
+// other; every other push has no scope and keeps the id it always had.
+function queueEntryId(assignmentId, studentId, reason, scope = "") {
+  return [assignmentId, studentId, reason, ...(clean(scope) ? [scope] : [])]
+    .map((part) => encodeURIComponent(clean(part))).join("__");
+}
+
+// What a reconcile run's entry carries to its release signal, and on to the
+// entry a push refused for the limit is queued again with: the run's id and
+// the teacher whose posts it acts on. Nothing for every other push.
+function runFields({ runId, scopeTeacherUid } = {}) {
+  const scope = clean(scopeTeacherUid);
+  if (!scope) return {};
+  return { scopeTeacherUid: scope, ...(clean(runId) ? { runId: clean(runId) } : {}) };
 }
 
 function quotaBackoffMs(quotaRetry) {
@@ -59,20 +72,24 @@ async function enqueueClassroomPushes(db, {
   requestedAt = new Date().toISOString(),
   source = null,
   nowMs = Date.now(),
+  runId = null,
+  scopeTeacherUid = null,
 }) {
   const assignment = clean(assignmentId);
   const why = clean(reason);
+  const run = runFields({ runId, scopeTeacherUid });
   const students = [...new Set((studentIds || []).map(clean).filter(Boolean))];
   if (!assignment || !why || !students.length) return 0;
   for (let start = 0; start < students.length; start += 400) {
     const batch = db.batch();
     students.slice(start, start + 400).forEach((studentId) => {
-      batch.set(db.collection(CLASSROOM_PUSH_QUEUE).doc(queueEntryId(assignment, studentId, why)), {
+      batch.set(db.collection(CLASSROOM_PUSH_QUEUE).doc(queueEntryId(assignment, studentId, why, run.scopeTeacherUid)), {
         assignmentId: assignment,
         studentId,
         reason: why,
         requestedAt,
         source,
+        ...run,
         quotaRetry: 0,
         notBefore: Timestamp.fromMillis(nowMs),
         queuedAt: FieldValue.serverTimestamp(),
@@ -97,18 +114,22 @@ async function requeueClassroomPushAfterQuota(db, {
   reason,
   quotaRetry = 0,
   nowMs = Date.now(),
+  runId = null,
+  scopeTeacherUid = null,
 }) {
+  const run = runFields({ runId, scopeTeacherUid });
   const attempt = Math.max(0, Number(quotaRetry) || 0);
   if (attempt >= MAX_QUOTA_RETRIES) return { requeued: false };
   const why = clean(reason) || "quota-retry";
   const retryAtMs = nowMs + quotaBackoffMs(attempt);
   try {
-    await db.collection(CLASSROOM_PUSH_QUEUE).doc(queueEntryId(assignmentId, studentId, why)).create({
+    await db.collection(CLASSROOM_PUSH_QUEUE).doc(queueEntryId(assignmentId, studentId, why, run.scopeTeacherUid)).create({
       assignmentId: clean(assignmentId),
       studentId: clean(studentId),
       reason: why,
       requestedAt: new Date(nowMs).toISOString(),
       source: "classroom-quota",
+      ...run,
       quotaRetry: attempt + 1,
       notBefore: Timestamp.fromMillis(retryAtMs),
       queuedAt: FieldValue.serverTimestamp(),
@@ -186,7 +207,7 @@ function releaseSignalFor(entry, releasedAt) {
     firstRequestedAt: entry.requestedAt || null,
   };
   if (Number(entry.quotaRetry) > 0) signal.quotaRetry = Number(entry.quotaRetry);
-  return signal;
+  return { ...signal, ...runFields(entry) };
 }
 
 // Scheduler runs can overlap if one is slow; the second one then does nothing.

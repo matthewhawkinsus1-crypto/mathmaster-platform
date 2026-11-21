@@ -1,8 +1,10 @@
 # Showing the process: answer boxes one screenshot cannot answer
 
 Status: **decided by the owner on 2026-11-20. Slice P1 (part by part, Review all
-parts, See every part at once) is built; P2 to P5 are not.** This page pairs with
-`docs/platform/WORKED_EXAMPLES.md`.
+parts, See every part at once) is built. P2 (teacher signals) is partly built
+(SP-2: recorded, stored beside the attempt, shown in Live Classroom and the
+student's drawer); its evidence items (section 7, "Signals as evidence") are
+not yet. P3 to P5 are not built.** This page pairs with `docs/platform/WORKED_EXAMPLES.md`.
 
 Where P1 lives: `src/MultiAnswerGrader.jsx` (`partByPart`), asked for by the
 student's assignment (`assignmentWorkspaceView.jsx`, not a teacher preview),
@@ -17,6 +19,15 @@ part and the answered lines, never a part not yet shown: `MultiAnswerGrader`
 reports the parts on the screen (`onShownPartsChange`) and `QuestionEngine`
 keeps only those (`readingPartsShown`, `questionReading.js`; SP-1c). Translate
 translates the prompt, which every part shows.
+
+Where P2 lives: the facts and the stored record are
+`src/platform/signals/attemptSignalFacts.js`; the question engine raises them
+beside the attempt (`useAttemptSignals.js`), and the student's assignment
+(`assignmentWorkspaceView.jsx`, not a preview and not post-deadline practice)
+writes each once to `grades/{studentId}/attemptSignals` (`firestore.rules`).
+The teacher reads them in **Worth a conversation**
+(`src/components/teacher/WorthAConversation.jsx`): on a Live tile and in the
+student's drawer. Section 7 has the details.
 
 ## 1. The problem
 
@@ -190,6 +201,61 @@ its own, but part of the bigger picture of a student's work.
   keeps signals out of any written conclusion.
 - **Unchanged rules.** Signals are for teachers only. No grade, attempt or
   mastery path reads them.
+
+As built so far (SP-2):
+
+- **When a fact is raised.**
+  - *Left the page*: the page was hidden (another tab or app, or the screen
+    turned off) for between 8 seconds (the Live view's own floor for a focus
+    loss) and 5 minutes, and within 60 seconds of its return two or more parts
+    were answered, and marked right when the attempt was submitted. A longer
+    absence is a locked screen or a tab left open, and raises nothing. Nor
+    does an absence that starts when the platform opens one of its own links
+    in a new tab (a teacher's study sheet or reteach resource).
+  - *Pasted*: a paste event in a math box, or in a plain answer box of a part.
+    The clipboard is not read. A paste that follows a copy or cut on the page
+    itself (the prompt's expression, an earlier part's answer) is not raised;
+    the page notes only that a copy happened.
+  - *Right first time*: the first submitted attempt, every part right, the
+    question's `difficultyBand` 3 or higher, and no work to look at. That
+    means the engine drew the question as answer boxes and nothing else (by
+    the module drawn, so the legacy `algebra` type and a `literal` on the
+    balance workspace never qualify), with no `checkpoint`, no tool response,
+    no composed stages and no saved scratchpad. The scratchpad is asked of the
+    host at submit, so one saved before a reload counts, and a read that fails
+    counts as work. Band 3 is the most common band in today's lessons, so this
+    is the most frequent of the three.
+- **What is stored.** One document per fact, at
+  `grades/{studentId}/attemptSignals/{assignment}__{question}__{kind}` (a paste
+  adds the part). Its fields are a closed list, checked by `firestore.rules`:
+  the student, the assignment (which must exist), the question's position, the
+  kind, the section, the attempt number, and for its kind a part position, a
+  part count, seconds away or the difficulty band. The first record of a fact
+  stands.
+- **Who reads it.** The teacher who teaches the student, and the root
+  administrator. The student cannot read it back. The Live heartbeat carries
+  only how many there are (`attemptSignalCount`), so a tile reads the facts
+  only for a student who has some. Both reads are bounded (one assignment's
+  facts, or the student's newest 200). The projector's tiles never show them,
+  and a student's drawer opened over projected tiles withholds them.
+- **Dismiss.** One dismissal, by that teacher or the root administrator,
+  stamps the fact with who and when. It cannot be re-stamped, and the fact
+  itself cannot be edited or deleted.
+- **Exemptions**, from the support profile in effect today:
+  - no *left the page* for `text-to-speech`, `translation` (or a translation
+    language other than English), `glossary-lookup` or `every-part-at-once`;
+  - no *pasted* for `word-processor-response`.
+- **Not a grade.** No grade, attempt or mastery path reads the collection, the
+  facts or the count: `tests/platform/attemptSignalsNeverGrade.test.mjs` reads
+  every source file of the app and both backends, and the grade paths by name.
+- **Where it is recorded.** The student's classroom assignment, on credit
+  work, in class or at home. Not in a teacher's preview, post-deadline
+  practice, Recovery, My Math Path or Live Challenge. A secure Test keeps its
+  own log (`examIntegrityLogger.js`).
+- **Known gaps, for the follow-up:** a paste into a table cell is not seen; a
+  paste into a Step Algebra move box reads as part 1; a plain text box inside
+  a part counts as a math box; and a dictation tool that pastes has no
+  exemption of its own.
 
 ## 8. Build slices
 

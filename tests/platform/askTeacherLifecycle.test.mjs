@@ -56,7 +56,10 @@ test('a question and its answer are kept one school year after their last change
 test('while a class is in session or the room tiles are projected, only the count shows', () => {
   const home = componentSource('src/TeacherHome.jsx');
   assert.match(home, /<StudentQuestionsPanel\s+withheld=\{teachingNow \|\| roomProjected\}/);
-  assert.match(home, /onProjectingChange=\{setRoomProjected\}/);
+  // The monitor tells Home, whose handler sets what the panel is withheld by
+  // (and tells the page: platform/teacher/roomProjection.js).
+  assert.match(home, /onProjectingChange=\{reportRoomProjected\}/);
+  assert.match(region(executableSource(home), 'const reportRoomProjected = useCallback(', '}, []);', 'reportRoomProjected'), /setRoomProjected\(Boolean\(projected\)\);/);
   const monitor = componentSource('src/components/teacher/LiveClassMonitor.jsx');
   assert.match(monitor, /onProjectingChange\?\.\(projecting\);/);
   const panel = executableSource(componentSource('src/components/teacher/StudentQuestionsPanel.jsx'));

@@ -1,4 +1,5 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { setRoomProjected as shareRoomProjected } from './platform/teacher/roomProjection.js';
 import {
   CLASS_PERIODS,
   assignmentIsForStudent,
@@ -36,6 +37,14 @@ export default function TeacherHome({ allStudents = [], studentIdentityIndex = n
   const [recoveryClassId, setRecoveryClassId] = useState('');
   // The live tiles are on the projector (LiveClassMonitor's Large room tiles).
   const [roomProjected, setRoomProjected] = useState(false);
+  // The page is told too (platform/teacher/roomProjection.js): a student's
+  // drawer opened over projected tiles withholds what the room must not read,
+  // and Home leaving the screen ends the projection.
+  const reportRoomProjected = useCallback((projected) => {
+    setRoomProjected(Boolean(projected));
+    shareRoomProjected(projected);
+  }, []);
+  useEffect(() => () => shareRoomProjected(false), []);
   const [recoveryAssignmentId, setRecoveryAssignmentId] = useState('');
 
   const classOptions = classes.length
@@ -318,7 +327,7 @@ export default function TeacherHome({ allStudents = [], studentIdentityIndex = n
           activeClassId={classIdInSession}
           classes={classes}
           classSchedule={classSchedule}
-          onProjectingChange={setRoomProjected}
+          onProjectingChange={reportRoomProjected}
           supportEvents={studentSupportEvents}
           onRecordSupportEvent={onRecordStudentSupportEvent}
           onRecommendPersonalPath={onRecommendPersonalPath}

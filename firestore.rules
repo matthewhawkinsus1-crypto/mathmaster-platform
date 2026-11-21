@@ -117,12 +117,80 @@ service cloud.firestore {
           'questionLabel', 'representation', 'questionStates', 'currentAttempts',
           'focusLossCount', 'answeredCount', 'correctCount', 'accuracy',
           'rapidCorrectCount', 'rapidDeepCorrectCount', 'timedIndependentCorrectCount',
+          'attemptSignalCount',
           'sessionActiveSeconds', 'lastInteractionAt', 'startedAt', 'pageVisible', 'updatedAt',
           'helpRequestedAt', 'helpQuestionIndex'
         ])
         && (!data.keys().hasAny(['activityRole']) || data.activityRole in [
           'warmup', 'classwork', 'dol', 'practice', 'quiz', 'test', 'review', 'corrections'
-        ]);
+        ])
+        // How many attempt facts wait for the teacher (attemptSignals below):
+        // a small count, never a fact.
+        && (!data.keys().hasAny(['attemptSignalCount'])
+          || (data.attemptSignalCount is int && data.attemptSignalCount >= 0 && data.attemptSignalCount <= 999));
+    }
+
+    /*
+     * TEACHER SIGNALS: one fact about one attempt
+     * (src/platform/signals/attemptSignalFacts.js buildAttemptSignalRecord;
+     * docs/platform/SHOWING_THE_PROCESS.md, section 7).
+     *
+     * The closed list of keys is the privacy rule: a position, a kind and
+     * small counts. There is no key a response, a pasted text, a keystroke
+     * log, a screenshot or a URL could ride in under, and no string longer
+     * than an assignment id. The id is the fact's own position, so a question
+     * holds each kind once (a paste once per part).
+     */
+    function attemptSignalInt(d, key, low, high) {
+      return d[key] is int && d[key] >= low && d[key] <= high;
+    }
+
+    function attemptSignalValid(studentId, signalId) {
+      let d = request.resource.data;
+      let common = ['schemaVersion', 'studentId', 'assignmentId', 'questionIndex', 'kind', 'attemptNumber', 'recordedAt'];
+      return d.keys().hasAll(common)
+        && d.schemaVersion == 1
+        && d.studentId == studentId
+        && d.assignmentId is string && d.assignmentId.size() > 0 && d.assignmentId.size() <= 200
+        // The document id below names one assignment and one question only if
+        // the assignment id has no "_" at either end and no "__" (as for Ask
+        // my teacher, SI04), and the assignment is a real one: a made-up id
+        // cannot be used to fill a student's record with facts.
+        && !d.assignmentId.matches('_.*|.*_|.*__.*')
+        && exists(/databases/$(database)/documents/assignments/$(d.assignmentId))
+        && attemptSignalInt(d, 'questionIndex', 0, 999)
+        && attemptSignalInt(d, 'attemptNumber', 1, 99)
+        && d.recordedAt == request.time
+        && (!d.keys().hasAny(['activityRole']) || d.activityRole in [
+          'warmup', 'classwork', 'dol', 'practice', 'quiz', 'test', 'review', 'corrections'
+        ])
+        && (
+          (d.kind == 'pasted'
+            && d.keys().hasOnly(common.concat(['activityRole', 'partIndex']))
+            && attemptSignalInt(d, 'partIndex', 0, 49)
+            && signalId == d.assignmentId + '__' + string(d.questionIndex) + '__pasted__' + string(d.partIndex))
+          || (d.kind == 'leftThenRight'
+            && d.keys().hasOnly(common.concat(['activityRole', 'partCount', 'awaySeconds']))
+            && attemptSignalInt(d, 'partCount', 2, 50)
+            && attemptSignalInt(d, 'awaySeconds', 0, 300)
+            && signalId == d.assignmentId + '__' + string(d.questionIndex) + '__leftThenRight')
+          || (d.kind == 'hardFirstTry'
+            && d.keys().hasOnly(common.concat(['activityRole', 'partCount', 'difficultyBand']))
+            && attemptSignalInt(d, 'partCount', 1, 50)
+            && attemptSignalInt(d, 'difficultyBand', 3, 9)
+            && d.attemptNumber == 1
+            && signalId == d.assignmentId + '__' + string(d.questionIndex) + '__hardFirstTry')
+        );
+    }
+
+    // A teacher's dismissal: who and when, and nothing else about the fact.
+    // Once: a later teacher cannot put their own name and time over it.
+    function attemptSignalDismissalValid() {
+      let d = request.resource.data;
+      return !resource.data.keys().hasAny(['dismissedAt', 'dismissedByEmail'])
+        && d.diff(resource.data).affectedKeys().hasOnly(['dismissedAt', 'dismissedByEmail'])
+        && d.dismissedAt == request.time
+        && d.dismissedByEmail == request.auth.token.email;
     }
 
     function presenceCarriesNoResponse(data) {
@@ -834,6 +902,23 @@ service cloud.firestore {
         allow read: if rootAdmin() || teachesPresenceStudent(studentId);
         allow create: if ownsStudent(studentId) && studentRowExists(studentId) && engagementCreateValid(studentId, ledgerId);
         allow update: if ownsStudent(studentId) && studentRowExists(studentId) && engagementUpdateValid();
+        allow delete: if false;
+      }
+
+      /*
+       * TEACHER SIGNALS (docs/platform/SHOWING_THE_PROCESS.md, section 7).
+       * Facts about an attempt, "worth a conversation" and nothing more:
+       * written once by the student's own client (attemptSignalValid above),
+       * read only by the teacher who teaches the student. The student cannot
+       * read them back, nobody can edit a fact, and the only later write is
+       * one dismissal, by that teacher or the root administrator (who can
+       * read it too). No grade, attempt or mastery path reads this
+       * collection (tests/platform/attemptSignalsNeverGrade.test.mjs).
+       */
+      match /attemptSignals/{signalId} {
+        allow read: if rootAdmin() || teachesPresenceStudent(studentId);
+        allow create: if ownsStudent(studentId) && studentRowExists(studentId) && attemptSignalValid(studentId, signalId);
+        allow update: if (rootAdmin() || teachesPresenceStudent(studentId)) && attemptSignalDismissalValid();
         allow delete: if false;
       }
 
@@ -2344,6 +2429,10 @@ service cloud.firestore {
     match /classroomLinks/{publicationId} { allow read, write: if false; }
     match /classroomRosterLinks/{rosterLinkId} { allow read, write: if false; }
     match /classroomGradeSyncs/{syncId} { allow read, write: if false; }
+    // What a teacher's "Reconcile section grades" run did, column counts per
+    // student. Written by the grade trigger; teachers read it through the
+    // grade passback monitor's callable (functions/lib/classroomReconcileRuns.js).
+    match /classroomReconcileRuns/{runDocId} { allow read, write: if false; }
     match /studentCredentials/{docId} { allow read, write: if false; }
     match /studentAliases/{docId} { allow read, write: if false; }
     match /studentDirectory/{docId} { allow read, write: if false; }

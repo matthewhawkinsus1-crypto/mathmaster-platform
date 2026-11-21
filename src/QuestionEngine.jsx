@@ -22,6 +22,7 @@ import ScratchpadOverlay from './ScratchpadOverlay';
 import { legacySolutionReviewContent } from './SolutionReview';
 import SolutionReviewPanel from './SolutionReviewPanel';
 import HintPanel from './platform/supports/hints/HintPanel.jsx';
+import { useAttemptSignals } from './platform/signals/useAttemptSignals.js';
 import { SupportedTextActions } from './platform/supports/SupportedText.jsx';
 import MathText from './components/common/MathText.jsx';
 import { buildQuestionHints, diagnosisHint, hintLadderView, hintRelease } from './platform/supports/hints/questionHints.js';
@@ -247,6 +248,10 @@ const barActionLabel = (label) => {
   return parts ? <>{parts[1]}<span className="mathmaster-action-label-long">{parts[2]}</span>{parts[3]}</> : label;
 };
 
+// The engine's types that are answer boxes and nothing else: for these alone
+// can "no tool work" be said of an attempt (teacher signals).
+const ANSWER_BOX_TYPES = ['multiAnswer', 'fraction', 'orderedPair', 'system', 'table', 'literal'];
+
 function QuestionEngineBody({
   question,
   onGrade,
@@ -353,6 +358,11 @@ function QuestionEngineBody({
   // caller filters to supports the student is entitled to and de-duplicates.
   // Student assignment work only; previews pass nothing.
   onSupportEvidence = null,
+  // Teacher signals (docs/platform/SHOWING_THE_PROCESS.md, section 7): told
+  // each fact an attempt raised ({ kind, ... }: a position and counts, never a
+  // response). Only the student's classroom assignment passes it. It is not
+  // part of grading: nothing it is told reaches onGrade.
+  onAttemptSignal = null,
   // Which Language tools to offer, when the caller already knows
   // (supportToolsEntitlement.js toolsEntitlementFromPath on My Math Path).
   supportEntitlement = null,
@@ -897,6 +907,15 @@ function QuestionEngineBody({
   // same preserved record becomes editable again without deleting its history.
   const isExpired = remainingAttempts <= 0 && (record.status === 'expired' || feedback?.expired);
   const locked = Boolean(isCorrect || isExpired || assignmentLocked);
+  // TEACHER SIGNALS. Facts for the teacher's "worth a conversation", raised
+  // beside the attempt and never inside it (useAttemptSignals.js).
+  const attemptSignals = useAttemptSignals({
+    onAttemptSignal,
+    studentProfile: stableStudentProfile,
+    answerState,
+    attemptNumber: (Number(record.totalAttempts) || 0) + 1,
+    open: !locked,
+  });
   // THE WAY ON FROM A CLOSED QUESTION, one rule for the action bar, the Enter
   // shortcut and where focus goes: Continue when the section is done, Next,
   // or — nothing workable ahead — back to the question skipped (RUN-12).
@@ -1450,6 +1469,26 @@ function QuestionEngineBody({
       // Submitted (not blocked): the work is in the device queue, so a draft that
       // could not be saved is no longer the student's only copy.
       if (!result?.blocked) clearDraftSaveProblemsForFamily(draftKey);
+      // The attempt is with the host's grading; only now, and only beside it,
+      // are its facts for the teacher raised (never a part of `result`).
+      if (!result?.blocked) {
+        // A composed question's stages are its work.
+        if (isComposed) attemptSignals.noteToolWork();
+        attemptSignals.attemptSubmitted({
+          // Answered in boxes and nothing else, by the module drawn (a literal
+          // question on the balance workspace is not).
+          drawnInAnswerBoxes: drawnKind?.route === DRAWN_QUESTION_ROUTE.QUESTION_TYPE
+            && ANSWER_BOX_TYPES.includes(drawnKind.type)
+            && !(drawnKind.type === 'literal' && literalWorkspace?.question),
+          question: processedQuestion,
+          answerState,
+          // The marks the host's grading returned, where it returns them.
+          gradedParts: Array.isArray(result?.partGrades) ? result.partGrades : null,
+          // The host's verdict where it gives one, else this device's own.
+          isCorrect: typeof result?.isCorrect === 'boolean' ? result.isCorrect : answerState.isCorrect === true,
+          attemptNumber: (Number(record.totalAttempts) || 0) + 1,
+        }, { savedWork: onLoadScratchpad ? async () => Boolean(await onLoadScratchpad()) : null });
+      }
       const nextFeedback = result || {
         isCorrect: answerState.isCorrect,
         status: answerState.isCorrect ? 'correct' : 'attempted',
@@ -1895,6 +1934,8 @@ function QuestionEngineBody({
     if (locked) return;
     const list = Array.isArray(pages) ? pages : [pages].filter(Boolean);
     await onSaveScratchpad?.(list, metadata);
+    // Work on the scratchpad is work the teacher can open.
+    if (list.length) attemptSignals.noteToolWork();
     setScratchpadPages(list);
     setScratchpadDataUrl(list[0] || '');
   };
@@ -3640,7 +3681,7 @@ function QuestionEngineBody({
               continue). Finished work is read-only instead (AX01): the guard
               bound here stops the keys, a screen reader's click and the
               pastes that pointer-events, which only stops the mouse, cannot. */}
-          <div aria-disabled={workAreaClosed ? 'true' : undefined} inert={workAreaInert ? true : undefined} data-work-read-only={workAreaReadOnly ? 'true' : undefined} ref={bindReadOnlyWorkArea} style={{ pointerEvents: workAreaClosed ? 'none' : 'auto', opacity: moduleFailed ? 1 : locked ? 0.72 : scaffoldRequired || contextScaffoldRequired || pausedByAnotherTab ? 0.5 : 1 }}>
+          <div aria-disabled={workAreaClosed ? 'true' : undefined} inert={workAreaInert ? true : undefined} data-work-read-only={workAreaReadOnly ? 'true' : undefined} ref={bindReadOnlyWorkArea} onPasteCapture={attemptSignals.onPasteCapture} style={{ pointerEvents: workAreaClosed ? 'none' : 'auto', opacity: moduleFailed ? 1 : locked ? 0.72 : scaffoldRequired || contextScaffoldRequired || pausedByAnotherTab ? 0.5 : 1 }}>
             <QuestionModuleBoundary
               key={moduleBoundaryKey}
               questionType={processedQuestion?.type}
