@@ -411,7 +411,9 @@ test('the Classroom and administrator screens read callables the harness answers
   // A teacher who has not connected Google Classroom, with nothing published and no grade passback yet.
   assert.deepEqual(await call('getClassroomConnectionStatus', {}), { connected: false, needsReconnect: false, missingScopes: [] });
   assert.deepEqual(await call('listPublishedAssignments', {}), { links: [] });
-  assert.deepEqual(await call('listClassroomGradeSyncs', {}), { syncs: [], pushQueue: { waiting: 0 } });
+  // `reconcileRuns`: what the teacher's last "Reconcile section grades" did, which the monitor has answered
+  // with since the run report (functions/lib/classroomReconcileRuns.js); none in the harness.
+  assert.deepEqual(await call('listClassroomGradeSyncs', {}), { syncs: [], pushQueue: { waiting: 0 }, reconcileRuns: [] });
 });
 
 // Google Classroom once connected (the November build's section 6): a connected account loads its courses through
