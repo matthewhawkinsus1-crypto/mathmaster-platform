@@ -148,14 +148,50 @@ The rules:
 - Signals are not raised for a student whose support profile explains the
   pattern: for example, a read-aloud or translation tool that moves focus off
   the page, or See every part at once.
-- The teacher sees "worth a conversation", with the facts, and can dismiss it.
+- The teacher sees "worth a conversation", with the facts, and can mark it reviewed.
+
+### Signals as evidence (the owner, 2026-11-21)
+
+A signal is not only a live alert. It is lasting evidence: never conclusive on
+its own, but part of the bigger picture of a student's work.
+
+- **Stored beside the attempt.** Each signal is a record of its own on the
+  server, keyed by the student, assignment and question it belongs to. It is
+  stored wherever the student worked, in class or at home. It is never a field
+  of the attempt, the submission or the grade record, so no grade path can
+  read it. Live Classroom is one view of it.
+- **In the assignment's results.** The results show each signal beside the
+  student's question: what happened, when, and in which part.
+- **In the Student Case Review.** The Academic Evidence Deep Dive
+  (`docs/STUDENT_CASE_REVIEW_DESIGN.md`) gains a "Work-pattern signals"
+  section, which also appears on the case timeline and in the case review
+  export. It shows patterns that one signal cannot:
+  - how often a signal occurs over time, for example "pasted into a math box
+    on 6 of 40 answers this month";
+  - accuracy on flagged questions against unflagged ones;
+  - where the signals occur, beside the existing comparison of DOL and
+    instructional work.
+- **Reviewed, never deleted.** "Dismiss" marks a signal reviewed: who, when,
+  and an optional note. A reviewed signal leaves "needs attention" but stays
+  in the record and in the case review.
+- **Context recorded with each signal:**
+  - whether the attempt was during the class's scheduled time or outside it,
+    from the class schedule the platform already has. Nothing else about
+    where the student was is inferred.
+  - the accommodations and supports in effect for that attempt.
+- **Wording.** Facts only, for example "left the page, then 3 parts right
+  within 40 seconds". Every place a signal is shown labels it "not
+  conclusive", and none says "cheating". The case review's narrative guard
+  keeps signals out of any written conclusion.
+- **Unchanged rules.** Signals are for teachers only. No grade, attempt or
+  mastery path reads them.
 
 ## 8. Build slices
 
 | Slice | What | Done when |
 |---|---|---|
 | P1 | Part by part, Review all parts (DOL, Test), See every part at once | Grading, attempt and draft tests are unchanged. The secure item boundary still holds. Focus and Read aloud work, at phone width and 200% text. |
-| P2 | Teacher signals | Recorded per attempt with no contents. Shown to teachers only. Accommodations are exempt. No grade path reads them. |
+| P2 | Teacher signals as evidence (section 7) | Stored beside the attempt as a record of its own, at school or at home, with no contents. Shown in Live Classroom, the assignment's results and the Student Case Review (patterns, timeline, export). Review keeps the record. In or outside class time, and the supports in effect, are recorded with each signal. Teachers only. Accommodations are exempt. No grade path reads them. |
 | P3 | Follow-through parts | The grader keys a later part to the student's earlier value. Pre-Flight checks the names. |
 | P4 | Show the step: `pickPoints` and `stepMoves`, then `factorPair` and `tableRow` | Each checkpoint is checked by the tool's own engine and recorded with the attempt. |
 | P5 | The Pre-Flight authoring rules (sections 4 to 6) | Warnings on new assignments only. Existing assignments raise nothing new. |
