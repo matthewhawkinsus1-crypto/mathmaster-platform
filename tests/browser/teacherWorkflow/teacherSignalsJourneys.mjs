@@ -28,12 +28,17 @@
 //   S5  a student with See every part at once who leaves and returns raises
 //       no "left the page"; one whose response is word-processed raises no
 //       "pasted"
-//   T1  the teacher's Live tile shows "Worth a conversation" with the facts;
-//       Dismiss records who dismissed it, and the fact leaves the tile
+//   T1  the teacher's Live tile shows "Worth a conversation" with the facts,
+//       labelled not conclusive; Mark reviewed records who, when and a note,
+//       and the fact leaves the tile but stays in the record
 //   T2  the projector's Large room tiles show none of it, and neither does
 //       a student's drawer opened over them
-//   T3  the student's results (the drawer) list the facts still open, beside
-//       the same note, and a second Dismiss works there too
+//   T3  the student's drawer lists the facts that need attention and keeps
+//       the reviewed one under "Reviewed"
+//   T4  the assignment's results show the student's signals beside the
+//       question they belong to
+//   T5  the case review's "Work-pattern signals" tab counts them over the
+//       window, lists each with its review, and puts them on the timeline
 //
 // Exit code 1 on any finding. Screenshots in
 // tests/browser/artifacts/teacher-signals/ (git-ignored).
@@ -181,7 +186,8 @@ const pasteIntoFocusedBox = (page, text) => page.evaluate((pasted) => {
   return target?.tagName || '';
 }, text);
 
-const ALLOWED_KEYS = ['schemaVersion', 'studentId', 'assignmentId', 'questionIndex', 'kind', 'attemptNumber', 'activityRole', 'partIndex', 'partCount', 'awaySeconds', 'difficultyBand', 'recordedAt', 'path'];
+const ALLOWED_KEYS = ['schemaVersion', 'studentId', 'assignmentId', 'questionIndex', 'kind', 'attemptNumber', 'activityRole', 'partIndex', 'partCount', 'awaySeconds', 'difficultyBand', 'duringClass', 'supports', 'recordedAt', 'path'];
+const REVIEW_NOTE = 'Talked with her; she showed the steps on paper.';
 const kindsOf = (signals) => signals.map((signal) => signal.kind).sort().join(',');
 const questionRecord = (page, studentId) => page.evaluate(([id, assignmentId, index]) => {
   const row = window.__mmHarnessStore.get(`grades/${id}`) || {};
@@ -222,7 +228,8 @@ for (const viewport of VIEWPORTS) {
   expect(`S2 ${tag} three facts, one of each`, kindsOf(signals) === 'hardFirstTry,leftThenRight,pasted', kindsOf(signals));
   expect(`S2 ${tag} left the page, then two right parts: the count and the time away`, Boolean(left) && left.partCount === 2 && left.awaySeconds >= 8 && left.awaySeconds <= 30 && left.attemptNumber === 1, JSON.stringify(left));
   expect(`S2 ${tag} right first time on a band-3 question, no tool work`, Boolean(hard) && hard.difficultyBand === 3 && hard.partCount === 2 && hard.attemptNumber === 1, JSON.stringify(hard));
-  expect(`S2 ${tag} every record is positions and counts`, signals.every((signal) => Object.keys(signal).every((key) => ALLOWED_KEYS.includes(key)) && Object.entries(signal).every(([key, value]) => ['path', 'studentId', 'assignmentId', 'kind', 'activityRole', 'recordedAt'].includes(key) || Number.isInteger(value))), JSON.stringify(signals));
+  expect(`S2 ${tag} every record is positions and counts`, signals.every((signal) => Object.keys(signal).every((key) => ALLOWED_KEYS.includes(key)) && Object.entries(signal).every(([key, value]) => ['path', 'studentId', 'assignmentId', 'kind', 'activityRole', 'recordedAt', 'duringClass', 'supports'].includes(key) || Number.isInteger(value))), JSON.stringify(signals));
+  expect(`S2 ${tag} beside each: in the class's scheduled time, and the supports in effect (none)`, signals.every((signal) => signal.duringClass === true && Array.isArray(signal.supports) && signal.supports.length === 0), JSON.stringify(signals.map((signal) => [signal.duringClass, signal.supports])));
   expect(`S2 ${tag} the section is named`, signals.every((signal) => signal.activityRole === 'classwork'), JSON.stringify(signals.map((signal) => signal.activityRole)));
   // The heartbeat is every 20 seconds (livePresence.js HEARTBEAT_INTERVAL_MS).
   await page.waitForFunction((id) => window.__mmHarnessStore.get(`presence/${id}`)?.attemptSignalCount === 3, STUDENT, { timeout: 45000 }).catch(() => {});
@@ -277,6 +284,7 @@ for (const viewport of VIEWPORTS) {
   await submit(page);
   const exemptSignals = await waitForSignals(page, EVERY_PART_STUDENT, ['hardFirstTry']);
   expect(`S5 ${tag} a support that explains leaving and a burst raises no "left the page"`, kindsOf(exemptSignals) === 'hardFirstTry', kindsOf(exemptSignals));
+  expect(`S5 ${tag} the signal that is raised names the supports in effect`, JSON.stringify(exemptSignals[0]?.supports) === JSON.stringify(['every-part-at-once', 'text-to-speech']), JSON.stringify(exemptSignals[0]?.supports));
   await page.close();
 
   page = await openPage(context, `questions=real&server=1&as=student&studentId=${WORD_PROCESSOR_STUDENT}`, viewport);
@@ -303,15 +311,18 @@ for (const viewport of VIEWPORTS) {
     const liveText = await live.innerText();
     expect(`T1 ${tag} the facts, as facts`, /Pasted into a math box/.test(liveText) && /What was pasted is not recorded/.test(liveText) && /Left the page, then a burst of right parts/.test(liveText) && /2 parts were answered and marked right/.test(liveText) && /Right first time on a hard question, with no tool work/.test(liveText) && /difficulty band 3/.test(liveText), liveText);
     expect(`T1 ${tag} where each happened`, (liveText.match(/Classwork · Question 3/g) || []).length === 3, liveText);
-    expect(`T1 ${tag} never a verdict`, /never change a score, an attempt or mastery/.test(liveText) && !/cheat|integrity|dishonest|suspicious/i.test(liveText), liveText);
+    expect(`T1 ${tag} never a verdict, and labelled not conclusive`, /never change a score, an attempt or mastery/.test(liveText) && !/cheat|integrity|dishonest|suspicious/i.test(liveText) && (await live.locator('[data-not-conclusive]').count()) === 3, liveText);
+    expect(`T1 ${tag} class time and supports beside each`, (liveText.match(/During the class's scheduled time · No supports in effect/g) || []).length === 3, liveText);
     await shot(page, 't1-live-tile', viewport);
     const drawerBefore = await page.locator('[data-student-profile-drawer]').count();
-    await live.getByRole('button', { name: /^Dismiss: Pasted into a math box/ }).click();
+    await live.getByLabel(/^Note for your review \(optional\): Pasted into a math box/).fill(REVIEW_NOTE);
+    await live.getByRole('button', { name: /^Mark reviewed: Pasted into a math box/ }).click();
     await page.waitForFunction((id) => document.querySelectorAll(`[data-live-tile="${id}"] [data-attempt-signal]`).length === 2, STUDENT, { timeout: 10000 }).catch(() => {});
-    expect(`T1 ${tag} dismissed: it leaves the tile`, (await live.locator('[data-attempt-signal]').count()) === 2 && (await live.locator('[data-attempt-signal="pasted"]').count()) === 0, await live.innerText().catch(() => 'the panel is gone'));
-    expect(`T1 ${tag} Dismiss does not open the student`, (await page.locator('[data-student-profile-drawer]').count()) === drawerBefore, 'the tile opened the student when Dismiss was pressed');
+    expect(`T1 ${tag} reviewed: it leaves the tile`, (await live.locator('[data-attempt-signal]').count()) === 2 && (await live.locator('[data-attempt-signal="pasted"]').count()) === 0, await live.innerText().catch(() => 'the panel is gone'));
+    expect(`T1 ${tag} Mark reviewed does not open the student`, (await page.locator('[data-student-profile-drawer]').count()) === drawerBefore, 'the tile opened the student when Mark reviewed was pressed');
     const dismissed = (await signalsOf(page, STUDENT)).find((signal) => signal.kind === 'pasted');
-    expect(`T1 ${tag} the dismissal names the teacher and changes nothing else`, dismissed?.dismissedByEmail === HARNESS_TEACHER && Boolean(dismissed?.dismissedAt) && dismissed.partIndex === 0 && dismissed.questionIndex === QUESTION_INDEX, JSON.stringify(dismissed));
+    expect(`T1 ${tag} the review names the teacher, keeps their note and changes nothing else`, dismissed?.dismissedByEmail === HARNESS_TEACHER && Boolean(dismissed?.dismissedAt) && dismissed.reviewNote === REVIEW_NOTE && dismissed.partIndex === 0 && dismissed.questionIndex === QUESTION_INDEX && dismissed.kind === 'pasted', JSON.stringify(dismissed));
+    expect(`T1 ${tag} reviewed is not deleted`, (await signalsOf(page, STUDENT)).length === 3, `${(await signalsOf(page, STUDENT)).length} records`);
     // No tile reads signals for a student whose heartbeat reports none.
     expect(`T1 ${tag} only on tiles that have some`, (await page.locator('[data-live-tile] [data-worth-a-conversation]').count()) === 1, `${await page.locator('[data-live-tile] [data-worth-a-conversation]').count()} tiles show the panel`);
   }
@@ -324,15 +335,20 @@ for (const viewport of VIEWPORTS) {
   await results.waitFor({ timeout: 10000 }).catch(() => {});
   await results.locator('[data-attempt-signal]').first().waitFor({ timeout: 10000 }).catch(() => {});
   const resultsText = (await results.count()) ? await results.innerText() : '';
-  expect(`T3 ${tag} the student's results list what is still open`, /Worth a conversation \(2\)/.test(resultsText) && /Left the page, then a burst of right parts/.test(resultsText) && /Right first time on a hard question/.test(resultsText) && !/Pasted into a math box/.test(resultsText), resultsText || 'no "Worth a conversation" in the drawer');
-  expect(`T3 ${tag} each names its assignment and question`, (resultsText.match(new RegExp(`${LESSON} · Classwork · Question 3`, 'g')) || []).length === 2, resultsText);
+  expect(`T3 ${tag} the student's results list what is still open`, /Worth a conversation \(2\)/.test(resultsText) && /Left the page, then a burst of right parts/.test(resultsText) && /Right first time on a hard question/.test(resultsText) && /Reviewed \(1\)/.test(resultsText), resultsText || 'no "Worth a conversation" in the drawer');
+  expect(`T3 ${tag} each names its assignment and question`, (resultsText.match(new RegExp(`${LESSON} · Classwork · Question 3`, 'g')) || []).length >= 2, resultsText);
+  if (await results.locator('[data-reviewed-signals]').count()) {
+    await results.locator('[data-reviewed-signals] > summary').click();
+    const keptText = await results.locator('[data-reviewed-signals]').innerText();
+    expect(`T3 ${tag} the reviewed signal is kept, with who reviewed it and their note`, /Pasted into a math box/.test(keptText) && keptText.includes(`Reviewed by ${HARNESS_TEACHER}`) && keptText.includes(REVIEW_NOTE) && (await results.locator('[data-reviewed-signals] button').count()) === 0, keptText);
+  } else findings.push(`T3 ${tag}: no "Reviewed" list in the drawer`);
   expect(`T3 ${tag} only the teacher sees them, and they are not a grade`, /Students never see them/.test(resultsText) && /never change a score, an attempt or mastery/.test(resultsText), resultsText);
   if (await results.count()) {
     await results.scrollIntoViewIfNeeded();
     await shot(page, 't3-student-results', viewport);
-    await results.getByRole('button', { name: /^Dismiss: Left the page/ }).click();
-    await page.waitForFunction((id) => document.querySelectorAll(`[data-student-profile-drawer="${id}"] [data-attempt-signal]`).length === 1, STUDENT, { timeout: 10000 }).catch(() => {});
-    expect(`T3 ${tag} dismissed there too`, /Worth a conversation \(1\)/.test(await results.innerText()), await results.innerText());
+    await results.getByRole('button', { name: /^Mark reviewed: Left the page/ }).click();
+    await page.waitForFunction((id) => /Worth a conversation \(1\)/.test(document.querySelector(`[data-student-profile-drawer="${id}"] [data-worth-a-conversation]`)?.innerText || ''), STUDENT, { timeout: 10000 }).catch(() => {});
+    expect(`T3 ${tag} reviewed there too, without a note`, /Worth a conversation \(1\)/.test(await results.innerText()) && /Reviewed \(2\)/.test(await results.innerText()), await results.innerText());
   }
   await drawer.getByRole('button', { name: 'Close student profile' }).click().catch(() => {});
 
@@ -349,6 +365,63 @@ for (const viewport of VIEWPORTS) {
     await projectedDrawer.locator('[data-worth-a-conversation-withheld]').waitFor({ timeout: 10000 }).catch(() => {});
     expect(`T2 ${tag} nor in a drawer opened over the projected tiles`, (await projectedDrawer.count()) === 1 && (await projectedDrawer.locator('[data-worth-a-conversation-withheld]').count()) === 1 && (await page.locator('[data-worth-a-conversation], [data-attempt-signal]').count()) === 0, (await projectedDrawer.count()) ? 'the drawer shows the signals while the tiles are projected' : 'the drawer did not open');
   } else findings.push(`T2 ${tag}: no "Large room tiles" control to check the projector`);
+  await page.close();
+
+  /* --------------------------------------- the assignment's results */
+  // By now: the paste and the absence are reviewed, "right first time" is not.
+  page = await openPage(context, '', viewport);
+  const openStudent = async () => {
+    const liveTile = page.locator(`[data-live-tile="${STUDENT}"]`).first();
+    await liveTile.waitFor({ timeout: 20000 });
+    await liveTile.getByRole('button').first().click();
+    const opened = page.locator(`[data-student-profile-drawer="${STUDENT}"]`);
+    await opened.waitFor({ timeout: 10000 });
+    return opened;
+  };
+  let studentDrawer = await openStudent();
+  // "Work", exactly: "Mark reviewed: … no tool work" is a button too.
+  const lessonRow = studentDrawer.locator('tr, li').filter({ hasText: LESSON }).filter({ has: page.getByRole('button', { name: 'Work', exact: true }) }).last();
+  await lessonRow.getByRole('button', { name: 'Work', exact: true }).first().click();
+  const questionNotes = page.locator(`[data-question-signals="${QUESTION_INDEX}"]`);
+  await questionNotes.waitFor({ timeout: 20000 }).catch(() => {});
+  const notesText = (await questionNotes.count()) ? await questionNotes.innerText() : '';
+  expect(`T4 ${tag} the assignment's results show the signals beside their question`, (await questionNotes.count()) === 1 && (await questionNotes.locator('[data-attempt-signal]').count()) === 3 && /WORTH A CONVERSATION/i.test(notesText), notesText || 'no signals beside Classwork Q2 in the gradebook\'s student view');
+  expect(`T4 ${tag} what happened, in which part, and not conclusive`, /Pasted into a math box/.test(notesText) && /answer box of part 1/.test(notesText) && /Left the page/.test(notesText) && /Right first time/.test(notesText) && (await questionNotes.locator('[data-not-conclusive]').count()) === 3, notesText);
+  expect(`T4 ${tag} when, with class time and supports`, /\d{4}/.test(notesText) && /During the class's scheduled time · No supports in effect/.test(notesText), notesText);
+  expect(`T4 ${tag} the reviewed ones stay, marked reviewed with the note; one still needs attention`, (await questionNotes.locator('[data-attempt-signal][data-reviewed="true"]').count()) === 2 && notesText.includes(REVIEW_NOTE) && (await questionNotes.getByRole('button', { name: /^Mark reviewed:/ }).count()) === 1, notesText);
+  expect(`T4 ${tag} no other question carries a note`, (await page.locator('[data-question-signals]').count()) === 1, `${await page.locator('[data-question-signals]').count()} questions show signals`);
+  if (await questionNotes.count()) { await questionNotes.scrollIntoViewIfNeeded(); await shot(page, 't4-assignment-results', viewport); }
+  await page.close();
+
+  /* ------------------------------------------------- the case review */
+  page = await openPage(context, '', viewport);
+  studentDrawer = await openStudent();
+  await studentDrawer.locator('[data-case-review-entry]').getByRole('button', { name: 'Open case review' }).click();
+  const review = page.locator('[data-case-review]');
+  await review.waitFor({ timeout: 30000 });
+  await review.getByRole('button', { name: /^(Build|Rebuild) case review$/ }).click();
+  await review.getByRole('tablist').waitFor({ timeout: 30000 });
+  await review.getByRole('tab', { name: 'Work-pattern signals' }).click();
+  const patterns = review.locator('[data-case-work-patterns]');
+  await patterns.waitFor({ timeout: 20000 }).catch(() => {});
+  const patternsText = (await patterns.count()) ? await patterns.innerText() : '';
+  expect(`T5 ${tag} the case review has a Work-pattern signals section, labelled not conclusive`, /Work-pattern signals \(3\)/.test(patternsText) && /Not conclusive/.test(patternsText) && /no narrative fact is written from them/.test(patternsText), patternsText || 'no Work-pattern signals section');
+  expect(`T5 ${tag} patterns over the window: how often, and how many are reviewed`, /Pasted into a math box on 1 of \d+ answered questions\./.test(patternsText) && /2 of 3 reviewed by a teacher; 1 not yet reviewed\./.test(patternsText) && /3 recorded during the class's scheduled time, 0 outside it\./.test(patternsText), patternsText);
+  const rows = review.locator('[data-case-signal-rows] tbody tr');
+  const rowsText = (await rows.count()) ? await review.locator('[data-case-signal-rows]').innerText() : '';
+  expect(`T5 ${tag} each signal is listed with its review and the teacher's note`, (await rows.count()) === 3 && rowsText.includes(REVIEW_NOTE) && /Not yet reviewed/.test(rowsText) && rowsText.includes(`Reviewed by ${HARNESS_TEACHER}`), rowsText || 'no signal rows');
+  await shot(page, 't5-case-review-signals', viewport);
+  await review.getByRole('tab', { name: 'Timeline' }).click();
+  await review.getByRole('button', { name: 'Work-pattern signals' }).click();
+  await page.waitForTimeout(400);
+  const onTimeline = review.locator('[data-timeline-kind="work-pattern-signal"]');
+  expect(`T5 ${tag} on the case timeline`, (await onTimeline.count()) === 3 && (await review.locator('[data-timeline-kind]:not([data-timeline-kind="work-pattern-signal"])').count()) === 0 && /\(not conclusive\)/.test(await onTimeline.first().innerText()), `${await onTimeline.count()} timeline entries`);
+  await review.getByRole('tab', { name: 'Narrative facts' }).click();
+  await page.waitForTimeout(400);
+  // The fact sentences themselves (the tab also prints the guard's own rules).
+  const factsText = (await review.locator('[data-case-tab="facts"] .cr-fact__text').allInnerTexts().catch(() => [])).join('\n');
+  const signalWords = factsText.match(/.{0,60}(?:pasted|left the page|right first time|work-pattern|worth a conversation).{0,60}/i);
+  expect(`T5 ${tag} no narrative fact is written from a signal`, factsText.length > 0 && !signalWords, signalWords ? signalWords[0] : 'the Narrative facts tab did not draw');
   await page.close();
   await studentTab.close();
   await context.close();
