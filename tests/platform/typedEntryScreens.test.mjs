@@ -1,0 +1,116 @@
+/*
+ * AN UNFINISHED OR OVER-LONG ENTRY CANNOT BE SUBMITTED, ON ANY TYPED-FIELD
+ * SURFACE (#557, #558; the owner, 2026-11-19).
+ *
+ * The rule is functions/shared/typedEntryGuard.mjs (typedEntryGuard.test.mjs).
+ * This file holds that each screen asks it and acts on the answer: the
+ * assignment engine's six typed graders, My Math Path's generic boxes, and the
+ * secure field item (a secure test and Test Cycle Corrections). Nothing here
+ * renders (node cannot import .jsx): the Path rule is a plain module and is
+ * run; the components are read, each assertion bound to the statement that
+ * does the work. tests/browser/typedEntryRefusal.mjs types into the real
+ * screens.
+ */
+import test from 'node:test';
+import assert from 'node:assert/strict';
+
+import { componentSource, executableSource, region } from './helpers/sourceContract.mjs';
+
+const pathEntry = await import('../../src/platform/path/pathResponseEntry.js').catch(() => ({}));
+const read = (file) => executableSource(componentSource(file));
+
+test('My Math Path: Check is held back while a box is unfinished or too long, and the box says why', () => {
+  const { pathEntryProblem, pathResponseComplete } = pathEntry;
+  const fields = [{ id: 'a', inputProfile: 'number' }, { id: 'b', inputProfile: 'expression' }];
+  assert.equal(pathResponseComplete(fields, { a: '12', b: '2x+1' }), true);
+  assert.equal(pathResponseComplete(fields, { a: '12', b: '' }), false, 'a blank box, as before');
+  assert.equal(pathResponseComplete(fields, { a: '12 +', b: '2x+1' }), false, 'an unfinished entry');
+  assert.equal(pathResponseComplete(fields, { a: '12', b: '2x+1\\cdot' }), false);
+  assert.equal(pathResponseComplete(fields, { a: '*12', b: '2x+1' }), false);
+  assert.equal(pathResponseComplete(fields, { a: '12', b: 'x'.repeat(241) }), false, 'an entry over 240 characters');
+  assert.equal(pathResponseComplete(fields, { a: '-12', b: '3*-x' }), true, 'a sign that opens a term is finished');
+  assert.match(pathEntryProblem(fields[0], '12 +'), /not finished.*no try is used/);
+  assert.match(pathEntryProblem(fields[1], 'x'.repeat(241)), /240 characters.*no try is used/);
+  assert.equal(pathEntryProblem(fields[0], '12'), '');
+  // A choice is never typed. A box of words is read for its length only.
+  assert.equal(pathEntryProblem({ id: 'c', inputProfile: 'choice' }, 'A+'), '');
+  assert.equal(pathResponseComplete([{ id: 'w', inputProfile: 'text' }], { w: 'A+' }), true);
+  assert.equal(pathResponseComplete([{ id: 'w', inputProfile: 'text' }], { w: 'x'.repeat(241) }), false);
+  // No fields at all: the one default box, as before.
+  assert.equal(pathResponseComplete([], { answer: 'increasing' }), true);
+  assert.equal(pathResponseComplete([], {}), false);
+
+  // The player gates both Check and Enter on it, and each box draws the sentence.
+  const player = read('src/components/student/PathSessionPlayer.jsx');
+  assert.match(player, /const complete = pathResponseComplete\(fields, values\);/);
+  assert.match(region(player, 'const submit = async () => {', 'await onSubmitAnswer', 'the generic renderer\'s submit'), /if \(!complete \|\| isSubmitting \|\| finalized\) return;/);
+  const boxes = read('src/components/student/PathResponseFields.jsx');
+  for (const box of ['function WordField(', 'function MathField(']) {
+    assert.match(region(boxes, box, '\n}\n', box), /<TypedEntryNotice message=\{disabled \? '' : pathEntryProblem\(field, value\)\}/, `${box} draws the notice`);
+  }
+});
+
+test('the assignment engine: each typed grader reports an unfinished or over-long entry as not ready to submit', () => {
+  // The engine submits only a complete answer (handleSubmit, performSubmit and
+  // the Submit button all read answerState.isComplete), so "not complete" is
+  // "not submitted, no try used".
+  const engine = read('src/QuestionEngine.jsx');
+  assert.match(region(engine, 'const performSubmit = async', 'serverGrading', 'performSubmit\'s guard'), /if \(!answerState\.isComplete \|\|/);
+  assert.match(region(engine, 'const handleSubmit = async () => {', 'await performSubmit()', 'handleSubmit'), /if \(!answerState\.isComplete \|\|/);
+  assert.match(engine, /const submitDisabled = !answerState\.isComplete \|\|/);
+
+  const multi = read('src/MultiAnswerGrader.jsx');
+  const entryProblems = region(multi, 'const entryProblems = useMemo(', '\n  useEffect(', 'entryProblems');
+  assert.match(entryProblems, /typedEntryNotice\(answers\[field\.id\], \{/);
+  assert.match(entryProblems, /words: shouldUsePlainTextInput\(field\) \|\| isChoiceAnswerField\(field\)/, 'a box of words or choices is read for its length only');
+  assert.match(entryProblems, /const isComplete = graded\.isComplete && !Object\.values\(formatProblems\)\.some\(Boolean\) && !Object\.values\(entryProblems\)\.some\(Boolean\);/);
+  assert.match(multi, /<TypedEntryNotice message=\{entryProblems\[field\.id\]\} entry=\{answers\[field\.id\]\}/);
+  // Part by part: a part whose entry is refused cannot be passed.
+  assert.match(region(multi, 'const partDone = useMemo(', 'const firstOpenPart', 'partDone'), /&& !entryProblems\[field\.id\]/);
+
+  for (const [file, value, complete] of [
+    ['src/LiteralGrader.jsx', 'answer, { keys: safeAcceptedAnswers }', /const isComplete = graded\.isComplete && !entryProblem;/],
+    ['src/FractionGrader.jsx', 'answer', /const isComplete = graded\.isComplete && !formProblem && !entryProblem;/],
+    ['src/OrderedPairGrader.jsx', 'studentAnswer', /const isComplete = graded\.isComplete && !entryProblem;/],
+    ['src/SystemGrader.jsx', 'answer', /const isComplete = graded\.isComplete && !entryProblem;/],
+  ]) {
+    const source = read(file);
+    assert.ok(source.includes(`const entryProblem = typedEntryNotice(${value});`), `${file} asks the rule`);
+    assert.match(source, complete, `${file} folds it into isComplete`);
+    assert.match(region(source, 'onStateChange({', '});', `${file}'s report`), /\n\s+isComplete,/, `${file} reports that isComplete`);
+    assert.match(source, /<TypedEntryNotice message=\{entryProblem\} entry=\{/, `${file} draws the notice`);
+  }
+  const table = read('src/TableGrader.jsx');
+  const cells = region(table, 'const entryProblem = useMemo(', 'useEffect(', 'the table\'s entryProblem');
+  assert.match(cells, /for \(const key of editableKeys\)/);
+  assert.match(cells, /typedEntryNotice\(studentAnswers\[key\]\)/);
+  assert.match(cells, /const isComplete = graded\.isComplete && !entryProblem;/);
+  assert.match(table, /<TypedEntryNotice\s+message=\{entryProblem \?/);
+});
+
+test('the secure field item: Corrections cannot submit such an entry, and a secure test says so at the box', () => {
+  const runtime = read('src/components/question/RichQuestionRuntime.jsx');
+  const item = region(runtime, 'const FieldItem = (', 'const actionLabel', 'FieldItem');
+  assert.match(item, /typedEntryNotice\(responses\[field\.id\], \{ words, tries: !navigationMode \}\)/);
+  // A choice is not typed.
+  assert.match(item, /const typed = !\(field\.choices\?\.length \|\| \(fields\.length === 1 && choices\.length\)\);/);
+  assert.match(item, /const complete = fields\.every\(\(field\) => String\(responses\[field\.id\] \?\? ''\)\.trim\(\)\) && !Object\.values\(entryProblems\)\.some\(Boolean\);/);
+  // Where there is a Submit (Corrections: every press spends a try), it is held back.
+  assert.match(item, /if \(navigationMode \|\| !complete \|\| locked\) return;/);
+  assert.match(runtime, /const enabled = complete && !locked;/);
+  // In a secure test the draft is still saved as typed: the refusal loses nothing.
+  const update = region(item, 'const updateResponse = (id, value) => {', '\n  };\n', 'updateResponse');
+  assert.match(update, /onDraftChange\?\.\(\{ responses: next/);
+  assert.doesNotMatch(update, /entryProblems|typedEntryNotice/);
+  assert.match(runtime, /<TypedEntryNotice message=\{locked \? '' : entryProblems\[field\.id\]\} entry=\{responses\[field\.id\] \?\? ''\} \/>/);
+});
+
+test('the notice waits for the entry to stand, and is a status a screen reader hears once', () => {
+  const notice = read('src/components/common/TypedEntryNotice.jsx');
+  assert.match(notice, /export const TYPED_ENTRY_NOTICE_DELAY_MS = \d+;/);
+  assert.match(notice, /setTimeout\(\(\) => setShown\(message\), TYPED_ENTRY_NOTICE_DELAY_MS\)/);
+  assert.match(notice, /return \(\) => clearTimeout\(timer\);/);
+  assert.match(notice, /\}, \[message, entry\]\);/, 'the wait starts again when the entry changes');
+  assert.match(notice, /if \(!message \|\| shown !== message\) return null;/, 'gone as soon as the entry is fine');
+  assert.match(notice, /<p role="status"[^>]*data-typed-entry-notice/);
+});

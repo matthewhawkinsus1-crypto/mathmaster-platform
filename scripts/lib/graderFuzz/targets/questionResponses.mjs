@@ -39,6 +39,7 @@ import { gradeServerResponse } from '../../../../functions/shared/serverGrading/
 import { familyQuestionCorpus } from '../corpus.mjs';
 import { errorLine, finding } from '../findings.mjs';
 import { INPUT_CLASSES, breakOf, isUnfinished, typedInput } from '../inputs.mjs';
+import { MAX_TYPED_ANSWER_LENGTH, typedEntryNotice } from '../../../../functions/shared/typedEntryGuard.mjs';
 
 export const id = 'questionResponses';
 
@@ -155,8 +156,20 @@ export const check = async (fuzzCase, { slowMs = 2000 } = {}) => {
   if (device.thrown) return found;
   const partsOf = (result) => (result.parts || []).filter((part) => part.graded !== false).map((part) => `${part.id}:${part.isCorrect === true}`);
 
+  // An entry the box refuses (unfinished, or over the length an answer may
+  // be: typedEntryGuard.mjs) is never sent, so there is no verdict to agree
+  // on. A tab on an older build still sends it: the server must not mark it
+  // right. (Such a tab sends an over-long box cut to the record's length, and
+  // what is left may be a finished right answer: only an entry the server
+  // receives whole is held to this.)
+  const refusedOnScreen = fuzzCase.fuzzed !== undefined && question.type !== 'numberLine' && typedEntryNotice(typed) !== '';
   const server = timed('server', () => onServer(question, answers, device.result));
-  if (!server.thrown) {
+  if (!server.thrown && refusedOnScreen) {
+    if (typed.length <= MAX_TYPED_ANSWER_LENGTH && server.result.graded && server.result.isCorrect === true) {
+      report('device-server-parity', `refused-on-screen/${question.type}/${input.inputClass}/server=true`,
+        `${question.type}: the box refuses ${JSON.stringify(typed.slice(0, 120))}${typed.length > 120 ? `… (${typed.length} characters)` : ''} in ${fuzzCase.fuzzed}, and the server marks the question right when it is sent anyway`);
+    }
+  } else if (!server.thrown) {
     const marked = server.result;
     // The server does not mark these types at all (gradingManifest.mjs), and
     // it refuses, never marks wrong, what the screen calls unfinished.
@@ -179,8 +192,12 @@ export const check = async (fuzzCase, { slowMs = 2000 } = {}) => {
   if (input.inputClass === 'key' && fuzzCase.allKeyed && device.result.isCorrect !== true) {
     report('key-is-right', question.type, `a ${question.type} question answered with its own keys is not marked right: ${JSON.stringify(partsOf(device.result))}`);
   }
+  // …and its box takes it: a key is never called unfinished or too long.
+  if (input.inputClass === 'key' && refusedOnScreen) {
+    report('key-is-right', `${question.type}/refused-on-screen`, `the box refuses the key ${JSON.stringify(typed.slice(0, 120))} of a ${question.type} question: ${typedEntryNotice(typed)}`);
+  }
 
-  if (input.inputClass === 'brokenKey' && isUnfinished(typed) && device.result.isCorrect === true) {
+  if (input.inputClass === 'brokenKey' && isUnfinished(typed) && !refusedOnScreen && device.result.isCorrect === true) {
     report('unfinished-not-right', breakOf(typed, fuzzCase.key), `${JSON.stringify(typed)} is marked right on a ${question.type} question keyed ${JSON.stringify(fuzzCase.key)}`);
   }
   return found;

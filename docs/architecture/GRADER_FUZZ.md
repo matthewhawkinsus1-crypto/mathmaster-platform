@@ -16,10 +16,11 @@ them to what the platform promises.
 | Property | Meaning |
 | --- | --- |
 | `never-throws` | No grader, reader or draft step throws, whatever was typed. |
-| `device-server-parity` | The verdict on the screen is the verdict the server gives the bytes the screen sent. |
+| `device-server-parity` | The verdict on the screen is the verdict the server gives the bytes the screen sent. An entry the box refuses (unfinished, or over 240 characters: `functions/shared/typedEntryGuard.mjs`) is never sent, so there is none to agree on; a tab on an older build still sends it, and no grader may mark it right. |
 | `path-secure-parity` | My Math Path and a secure test's close give one stored grading definition one verdict. |
 | `key-is-right` | A question answered with its own keys is right, everywhere. |
 | `unfinished-not-right` | The key left unfinished (`12 +`, `(x`) is not a right answer. |
+| `key-is-right` (the box) | The key itself is never refused by its box as unfinished or too long. |
 | `typed-value-readable` | A typed value in a tool's box never makes its grader give up (`malformed-response`). |
 | `round-trips`, `recovered-verdict`, `reopens-the-same` | A saved draft reads back as saved, is marked as it would have been had it been submitted, and reopens unchanged. |
 | `answers-in-time`, `reopen-time-grows-with-length` | One verdict takes under two seconds, and cost grows with length, not exponentially. |
@@ -42,6 +43,7 @@ needs a catch).
 | `partial` | `2x +`, `(`, `1/`, `=`, `\frac{1}{` |
 | `blank` | nothing, spaces, a tab, a zero-width space |
 | `long` | one token repeated to 241, 300, 1,001 or more characters |
+| `manyTerms` | many short terms inside the 240 characters a box may hold: 48 like terms with varied coefficients, a chain of divisions, a run of brackets. A length limit bounds characters, and a comparison's cost is set by its terms (#558) |
 | `oddNumber` | `1e999`, `0x10`, `1,000`, `1/0`, `.5`, `5.`, digits of another script |
 | `implicit` | `Pr`, `x(x-5)`, `2πr`, `xy`, `sin x` |
 | `hostile` | markup, JSON, `__proto__`, control characters |
@@ -123,3 +125,9 @@ fails on any `fail` finding whose signature is not in
 - A tool's work is fuzzed from captured or key-built work where there is some,
   and from the names its grader reads where there is none. A tool with no
   captured work has its typed boxes exercised less precisely.
+- A Step Algebra draft's own text is drawn from every class but `long` and
+  `manyTerms` (`targets/drafts.mjs`). A saved operand of many like terms
+  takes minutes to reopen (mathjs's rule matcher; the November handoff,
+  section 6, "A long side"), and a run that does not end reports nothing. The
+  operation box refuses such an operand when it is typed; a saved draft is
+  not read through that budget.
