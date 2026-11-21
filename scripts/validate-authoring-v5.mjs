@@ -1,6 +1,42 @@
+import { readFileSync } from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { buildAuthoringContract } from '../src/platform/contract/authoringContract.js';
 import { parseAssignmentBlueprintText, validateAssignmentQuestions } from '../src/assignmentBlueprint.js';
 import { validateQuestionsSemantics } from '../src/platform/contract/semanticValidation.js';
+import { buildAssignmentV5PreflightModel } from '../src/platform/preflight/assignmentV5PreflightModel.js';
+
+const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
+
+/*
+ * An author's own file: `npm run validate:authoring-v5 -- my-lesson.json`.
+ * It is compiled as the Assignment Creator compiles it and judged by the
+ * compiler, the question validator and Pre-Flight; errors fail the run and
+ * warnings are listed. (docs/assignments/AUTHORING_LEARNING_SUPPORTS.md)
+ */
+const authorFiles = process.argv.slice(2).filter((arg) => !arg.startsWith('--'));
+if (authorFiles.length) {
+  let failed = 0;
+  authorFiles.forEach((file) => {
+    let errors = [];
+    let warnings = [];
+    try {
+      const parsed = parseAssignmentBlueprintText(readFileSync(path.resolve(file), 'utf8'));
+      validateAssignmentQuestions(parsed.questions);
+      const semantic = validateQuestionsSemantics(parsed.questions);
+      const preflight = buildAssignmentV5PreflightModel(parsed.assignmentV5);
+      errors = [...new Set([...semantic.errors, ...preflight.errors])];
+      warnings = [...new Set([...parsed.warnings, ...semantic.warnings, ...preflight.warnings])];
+    } catch (error) {
+      errors = [String(error?.message || error)];
+    }
+    if (errors.length) failed += 1;
+    console.log(`${errors.length ? 'FAIL' : 'PASS'} ${file}`);
+    errors.forEach((error) => console.log(`  error: ${error}`));
+    warnings.forEach((warning) => console.log(`  warning: ${warning}`));
+  });
+  process.exit(failed ? 1 : 0);
+}
 
 const sample = {
   schemaVersion: 5,
@@ -83,4 +119,26 @@ try {
 }
 if (!v4Rejected) throw new Error('V4 assignment input is no longer supposed to be accepted.');
 
-console.log(`MathMaster Assignment V5: PASS (${parsed.questions.length} sample questions; workflow ${kinds.join(' -> ')}; contract ${contract.length} chars)`);
+// Learning supports (AG-1): the guide's example lesson is accepted with every
+// field carried through, and an example on a DOL question is refused.
+const fragmentText = readFileSync(path.join(ROOT, 'tests/platform/fixtures/learningSupportsLessonFragment.json'), 'utf8');
+const fragment = parseAssignmentBlueprintText(fragmentText);
+const fragmentSemantic = validateQuestionsSemantics(fragment.questions);
+const fragmentPreflight = buildAssignmentV5PreflightModel(fragment.assignmentV5);
+if (fragmentSemantic.errors.length || fragmentPreflight.errors.length) {
+  throw new Error(`The learning-supports example lesson was refused:\n${[...fragmentSemantic.errors, ...fragmentPreflight.errors].join('\n')}`);
+}
+if (!fragment.assignmentV5.lessonSupports?.examples?.length || !fragment.questions.some((question) => question.example)) {
+  throw new Error('V5 compiler dropped lessonSupports or a question\'s example.');
+}
+const onDol = JSON.parse(fragmentText);
+onDol.sections.find((section) => section.role === 'dol').questions[0].example = 'ex-both-sides';
+let dolExampleRefused = false;
+try {
+  parseAssignmentBlueprintText(JSON.stringify(onDol));
+} catch (error) {
+  dolExampleRefused = /Examples are never shown on a DOL, quiz or test/.test(String(error?.message || error));
+}
+if (!dolExampleRefused) throw new Error('An example on a DOL question is supposed to be refused.');
+
+console.log(`MathMaster Assignment V5: PASS (${parsed.questions.length} sample questions; workflow ${kinds.join(' -> ')}; contract ${contract.length} chars; learning supports: ${fragment.questions.length}-question example lesson accepted, an example on DOL refused)`);
