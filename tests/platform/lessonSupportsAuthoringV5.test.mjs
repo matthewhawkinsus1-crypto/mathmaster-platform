@@ -477,10 +477,20 @@ const withNewFields = (source) => {
  * again with the fields written in, then taken out, is byte for byte the
  * lesson compiled without them.
  */
+/*
+ * A lesson written since the fields exist authors them itself: the Algebra I
+ * Thanksgiving Break Packet is the first. Existing lessons are still not
+ * back-filled, so only the lessons named here may carry a field; every other
+ * lesson is held as before, and these are held the other way round below.
+ */
+const AUTHORS_THE_FIELDS = /^teacher-import-jsons\/thanksgiving-packet\//;
+const authorsTheFields = (file) => AUTHORS_THE_FIELDS.test(path.relative(ROOT, file).split(path.sep).join('/'));
+const EXISTING_LESSON_FILES = LESSON_FILES.filter((file) => !authorsTheFields(file));
+
 test('on every existing assignment, the new fields pass through unchanged and change nothing else, byte for byte', () => {
-  assert.ok(LESSON_FILES.length >= 40, `found ${LESSON_FILES.length} lessons`);
+  assert.ok(EXISTING_LESSON_FILES.length >= 40, `found ${EXISTING_LESSON_FILES.length} lessons`);
   let carried = 0;
-  LESSON_FILES.forEach((file) => {
+  EXISTING_LESSON_FILES.forEach((file) => {
     const name = path.relative(ROOT, file);
     const original = JSON.parse(readFileSync(file, 'utf8'));
     const before = compiledView(parseAssignmentBlueprintText(JSON.stringify(original)));
@@ -512,4 +522,32 @@ test('on every existing assignment, the new fields pass through unchanged and ch
     assert.deepEqual(validateLessonSupportsV5(parsedAfter.assignmentV5).errors, [], `${name}: stored`);
   });
   assert.ok(carried > 100, `parts carrying a field across the lessons: ${carried}`);
+});
+
+test('a lesson that authors the fields compiles, apart from them, byte for byte to what it compiles to without them', () => {
+  const lessons = LESSON_FILES.filter(authorsTheFields);
+  assert.ok(lessons.length >= 1, 'a lesson authors the fields');
+  lessons.forEach((file) => {
+    const name = path.relative(ROOT, file);
+    const original = JSON.parse(readFileSync(file, 'utf8'));
+    assert.ok(keysFound(original).has('lessonSupports'), `${name}: authors lessonSupports`);
+    const parsed = parseAssignmentBlueprintText(JSON.stringify(original));
+    // The same lesson with its fields taken out of the source: nothing else
+    // in the compiled output depends on them.
+    const without = compiledView(parseAssignmentBlueprintText(JSON.stringify(withoutNewFields(original))));
+    assert.equal(JSON.stringify(withoutNewFields(compiledView(parsed))), JSON.stringify(without), `${name}: compiled output`);
+
+    // And the fields themselves arrived as written.
+    assert.deepEqual(parsed.assignmentV5.lessonSupports, original.lessonSupports, `${name}: lessonSupports`);
+    const authored = original.sections.flatMap((section) => section.questions || []);
+    authored.forEach((question, index) => {
+      assert.deepEqual(parsed.questions[index].example, question.example, `${name} question ${index + 1}: example`);
+    });
+    const authoredParts = authored.flatMap((question) => question.responses || []).filter((part) => part?.checkpoint || part?.followThrough);
+    const carriedParts = parsed.questions
+      .flatMap((question) => [...(question.answerFields || []), ...(question.fields || [])])
+      .filter((part) => part?.checkpoint || part?.followThrough);
+    assert.deepEqual(carriedParts.map((part) => part.followThrough || part.checkpoint), authoredParts.map((part) => part.followThrough || part.checkpoint), `${name}: every part's checkpoint or followThrough`);
+    assert.deepEqual(validateLessonSupportsV5(parsed.assignmentV5).errors, [], `${name}: stored`);
+  });
 });

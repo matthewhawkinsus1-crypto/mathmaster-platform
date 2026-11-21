@@ -333,7 +333,11 @@ const PUBLIC_GRADER_READS = Object.freeze({
     'system.**', 'spatialModel.**', 'linearQuadratic.**', 'quadratic.**', 'inequalities.**', 'testPoint.**',
     'source.**', 'sourcePoints.**', 'givenPoints', 'points.**', 'rows.**', 'pairs.**', 'tableXValues',
     'sets.**', 'cardKinds', 'mixedSet.**', 'targetId', 'function.**', 'initial.**', 'parentPoint', 'target.**', 'targetLabel',
-    'coordinates', 'applyResponseToGraph', 'line.**', 'slope', 'point', 'standard.**', 'value', 'orientation', 'referenceLine',
+    'coordinates', 'applyResponseToGraph', 'line.**', 'slope', 'point', 'standard.**', 'value', 'orientation',
+    // The given line of a parallel or perpendicular question, with its slope,
+    // intercept and relation: Graphing draws it and names it in the task, and
+    // its review starts from it (first authored in the Algebra I Thanksgiving packet).
+    'referenceLine.**',
     'm', 'b', 'expressions[].expression', 'd1', 'd2', 'n1', 'n2', 'quantities[].id', 'quantities[].label', 'quantities[].unit',
     'focus', 'directrix.**', 'z.**', 'w.**', 'quarterTurns', 'base', 'exponent', 'h', 'k', 'p', 'y', 'offset',
     'startingModel', 'predictionX', 'sourceData.**', 'constraints.**',
