@@ -42,12 +42,17 @@ import {
   storedAssignmentToV5,
 } from '../../src/platform/contract/storedAssignmentV5.js';
 import { ACTIVITY_POLICIES, resolveQuestionActivityRole } from '../../src/platform/policies/activityPolicies.js';
-import { getQuestionCredit, recordQuestionAttempt } from '../../functions/shared/attemptPolicy.mjs';
+import { getQuestionCredit, normalizeQuestionRecord, recordQuestionAttempt } from '../../functions/shared/attemptPolicy.mjs';
+import { buildStudentMasteryProfile, collectStudentEvidence } from '../../src/masteryEngine.js';
+import { EXAMPLE_SHOWN_LABEL, analyzeAssignmentQuestions } from '../../src/platform/caseReview/attemptAnalysis.js';
+import { focusAfterYourTurn } from '../../src/platform/supports/workedExample/yourTurnFocus.js';
 import { splitGrade } from '../../src/platform/teacher/gradeEvidence.js';
-import { attemptSupportUsageFrom } from '../../src/platform/supports/supportUseMemory.js';
+import { WORKED_EXAMPLE_SHOWN_AUTO, attemptSupportUsageFrom, rememberSupportUse, restoredSupportUse, supportUseFromRecord } from '../../src/platform/supports/supportUseMemory.js';
 import { similarExampleIsSafe } from '../../src/platform/supports/workedExample/similarProblem.js';
 import { exampleSkillOf } from '../../src/platform/supports/workedExample/exampleSkill.js';
 import {
+  EXAMPLE_COULD_NOT_LOAD_TEXT,
+  EXAMPLE_OPENED_ANNOUNCEMENT,
   EXAMPLE_PROBLEM_NOTE,
   EXAMPLE_SUB_SKILLS,
   EXAMPLE_YOUR_TURN_LABEL,
@@ -200,14 +205,166 @@ test('it opens by itself before the first Classwork question on a new skill, onc
     const other = exampleSectionRule({ sectionRole, activityRole: sectionRole, hintsAllowed: true });
     assert.equal(exampleOpensByItself({ rule: other, newSkill: true, example }), false, `${sectionRole} never opens one by itself`);
   }
-  // QuestionEngine opens it through this rule, and records it as it records one asked for.
+  assert.equal(opens({ alreadyShown: true }), false, 'once: not after it has opened by itself');
+  // QuestionEngine opens it through this rule. Nobody asked for it, so it is recorded as shown, never as used.
   const engine = executableSource(read('src/QuestionEngine.jsx'));
   const now = region(engine, 'const exampleOpensNow = exampleOpensByItself({', '});', 'the opening rule');
-  for (const line of [/rule: exampleRule,/, /newSkill: workedExampleContext\?\.newSkill === true,/, /example: similarExample,/, /alreadyUsed: restoredSupport\.workedExampleUsed \|\| workedExampleUsed,/, /attemptCount: record\.attemptCount,/, /locked,/]) assert.match(now, line);
+  for (const line of [/rule: exampleRule,/, /newSkill: workedExampleContext\?\.newSkill === true,/, /example: similarExample,/, /alreadyUsed: restoredSupport\.workedExampleUsed \|\| workedExampleUsed,/, /alreadyShown: restoredSupport\.workedExampleShown \|\| workedExampleShown,/, /attemptCount: record\.attemptCount,/, /locked,/]) assert.match(now, line);
   const effect = region(engine, 'if (!exampleOpensNow) return;', '}, [exampleOpensNow]);', 'the opening effect');
   assert.match(effect, /setSimilarOpen\(true\);/);
-  assert.match(effect, /setWorkedExampleUsed\(true\);/);
+  assert.match(effect, /setWorkedExampleShown\(true\);/);
+  assert.doesNotMatch(effect, /setWorkedExampleUsed/, 'an example nobody asked for is not help asked for');
   assert.match(effect, /setHintPanelOpen\(true\);/);
+  // A question with no skill to name is never a new skill: nothing says it is.
+  const unnamed = [{ questionId: 'u1', activityRole: 'classwork', prompt: 'Find the slope of the line through (1, 2) and (5, 5).' }];
+  assert.equal(exampleSkillOf(unnamed[0]), null);
+  assert.equal(lessonExampleContext({ questions: unnamed, index: 0, sectionRole: 'classwork' }).newSkill, false);
+});
+
+// ------------------------------------ 1b. shown by itself is not help asked for
+
+const TEKS = 'A.5A';
+const masteryQuestion = (dok = 2) => ({ type: 'algebra', activityRole: 'classwork', alignments: [{ framework: 'teks', code: TEKS, role: 'primary', evidenceLevel: 'assessed' }], dok });
+// A student who gets every Classwork question right first time, with the given help recorded on each.
+const profileWith = (state) => {
+  const assignment = { id: 'a1', title: 'Lesson', questions: Array.from({ length: 7 }, (_, index) => masteryQuestion(index % 3 === 0 ? 3 : 2)) };
+  const grades = Object.fromEntries(assignment.questions.map((_, index) => [index, recordQuestionAttempt({
+    record: null,
+    isCorrect: true,
+    supportUsage: attemptSupportUsageFrom({ supportUsage: {}, ...state }),
+    occurredAt: '2026-11-20T15:00:00.000Z',
+  }).record]));
+  return { grades, profile: buildStudentMasteryProfile({ student: { id: 's1', gradesByAssignment: { a1: grades } }, assignments: [assignment] }) };
+};
+
+test('an example that opened by itself leaves mastery unchanged; one the student asked for still counts as supported', () => {
+  const none = profileWith({});
+  const shown = profileWith({ workedExampleShown: true });
+  const asked = profileWith({ workedExampleUsed: true });
+  // What the attempt records: shown apart from used, and still independent.
+  assert.deepEqual(attemptSupportUsageFrom({ supportUsage: {}, workedExampleShown: true }), { ...attemptSupportUsageFrom({ supportUsage: {} }), workedExampleShown: WORKED_EXAMPLE_SHOWN_AUTO });
+  assert.equal(shown.grades[0].supportUsage.workedExampleShown, 'auto');
+  assert.equal(shown.grades[0].supportUsage.workedExampleUsed, false);
+  assert.equal(shown.grades[0].supportUsage.isMathematicallyIndependent, true);
+  assert.equal(asked.grades[0].supportUsage.isMathematicallyIndependent, false);
+  // A record with no example shown keeps the shape it always had.
+  assert.equal('workedExampleShown' in none.grades[0].supportUsage, false);
+  assert.equal('workedExampleShown' in attemptSupportUsageFrom({ supportUsage: {} }), false);
+
+  // Mastery: identical with the example shown, to the last field.
+  assert.deepEqual(shown.profile, none.profile);
+  const teks = (result) => result.profile.teks[TEKS];
+  assert.ok(teks(none).score > 0 && teks(none).itemCount === 7);
+  // Asked for: supported, as it always was (credit and independence both move).
+  assert.ok(teks(asked).score < teks(none).score, `${teks(asked).score} < ${teks(none).score}`);
+  assert.notDeepEqual(asked.profile, none.profile);
+  const rows = (result) => collectStudentEvidence({ student: { id: 's1', gradesByAssignment: { a1: result.grades } }, assignments: [{ id: 'a1', title: 'Lesson', questions: Array.from({ length: 7 }, (_, index) => masteryQuestion(index % 3 === 0 ? 3 : 2)) }] });
+  assert.deepEqual(rows(shown).map((row) => [row.supported, row.independentSuccess, row.credit]), rows(none).map((row) => [row.supported, row.independentSuccess, row.credit]));
+  assert.ok(rows(asked).every((row) => row.supported === true && row.independentSuccess === false));
+  // Both at once (it opened by itself, then the student opened it again): asked for wins.
+  const both = attemptSupportUsageFrom({ supportUsage: {}, workedExampleShown: true, workedExampleUsed: true });
+  assert.equal(both.workedExampleUsed, true);
+  assert.equal(both.isMathematicallyIndependent, false);
+});
+
+test('shown is remembered so it opens once, and the teacher sees it named apart from one asked for', () => {
+  // Across a remount and from the record: shown stays shown, and is never read as used.
+  const store = new Map();
+  const storage = { getItem: (key) => (store.has(key) ? store.get(key) : null), setItem: (key, value) => { store.set(key, String(value)); } };
+  rememberSupportUse('draft-1', { workedExampleShown: true }, storage);
+  const restored = restoredSupportUse({ draftKey: 'draft-1', record: null, storage });
+  assert.equal(restored.workedExampleShown, true);
+  assert.equal(restored.workedExampleUsed, false);
+  const fromRecord = supportUseFromRecord({ attemptCount: 1, supportUsage: { workedExampleShown: 'auto' } });
+  assert.equal(fromRecord.workedExampleShown, true);
+  assert.equal(fromRecord.workedExampleUsed, false);
+  assert.equal(supportUseFromRecord({ attemptCount: 1, supportUsage: { workedExampleShown: true } }).workedExampleShown, false, 'only the recorded value counts');
+  // The record keeps it through every later attempt and a normalise, and never invents it.
+  const first = recordQuestionAttempt({ record: null, isCorrect: false, supportUsage: attemptSupportUsageFrom({ supportUsage: {}, workedExampleShown: true }) }).record;
+  const second = recordQuestionAttempt({ record: first, isCorrect: true, responseKey: 'b', supportUsage: attemptSupportUsageFrom({ supportUsage: {}, workedExampleShown: true }) }).record;
+  assert.equal(normalizeQuestionRecord(second).supportUsage.workedExampleShown, 'auto');
+  assert.equal(normalizeQuestionRecord(second).supportUsage.isMathematicallyIndependent, true);
+  assert.equal('workedExampleShown' in normalizeQuestionRecord({ status: 'correct', attemptCount: 1, totalAttempts: 1, supportUsage: { workedExampleShown: 'yes' } }).supportUsage, false);
+  // QuestionEngine carries it into the attempt and the memory, apart from used.
+  const engine = executableSource(read('src/QuestionEngine.jsx'));
+  assert.match(region(engine, 'const attemptSupportUsage = () => attemptSupportUsageFrom({', '});', 'what an attempt records'), /workedExampleUsed,\s*workedExampleShown,/);
+  assert.match(engine, /rememberSupportUse\(draftKey, \{ hintUsed, hintsRevealed, workedExampleUsed, workedExampleShown, /);
+  // The teacher's attempt analysis: "Worked example" is one asked for; one shown has its own words.
+  const question = masteryQuestion();
+  const analyse = (supportUsage) => analyzeAssignmentQuestions({
+    assignment: { id: 'a1', schemaVersion: 5, sections: [{ id: 'classwork', role: 'classwork', questions: [question] }] },
+    student: { id: 's1', gradesByAssignment: { a1: { 0: recordQuestionAttempt({ record: null, isCorrect: true, supportUsage }).record } } },
+  });
+  const supportsOf = (result) => (Array.isArray(result) ? result : result?.questions || [])[0]?.lastAttemptSupports;
+  const shownSupports = supportsOf(analyse(attemptSupportUsageFrom({ supportUsage: {}, workedExampleShown: true })));
+  const askedSupports = supportsOf(analyse(attemptSupportUsageFrom({ supportUsage: {}, workedExampleUsed: true })));
+  assert.deepEqual(shownSupports, [EXAMPLE_SHOWN_LABEL]);
+  assert.deepEqual(askedSupports, ['Worked example']);
+  assert.match(EXAMPLE_SHOWN_LABEL, /not asked for/);
+});
+
+// --------------------------------------------- 1c. Your turn, and the announcement
+
+test('"Your turn" puts focus where the student can act: the answer, the next empty field, or the Hint control', () => {
+  const element = (name) => ({ name, focused: 0, focus() { this.focused += 1; doc.activeElement = this; } });
+  const doc = { activeElement: null, querySelector: () => null };
+  const answer = element('answer');
+  const empty = element('empty');
+  const hint = element('hint');
+  const root = { contains: (node) => [answer, empty, hint].includes(node), querySelector: (selector) => (selector === '[data-hint-control]' ? hint : null) };
+  const run = (options) => { doc.activeElement = null; return focusAfterYourTurn(root, { doc, ...options }); };
+  // 1. The first answer control takes the cursor.
+  assert.equal(run({ focusFirst: () => { answer.focus(); return true; }, nextEmpty: () => empty, acceptsFocus: () => true }), 'answer');
+  // 2. It does not (Review all parts, a read-only first control): the next empty field.
+  assert.equal(run({ focusFirst: () => false, nextEmpty: () => empty, acceptsFocus: () => true }), 'empty-field');
+  assert.equal(doc.activeElement, empty);
+  // It said it did, but focus is on the page body: still the next empty field.
+  assert.equal(run({ focusFirst: () => true, nextEmpty: () => empty, acceptsFocus: () => true }), 'empty-field');
+  // 3. No field takes a cursor: the Hint control, a button that is always there.
+  assert.equal(run({ focusFirst: () => false, nextEmpty: () => null, acceptsFocus: () => true }), 'hint-control');
+  assert.equal(doc.activeElement, hint);
+  assert.equal(run({ focusFirst: () => false, nextEmpty: () => empty, acceptsFocus: () => false }), 'hint-control');
+  // The Work View Help drawer's copy: the Hint control is found in the page when the work has none.
+  const bare = { contains: () => false, querySelector: () => null };
+  assert.equal(focusAfterYourTurn(bare, { doc: { activeElement: null, querySelector: (selector) => (selector === '[data-hint-control]' ? hint : null) }, focusFirst: () => false, nextEmpty: () => null }), 'hint-control');
+  assert.equal(focusAfterYourTurn(null), null);
+  // QuestionEngine hands over through it.
+  const engine = executableSource(read('src/QuestionEngine.jsx'));
+  assert.match(region(engine, 'const exampleYourTurn = () => {', '\n  };', 'Your turn'), /if \(focusAuthority\.isLive\(ticket\)\) focusAfterYourTurn\(questionEngineRef\.current\);/);
+});
+
+test('an example that opens by itself is announced: a polite region, empty on mount, then filled', () => {
+  const engine = executableSource(read('src/QuestionEngine.jsx'));
+  // Empty when the question mounts; filled by the effect that opens the example.
+  assert.match(engine, /const \[exampleAnnouncement, setExampleAnnouncement\] = useState\(''\);/);
+  assert.match(region(engine, 'if (!exampleOpensNow) return;', '}, [exampleOpensNow]);', 'the opening effect'), /setExampleAnnouncement\(EXAMPLE_OPENED_ANNOUNCEMENT\);/);
+  // Drawn whether or not the example is open yet, and only where one can open by itself (never a DOL, quiz or test).
+  assert.match(engine, /\{exampleRule\.opensByItself \? \(\s*<div role="status" aria-live="polite" data-example-announcement="" style=\{SR_ONLY_STYLE\}>\{exampleAnnouncement\}<\/div>\s*\) : null\}/);
+  assert.match(EXAMPLE_OPENED_ANNOUNCEMENT, /worked example opened/);
+  // Opening it moves no focus: nothing in the effect asks for any.
+  assert.doesNotMatch(region(engine, 'if (!exampleOpensNow) return;', '}, [exampleOpensNow]);', 'the opening effect'), /focus/i);
+});
+
+test('if the player cannot load, only it is replaced: the whole example as a list, and the question stays', async () => {
+  const panel = executableSource(read('src/platform/supports/hints/HintPanel.jsx'));
+  const opened = region(panel, '{similar && similarOpen && (', '</details>', 'the open example');
+  assert.match(opened, /<QuestionSupplementBoundary\s+stage="worked-example"\s+context=\{exampleFailure\?\.context\}\s+draftKey=\{exampleFailure\?\.draftKey\}\s+resetKey=\{exampleFailure\?\.resetKey\}\s+fallback=\{<WholeExample example=\{similar\}[^\n]*\/>\}\s*>\s*<Suspense/);
+  assert.match(opened, /<\/Suspense>\s*<\/QuestionSupplementBoundary>/);
+  const engine = executableSource(read('src/QuestionEngine.jsx'));
+  assert.match(engine, /const exampleFailure = \{ context: failureContext, draftKey, resetKey: supplementResetKey \};/);
+  assert.match(region(engine, 'const hintPanel = helpControlAvailable ? (', ') : null;', 'the hint panel'), /exampleFailure=\{exampleFailure\}/);
+  // The boundary contains a thrown load: its fallback is drawn in place of its children, and nothing above it sees the error.
+  const server = await createServer({ server: { middlewareMode: true }, appType: 'custom', logLevel: 'silent' });
+  try {
+    const Boundary = (await server.ssrLoadModule('/src/QuestionSupplementBoundary.jsx')).default;
+    const boundary = new Boundary({ stage: 'worked-example', fallback: 'whole example', children: 'player' });
+    assert.equal(boundary.render(), 'player');
+    boundary.state = Boundary.getDerivedStateFromError(new Error('Failed to fetch dynamically imported module'));
+    assert.equal(boundary.render(), 'whole example');
+  } finally {
+    await server.close();
+  }
+  assert.match(EXAMPLE_COULD_NOT_LOAD_TEXT, /could not load/);
 });
 
 // --------------------------------------------------------------- 2. the score

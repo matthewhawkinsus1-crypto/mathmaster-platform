@@ -39,6 +39,9 @@
  * WHAT OPENING ONE COSTS: nothing. It is recorded as `workedExampleUsed`, as
  * it always was, so the teacher sees it and mastery counts the attempt as
  * supported. No score reads it (tests/platform/workedExamplePlayer.test.mjs).
+ * One that Classwork opened by itself is recorded apart, as
+ * `workedExampleShown: 'auto'`: nobody asked for it, so the attempt stays
+ * independent and mastery is unchanged (supportUseMemory.js).
  */
 import { buildSimilarWorkedExample, similarExampleIsSafe } from './similarProblem.js';
 import { exampleSkillOf } from './exampleSkill.js';
@@ -194,8 +197,10 @@ export const lessonExampleContext = ({ questions = [], index = -1, sectionRole =
   const question = all[index];
   if (!isObject(question) || context.sectionRole !== 'classwork' || questionExampleExemption(question)) return context;
   const skill = lessonSkillOf(question);
+  // No skill to name: nothing says this is a new one, so nothing opens by itself.
+  if (!skill) return context;
   const role = (candidate) => lower(typeof roleOf === 'function' ? roleOf(candidate) : candidate?.activityRole);
-  const taughtEarlier = Boolean(skill) && all.slice(0, index).some((earlier) => (
+  const taughtEarlier = all.slice(0, index).some((earlier) => (
     isObject(earlier)
       && role(earlier) === 'classwork'
       && !questionExampleExemption(earlier)
@@ -210,11 +215,12 @@ export const lessonExampleContext = ({ questions = [], index = -1, sectionRole =
  * new skill, an example to open, and a question the student has not started.
  * One they have opened, tried or closed is theirs: it never opens again.
  */
-export const exampleOpensByItself = ({ rule = null, newSkill = false, example = null, alreadyUsed = false, attemptCount = 0, totalAttempts = 0, locked = false } = {}) => Boolean(
+export const exampleOpensByItself = ({ rule = null, newSkill = false, example = null, alreadyUsed = false, alreadyShown = false, attemptCount = 0, totalAttempts = 0, locked = false } = {}) => Boolean(
   rule?.opensByItself === true
     && newSkill === true
     && example
     && alreadyUsed !== true
+    && alreadyShown !== true
     && locked !== true
     && !(Number(attemptCount) > 0)
     && !(Number(totalAttempts) > 0),
@@ -279,3 +285,6 @@ export const slideTranslationText = (slide) => {
     slide.kind === EXAMPLE_SLIDE.STEP ? slide.why : '',
   ].filter(Boolean).join(' ');
 };
+
+export const EXAMPLE_OPENED_ANNOUNCEMENT = 'A worked example opened above your question: a problem like yours, one step at a time. Your answer box is still where you are.';
+export const EXAMPLE_COULD_NOT_LOAD_TEXT = 'The step-by-step player could not load, so here is the whole example.';

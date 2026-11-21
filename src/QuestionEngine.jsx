@@ -27,7 +27,9 @@ import MathText from './components/common/MathText.jsx';
 import { buildQuestionHints, diagnosisHint, hintLadderView, hintRelease } from './platform/supports/hints/questionHints.js';
 import { hintCostSentence } from './platform/supports/hints/hintCopy.js';
 import { hintPanelFocusTarget, keepHintPanelInView, requestedHintPanelPlace } from './platform/supports/hints/hintPanelReveal.js';
-import { exampleOpensByItself, exampleSectionRule, lessonExampleContext, workedExampleFor } from './platform/supports/workedExample/examplePlayer.js';
+import { EXAMPLE_OPENED_ANNOUNCEMENT, exampleOpensByItself, exampleSectionRule, lessonExampleContext, workedExampleFor } from './platform/supports/workedExample/examplePlayer.js';
+import { focusAfterYourTurn } from './platform/supports/workedExample/yourTurnFocus.js';
+import { SR_ONLY_STYLE } from './ui/srOnly.js';
 import PracticeLikeThis from './platform/supports/workedExample/PracticeLikeThis.jsx';
 import { chosenOptionReasons, oneTryNotice } from './platform/supports/feedback/oneTryChoice.js';
 import { SAME_ANSWER_AGAIN, focusOnText, missOutcomeText, submitActionLabel, submitTryCost, triesLeftText } from './platform/student/submitCost.js';
@@ -689,6 +691,9 @@ function QuestionEngineBody({
   // into view).
   const [missRungReads, setMissRungReads] = useState(0);
   const [workedExampleUsed, setWorkedExampleUsed] = useState(restoredSupport.workedExampleUsed);
+  // An example Classwork opened by itself (examplePlayer.js): recorded apart
+  // from one the student asked for, and never counted as help.
+  const [workedExampleShown, setWorkedExampleShown] = useState(restoredSupport.workedExampleShown);
   const [similarOpen, setSimilarOpen] = useState(false);
   // The graded work behind the feedback on screen, kept beside it for the
   // display-only miss message (missDiagnosis.js). Never sent anywhere.
@@ -852,6 +857,7 @@ function QuestionEngineBody({
     setMissRung(null);
     setHintPanelOpen(false);
     setWorkedExampleUsed(restored.workedExampleUsed);
+    setWorkedExampleShown(restored.workedExampleShown);
     setSimilarOpen(false);
     setGradedForDisplay(null);
     setWorkflowSubmissionReview(null);
@@ -1312,6 +1318,7 @@ function QuestionEngineBody({
     supportUsage,
     hintUsed,
     workedExampleUsed,
+    workedExampleShown,
     backUpStepDone: scaffoldComplete,
     backUpStepSource: scaffold.source,
     scaffoldUsed: specificStepUsed,
@@ -1323,9 +1330,9 @@ function QuestionEngineBody({
   // help actually had is written; memory never shrinks.
   useEffect(() => {
     const backUpSpecific = specificStepUsed || (scaffoldComplete && scaffold.source !== 'platform');
-    if (!hintUsed && !hintsRevealed && !workedExampleUsed && !scaffoldComplete && !feedbackAssisted) return;
-    rememberSupportUse(draftKey, { hintUsed, hintsRevealed, workedExampleUsed, backUpStepUsed: scaffoldComplete, scaffoldUsed: backUpSpecific, feedbackAssisted });
-  }, [draftKey, hintUsed, hintsRevealed, workedExampleUsed, scaffoldComplete, specificStepUsed, scaffold.source, feedbackAssisted]);
+    if (!hintUsed && !hintsRevealed && !workedExampleUsed && !workedExampleShown && !scaffoldComplete && !feedbackAssisted) return;
+    rememberSupportUse(draftKey, { hintUsed, hintsRevealed, workedExampleUsed, workedExampleShown, backUpStepUsed: scaffoldComplete, scaffoldUsed: backUpSpecific, feedbackAssisted });
+  }, [draftKey, hintUsed, hintsRevealed, workedExampleUsed, workedExampleShown, scaffoldComplete, specificStepUsed, scaffold.source, feedbackAssisted]);
 
   // Secure callers sometimes need to finalize the work already on screen
   // (for example, at a synchronized round deadline). Publish only the same
@@ -2034,16 +2041,20 @@ function QuestionEngineBody({
     setHintPanelOpen(true);
   };
   // CLASSWORK OPENS IT BEFORE THE FIRST QUESTION ON A NEW SKILL, once: a
-  // question the student has opened an example on, tried or closed never
-  // opens one again (exampleOpensByItself). Shown is recorded like asked for
-  // (workedExampleUsed): the attempt that follows was supported. Focus stays
-  // where the question put it; "Your turn" brings it to the work.
+  // question the student has been shown or has opened an example on, tried or
+  // closed never opens one again (exampleOpensByItself). Nobody asked for
+  // this one, so it is recorded apart (workedExampleShown) and the attempt
+  // that follows stays independent: only an example the student asks for, or
+  // opens again, is workedExampleUsed. Focus stays where the question put it,
+  // and a screen reader is told it opened; "Your turn" brings focus to the work.
   const [exampleOpenedByItself, setExampleOpenedByItself] = useState(false);
+  const [exampleAnnouncement, setExampleAnnouncement] = useState('');
   const exampleOpensNow = exampleOpensByItself({
     rule: exampleRule,
     newSkill: workedExampleContext?.newSkill === true,
     example: similarExample,
     alreadyUsed: restoredSupport.workedExampleUsed || workedExampleUsed,
+    alreadyShown: restoredSupport.workedExampleShown || workedExampleShown,
     attemptCount: record.attemptCount,
     totalAttempts: record.totalAttempts,
     locked,
@@ -2052,20 +2063,26 @@ function QuestionEngineBody({
     if (!exampleOpensNow) return;
     setExampleOpenedByItself(true);
     setSimilarOpen(true);
-    setWorkedExampleUsed(true);
+    setWorkedExampleShown(true);
+    setExampleAnnouncement(EXAMPLE_OPENED_ANNOUNCEMENT);
     setHintPanelPlace('top');
     setHintPanelOpen(true);
   }, [exampleOpensNow]);
   // "Your turn": the example folds away and the cursor goes to the student's
-  // own work. The panel closes with it unless it holds a hint they have read.
+  // own work, or failing that somewhere they can act (yourTurnFocus.js). The
+  // panel closes with it unless it holds a hint they have read.
   const exampleYourTurn = () => {
     setSimilarOpen(false);
     if (!hintLadder.revealed && !missRung?.shown) setHintPanelOpen(false);
     const ticket = focusAuthority.ticket({ since: 'now', channel: 'hint' });
     window.requestAnimationFrame(() => {
-      if (focusAuthority.isLive(ticket)) focusFirstAnswerControl(questionEngineRef.current);
+      if (focusAuthority.isLive(ticket)) focusAfterYourTurn(questionEngineRef.current);
     });
   };
+  // If the player's chunk cannot be fetched (a tab left open across a
+  // release, a school network), only the player is replaced, by the whole
+  // example as a list: the question stays (QuestionSupplementBoundary).
+  const exampleFailure = { context: failureContext, draftKey, resetKey: supplementResetKey };
   // The diagnosis rung, read on request: recorded exactly like a hint.
   const showMissDiagnosis = (from) => {
     if (!missRung || locked) return;
@@ -2116,6 +2133,7 @@ function QuestionEngineBody({
       onOpenSimilar={openSimilarExample}
       onYourTurn={exampleYourTurn}
       similarOpenedByItself={exampleOpenedByItself}
+      exampleFailure={exampleFailure}
       askTeacher={askTeacher}
       readAloud={supportedTextReadAloud}
       translation={supportedTextTranslation}
@@ -3211,6 +3229,12 @@ function QuestionEngineBody({
           of at the top of the work area: the hint arrives where the student is
           looking, the page does not jump up to it, and Check stays in reach.
           The same panel, drawn in one place at a time (see hintPanelPlace). */}
+      {/* Said to a screen reader when Classwork opens an example by itself:
+          empty when the question mounts, filled as it opens. Only where an
+          example can open by itself, so never on a DOL, quiz or test. */}
+      {exampleRule.opensByItself ? (
+        <div role="status" aria-live="polite" data-example-announcement="" style={SR_ONLY_STYLE}>{exampleAnnouncement}</div>
+      ) : null}
       {hintPanelOpen && hintPanelPlace === 'results' && hintPanel ? (
         <div ref={hintPanelRef} className="mathmaster-hint-panel" data-hint-panel-place="results" style={{ margin: '16px auto 0', maxWidth: '700px', boxSizing: 'border-box', padding: '14px 16px', borderRadius: 12, border: '1px solid var(--mm-primary-border)', background: 'var(--mm-surface)', boxShadow: '0 4px 14px rgba(26,115,232,0.10)', scrollMarginBottom: 12 }}>
           {hintPanel}

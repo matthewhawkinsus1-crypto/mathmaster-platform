@@ -9,7 +9,10 @@
 //   classwork   on the first question on a new skill the example is open
 //               before anything is pressed, and says why; it does not take
 //               the cursor. One slide at a time: the problem, each step, the
-//               answer. A later question on the skill opens none by itself;
+//               answer. It is announced to a screen reader, and recorded as shown
+//               (workedExampleShown), not as help asked for: the attempt stays
+//               independent. Opened again by the student, it is workedExampleUsed.
+//               A later question on the skill opens none by itself;
 //   keyboard    Tab reaches Back and Next; Enter and Space play it forward
 //               and back; each slide is announced in a polite live region;
 //               the last slide's button is "Your turn", which folds the
@@ -17,6 +20,8 @@
 //   practice    nothing opens by itself; "Try a similar one" plays the same
 //               player; a right answer after it is graded right, with the
 //               same credit as without it, and recorded as workedExampleUsed;
+//   failure     if the player's chunk cannot be fetched, the question stays and
+//               the whole example is shown as a list in its place;
 //   never       on a DOL, quiz or test, and on a DOL practised after its due
 //               date, there is no example, no offer of one and none of the
 //               player's words anywhere in the document, before or after a
@@ -148,6 +153,9 @@ for (const device of DEVICES) {
   check(state.live === 'polite' && state.atomic === 'true', `${where}: the slide is a polite live region read whole`);
   check(state.backDisabled && state.next === 'Next', `${where}: Back is not available on the first slide; Next is`);
   check(state.focusOn === 'elsewhere', `${where}: opening by itself does not take the cursor`);
+  // A screen reader is told: a polite region that was there, empty, before it opened.
+  const announced = await page.locator('[data-example-announcement]').evaluateAll((regions) => regions.map((region) => ({ live: region.getAttribute('aria-live'), text: region.textContent.trim() })));
+  check(announced.length === 1 && announced[0].live === 'polite' && /worked example opened/.test(announced[0].text), `${where}: the opening is announced in a polite live region`, JSON.stringify(announced));
   // The student's own question is on the same screen, not this problem.
   const own = await page.locator('.mathmaster-question-tool-workspace math-field').count();
   check(own >= 1, `${where}: the student's own answer box is still there`);
@@ -189,11 +197,61 @@ for (const device of DEVICES) {
     const inWork = await page.evaluate(() => Boolean(document.activeElement?.closest('.mathmaster-question-tool-workspace')) && document.activeElement?.tagName.toLowerCase() === 'math-field');
     check(inWork, `${where}: the cursor is in the student's own answer box`);
   }
-  // It was shown: the attempt that follows is recorded as supported, and graded as ever.
+  // Nobody asked for it: the attempt that follows is graded as ever and stays independent, with the
+  // example recorded as shown, apart from one asked for.
   await answer(page, '3/4');
   await submit(page);
-  const graded = await page.evaluate(() => window.__mmGrades);
-  check(graded.length === 1 && graded[0].isCorrect === true && graded[0].supportUsage?.workedExampleUsed === true, `${where}: the right answer is graded right, with workedExampleUsed recorded`, JSON.stringify(graded.map((entry) => ({ isCorrect: entry.isCorrect, used: entry.supportUsage?.workedExampleUsed }))));
+  const graded = await page.evaluate(() => window.__mmGrades.map((entry) => ({ isCorrect: entry.isCorrect, used: entry.supportUsage?.workedExampleUsed, shown: entry.supportUsage?.workedExampleShown, independent: entry.supportUsage?.isMathematicallyIndependent })));
+  check(graded.length === 1 && graded[0].isCorrect === true, `${where}: the right answer is graded right`, JSON.stringify(graded));
+  check(graded[0]?.shown === 'auto' && graded[0]?.used === false && graded[0]?.independent === true, `${where}: recorded as shown by itself, not as help asked for, and the attempt is independent`, JSON.stringify(graded));
+  await context.close();
+}
+
+/* ------------------ classwork: shown by itself, then opened again by the student */
+{
+  const { page, context } = await open(DESKTOP, 'q=multi&role=classwork&section=classwork&newskill=1');
+  const where = 'desktop classwork, opened again';
+  await player(page).first().waitFor();
+  const count = (await slideState(page)).count;
+  for (let step = 1; step < count; step += 1) { await player(page).locator('[data-example-next]').click(); await page.waitForTimeout(80); }
+  await player(page).locator('[data-example-your-turn]').click();
+  await page.waitForTimeout(400);
+  await page.locator('[data-hint-control]').click();
+  await page.waitForTimeout(300);
+  await page.locator('.mathmaster-hint-panel button', { hasText: 'Try a similar one' }).click();
+  await player(page).first().waitFor();
+  check(await player(page).locator('[data-example-opened-by-itself]').count() === 0, `${where}: asked for, it no longer says it opened by itself`);
+  await answer(page, '3/4');
+  await submit(page);
+  const graded = await page.evaluate(() => window.__mmGrades.map((entry) => ({ isCorrect: entry.isCorrect, used: entry.supportUsage?.workedExampleUsed, shown: entry.supportUsage?.workedExampleShown, independent: entry.supportUsage?.isMathematicallyIndependent })));
+  check(graded.length === 1 && graded[0].used === true && graded[0].independent === false && graded[0].shown === 'auto', `${where}: an example the student opens again is workedExampleUsed, as it always was`, JSON.stringify(graded));
+  await context.close();
+}
+
+/* ----------------------- the player cannot load: the question stays, with the example */
+for (const device of DEVICES) {
+  const context = await browser.newContext({ viewport: device.viewport, isMobile: device.isMobile || false, hasTouch: device.hasTouch || false, reducedMotion: 'reduce' });
+  const page = await context.newPage();
+  page.setDefaultTimeout(15000);
+  const where = `${device.name} classwork, the player's chunk fails`;
+  // The lazy chunk, as a stale tab after a release or a school network loses it.
+  let refused = 0;
+  await page.route(/WorkedExamplePlayer/, (route) => { refused += 1; return route.abort('failed'); });
+  runs += 1;
+  await page.goto(`${ORIGIN}/tests/browser/feedbackTeaches.html?q=multi&role=classwork&section=classwork&newskill=1&run=${Date.now()}-${runs}`, { waitUntil: 'networkidle' });
+  await page.locator('[data-feedback-fixture]').waitFor();
+  const whole = page.locator('.mathmaster-hint-panel [data-example-whole]');
+  await whole.first().waitFor({ timeout: 8000 }).catch(() => {});
+  check(refused >= 1, `${where}: the chunk was asked for and refused`, String(refused));
+  check(await whole.count() === 1 && await page.locator('[data-worked-example-player]').count() === 0, `${where}: the whole example is shown as a list in the player's place`);
+  check(await whole.locator('ol li').count() >= 2 && /Answer:/.test(await whole.first().innerText().catch(() => '')), `${where}: every step and the answer are there`);
+  const text = await page.evaluate(() => document.body.innerText);
+  check(!/did not load/i.test(text) && await page.locator('.mathmaster-question-tool-workspace math-field').count() >= 1, `${where}: the question is still there, with its answer box`);
+  await answer(page, '3/4');
+  await submit(page);
+  const graded = await page.evaluate(() => window.__mmGrades.map((entry) => entry.isCorrect));
+  check(graded.length === 1 && graded[0] === true, `${where}: it can still be answered and graded`, JSON.stringify(graded));
+  await noSidewaysScroll(page, where);
   await context.close();
 }
 
@@ -269,6 +327,7 @@ for (const device of DEVICES) {
     const { page, context } = await open(device, 'q=multi&role=practice&section=practice&newskill=1');
     const where = `${device.name} practice${withExample ? ', example opened' : ''}`;
     check(await player(page).count() === 0 && await page.locator('[data-similar-example]').count() === 0, `${where}: nothing opens by itself`);
+    check(await page.locator('[data-example-announcement]').count() === 0, `${where}: no announcement region where nothing opens by itself`);
     if (withExample) {
       await page.locator('[data-hint-control]').click();
       await page.waitForTimeout(300);
@@ -310,6 +369,8 @@ for (const [role, section] of [['dol', 'dol'], ['quiz', 'quiz'], ['test', 'test'
     example: document.querySelectorAll('[data-similar-example]').length,
     offer: document.querySelectorAll('[data-similar-offer]').length,
     openedByItself: document.querySelectorAll('[data-example-opened-by-itself]').length,
+    announcement: document.querySelectorAll('[data-example-announcement]').length,
+    whole: document.querySelectorAll('[data-example-whole]').length,
   }));
   const none = (found) => Object.values(found).every((count) => count === 0);
   let found = await controls();

@@ -24,7 +24,10 @@ The example player (WE-A) reads a question's `example` and
   choose sibling numbers that share none of the question's answers. A card
   that fails is not shown, and the question falls back to its built-in
   example, if it has one;
-- `{ "none": ... }` opens no example by itself;
+- `{ "none": ... }` opens no example by itself, and neither does a question
+  with no skill to name (no `familyId`, no `studentActions`);
+- an example that opens by itself is recorded as shown, not as help the
+  student asked for, so it does not make the attempt a supported one;
 - a **tool replay** (`moves`) and `fade` are not played yet (WE-C to WE-E).
   Until then such a question gets its built-in example.
 

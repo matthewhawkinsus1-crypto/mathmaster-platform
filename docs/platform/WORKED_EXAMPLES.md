@@ -22,6 +22,17 @@ Where slice A lives:
   `tests/browser/workedExamplePlayer.mjs`, and the assessment leak gate
   (`tests/browser/assessmentLeakGates.mjs`).
 
+How slice A records an example (the lead's rule, until the owner decides
+otherwise):
+- one the student **asks for**, or opens again, is `workedExampleUsed`, as it
+  always was: the teacher sees it and mastery counts the attempt as supported;
+- one Classwork **opened by itself** is recorded apart, as
+  `workedExampleShown: 'auto'`. Nobody asked for it, so the attempt stays
+  independent and mastery is unchanged. The teacher's attempt analysis names
+  it "Example shown by Classwork (not asked for)".
+
+Neither changes a score.
+
 What slice A plays: the question family's sibling, or the step card a lesson
 wrote (`steps`), when it passes `similarExampleIsSafe`. Not yet: a tool replay
 (`moves`, slices C to E; such a question gets its family's sibling meanwhile),
