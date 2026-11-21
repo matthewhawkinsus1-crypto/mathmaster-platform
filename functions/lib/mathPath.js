@@ -687,6 +687,11 @@ async function valuesEquivalent(actual, field) {
   const candidates = [field.expected, ...(Array.isArray(field.accepted) ? field.accepted : [])]
     .filter((value) => value !== undefined && value !== null);
   const equivalence = await answerEquivalence();
+  // An entry that is not graded (functions/shared/typedEntryGuard.mjs): over
+  // the length an answer may be, refused before any comparison reads it
+  // (#558), or left with a sign or product sign dangling (#557). The field's
+  // own comparison below is not asked, whichever it is.
+  if (equivalence.refusesTypedEntry(actual, candidates)) return false;
   return candidates.some((expected) => {
     const left = String(actual ?? '').trim();
     const right = String(expected ?? '').trim();
