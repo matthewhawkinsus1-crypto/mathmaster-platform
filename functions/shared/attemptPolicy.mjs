@@ -1,4 +1,5 @@
 import { resolveStudentDolExtraAttempts } from './studentAssignmentOverrides.mjs';
+import { attemptsAreUnlimited } from './activityPolicies.mjs';
 
 export const MAX_ATTEMPTS_PER_QUESTION = 3;
 
@@ -151,6 +152,12 @@ export const resolveQuestionMaximumAttempts = ({
     Number(maximumAttempts ?? activityPolicy?.attempts ?? MAX_ATTEMPTS_PER_QUESTION)
       || MAX_ATTEMPTS_PER_QUESTION,
   );
+  // An assignment that declares unlimited attempts (activityPolicies.mjs) has
+  // them on every question of its Warm-Up, Classwork and Practice, a
+  // choice-only one included: the owner's decision is that no question there
+  // closes for running out of tries. The role policy the caller resolved
+  // carries the number; nothing here reads the assignment.
+  if (attemptsAreUnlimited(requested)) return requested;
   const base = isChoiceOnlyQuestion(question) ? 1 : requested;
   const teacherBonus = Math.max(0, Math.min(20, Math.floor(Number(teacherGrantedExtraAttempts) || 0)));
   return base + teacherBonus;

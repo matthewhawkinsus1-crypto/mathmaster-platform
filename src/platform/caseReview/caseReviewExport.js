@@ -14,10 +14,14 @@
  */
 import { csvCell } from '../supportEvidence/supportEvidenceReport.js';
 import { CASE_PROVENANCE_LABEL } from './caseProvenance.js';
+import { attemptsAreUnlimited } from '../../../functions/shared/activityPolicies.mjs';
 
 const list = (value) => (Array.isArray(value) ? value : []);
 const clean = (value) => String(value ?? '').trim();
 const iso = (ms) => (Number.isFinite(ms) ? new Date(ms).toISOString() : '');
+// An assignment with unlimited attempts prints the word, never its very large
+// maximum; every other row keeps the number it always had.
+const attemptLimitCell = (count) => (attemptsAreUnlimited(count) ? 'unlimited' : count);
 const csv = (header, rows) => `${[header, ...rows].map((row) => row.map(csvCell).join(',')).join('\r\n')}\r\n`;
 
 export const PRINT_SECTIONS = Object.freeze([
@@ -85,7 +89,7 @@ export const caseQuestionsCsv = (model) => {
     const attempt = (index) => row.attempts[index]?.result || '';
     return [
       row.title, row.assignmentId, row.sectionLabel, row.sectionNumber, row.questionId || '', row.questionType, list(row.standards?.primary).join('; '),
-      row.standardsSource || '', row.condition === 'modified' ? 'Modified' : 'Standard', row.maxAttempts, row.totalAttempts, attempt(0), attempt(1), attempt(2),
+      row.standardsSource || '', row.condition === 'modified' ? 'Modified' : 'Standard', attemptLimitCell(row.maxAttempts), row.totalAttempts, attempt(0), attempt(1), attempt(2),
       row.attempts.slice(3).map((entry) => entry.result).join('; '), row.attemptsSource, row.outcomeLabel, row.finalCredit ?? '', row.gradedCredit ?? '',
       row.firstAttemptCorrect === null ? '' : (row.firstAttemptCorrect ? 'yes' : 'no'),
       row.repeatedReturn === null ? 'not determinable' : (row.repeatedReturn ? 'yes' : 'no'),

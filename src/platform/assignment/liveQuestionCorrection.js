@@ -51,7 +51,7 @@ const compactRepairHistory = (history, entry) => [
  */
 const repairAttemptLimit = ({ record, question, questionIndex = 0, assignment = null, studentId = null, classId = null }) => {
   const activityRole = question?.activityRole || null;
-  const activityPolicy = getEffectiveActivityPolicy(activityRole);
+  const activityPolicy = getEffectiveActivityPolicy(activityRole, assignment);
   const triesCountedOn = countedQuestion({
     assignmentId: assignment?.id || '',
     storedQuestion: question,

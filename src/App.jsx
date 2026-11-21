@@ -2633,7 +2633,7 @@ function App() {
     assignment: activeAssignmentData,
     isDOL: activeDOLState.enabled && currentQuestionIndex === activeDOLState.questionIndex,
   });
-  const activeActivityPolicy = getEffectiveActivityPolicy(isPracticeMode ? 'practice' : activeQuestionRole);
+  const activeActivityPolicy = getEffectiveActivityPolicy(isPracticeMode ? 'practice' : activeQuestionRole, activeAssignmentData);
 
   useLiveTeachingPreviewSync(
     user, liveTeachingSession, setLiveTeachingSession, walkthroughWriteRef, activeAssignmentId, setPreviewScratchpads,

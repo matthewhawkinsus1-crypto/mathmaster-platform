@@ -25,6 +25,7 @@
  * policy, read-only.
  */
 import { getAttemptsRemaining, getQuestionCredit, normalizeQuestionRecord } from '../../attemptPolicy.js';
+import { attemptsAreUnlimited } from '../../../functions/shared/activityPolicies.mjs';
 import { dayFromDateKey, formatWhenDate, formatWhenDateTime, formatWhenTime } from './studentWhen.js';
 
 export const QUESTION_STATUS = Object.freeze({
@@ -63,7 +64,9 @@ const SPOKEN = Object.freeze({
 // What a pending question and a section waiting on one show.
 export const NAVIGATOR_PENDING_LABEL = 'Loading…';
 
-const triesText = (count) => `${count} ${count === 1 ? 'try' : 'tries'} left`;
+// An assignment that declares unlimited attempts (activityPolicies.mjs) never
+// shows its very large maximum: the tries are unlimited, in those words.
+const triesText = (count) => (attemptsAreUnlimited(count) ? 'unlimited tries' : `${count} ${count === 1 ? 'try' : 'tries'} left`);
 
 /**
  * One question, as the navigator shows and speaks it.
