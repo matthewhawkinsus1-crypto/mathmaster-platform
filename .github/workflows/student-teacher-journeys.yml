@@ -35,14 +35,19 @@ name: Student and Teacher Journeys
 #                          the class's DOL closed and reads their own close;
 #                          a classmate's is closed; Live view lists who)
 #   teacher signals        tests/browser/teacherWorkflow/teacherSignalsJourneys.mjs
-#                          (in the teacher job, SP-2: a paste, leaving the page
-#                          then a burst of right parts, and right first time
-#                          on a hard question are stored as facts with no
-#                          contents; the grade is the same as a classmate's;
-#                          a support that explains the pattern raises none;
-#                          the Live tile and the student's results show
-#                          "Worth a conversation" with a Dismiss; never on
-#                          the projector or a student's screen)
+#                          (in the teacher job, SP-2 and SP-2b: a paste,
+#                          leaving the page then a burst of right parts, and
+#                          right first time on a hard question are stored as
+#                          facts with class time and supports, and no
+#                          contents; the grade is the same as a classmate's; a
+#                          support that explains the pattern raises none; the
+#                          Live tile and the drawer show "Worth a
+#                          conversation", not conclusive, with Mark reviewed
+#                          and a note; a reviewed fact is kept; the
+#                          assignment's results show them beside the question;
+#                          the case review counts them, lists them and puts
+#                          them on its timeline; never on the projector or a
+#                          student's screen)
 #   a teacher's code that  tests/browser/teacherWorkflow/teacherCodeRecovery.mjs
 #   cannot load            (in the teacher job: the authoring code the
 #                          workspace loads on demand, and a screen's own
@@ -261,7 +266,7 @@ jobs:
         env:
           PLAYWRIGHT_MODULE: playwright
         run: node tests/browser/teacherWorkflow/recoveryDraftCrossDeviceJourneys.mjs
-      - name: Teacher signals — facts only, "worth a conversation" in Live view and the student's results
+      - name: Teacher signals — facts only, not conclusive, in Live view, the assignment's results and the case review
         if: ${{ !cancelled() }}
         env:
           PLAYWRIGHT_MODULE: playwright
