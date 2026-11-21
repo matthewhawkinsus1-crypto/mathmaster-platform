@@ -27,7 +27,7 @@ import MathText from './components/common/MathText.jsx';
 import { buildQuestionHints, diagnosisHint, hintLadderView, hintRelease } from './platform/supports/hints/questionHints.js';
 import { hintCostSentence } from './platform/supports/hints/hintCopy.js';
 import { hintPanelFocusTarget, keepHintPanelInView, requestedHintPanelPlace } from './platform/supports/hints/hintPanelReveal.js';
-import { buildSimilarWorkedExample } from './platform/supports/workedExample/similarProblem.js';
+import { exampleOpensByItself, exampleSectionRule, workedExampleFor } from './platform/supports/workedExample/examplePlayer.js';
 import PracticeLikeThis from './platform/supports/workedExample/PracticeLikeThis.jsx';
 import { chosenOptionReasons, oneTryNotice } from './platform/supports/feedback/oneTryChoice.js';
 import { SAME_ANSWER_AGAIN, focusOnText, missOutcomeText, submitActionLabel, submitTryCost, triesLeftText } from './platform/student/submitCost.js';
@@ -396,6 +396,12 @@ function QuestionEngineBody({
   // help does not count toward unlocking (HELP-4). Null: "Hints never lower
   // your score. Your teacher can see you used one." (hintCopy.js).
   hintCostNote = null,
+  // What the assignment knows about this question's worked example
+  // (examplePlayer.js lessonExampleContext): the section's own role, the
+  // lesson's examples, the assignment's problems, and whether this is the
+  // first Classwork question on a new skill. Null on every other host: the
+  // example is then on request only, wherever hints are allowed.
+  workedExampleContext = null,
 }) {
   useRenderPerformance('QuestionEngine', String(question?.toolId || question?.type || 'question'));
   const resolvedActivityPolicy = activityPolicy || getEffectiveActivityPolicy(activityRole);
@@ -1944,9 +1950,27 @@ function QuestionEngineBody({
   // Where the platform carries the ladder, a registry tool hands its rungs to
   // it instead of showing a second ladder (ToolShell HintPanel).
   const toolHintPublisher = hintControlAllowed ? toolHintChannel.publish : null;
+  /*
+   * THE WORKED EXAMPLE (WE-A; examplePlayer.js). The section's role decides:
+   * never on a DOL, quiz or test, whatever role the question runs under (a
+   * DOL practised after its due date is still a DOL); on request everywhere
+   * else hints are allowed; and on Classwork it also opens by itself before
+   * the first question on a new skill. Where it is not offered it is not
+   * built, so nothing of it can reach the page.
+   */
+  const exampleRule = exampleSectionRule({
+    sectionRole: workedExampleContext?.sectionRole,
+    activityRole: resolvedActivityPolicy?.role,
+    hintsAllowed: hintControlAllowed,
+  });
   const similarExample = useMemo(
-    () => (hintControlAllowed ? buildSimilarWorkedExample(processedQuestion, { seed: Number(record.variantIndex) || 0 }) : null),
-    [hintControlAllowed, processedQuestion, record.variantIndex],
+    () => (exampleRule.offered ? workedExampleFor(processedQuestion, {
+      seed: Number(record.variantIndex) || 0,
+      lessonSupports: workedExampleContext?.lessonSupports,
+      sectionRole: workedExampleContext?.sectionRole,
+      assignmentProblems: workedExampleContext?.assignmentProblems,
+    }) : null),
+    [exampleRule.offered, processedQuestion, record.variantIndex, workedExampleContext],
   );
   const askTeacher = typeof onAskTeacher === 'function' && !locked && !serverGrading
     ? { ...askTeacherContext, requested: Boolean(helpRequested), onToggle: () => onAskTeacher(!helpRequested) }
@@ -1994,10 +2018,44 @@ function QuestionEngineBody({
   const openSimilarExample = (place) => {
     if (!similarExample) return;
     requestHintFocus('example', place);
+    setExampleOpenedByItself(false);
     setSimilarOpen(true);
     setWorkedExampleUsed(true);
     placeHintPanel(place);
     setHintPanelOpen(true);
+  };
+  // CLASSWORK OPENS IT BEFORE THE FIRST QUESTION ON A NEW SKILL, once: a
+  // question the student has opened an example on, tried or closed never
+  // opens one again (exampleOpensByItself). Shown is recorded like asked for
+  // (workedExampleUsed): the attempt that follows was supported. Focus stays
+  // where the question put it; "Your turn" brings it to the work.
+  const [exampleOpenedByItself, setExampleOpenedByItself] = useState(false);
+  const exampleOpensNow = exampleOpensByItself({
+    rule: exampleRule,
+    newSkill: workedExampleContext?.newSkill === true,
+    example: similarExample,
+    alreadyUsed: restoredSupport.workedExampleUsed || workedExampleUsed,
+    attemptCount: record.attemptCount,
+    totalAttempts: record.totalAttempts,
+    locked,
+  });
+  useEffect(() => {
+    if (!exampleOpensNow) return;
+    setExampleOpenedByItself(true);
+    setSimilarOpen(true);
+    setWorkedExampleUsed(true);
+    setHintPanelPlace('top');
+    setHintPanelOpen(true);
+  }, [exampleOpensNow]);
+  // "Your turn": the example folds away and the cursor goes to the student's
+  // own work. The panel closes with it unless it holds a hint they have read.
+  const exampleYourTurn = () => {
+    setSimilarOpen(false);
+    if (!hintLadder.revealed && !missRung?.shown) setHintPanelOpen(false);
+    const ticket = focusAuthority.ticket({ since: 'now', channel: 'hint' });
+    window.requestAnimationFrame(() => {
+      if (focusAuthority.isLive(ticket)) focusFirstAnswerControl(questionEngineRef.current);
+    });
   };
   // The diagnosis rung, read on request: recorded exactly like a hint.
   const showMissDiagnosis = (from) => {
@@ -2047,6 +2105,8 @@ function QuestionEngineBody({
       similar={similarExample}
       similarOpen={similarOpen}
       onOpenSimilar={openSimilarExample}
+      onYourTurn={exampleYourTurn}
+      similarOpenedByItself={exampleOpenedByItself}
       askTeacher={askTeacher}
       readAloud={supportedTextReadAloud}
       translation={supportedTextTranslation}

@@ -53,6 +53,7 @@
 import { familyFor } from '../families/index.js';
 import { buildNumericVariant } from './numericVariant.js';
 import { buildSimilarWorkedExample } from './similarProblem.js';
+import { exampleKindOf, exampleSkillOf, primaryStandardOf } from './exampleSkill.js';
 
 export const EXAMPLE_COVERAGE_STATUS = Object.freeze({
   OWN: 'own',
@@ -96,24 +97,8 @@ const list = (value) => (Array.isArray(value) ? value : []);
 
 /* ------------------------------------------------------------ the question */
 
-/** The question's first student action ("multipleResponses"), or ''. */
-export const exampleKindOf = (question) => text(list(question?.studentActions)[0]);
-
-/** The question's primary standard: its primary alignment, `primaryStandard`, or a curriculum-code `standard`. */
-export const primaryStandardOf = (question) => {
-  const primary = list(question?.alignments).find((alignment) => isObject(alignment) && alignment.role === 'primary' && text(alignment.code));
-  return text(primary?.code) || text(question?.primaryStandard) || text(question?.standard);
-};
-
-/** The skill an example teaches: `familyId`, or the first student action with the primary standard. Null when neither is known. */
-export const exampleSkillOf = (question) => {
-  const familyId = text(question?.familyId);
-  if (familyId) return familyId;
-  const kind = exampleKindOf(question);
-  if (!kind) return null;
-  const standard = primaryStandardOf(question);
-  return standard ? `${kind} ${standard}` : kind;
-};
+// The skill an example teaches is shared with the student's Classwork (exampleSkill.js).
+export { exampleKindOf, primaryStandardOf, exampleSkillOf };
 
 const lessonExampleIds = (lessonSupports) => new Set(list(lessonSupports?.examples)
   .map((example) => (isObject(example) ? text(example.id) : ''))

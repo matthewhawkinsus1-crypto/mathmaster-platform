@@ -45,6 +45,25 @@ export const testCycleContractFields = (source = {}) => {
   return fields;
 };
 
+/*
+ * A LESSON'S LEARNING SUPPORTS TRAVEL WITH THE ASSIGNMENT TOO.
+ *
+ * `lessonSupports` (the lesson's own worked examples and reference cards;
+ * lessonSupportsV5.js) sits beside `sections`, so the same save paths dropped
+ * it: a question could name its `example`, and the student's assignment had no
+ * example of that name to play. Carried only when the lesson wrote one, so an
+ * assignment without it is stored exactly as before.
+ */
+export const lessonSupportsFields = (source = {}) => {
+  if (!isObject(source) || !isObject(source.lessonSupports)) return {};
+  const { referenceCards, examples } = source.lessonSupports;
+  const kept = {
+    ...(Array.isArray(referenceCards) && referenceCards.length ? { referenceCards } : {}),
+    ...(Array.isArray(examples) && examples.length ? { examples } : {}),
+  };
+  return Object.keys(kept).length ? { lessonSupports: kept } : {};
+};
+
 /**
  * Canonical runtime readers.
  *
@@ -278,6 +297,7 @@ export const storedAssignmentToV5 = (assignment = {}, {
     provenance: assignment.provenance,
     preflight: assignment.preflight,
     ...testCycleContractFields(assignment),
+    ...lessonSupportsFields(assignment),
     ...(runtimeCompatibility ? { runtimeCompatibility } : {}),
   });
 };
@@ -309,6 +329,7 @@ export const canonicalV5PersistencePatch = (assignmentV5 = {}) => {
     classroomIntegration: safeAssignmentV5.classroomIntegration || null,
     provenance: safeAssignmentV5.provenance || null,
     preflight: safeAssignmentV5.preflight || { required: true },
+    ...lessonSupportsFields(safeAssignmentV5),
     ...(runtimeCompatibility ? { runtimeCompatibility } : {}),
   };
 };

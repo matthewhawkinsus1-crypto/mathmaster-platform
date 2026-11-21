@@ -26,7 +26,8 @@ import {
 import { SR_ONLY_STYLE } from '../../ui/srOnly.js';
 import { sameStableValue } from '../../platform/performance/renderStability.js';
 import { questionRecordView } from '../../platform/performance/questionRecordView.js';
-import { getEffectiveActivityPolicy } from '../../platform/policies/activityPolicies';
+import { getEffectiveActivityPolicy, resolveQuestionActivityRole } from '../../platform/policies/activityPolicies';
+import { lessonExampleContext } from '../../platform/supports/workedExample/examplePlayer.js';
 import { walkthroughTimerRemaining } from '../../platform/teacher/liveTeachingSession.js';
 import { describeClassworkPace } from '../../platform/teacher/classworkModel.js';
 import { projectCurrentAssignmentContent } from '../../platform/assignments/currentContentProjection.js';
@@ -190,6 +191,18 @@ export function createAssignmentWorkspaceView(
     const runtimeQuestionActivityPolicy = currentReplacementAllowed === runtimeActivityPolicy.allowReplacement
       ? runtimeActivityPolicy
       : renderMemo('activityPolicy', [runtimeActivityPolicy, currentReplacementAllowed], () => ({ ...runtimeActivityPolicy, allowReplacement: currentReplacementAllowed }));
+    // What this question's worked example needs from the assignment (WE-A;
+    // examplePlayer.js): the section's own role (a DOL practised after its
+    // due date is still a DOL, and shows none), the lesson's own examples, and
+    // whether this is the first Classwork question on a new skill, where the
+    // example opens by itself.
+    const currentWorkedExampleContext = renderMemo('workedExampleContext', [questions, currentQuestionIndex, activeQuestionRole, assignment], () => lessonExampleContext({
+      questions,
+      index: currentQuestionIndex,
+      sectionRole: activeQuestionRole,
+      roleOf: (question) => resolveQuestionActivityRole({ question, assignment }),
+      lessonSupports: assignment?.lessonSupports,
+    }));
     const currentSectionVariantMode = getSectionVariantMode(assignment, activeQuestionRole);
     const generationStudentKey = currentSectionVariantMode === 'shared'
       ? `shared-version:${assignment.id}:${activeQuestionRole}`
@@ -1326,6 +1339,7 @@ export function createAssignmentWorkspaceView(
               // Practice sections only, by the section's own role (a DOL in
               // post-due practice runs as 'practice' but is still a DOL).
               practiceLikeThisAllowed={['classwork', 'practice'].includes(activeQuestionRole)}
+              workedExampleContext={currentWorkedExampleContext}
               activityPolicy={runtimeQuestionActivityPolicy}
               // The assignment's calculator setting (e.g. "graphing"), above the
               // question's own: calculatorPolicy.js resolveCalculatorPolicy.
