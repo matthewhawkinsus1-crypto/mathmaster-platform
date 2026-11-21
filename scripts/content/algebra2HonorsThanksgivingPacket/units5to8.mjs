@@ -126,6 +126,9 @@ const unit5 = unit(5, '3×3 systems and matrices', U5, [
     standards: ['A2.3B'], dok: 3, band: 3, actions: ['solveSystem'],
     prompt: 'Solve the system $x + 2y - z = 4$, $2x - y + z = 6$ and $x + y + 2z = 6$ by elimination. One pair needs an equation multiplied first. Check your ordered triple.',
     tool: { method: 'elimination', equations: ['x + 2y - z = 4', '2x - y + z = 6', 'x + y + 2z = 6'], variables: ['x', 'y', 'z'], requireVerification: true },
+    // Named here: without it the platform would show the 2-by-2 example, not the three-equation one.
+    example: U5.threeByThree,
+    idea: 'Choose one variable and eliminate it from two pairs of equations. Multiply an equation first when the coefficients do not match.',
     hints: [
       'Equations 1 and 2 have −z and +z. Add them to eliminate z.',
       'To eliminate z from equations 2 and 3, multiply equation 2 by 2 first, then subtract equation 3.',

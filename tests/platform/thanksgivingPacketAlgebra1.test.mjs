@@ -289,12 +289,24 @@ for (const [name, packet] of PACKETS) {
     // carries the guided notes Classwork shows today.
     const taught = new Set();
     const used = new Set();
+    const namedAgain = [];
     packet.questions.forEach((question) => {
       const skill = exampleSkillOf(question);
-      if (!taught.has(skill)) assert.ok(byId.has(question.example), `${question.questionId} is the first question on "${skill}": it opens an example`);
+      const firstOnSkill = !taught.has(skill);
+      if (firstOnSkill) assert.ok(byId.has(question.example), `${question.questionId} is the first question on "${skill}": it opens an example`);
       taught.add(skill);
       if (!question.example) return;
-      assert.equal(used.has(question.example), false, `${question.questionId}: each example is opened once`);
+      // A later question may name an example a second time. It plays there on
+      // request only (it is not the first on its skill), and without the name
+      // the platform would offer the skill's FIRST example, which for these
+      // questions is another method (one step for a multi-step equation, no
+      // reversal for an inequality that reverses). Found in the browser check
+      // of 2026-11-21. Such a question needs no notes of its own.
+      if (used.has(question.example)) {
+        assert.equal(firstOnSkill, false, `${question.questionId} names ${question.example} again, so it is not the first question on its skill`);
+        namedAgain.push(`${question.questionId} ${question.example}`);
+        return;
+      }
       used.add(question.example);
       // The example player is not live yet, so the question that opens an
       // example also says its key idea in the notes Classwork shows today.
@@ -303,6 +315,11 @@ for (const [name, packet] of PACKETS) {
       notes.forEach((note) => assert.ok(note.title && note.instruction, question.questionId));
     });
     assert.deepEqual([...used].sort(), [...byId.keys()].sort(), 'every example is opened by a question');
+    assert.deepEqual(namedAgain, [
+      'tg-u6-q7 ex-multi-step',
+      'tg-u7-q6 ex-inequality-reverse',
+      ...(name === 'Honors' ? ['tg-u7-h1 ex-inequality-reverse'] : []),
+    ], 'the questions that name an example a second time');
 
     // An example with an equation or inequality of its own never has the
     // answer of the question that opens it.
@@ -333,7 +350,7 @@ for (const [name, packet] of PACKETS) {
       assert.equal(refused, null, `${question.questionId}: ${card.id} (${context.from}) is refused: ${refused?.reason}`);
       shown[context.from] += 1;
     });
-    assert.equal(shown.own, examples.length, 'each example is shown on the question that names it');
+    assert.equal(shown.own, examples.length + namedAgain.length, 'each example is shown on every question that names it, the ones that name it again included');
     assert.ok(shown.earlierSameSkill >= 10, `${shown.earlierSameSkill} later questions borrow an example`);
 
     // Each example is a step card of small steps, each with its reason; and a

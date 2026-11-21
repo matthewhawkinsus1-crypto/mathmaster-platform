@@ -82,7 +82,8 @@ const unit1 = unit(1, 'Interval notation, domain and range', U1, [
   item('tgp-u1-1', {
     standards: ['A2.7I'], dok: 1, band: 1, actions: ['constructInterval', 'writeInterval'],
     prompt: 'Graph $-2 < x \\le 6$ on the number line. Then write it in interval notation.',
-    tool: { inequalityText: '−2 < x ≤ 6', intervals: [{ min: -2, max: 6, minClosed: false, maxClosed: true }] },
+    // A plain −10 to 10 line: the tool's own window is centred on the answer and labels every 2.5.
+    tool: { inequalityText: '−2 < x ≤ 6', intervals: [{ min: -2, max: 6, minClosed: false, maxClosed: true }], min: -10, max: 10, step: 1, autoViewport: false },
     example: U1.interval,
     idea: 'A closed circle and a bracket mean the end is included (≤ or ≥). An open circle and a parenthesis mean it is not (< or >).',
     hints: [
@@ -100,7 +101,7 @@ const unit1 = unit(1, 'Interval notation, domain and range', U1, [
   item('tgp-u1-2', {
     standards: ['A2.7I'], dok: 1, band: 1, actions: ['constructInterval', 'writeInterval'],
     prompt: 'Graph $x \\ge -1$ on the number line. Then write it in interval notation.',
-    tool: { inequalityText: 'x ≥ −1', intervals: [{ min: -1, max: null, minClosed: true, maxClosed: false }] },
+    tool: { inequalityText: 'x ≥ −1', intervals: [{ min: -1, max: null, minClosed: true, maxClosed: false }], min: -10, max: 10, step: 1, autoViewport: false },
     example: U1.ray,
     idea: 'A graph that never ends goes to ∞ or −∞. Infinity is not a number, so it always gets a parenthesis.',
     hints: [
@@ -121,6 +122,7 @@ const unit1 = unit(1, 'Interval notation, domain and range', U1, [
     tool: {
       inequalityText: 'x < −3 or x ≥ 2',
       intervals: [{ min: null, max: -3, minClosed: false, maxClosed: false }, { min: 2, max: null, minClosed: true, maxClosed: false }],
+      min: -10, max: 10, step: 1, autoViewport: false,
     },
     example: U1.union,
     idea: '“Or” means two separate pieces. Write each piece as its own interval and join them with ∪.',
@@ -471,6 +473,9 @@ const unit3 = unit(3, 'Inverses, operations on functions and composition', U3, [
     standards: ['A2.2B'], dok: 2, band: 3, actions: ['findInverse'],
     prompt: 'Find the inverse of $f(x) = -5x + 15$. Swap $x$ and $y$, then solve for $y$.',
     tool: { mode: 'deriveInverse', function: { family: 'linear', m: -5, b: 15 } },
+    // Named here: without it the platform would show the unit's first example (undoing a value), which is a different method.
+    example: U3.derive,
+    idea: 'Swap x and y, then get y alone. When you divide by a negative number, every term changes sign.',
     hints: [
       'Swap first: x = −5y + 15.',
       'Subtract 15 from both sides, so the y-term is alone.',

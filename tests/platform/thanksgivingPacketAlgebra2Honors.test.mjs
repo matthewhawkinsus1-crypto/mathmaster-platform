@@ -253,6 +253,34 @@ test('worked examples: a question that opens one carries two guided notes, the i
   });
 });
 
+/*
+ * WHAT THE BROWSER CHECK OF 2026-11-21 CHANGED
+ * (docs/reviews/2026-11-21-thanksgiving-packet-tool-check.md).
+ *
+ * A question that names no example is offered, on request, the FIRST example
+ * of its skill (lessonExample.js). For two questions that is another method:
+ * undoing one value for a question that derives an inverse rule, and a 2×2
+ * system for a 3×3 one. They name the example for their own method.
+ *
+ * The number line chooses its own window from the answer unless the item
+ * sets one: −5 to 10 labelled every 2.5 for −2 < x ≤ 6, the answer in the
+ * middle of the screen and neither end on a labelled tick. Unit 1's three
+ * lines are a plain −10 to 10 by ones.
+ */
+test('a later question whose method differs from its skill\'s first example names its own, and the number lines do not open centred on the answer', () => {
+  const exampleOf = (id) => RAW.lessonSupports.examples.find((example) => example.id === raw(id).example);
+  assert.match(exampleOf('tgp-u3-3').problem, /^Find the inverse of /, 'deriving an inverse plays the derive-an-inverse example');
+  assert.equal(raw('tgp-u3-3').example, raw('tgp-u3-2').example);
+  assert.equal(exampleOf('tgp-u5-3').problem.match(/[xyz] [+−] [xyz] [+−] [xyz] = /g)?.length, 3, 'the second 3×3 system plays the three-equation example');
+  assert.equal(raw('tgp-u5-3').example, raw('tgp-u5-2').example);
+  ['tgp-u1-1', 'tgp-u1-2', 'tgp-u1-3'].forEach((id) => {
+    const question = raw(id);
+    assert.deepEqual([question.autoViewport, question.min, question.max, question.step], [false, -10, 10, 1], `${id}: a plain −10 to 10 line`);
+    question.intervals.flatMap((interval) => [interval.min, interval.max]).filter((end) => end !== null)
+      .forEach((end) => assert.ok(end > question.min && end < question.max, `${id}: its ends are on the line`));
+  });
+});
+
 /* ----------------------------------------------------------------- tools -- */
 
 test('tools first: three questions in four are worked in a tool, and only units 9 and 10 lean on answer boxes', () => {

@@ -375,19 +375,20 @@ const UNIT_2 = unit({
         bounds: { xMin: -2, xMax: 8, yMin: -1, yMax: 22 },
         cards: ['slope', 'yIntercept', 'slopeIntercept', 'graphSlopeIntercept'],
         context: {
-          independentQuantity: meaning('games bowled', ['games bowled', 'total cost (dollars)', 'cost of each game (dollars)']),
+          independentQuantity: meaning('games bowled', ['total cost (dollars)', 'cost of each game (dollars)', 'games bowled']),
           dependentQuantity: meaning('total cost (dollars)', ['games bowled', 'total cost (dollars)', 'cost of each game (dollars)']),
+          // The right meaning is never the first choice: a student who picks the top of each list learns nothing.
           slopeMeaning: meaning('The total cost goes up $3 for each game.', [
-            'The total cost goes up $3 for each game.',
-            'The total cost goes up $4 for each game.',
             'The shoes cost $3 to rent.',
+            'The total cost goes up $4 for each game.',
+            'The total cost goes up $3 for each game.',
             'The group bowls 3 games.',
           ]),
           yInterceptMeaning: meaning('The cost is $4 before any game is bowled.', [
-            'The cost is $4 before any game is bowled.',
-            'The cost is $3 before any game is bowled.',
             'Each game costs $4.',
+            'The cost is $4 before any game is bowled.',
             'The group bowls 4 games.',
+            'The cost is $3 before any game is bowled.',
           ]),
         },
       }),
@@ -519,14 +520,14 @@ const UNIT_2 = unit({
         cards: ['slope', 'yIntercept', 'slopeIntercept'],
         context: {
           slopeMeaning: meaning('The ice gets 2 centimeters shorter each hour.', [
-            'The ice gets 2 centimeters shorter each hour.',
             'The ice gets 2 centimeters taller each hour.',
             'The ice is gone after 2 hours.',
             'The ice starts 2 centimeters tall.',
+            'The ice gets 2 centimeters shorter each hour.',
           ]),
           yInterceptMeaning: meaning('The ice starts 12 centimeters tall.', [
-            'The ice starts 12 centimeters tall.',
             'The ice melts 12 centimeters each hour.',
+            'The ice starts 12 centimeters tall.',
             'The ice is gone after 12 hours.',
             'The ice is 12 centimeters tall after 1 hour.',
           ]),

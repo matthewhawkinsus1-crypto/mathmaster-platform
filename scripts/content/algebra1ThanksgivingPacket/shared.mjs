@@ -114,7 +114,7 @@ export const board = ({ source, cards, context = null, bounds = null, xAxisLabel
   ...(context ? { context } : {}),
 });
 
-/** A meaning to choose on the board: the right one first in the data, shown in the order given. */
+/** A meaning to choose on the board, shown in the order given: put the right one somewhere other than first. */
 export const meaning = (value, choices) => {
   need(choices.includes(value), `meaning "${value}" is not one of its choices`);
   return { value, choices };

@@ -39,7 +39,7 @@ Every question has three hints, a "Let's back up" step, a worked solution with s
 
 `lessonSupports.examples` holds 38 authored examples in the regular file and 42 in the Honors file. Each is a sibling problem (the same method with other numbers, never an item of the packet) written as a step card of 3 to 6 steps, each with its reason. The four Step Algebra examples that are solved with balanced moves alone also carry `moves`, the tool's own actions, for the replay.
 
-The first question on each skill names its example. Every question that opens an example also carries one or two guided notes, which Classwork shows today. Later questions on the same skill are covered by that example or by the platform's own. The platform's coverage rule finds no uncovered question in either file.
+The first question on each skill names its example. Every question that opens an example also carries one or two guided notes, which Classwork shows today. Later questions on the same skill are covered by that example or by the platform's own. Three later questions name an example a second time (Unit 6 question 7, Unit 7 question 6 and the Unit 7 Honors question), so that the example offered on request is the one for their method and not the first one of the skill. The platform's coverage rule finds no uncovered question in either file.
 
 ## Verification
 
@@ -75,3 +75,7 @@ The builder refuses to write a packet in which a question has no example before 
 
 - The worked-example player is not live yet. Until it is, students see the guided notes on the first question of each skill, and "See a similar problem worked" where the platform has one.
 - No Spanish version of the hints and worked solutions is written, as in every other lesson in this folder.
+
+## Checked on a screen
+
+Every question of both files was opened in a real browser at desktop and phone width on 2026-11-21, and one question of each tool was answered right and wrong through the screen. The record, with what was fixed and what was not, is `docs/reviews/2026-11-21-thanksgiving-packet-tool-check.md`. Two things changed here as a result: in Unit 2 the right meaning is no longer the first choice of each list (questions 4 and 8), and three questions name their example again (above). `tests/browser/thanksgivingPacketCheck.mjs` repeats the screen check.

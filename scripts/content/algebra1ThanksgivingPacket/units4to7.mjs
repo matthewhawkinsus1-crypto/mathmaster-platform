@@ -536,6 +536,8 @@ const UNIT_6 = unit({
         ],
         commonError: 'Adding 6x and 2x to get 8x; the 2x is subtracted, so the left side simplifies to 4x + 4.',
       },
+      // Named here: without it the platform would show the first example of the skill, which is a different method.
+      example: 'ex-multi-step',
     }),
   ],
   honors: [
@@ -732,6 +734,8 @@ const UNIT_7 = unit({
         ],
         commonError: 'Writing −3(x − 2) as −3x − 6; a negative times a negative is positive, so the product is −3x + 6.',
       },
+      // Named here: without it the platform would show the first example of the skill, which is a different method.
+      example: 'ex-inequality-reverse',
     }),
   ],
   honors: [
@@ -756,6 +760,8 @@ const UNIT_7 = unit({
         ],
         commonError: 'Keeping ≥ after multiplying by −3/2; multiplying by a negative number reverses the symbol, so the solution is x ≤ −9.',
       },
+      // Named here: without it the platform would show the first example of the skill, which is a different method.
+      example: 'ex-inequality-reverse',
     }),
   ],
 });

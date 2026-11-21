@@ -1838,6 +1838,10 @@
               "maxClosed": true
             }
           ],
+          "min": -10,
+          "max": 10,
+          "step": 1,
+          "autoViewport": false,
           "example": "ex-u1-interval",
           "guidedNotes": {
             "steps": [
@@ -1901,6 +1905,10 @@
               "maxClosed": false
             }
           ],
+          "min": -10,
+          "max": 10,
+          "step": 1,
+          "autoViewport": false,
           "example": "ex-u1-ray",
           "guidedNotes": {
             "steps": [
@@ -1970,6 +1978,10 @@
               "maxClosed": false
             }
           ],
+          "min": -10,
+          "max": 10,
+          "step": 1,
+          "autoViewport": false,
           "example": "ex-u1-union",
           "guidedNotes": {
             "steps": [
@@ -2738,6 +2750,19 @@
             "family": "linear",
             "m": -5,
             "b": 15
+          },
+          "example": "ex-u3-derive",
+          "guidedNotes": {
+            "steps": [
+              {
+                "title": "Key idea",
+                "instruction": "Swap x and y, then get y alone. When you divide by a negative number, every term changes sign."
+              },
+              {
+                "title": "Worked example",
+                "instruction": "Find the inverse of f(x) = 2x + 8. y = 2x + 8 → x = 2y + 8 → x − 8 = 2y → (x − 8)/2 = y, so y = x/2 − 4 → f⁻¹(x) = x/2 − 4"
+              }
+            ]
           },
           "hints": [
             "Swap first: x = −5y + 15.",
@@ -3736,6 +3761,19 @@
             "z"
           ],
           "requireVerification": true,
+          "example": "ex-u5-3x3",
+          "guidedNotes": {
+            "steps": [
+              {
+                "title": "Key idea",
+                "instruction": "Choose one variable and eliminate it from two pairs of equations. Multiply an equation first when the coefficients do not match."
+              },
+              {
+                "title": "Worked example",
+                "instruction": "Solve x + y + z = 9, x − y + z = 3 and x + y − z = 1. Equation 1 + equation 2: 2x + 2z = 12 → Equation 2 + equation 3: 2x = 4 → x = 2, then 2(2) + 2z = 12 gives z = 4 → 2 + y + 4 = 9, so y = 3 → (2, 3, 4): 2 + 3 + 4 = 9, 2 − 3 + 4 = 3, 2 + 3 − 4 = 1"
+              }
+            ]
+          },
           "hints": [
             "Equations 1 and 2 have −z and +z. Add them to eliminate z.",
             "To eliminate z from equations 2 and 3, multiply equation 2 by 2 first, then subtract equation 3.",

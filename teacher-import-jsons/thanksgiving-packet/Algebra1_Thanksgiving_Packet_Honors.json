@@ -2053,9 +2053,9 @@
             "independentQuantity": {
               "value": "games bowled",
               "choices": [
-                "games bowled",
                 "total cost (dollars)",
-                "cost of each game (dollars)"
+                "cost of each game (dollars)",
+                "games bowled"
               ]
             },
             "dependentQuantity": {
@@ -2069,19 +2069,19 @@
             "slopeMeaning": {
               "value": "The total cost goes up $3 for each game.",
               "choices": [
-                "The total cost goes up $3 for each game.",
-                "The total cost goes up $4 for each game.",
                 "The shoes cost $3 to rent.",
+                "The total cost goes up $4 for each game.",
+                "The total cost goes up $3 for each game.",
                 "The group bowls 3 games."
               ]
             },
             "yInterceptMeaning": {
               "value": "The cost is $4 before any game is bowled.",
               "choices": [
-                "The cost is $4 before any game is bowled.",
-                "The cost is $3 before any game is bowled.",
                 "Each game costs $4.",
-                "The group bowls 4 games."
+                "The cost is $4 before any game is bowled.",
+                "The group bowls 4 games.",
+                "The cost is $3 before any game is bowled."
               ]
             }
           },
@@ -2393,17 +2393,17 @@
             "slopeMeaning": {
               "value": "The ice gets 2 centimeters shorter each hour.",
               "choices": [
-                "The ice gets 2 centimeters shorter each hour.",
                 "The ice gets 2 centimeters taller each hour.",
                 "The ice is gone after 2 hours.",
-                "The ice starts 2 centimeters tall."
+                "The ice starts 2 centimeters tall.",
+                "The ice gets 2 centimeters shorter each hour."
               ]
             },
             "yInterceptMeaning": {
               "value": "The ice starts 12 centimeters tall.",
               "choices": [
-                "The ice starts 12 centimeters tall.",
                 "The ice melts 12 centimeters each hour.",
+                "The ice starts 12 centimeters tall.",
                 "The ice is gone after 12 hours.",
                 "The ice is 12 centimeters tall after 1 hour."
               ]
@@ -3998,7 +3998,8 @@
               "Divide both sides by 3: x = −5. Check: 6(−5) + 4 − 2(−5) = −16 and −5 − 11 = −16."
             ],
             "commonError": "Adding 6x and 2x to get 8x; the 2x is subtracted, so the left side simplifies to 4x + 4."
-          }
+          },
+          "example": "ex-multi-step"
         },
         {
           "questionId": "tg-u6-h1",
@@ -4352,7 +4353,8 @@
               "Graph: open circle at −3, shaded to the left. Check with −4: −3(−4 − 2) = 18, and 18 > 15 is true."
             ],
             "commonError": "Writing −3(x − 2) as −3x − 6; a negative times a negative is positive, so the product is −3x + 6."
-          }
+          },
+          "example": "ex-inequality-reverse"
         },
         {
           "questionId": "tg-u7-h1",
@@ -4392,7 +4394,8 @@
               "Graph: closed circle at −9, shaded to the left. Check with −12: 5 − (2/3)(−12) = 13, and 13 ≥ 11 is true."
             ],
             "commonError": "Keeping ≥ after multiplying by −3/2; multiplying by a negative number reverses the symbol, so the solution is x ≤ −9."
-          }
+          },
+          "example": "ex-inequality-reverse"
         }
       ]
     },

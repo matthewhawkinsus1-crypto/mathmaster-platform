@@ -62,9 +62,13 @@ const assertCovered = (questions, examples, label) => {
     const skill = skillOf(question);
     if (typeof question.example === 'string') {
       if (!ids.has(question.example)) throw new Error(`${label} ${question.questionId}: no example "${question.example}".`);
-      if (used.has(question.example)) throw new Error(`${label} ${question.questionId}: example "${question.example}" is already opened by an earlier question.`);
+      // An example may be named again by a later question on the same skill:
+      // the platform plays it there on request. Without the name the student
+      // would be offered the skill's FIRST example, which can be another
+      // method (found in the browser check, 2026-11-21).
+      // The question an example opens on (its first) carries the guided notes; a later one that names it again need not.
+      if (!used.has(question.example) && !question.guidedNotes) throw new Error(`${label} ${question.questionId}: a question that opens an example needs guided notes.`);
       used.add(question.example);
-      if (!question.guidedNotes) throw new Error(`${label} ${question.questionId}: a question that opens an example needs guided notes.`);
       taught.add(skill);
     } else if (!question.example?.none && !taught.has(skill)) {
       throw new Error(`${label} ${question.questionId}: nothing teaches "${skill}" before it. Name an example or an exemption.`);
