@@ -186,7 +186,11 @@ const ANSWERS_DRAFT = draftNormalizer(draftShape.map(draftShape.nullable(draftSh
 // (withheldVerdictKeypad.js, N56); practice and classwork keep their scaffold.
 // `partByPart`: open one part at a time (PART BY PART, above). Off unless the
 // host asks: every other host draws every part, as it always has.
-function MultiAnswerGrader({ question, onStateChange, onUndoStateChange, feedback, draftKey, verdictsWithheld = false, partByPart = false }) {
+// `onShownPartsChange`: told which parts are on the screen while the parts
+// open one at a time (the open one and the answered lines; every part in
+// Review all parts or after a graded attempt), or null when every part is
+// drawn. Read aloud reads only those (SP-1c).
+function MultiAnswerGrader({ question, onStateChange, onUndoStateChange, feedback, draftKey, verdictsWithheld = false, partByPart = false, onShownPartsChange = null }) {
   const { prompt, answerFields = NO_FIELDS } = question;
   // Read as the box its key says it is: an older import stamped some number
   // boxes as set boxes (RT02), and the grader reads them the same way.
@@ -332,6 +336,16 @@ function MultiAnswerGrader({ question, onStateChange, onUndoStateChange, feedbac
     if (field.id === openPartId) return 'open';
     return partDone.get(field.id) ? 'answered' : 'hidden';
   };
+  // What is on the screen, for Read aloud (onShownPartsChange, above): told
+  // when it changes, and null once this grader is gone.
+  const shownPartIds = walkParts ? safeFields.filter((field) => partState(field) !== 'hidden').map((field) => field.id) : null;
+  const shownPartsKey = shownPartIds ? JSON.stringify(shownPartIds) : '';
+  const onShownPartsChangeRef = useRef(onShownPartsChange);
+  onShownPartsChangeRef.current = onShownPartsChange;
+  useEffect(() => {
+    onShownPartsChangeRef.current?.(shownPartsKey ? JSON.parse(shownPartsKey) : null);
+  }, [shownPartsKey]);
+  useEffect(() => () => onShownPartsChangeRef.current?.(null), []);
   // Where Next part goes: the next part with no answer, else an earlier one,
   // else Review all parts.
   const nextStop = (id) => {
