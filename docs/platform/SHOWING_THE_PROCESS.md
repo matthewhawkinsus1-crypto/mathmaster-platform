@@ -155,9 +155,11 @@ The rules:
 A signal is not only a live alert. It is lasting evidence: never conclusive on
 its own, but part of the bigger picture of a student's work.
 
-- **Stored with the attempt.** Each signal is stored on the server with the
-  attempt it belongs to, wherever the student worked, in class or at home.
-  Live Classroom is one view of it.
+- **Stored beside the attempt.** Each signal is a record of its own on the
+  server, keyed by the student, assignment and question it belongs to. It is
+  stored wherever the student worked, in class or at home. It is never a field
+  of the attempt, the submission or the grade record, so no grade path can
+  read it. Live Classroom is one view of it.
 - **In the assignment's results.** The results show each signal beside the
   student's question: what happened, when, and in which part.
 - **In the Student Case Review.** The Academic Evidence Deep Dive
@@ -189,7 +191,7 @@ its own, but part of the bigger picture of a student's work.
 | Slice | What | Done when |
 |---|---|---|
 | P1 | Part by part, Review all parts (DOL, Test), See every part at once | Grading, attempt and draft tests are unchanged. The secure item boundary still holds. Focus and Read aloud work, at phone width and 200% text. |
-| P2 | Teacher signals as evidence (section 7) | Stored with the attempt, at school or at home, with no contents. Shown in Live Classroom, the assignment's results and the Student Case Review (patterns, timeline, export). Review keeps the record. In or outside class time, and the supports in effect, are recorded with each signal. Teachers only. Accommodations are exempt. No grade path reads them. |
+| P2 | Teacher signals as evidence (section 7) | Stored beside the attempt as a record of its own, at school or at home, with no contents. Shown in Live Classroom, the assignment's results and the Student Case Review (patterns, timeline, export). Review keeps the record. In or outside class time, and the supports in effect, are recorded with each signal. Teachers only. Accommodations are exempt. No grade path reads them. |
 | P3 | Follow-through parts | The grader keys a later part to the student's earlier value. Pre-Flight checks the names. |
 | P4 | Show the step: `pickPoints` and `stepMoves`, then `factorPair` and `tableRow` | Each checkpoint is checked by the tool's own engine and recorded with the attempt. |
 | P5 | The Pre-Flight authoring rules (sections 4 to 6) | Warnings on new assignments only. Existing assignments raise nothing new. |
