@@ -137,7 +137,7 @@ import { toolsEntitlementFromProfile } from './platform/language/supportToolsEnt
 import { seenHelpText } from './platform/language/seenHelpText.js';
 import { useFocusReturnAfterLock } from './components/common/useFocusReturnAfterLock.js';
 import { speakAloud, speechAvailable } from './platform/language/speechText.js';
-import { backUpQuestionText, questionReadingParts, questionReadingText } from './platform/language/questionReading.js';
+import { backUpQuestionText, questionReadingParts, questionReadingText, readingPartsShown } from './platform/language/questionReading.js';
 import { KeypadConstantsProvider, keypadConstantsFor } from './platform/interaction/keypadConstants.js';
 
 // The graphing calculator (pass 3, PR-26) loads only for a question whose
@@ -743,6 +743,8 @@ function QuestionEngineBody({
   // Provided where it changed what this question shows: a multi-part answer
   // its host would have opened one part at a time.
   const walkAnswerParts = partByPart === true && supportPresentation.everyPartAtOnce !== true;
+  // The parts the screen shows while they open one at a time (null: all).
+  const [shownAnswerParts, setShownAnswerParts] = useState(null);
   const everyPartShownBySupport = partByPart === true && supportPresentation.everyPartAtOnce === true
     && processedQuestion?.type === 'multiAnswer'
     && (Array.isArray(processedQuestion?.answerFields) ? processedQuestion.answerFields.filter((field) => field?.id).length : 0) > 1;
@@ -1283,7 +1285,7 @@ function QuestionEngineBody({
     return () => { current = false; };
   }, [readAloudLanguage]);
   const figurePack = loadedFigureWords?.language === readAloudLanguage ? loadedFigureWords.pack : null;
-  const readingParts = useMemo(
+  const everyReadingPart = useMemo(
     () => questionReadingParts(processedQuestion, {
       referenceInfo,
       backUp: scaffoldRequired ? scaffold : null,
@@ -1294,6 +1296,9 @@ function QuestionEngineBody({
     }),
     [processedQuestion, referenceInfo, scaffoldRequired, scaffold, readingStage, readAloudLanguage, figureReadings, figurePack],
   );
+  // PART BY PART (SP-1c): Read aloud reads the open part and the answered
+  // lines, never a part the screen does not show yet.
+  const readingParts = useMemo(() => readingPartsShown(everyReadingPart, shownAnswerParts), [everyReadingPart, shownAnswerParts]);
   const referenceSpeechText = useMemo(() => questionReadingText(readingParts), [readingParts]);
 
   // WHAT AN ATTEMPT RECORDS (supportUseMemory.js). A hint, a worked example,
@@ -2533,7 +2538,7 @@ function QuestionEngineBody({
       case 'multiAnswer':
         // An exit ticket, a quiz or a test before its release: the keypad says
         // nothing about the answer (N56, withheldVerdictKeypad.js).
-        return <MultiAnswerGrader {...commonModuleProps} verdictsWithheld={!showOutcomeFeedback} partByPart={walkAnswerParts} />;
+        return <MultiAnswerGrader {...commonModuleProps} verdictsWithheld={!showOutcomeFeedback} partByPart={walkAnswerParts} onShownPartsChange={setShownAnswerParts} />;
       case 'relationshipModel':
         return <RelationshipModel {...commonModuleProps} />;
       case 'graphScenarioMatch':

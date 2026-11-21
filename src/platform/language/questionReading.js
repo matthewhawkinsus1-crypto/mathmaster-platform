@@ -285,3 +285,18 @@ export const questionReadingText = (parts = []) => (Array.isArray(parts) ? parts
 
 /** The function names the parts carry (the same for every part). */
 export const readingFunctionNames = (parts = []) => (Array.isArray(parts) && parts[0]?.functionNames) || '';
+
+/**
+ * PART BY PART (SP-1c, docs/platform/SHOWING_THE_PROCESS.md section 3): the
+ * parts Read aloud may say while a multi-part answer opens one part at a
+ * time. `shownFieldIds` are the answer fields the screen shows (the open part
+ * and the answered lines), or null when every part is drawn. A part the screen
+ * does not show yet is never read; everything that is not an answer part (the
+ * prompt, the figures, the step) is read as before.
+ */
+export const readingPartsShown = (parts = [], shownFieldIds = null) => {
+  const all = Array.isArray(parts) ? parts : [];
+  if (!Array.isArray(shownFieldIds)) return all;
+  const shown = new Set(shownFieldIds.map((id) => `part-${id}`));
+  return all.filter((part) => part?.kind !== 'part' || shown.has(part.id));
+};

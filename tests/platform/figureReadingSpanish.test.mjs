@@ -1127,7 +1127,7 @@ test('the Spanish words are loaded only for a Spanish reading, and never on the 
   assert.match(load, /if \(readAloudLanguage === 'en'\) return undefined;/);
   assert.match(load, /loadFigureWords\(readAloudLanguage\)/);
   assert.match(engine, /const figurePack = loadedFigureWords\?\.language === readAloudLanguage \? loadedFigureWords\.pack : null;/, 'never another language\'s words');
-  const reading = region(engine, 'const readingParts = useMemo(', ');', 'the reading');
+  const reading = region(engine, 'const everyReadingPart = useMemo(', ');', 'the reading');
   assert.match(reading, /language: readAloudLanguage,\s*figures: figureReadings,\s*figurePack,/);
 });
 

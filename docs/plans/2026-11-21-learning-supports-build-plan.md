@@ -46,7 +46,8 @@ gate, and merges with a merge commit when CI is green.
 | Worked examples spec | #585 |
 | Showing the process spec | #586 |
 | SP P1: part by part, Review all parts, See every part at once | #587 |
-| SP P1 in Recovery | this PR |
+| SP P1 in Recovery | #588 |
+| SP-1c: Read aloud reads only the parts on the screen | this PR |
 
 ## Track SP: showing the process
 
