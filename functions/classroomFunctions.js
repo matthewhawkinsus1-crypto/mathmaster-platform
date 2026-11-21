@@ -27,6 +27,7 @@ const {
   standingClassroomReturnRefusal,
 } = require("./lib/classroomPushErrors");
 const classroomPushQueue = require("./lib/classroomPushQueue");
+const classroomReconcileRuns = require("./lib/classroomReconcileRuns");
 const classroomStudentCheckpoints = require("./lib/classroomStudentCheckpoints");
 const classroomCheckpointScan = require("./lib/classroomCheckpointScan");
 // Which Classroom publications a teacher may see and act on: the publication
@@ -37,7 +38,7 @@ const classroomGradeSyncRows = require("./lib/classroomGradeSyncRows");
 // The release rule (whether Classroom shows the student a grade, and whether
 // it is returned) is the lib's: one rule for this whole-assignment trigger and
 // the section trigger (tests/platform/classroomReleasePolicyOneRule.test.mjs).
-const { classroomGradeReleasePolicy, classroomReceiptNeedsWriting, deferredClassCheckpoint } = require("./lib/classroomGradeRuntime");
+const { classroomGradeReleasePolicy, classroomReceiptNeedsWriting, deferredClassCheckpoint, noWorkIsMissingNotZero } = require("./lib/classroomGradeRuntime");
 // What wakes the two grade triggers: a tracker that moved beyond time on task.
 const { trackerChangedBeyondTimeOnTask } = require("./lib/classroomTrackerChange");
 const {
@@ -2800,7 +2801,7 @@ exports.listClassroomGradeSyncs = onCall(async (request) => {
   // ids and assignments are needed.
   const ownPublications = await readOwnClassroomLinks(db, teacherUid, "listClassroomGradeSyncs", { fields: ["assignmentId"] });
   const publicationIds = new Set(ownPublications.map((doc) => doc.id));
-  if (!publicationIds.size) return { syncs: [], pushQueue: { waiting: 0 } };
+  if (!publicationIds.size) return { syncs: [], pushQueue: { waiting: 0 }, reconcileRuns: [] };
   const ownAssignments = new Set(ownPublications.map((doc) => String(doc.data().assignmentId || "")));
 
   // The rows of those posts alone, by their ids, and the newest 500 of them
@@ -2827,7 +2828,13 @@ exports.listClassroomGradeSyncs = onCall(async (request) => {
       updatedAt: serializableDate(item.updatedAt),
       syncedAt: serializableDate(item.syncedAt),
     }));
-  return { syncs, pushQueue: { waiting: waiting.length } };
+  // What the caller's last "Reconcile section grades" did on each assignment
+  // (lib/classroomReconcileRuns.js): one read a run.
+  const reconcile = await classroomReconcileRuns.readTeacherReconcileRuns(db, teacherUid);
+  if (!reconcile.complete) {
+    logger.warn("The grade passback monitor read a teacher's reconcile runs up to its limit", { teacherUid, runs: reconcile.runs.length });
+  }
+  return { syncs, pushQueue: { waiting: waiting.length }, reconcileRuns: reconcile.runs };
 });
 
 exports.retryClassroomGradeSync = onCall(async (request) => {
@@ -3025,6 +3032,14 @@ exports.syncGradeToClassroom = onDocumentWritten(
     const profileOnlyIds = new Set(profileMovedIds.filter((id) => !changedAssignmentIds.includes(id)));
     changedAssignmentIds.push(...profileOnlyIds);
     if (changedAssignmentIds.length === 0) return;
+    // Woken by a release signal and nothing else.
+    const changedBeyondSignal = new Set([
+      ...gradeChangedAssignmentIds,
+      ...overrideChangedAssignmentIds,
+      ...testCycleChangedAssignmentIds,
+      ...recoveryChangedIds,
+    ]);
+    const signalOnlyAssignmentIds = new Set(releaseSignaledAssignmentIds.filter((id) => !changedBeyondSignal.has(id)));
 
     const db = getFirestore();
     const classroomByTeacher = new Map();
@@ -3201,6 +3216,10 @@ exports.syncGradeToClassroom = onDocumentWritten(
         });
       }
       if (!stage) continue;
+      // No work at the due date: nothing is sent, and Classroom shows the
+      // work as Missing, as the section columns do
+      // (lib/classroomGradeRuntime.js noWorkIsMissingNotZero).
+      if (noWorkIsMissingNotZero({ stage, progress })) continue;
 
       const grade = progress.grade;
       const isFinal = ["final-complete", "final-deadline"].includes(stage);
@@ -3264,8 +3283,16 @@ exports.syncGradeToClassroom = onDocumentWritten(
         .collection("classroomLinks")
         .where("assignmentId", "==", assignmentId)
         .get();
+      // A teacher's "Reconcile section grades" wakes this trigger too. It
+      // acts on that teacher's own posts only, never a co-teacher's column
+      // (lib/classroomReconcileRuns.js); a write that also changed the
+      // student's work is an ordinary push to every column.
+      const reconcileScope = signalOnlyAssignmentIds.has(assignmentId)
+        ? classroomReconcileRuns.reconcileScopeOfSignal(releaseSignal)
+        : null;
       const publications = publicationsSnap.docs.filter(
         (doc) => doc.data().status === "published" && doc.data().courseworkId
+          && classroomReconcileRuns.publicationInReconcileScope(reconcileScope, doc.data())
       );
       if (publications.length === 0) continue;
 
@@ -3730,6 +3757,9 @@ exports.syncGradeToClassroom = onDocumentWritten(
           studentId: event.params.studentId,
           reason: releaseSignal ? releaseSignalReason(releaseSignal) : null,
           quotaRetry,
+          // A reconcile run's retry stays that run's, and that teacher's.
+          runId: releaseSignal?.runId,
+          scopeTeacherUid: releaseSignal?.scopeTeacherUid,
         });
       }
 

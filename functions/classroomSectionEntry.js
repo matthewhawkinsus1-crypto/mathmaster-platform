@@ -43,6 +43,7 @@ const {
   classroomGradeReleasePolicy,
   classroomReceiptNeedsWriting,
   deferredClassCheckpoint,
+  noWorkIsMissingNotZero,
   toDate,
 } = require("./lib/classroomGradeRuntime");
 const { trackerChangedBeyondTimeOnTask } = require("./lib/classroomTrackerChange");
@@ -58,6 +59,7 @@ const {
   standingClassroomReturnRefusal,
 } = require("./lib/classroomPushErrors");
 const classroomPushQueue = require("./lib/classroomPushQueue");
+const classroomReconcileRuns = require("./lib/classroomReconcileRuns");
 const classroomCheckpointScan = require("./lib/classroomCheckpointScan");
 const classroomStudentCheckpoints = require("./lib/classroomStudentCheckpoints");
 const {
@@ -373,9 +375,18 @@ async function queueGradeSignalForAssignmentAudience({
   assignment,
   reason,
   requireSavedTracker = false,
+  // A reconcile run: only these classes (the caller's own posts'), with the
+  // run's id and the caller carried on every entry.
+  onlyClassIds = null,
+  run = null,
+  beforeEnqueue = null,
 }) {
-  const classIds = assignmentClassIds(assignment);
-  if (!classIds.length) return 0;
+  const classIds = assignmentClassIds(assignment)
+    .filter((classId) => !onlyClassIds || onlyClassIds.includes(String(classId)));
+  if (!classIds.length) {
+    if (beforeEnqueue) await beforeEnqueue(0);
+    return 0;
+  }
   // A grade document is a student's whole year (about 300 KB). Only its
   // reference is needed to flag it, plus, for a reconcile, whether this one
   // assignment has a saved tracker.
@@ -390,13 +401,17 @@ async function queueGradeSignalForAssignmentAudience({
     !requireSavedTracker
     || gradeDoc.data()?.gradesByAssignment?.[assignmentId] != null
   ));
+  const studentIds = [...new Set(gradeDocs.map((gradeDoc) => gradeDoc.id))];
+  // The run's document is written before any entry can be released.
+  if (beforeEnqueue) await beforeEnqueue(studentIds.length);
   // Queued, not signalled: a whole class at once is more Classroom requests
   // than Google allows a teacher in a minute (lib/classroomPushQueue.js).
   return classroomPushQueue.enqueueClassroomPushes(db, {
     assignmentId,
-    studentIds: gradeDocs.map((gradeDoc) => gradeDoc.id),
+    studentIds,
     reason,
     source: reason,
+    ...(run ? { runId: run.runId, scopeTeacherUid: run.teacherUid } : {}),
   });
 }
 
@@ -428,20 +443,45 @@ const reconcileClassroomSectionGrades = onCall(async (request) => {
     );
   }
 
+  // The caller's own posts only (the owner, 2026-11-19): the run carries the
+  // caller on every queue entry and release signal, and both grade triggers
+  // leave every other teacher's column alone for it. It is queued for the
+  // classes those posts were made for; a post that records no class falls
+  // back to the assignment's classes, and the triggers still keep to the
+  // caller's posts.
+  const assignment = assignmentSnapshot.data() || {};
+  const ownedClassIds = ownedSections.map((doc) => String(doc.data()?.classId || "").trim());
+  const onlyClassIds = ownedClassIds.every(Boolean) ? [...new Set(ownedClassIds)] : null;
+  // R1: the run's id rides with each student through the queue, so the
+  // monitor can say what the run did (lib/classroomReconcileRuns.js).
+  const run = { runId: classroomReconcileRuns.newReconcileRunId(), teacherUid };
+  const requestedAt = new Date().toISOString();
+
   // This deliberately writes only a release signal. The existing trigger reads
   // canonical saved trackers and updates the preserved CourseWork IDs; it does
   // not create posts, recreate assignments, or mutate student answers.
   const queuedStudents = await queueGradeSignalForAssignmentAudience({
     db,
     assignmentId,
-    assignment: assignmentSnapshot.data() || {},
-    reason: "section-grade-reconcile",
+    assignment,
+    reason: classroomReconcileRuns.RECONCILE_REASON,
     requireSavedTracker: true,
+    onlyClassIds,
+    run,
+    beforeEnqueue: (students) => classroomReconcileRuns.startReconcileRun(db, {
+      assignmentId,
+      teacherUid,
+      runId: run.runId,
+      queuedStudents: students,
+      publications: ownedSections.length,
+      requestedAt,
+    }),
   });
   return {
     assignmentId,
     queuedStudents,
     publications: ownedSections.length,
+    runId: run.runId,
     reconciliationVersion: CLASSROOM_SECTION_GRADE_RECONCILIATION_VERSION,
   };
 });
@@ -677,13 +717,40 @@ const syncSectionGradeToClassroom = onDocumentWritten(
     // calling it for that teacher; the rest of the columns wait in the queue.
     const teachersAtClassroomLimit = new Set();
 
+    const changedBeyondSignal = new Set([...gradeChangedAssignmentIds, ...recoveryChangedIds, ...overrideChangedIds]);
     for (const assignmentId of assignmentIds) {
+      const releaseSignal = signaledSet.has(assignmentId) ? afterSignals[assignmentId] : null;
+      const signalReason = releaseSignalReason(releaseSignal);
+      // A teacher's "Reconcile section grades" acts on that teacher's own
+      // posts only, never a co-teacher's column, and reports what it did to
+      // its run (lib/classroomReconcileRuns.js). A write that also changed the
+      // student's work is an ordinary push to every column.
+      const reconcileScope = changedBeyondSignal.has(assignmentId)
+        ? null
+        : classroomReconcileRuns.reconcileScopeOfSignal(releaseSignal);
+      const runTally = reconcileScope?.runId ? classroomReconcileRuns.reconcileTally() : null;
+      const reportRun = () => (runTally
+        ? classroomReconcileRuns.recordReconcileStudent(db, {
+          assignmentId,
+          scope: reconcileScope,
+          studentId: event.params.studentId,
+          counts: runTally.counts,
+          onError: (error) => logger.warn("Reconcile run report was not written", {
+            assignmentId, studentId: event.params.studentId, message: String(error?.message || error),
+          }),
+        })
+        : null);
       // eslint-disable-next-line no-await-in-loop
       const assignmentSnapshot = await db.doc(`assignments/${assignmentId}`).get();
-      if (!assignmentSnapshot.exists) continue;
+      // A student the run cannot act on still reports, with no columns, so
+      // the monitor does not wait for them.
+      // eslint-disable-next-line no-await-in-loop
+      if (!assignmentSnapshot.exists) { await reportRun(); continue; }
       const assignment = assignmentSnapshot.data() || {};
-      if (assignmentFeedbackIsHeld(assignment)) continue;
-      if (!await require("./lib/retroactiveAccommodation").correctionSyncAllowed({ db, studentId: event.params.studentId, gradeData: afterData, assignment: { ...assignment, id: assignmentId } })) continue;
+      // eslint-disable-next-line no-await-in-loop
+      if (assignmentFeedbackIsHeld(assignment)) { await reportRun(); continue; }
+      // eslint-disable-next-line no-await-in-loop
+      if (!await require("./lib/retroactiveAccommodation").correctionSyncAllowed({ db, studentId: event.params.studentId, gradeData: afterData, assignment: { ...assignment, id: assignmentId } })) { await reportRun(); continue; }
       const questions = runtimeQuestionsFromAssignment(assignment);
       // A reduced-item-count accommodation omits items from this student's
       // work; every section column (and the Recovery original inside it) is
@@ -732,12 +799,15 @@ const syncSectionGradeToClassroom = onDocumentWritten(
         omittedIndices: studentOmitted,
       });
       const { tracker } = recovered;
-      const releaseSignal = signaledSet.has(assignmentId) ? afterSignals[assignmentId] : null;
-      const signalReason = releaseSignalReason(releaseSignal);
       // A push queued again after Google's per-minute limit sends only the
       // columns that did not go through; the rest are already current.
       const quotaRetry = Math.max(0, Number(releaseSignal?.quotaRetry) || 0);
-      const forceRetry = (signalReason === "manual-retry" || signalReason === "section-grade-reconcile") && quotaRetry === 0;
+      // Only a teacher's Retry sends a column Classroom already holds. A
+      // reconcile no longer does (the owner, 2026-11-19, option A): it sends
+      // the columns whose evidence, stage or return state differ from what
+      // was last sent, so a second run costs no Classroom call and a grade a
+      // teacher typed in Classroom over a current column is left alone.
+      const forceRetry = signalReason === "manual-retry" && quotaRetry === 0;
       // A teacher sending this grade again asks Google to return a submission
       // even if it refused before: Retry, Retry all, a grade override, a
       // resolved Recovery, a repost or a correction sync, all "manual-retry".
@@ -763,9 +833,11 @@ const syncSectionGradeToClassroom = onDocumentWritten(
         return publication.publicationKind === "section"
           && publication.status === "published"
           && Boolean(publication.courseworkId)
-          && publication.sectionGradePassbackEnabled !== false;
+          && publication.sectionGradePassbackEnabled !== false
+          && classroomReconcileRuns.publicationInReconcileScope(reconcileScope, publication);
       });
-      if (!publications.length) continue;
+      // eslint-disable-next-line no-await-in-loop
+      if (!publications.length) { await reportRun(); continue; }
 
       const successfulBySection = new Map();
       let ownDeadlines = null;
@@ -775,8 +847,8 @@ const syncSectionGradeToClassroom = onDocumentWritten(
       const stageNow = Date.now();
       for (const publicationDoc of publications) {
         const publication = publicationDoc.data() || {};
-        if (!sectionPublicationReleased(publication, Date.now())) continue;
-        if (publication.sectionKey === 'practice' && correctionPracticeWaived.length) continue;
+        if (!sectionPublicationReleased(publication, Date.now())) { runTally?.count("notSent"); continue; }
+        if (publication.sectionKey === 'practice' && correctionPracticeWaived.length) { runTally?.count("notSent"); continue; }
 
         let gradeResult;
         try {
@@ -802,6 +874,7 @@ const syncSectionGradeToClassroom = onDocumentWritten(
             status: "invalid-section-publication",
             error: String(error?.message || error),
           });
+          runTally?.count("failed");
           continue;
         }
 
@@ -835,6 +908,7 @@ const syncSectionGradeToClassroom = onDocumentWritten(
             returnedToStudent: false,
             message: sectionRecoveryGrades.RECOVERY_HELD_SYNC_MESSAGE,
           });
+          runTally?.count("notSent");
           continue;
         }
 
@@ -870,7 +944,10 @@ const syncSectionGradeToClassroom = onDocumentWritten(
           studentFinalCutoff: ownDeadlines.studentFinalCutoff,
           studentDueAt: ownDeadlines.studentDueAt,
         });
-        if (!stage) continue;
+        if (!stage) { runTally?.count("notSent"); continue; }
+        // No work at the due date: nothing is sent, and Classroom shows the
+        // work as Missing (lib/classroomGradeRuntime.js).
+        if (noWorkIsMissingNotZero({ stage, progress: gradeResult })) { runTally?.count("notSent"); continue; }
         const releasePolicy = classroomGradeReleasePolicy({
           stage, assignment, nowValue: stageNow, studentDueAt: ownDeadlines.studentDueAt, studentFinalCutoff: ownDeadlines.studentFinalCutoff,
         });
@@ -887,7 +964,7 @@ const syncSectionGradeToClassroom = onDocumentWritten(
           });
         }
         const courseId = String(publication.courseId || "");
-        if (!courseId) continue;
+        if (!courseId) { runTally?.count("notSent"); continue; }
         const maxPoints = classroomMaxPoints(publication.maxPoints);
         const classroomGrade = Math.round((gradeResult.grade / 100) * maxPoints * 100) / 100;
         const isFinal = ["final-complete", "final-deadline"].includes(stage);
@@ -923,11 +1000,16 @@ const syncSectionGradeToClassroom = onDocumentWritten(
             shouldReturn: releasePolicy.shouldReturn,
           })
         ) {
+          // Current because this run sent it (an earlier pass, or the same
+          // event delivered twice): still repaired, not "already up to date".
+          runTally?.count(prior.reconcileRunId && prior.reconcileRunId === reconcileScope?.runId ? "repaired" : "upToDate");
           continue;
         }
+        // Which run sent this column, on the row it writes anyway.
+        const runStamp = reconcileScope?.runId ? { reconcileRunId: reconcileScope.runId } : {};
 
         const teacherUid = String(publication.teacherUid || "").trim();
-        if (!teacherUid) continue;
+        if (!teacherUid) { runTally?.count("notSent"); continue; }
         let classroom = classroomByTeacher.get(teacherUid);
         if (!classroom) {
           try {
@@ -956,6 +1038,7 @@ const syncSectionGradeToClassroom = onDocumentWritten(
               returnedToStudent: false,
               message: String(error?.message || error),
             });
+            runTally?.count("failed");
             continue;
           }
         }
@@ -988,6 +1071,7 @@ const syncSectionGradeToClassroom = onDocumentWritten(
             returnedToStudent: false,
             message: "Student is not linked to this Classroom course.",
           });
+          runTally?.count("notSent");
           continue;
         }
 
@@ -1013,6 +1097,7 @@ const syncSectionGradeToClassroom = onDocumentWritten(
             ...classroomPushHeldForLimit({ mayRequeue }),
           });
           requeueForLimit = requeueForLimit || mayRequeue;
+          runTally?.count(mayRequeue ? "waiting" : "failed");
           continue;
         }
 
@@ -1044,11 +1129,12 @@ const syncSectionGradeToClassroom = onDocumentWritten(
               studentVisible: releasePolicy.studentVisible,
               returnedToStudent: false,
             });
+            runTally?.count("failed");
             continue;
           }
 
           // eslint-disable-next-line no-await-in-loop
-          if (!await require("./lib/retroactiveAccommodation").correctionSyncAllowed({ db, studentId: event.params.studentId, gradeData: afterData, assignment: { ...assignment, id: assignmentId } })) continue;
+          if (!await require("./lib/retroactiveAccommodation").correctionSyncAllowed({ db, studentId: event.params.studentId, gradeData: afterData, assignment: { ...assignment, id: assignmentId } })) { runTally?.count("notSent"); continue; }
           const patched = await classroomLib.patchGrade(classroom, {
             courseId,
             courseWorkId: publication.courseworkId,
@@ -1120,7 +1206,10 @@ const syncSectionGradeToClassroom = onDocumentWritten(
               evidenceFingerprint,
               syncedAt: FieldValue.serverTimestamp(),
               ...returnRefusal.audit,
+              ...runStamp,
             });
+            // The grade is in Classroom; only its return is missing.
+            runTally?.count("repaired");
             continue;
           }
 
@@ -1152,7 +1241,9 @@ const syncSectionGradeToClassroom = onDocumentWritten(
             reconciliationVersion: CLASSROOM_SECTION_GRADE_RECONCILIATION_VERSION,
             evidenceFingerprint,
             syncedAt: FieldValue.serverTimestamp(),
+            ...runStamp,
           });
+          runTally?.count("repaired");
           successfulBySection.set(gradeResult.sectionKey, {
             assignmentId,
             sectionKey: gradeResult.sectionKey,
@@ -1172,6 +1263,7 @@ const syncSectionGradeToClassroom = onDocumentWritten(
             teachersAtClassroomLimit.add(teacherUid);
             requeueForLimit = requeueForLimit || mayRequeue;
           }
+          runTally?.count(failure.quota && mayRequeue ? "waiting" : "failed");
           // Not `message`: the logger's own message field would replace it.
           logger.error("Section grade passback failed", {
             assignmentId,
@@ -1245,8 +1337,13 @@ const syncSectionGradeToClassroom = onDocumentWritten(
           studentId: event.params.studentId,
           reason: signalReason,
           quotaRetry,
+          // A reconcile run's retry stays that run's, and that teacher's.
+          runId: releaseSignal?.runId,
+          scopeTeacherUid: releaseSignal?.scopeTeacherUid,
         });
       }
+      // eslint-disable-next-line no-await-in-loop
+      await reportRun();
     }
   }
 );
