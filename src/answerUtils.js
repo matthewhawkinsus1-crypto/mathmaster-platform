@@ -7,6 +7,7 @@ export {
   answerCandidatesForField,
   compareMathAnswer,
   compareOrderedPair,
+  isChoiceAnswerField,
   looksLikeFiniteSetNotation,
   matchesAnyAnswer,
   matchesFieldAnswer,
