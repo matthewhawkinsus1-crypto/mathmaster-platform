@@ -1,9 +1,13 @@
-import { useEffect, useState } from 'react';
+import { Suspense, lazy, useEffect, useState } from 'react';
 import MathText from '../../../components/common/MathText.jsx';
 import { SupportedTextActions } from '../SupportedText.jsx';
 import { useAskTeacherControl } from '../AskTeacherControl.jsx';
 import { authoredLineFor } from '../../language/authoredSupportText.js';
 import { PENDING_RUNG_TEXT, hintCostSentence } from './hintCopy.js';
+
+// The step-through player, loaded when an example is opened: a page that
+// shows none (Home, a DOL, a quiz, a test) never fetches it.
+const WorkedExamplePlayer = lazy(() => import('../workedExample/WorkedExamplePlayer.jsx'));
 
 /*
  * THE PLATFORM HINT PANEL — opened from the work bar's Hint control (and the
@@ -15,6 +19,14 @@ import { PENDING_RUNG_TEXT, hintCostSentence } from './hintCopy.js';
  * "Ask my teacher". Revealing a hint or opening the worked example is
  * recorded by the caller (QuestionEngine) as hintUsed / workedExampleUsed.
  * Rendered only where hints are allowed and the question is still open.
+ *
+ * THE WORKED EXAMPLE IS A STEP-THROUGH (WE-A, WORKED_EXAMPLES.md). Once
+ * opened it plays one slide at a time in WorkedExamplePlayer (Next, Back, a
+ * why, "Your turn"). `similar` is the example to play ({ prompt, steps,
+ * answer }; examplePlayer.js workedExampleFor), or null wherever the section
+ * shows none: the caller decides, and with null nothing of it is drawn.
+ * `onYourTurn` hands the student their own question; `similarOpenedByItself`
+ * says Classwork opened it before the first question on a new skill.
  *
  * WHAT IT COSTS, SAID ONCE (HELP-17): "Hints never lower your grade. Your
  * teacher can see you used one." — or the host's own sentence where a hint
@@ -70,6 +82,8 @@ export default function HintPanel({
   similar = null,
   similarOpen = false,
   onOpenSimilar = null,
+  onYourTurn = null,
+  similarOpenedByItself = false,
   askTeacher = null,
   readAloud = null,
   translation = null,
@@ -186,13 +200,16 @@ export default function HintPanel({
       {similar && similarOpen && (
         <details open data-similar-example="" style={{ padding: '12px 14px', borderRadius: 10, border: '1px solid var(--mm-tint-border)', background: 'var(--mm-surface-tint)' }}>
           <summary style={{ ...summaryStyle, marginBottom: 6 }}>A similar problem, worked out</summary>
-          <MathText as="p" style={{ margin: '0 0 8px', fontWeight: 700 }}>{similar.prompt}</MathText>
-          <ol style={{ margin: 0, paddingLeft: 22, display: 'grid', gap: 6 }}>
-            {similar.steps.map((step, index) => <li key={`ex-${index}`} style={{ lineHeight: 1.55 }}><MathText>{step}</MathText></li>)}
-          </ol>
-          <p style={{ margin: '8px 0 0', fontWeight: 800 }}>Answer: <MathText>{similar.answer}</MathText></p>
-          <p style={{ margin: '8px 0 0', color: 'var(--mm-text-muted)' }}>Your question uses different numbers — use the same steps on it.</p>
-          <SupportedTextActions text={[similar.prompt, ...similar.steps, `Answer: ${similar.answer}`].join(' ')} readAloud={readAloud} translation={translation} label="the worked example" onEvidence={onSupportEvidence} />
+          <Suspense fallback={<p role="status" style={{ margin: 0, color: 'var(--mm-text-muted)' }}>Loading the example…</p>}>
+            <WorkedExamplePlayer
+              example={similar}
+              readAloud={readAloud}
+              translation={translation}
+              onSupportEvidence={onSupportEvidence}
+              onYourTurn={onYourTurn}
+              openedByItself={similarOpenedByItself}
+            />
+          </Suspense>
         </details>
       )}
     </section>

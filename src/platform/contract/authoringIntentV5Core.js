@@ -197,8 +197,8 @@ const copyCommon = (source, target = {}) => {
   // student got the rule-based split instead of the steps the author wrote.
   // `example` (an id of a lessonSupports.examples entry, or { none: "setup" |
   // "explain" }) names the worked example a new assignment's question is
-  // covered by (AG-1; lessonSupportsV5.js). Carried as authored; nothing reads
-  // it yet, and a question that has none compiles exactly as before.
+  // covered by (AG-1; lessonSupportsV5.js). Carried as authored for the
+  // example player (WE-A); a question that has none compiles exactly as before.
   ['example','scaffold','prompt','activityRole','dok','difficultyBand','purpose','evidenceWeight','differentiation','calculator','calculatorPolicy','examCalculatorMode','assessmentContext','context','familyId','familyVersion','assessedConstruct','taskType','representation','ccmrChallengeTier','ccmrFamilyRole','ccmrAuthenticLanguage','assessmentItemFormat','ccmrSource','solutionReview','attemptFeedback','misconceptions','supportHints','hints','hint','translations','guidedNotes','guidedSteps','directionSteps','referenceInfo','referenceSheet','representSolution','solutionRepresentations','representationAsk','showEquation'].forEach((key) => {
     if (source[key] != null) target[key] = source[key];
   });

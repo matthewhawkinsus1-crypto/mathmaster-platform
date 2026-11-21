@@ -677,6 +677,17 @@ jobs:
           PLAYWRIGHT_MODULE: playwright
           AUDIT_ORIGIN: "http://127.0.0.1:5199"
         run: node tests/browser/feedbackTeachesHintPlace.mjs
+      # The worked example is a step-through player (WE-A): it opens by itself
+      # on Classwork before a new skill, plays on request on Practice with the
+      # score unchanged, and is never on a DOL, quiz or test. By keyboard, with
+      # Read aloud and Translate, on a phone, at 200% text, in the dark theme
+      # and in forced colours.
+      - name: The worked-example player and the section rules
+        if: ${{ !cancelled() }}
+        env:
+          PLAYWRIGHT_MODULE: playwright
+          AUDIT_ORIGIN: "http://127.0.0.1:5199"
+        run: node tests/browser/workedExamplePlayer.mjs
       # Read aloud says the whole question (choices, matrices, parts heard
       # again) and Translate shows Spanish or says why not (student pass 3, batch 6).
       - name: Read aloud and Translate (heard and seen)

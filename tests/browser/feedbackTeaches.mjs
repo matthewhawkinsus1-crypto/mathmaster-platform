@@ -263,8 +263,17 @@ for (const device of DEVICES) {
     await panel.getByRole('button', { name: 'Try a similar one' }).click();
     const example = panel.locator('[data-similar-example]');
     check(await example.count() === 1, `${device.name} explog: "Try a similar one" opens a worked sibling`);
-    const exampleText = (await example.innerText().catch(() => '')).replace(/\s+/g, ' ');
-    check(/Answer:/.test(exampleText) && (await example.locator('ol li').count()) >= 3, `${device.name} explog: the sibling is worked step by step to its answer`, exampleText.slice(0, 160));
+    // The example is a step-through (WE-A): one slide at a time, to its answer.
+    const player = example.locator('[data-worked-example-player]');
+    await player.waitFor();
+    const slideCount = Number(await player.getAttribute('data-example-slide-count'));
+    const slides = [];
+    for (let slide = 1; slide <= slideCount; slide += 1) {
+      slides.push((await player.locator('[data-example-slide]').innerText().catch(() => '')).replace(/\s+/g, ' '));
+      if (slide < slideCount) await player.locator('[data-example-next]').click();
+    }
+    const exampleText = slides.join(' ');
+    check(/Answer:/.test(slides.at(-1) || '') && slides.filter((slide) => /^Step \d+ of \d+/.test(slide)).length >= 3, `${device.name} explog: the sibling is worked step by step to its answer`, exampleText.slice(0, 160));
     const exampleAnswer = (exampleText.split('Answer:')[1] || '').split('Your question')[0];
     check(!/x\s*=\s*(?:5\/2|2\.5)\b/.test(exampleAnswer.replace(/\s+/g, ' ')), `${device.name} explog: the sibling's answer is not this question's`, exampleAnswer.slice(0, 80));
     check(await reachable(page, example), `${device.name} explog: the sibling is on screen`);
