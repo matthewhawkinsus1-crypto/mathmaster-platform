@@ -178,3 +178,63 @@ Severity: **high** stops a student, **medium** teaches or allows something wrong
 ### Sorts
 
 - On the open sort (make your own groups) a wrong sort gets "Not every group holds together yet" without saying which card. The fixed-category sort marks the cards that are wrong. **Upgrade:** mark the cards on the open sort too.
+
+## Found while the packets were written (not seen on a screen)
+
+These came from building the three files, the example player and the unlimited-attempts option. They were found in the compiler, Pre-Flight and the graders, not in the browser check above.
+
+### Authoring and Pre-Flight
+
+- **A graphing question that gives a point and a slope prints the answer.** The task line reads "Graph the line through (1, −3) with slope 2" and the hints give rise and run. `referenceLine: { m, b, relation }` hides it, but the authoring guides do not mention the field. Upgrade: document it, and warn when a parallel or perpendicular question lacks it.
+- **Dropped hints are silent.** A hint containing any number that equals part of an answer is never shown, and the validator still prints PASS. On plot-and-identify questions nearly every small digit is a coordinate. Upgrade: print the dropped hints in the validator, and do not count numbers quoted from the prompt.
+- **The back-up step refuses an option equal to any part's answer**, so a GCF question cannot ask "which number divides 6 and 9?" when 3 is a later part.
+- **One inequality is written three ways in one question** (LaTeX in the prompt, text in `sourceConstraints`, coefficients in `expectedConstraints`) and nothing checks that they agree. Upgrade: a validator check.
+- **Adding one lesson needs edits to about eight unrelated test files** that pin corpus counts, and new sentence shapes need Spanish pairs before two strict tests pass. Upgrade: derive the counts, or keep them in one place.
+- **The Spanish pack matches literal sentence shapes.** 58 pairs were added for the packets and were not written by a Spanish speaker; they need a reader.
+- **Honors readiness counts audited CCMR items only in a Practice section of five or more.** A Classwork-only review reports "not required" and can never be "ready". "Multiple representations" is not detected for graph analysis with typed intervals.
+- **Question weights are automatic** (by workload), so questions are not equal weight unless pinned.
+- **AGENTS.md does not say the suite needs `npm --prefix functions ci`.** With the root install alone, files that load `firebase-admin` fail before any assertion.
+- **Repo copies under `.claude/worktrees/` exhaust the file-watcher limit**, which fails the tests that start Vite. Remove finished copies before running the suite.
+
+### Worked examples
+
+- **The player's rule treats a label the student must pick as a leaked answer.** "function", "geometric", "no solution" and every option of a choice are refused in an example, whichever case the question is. Examples now say the conclusion in other words. Upgrade: an allow-list for choice labels, or compare computed values only.
+- **Words are matched as plain text.** "x + 5x = 42" was refused for containing "x = 4". Lists such as factor pairs or coefficients count every number in them as a stated result.
+- **"State the facts of a parent function" questions cannot have an authored example**, because any honest sibling shares the facts. They use the platform's built-in example.
+- **Pre-Flight warns only about a question's own example**, not one it borrows from an earlier question. The packet tests check both.
+- **Tool replays (`moves`) do not play yet** and have no vocabulary check. The engine calls the radical move `radicalRaise` where the guide says `square`; there is no move for distributing, combining like terms or splitting an absolute value.
+- **"Opened once" is per device.** A student who opens a question on a second device before any try sees the example open again.
+- **Examples have no Spanish.** Translate on an authored step usually says there is no translation yet.
+- **Follow-through labels show their braces** until follow-through grading ships, and nothing says whether an expression such as `{root}^2` will be evaluated.
+
+### Unlimited attempts
+
+- **Choice-only questions are unlimited too** in an assignment that declares it, so a student can click through the options to full credit. The packets have none. Decision open: keep choice-only questions at one try.
+- **There is no teacher toggle.** The policy is set in the file at import.
+- **Declaring it on an assignment already in progress reopens questions whose solutions were shown.** Declare it before students start.
+- **A teacher's per-question grade override is tied to the attempt count**, so another try invalidates it; unlimited tries make that more likely.
+
+### Tools, beyond what the screen check lists
+
+- **Graphing a system:** one `snapStep` serves both axes, so a graph with y in fives forces x to snap to fives. Upgrade: separate x and y snap.
+- **Systems Workspace:** special cases also ask for "inconsistent" or "consistent-dependent", and it cannot be turned off.
+- **Equations from a description:** no tool writes a system from a story or the equation of a parallel or perpendicular line; those are answer boxes.
+- **Sequences:** the platform's worked solution writes aₙ on a question that shows f(n).
+- **Transformations Lab:** "describe" always asks all ten rows, including horizontal scale and y-axis reflection when nothing multiplies x. Upgrade: an authoring switch for the rows asked.
+- **Matrix Lab, multiply:** asks "Is A · B defined?" and the dimensions by default.
+- **Inverse lab:** in `inverse` mode the only graded part is f⁻¹(f(x)), which is the given x, so a student can type the input back. `composition` mode takes numbers only, not a rule.
+- **Factoring tool:** handles only x² + bx + c with an integer pair. GCF, ax² + bx + c, cubes and grouping need answer boxes, and the student never enters the factored form.
+- **Polynomial division:** `dividePolynomial` asks only for coefficient lists with no working; `syntheticDivision` has two different screens chosen by the data type the author writes.
+- **Radical solver:** an equation whose isolated root equals a negative makes the student square before "no solution" appears.
+- **Answer boxes for radicals and rational exponents:** only the key's notation is accepted (`x^(3/2)` yes, `x√x` and `x^1.5` no; `0.667` refused for 2/3).
+
+### A tool for radical expressions and rational exponents
+
+Units 9 and 10 of the Algebra II packet use answer boxes because no tool covers them. What one would need:
+
+- **Simplify a radical:** the student factors the radicand into perfect-power and leftover tiles and drags the perfect power out. Any index; absolute value on even roots of variables; a check that nothing extractable remains.
+- **Combine like radicals:** simplify each term in place, then add coefficients. Unlike radicals must visibly not combine (√12 + √27 → √39 is the usual error).
+- **Multiply and divide:** "outside × outside, inside × inside" slots, an area grid for binomials, and a rationalize step where the student picks the multiplier, including a conjugate.
+- **Rational exponents:** a root ↔ power converter with index and power as separate slots, exponent-rule steps with the fraction arithmetic shown, "root first, then power" evaluation, and a negative exponent as a reciprocal move.
+- **How to build it:** as Step Algebra moves on an expression (`extractPerfectPower`, `combineLikeRadicals`, `rationalize`, `toRationalExponent`, `applyExponentRule`) or as Polynomial Workshop views, so each line is checked and moves are recorded.
+- **Grading:** accept every simplest form unless the prompt fixes the notation, and say which condition of "simplest" fails.
