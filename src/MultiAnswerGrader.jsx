@@ -1,4 +1,4 @@
-import { memo, useEffect, useId, useMemo } from 'react';
+import { memo, useEffect, useId, useMemo, useRef, useState } from 'react';
 import MathInput from './MathInput';
 import MathDisplay from './MathDisplay';
 import QuestionPrompt from './QuestionPrompt';
@@ -25,6 +25,8 @@ import { normalizePlainMathTypography, toPlainMath } from './components/common/m
 import { MathText } from './components/common/MathText.jsx';
 import { ChoiceMark, useChoiceGroup } from './platform/interaction/choiceGroup.js';
 import GradedEntryMark, { gradedEntryInputProps } from './components/common/GradedEntryMark.jsx';
+import { isSingleLineAnswerTarget } from './platform/interaction/answerEntryUx.js';
+import { SR_ONLY_STYLE } from './ui/srOnly.js';
 
 const TEXTUAL_MATH_SIGNAL = /[=<>≤≥≠+*/^()[\]{}\\∞π√∪∩]/;
 
@@ -39,6 +41,52 @@ const accessibleFieldLabel = (field) => {
   const text = field.label || field.id;
   return labelHasDelimitedMath(text) ? toPlainMath(text) : text;
 };
+
+// A field's label as the student reads it, on its box and on its answered line.
+const fieldLabelContent = (field) => {
+  const text = field.label || field.id;
+  // "$x$-intercept", "Slope $m$ =": words and mathematics,
+  // set the way MathText sets every other field label.
+  if (!field.labelLatex && !field.labelFormat && labelHasDelimitedMath(text)) return <MathText>{text}</MathText>;
+  const format = resolveLabelFormat(text, { latexFlag: field.labelLatex, explicitFormat: field.labelFormat });
+  // An English label goes through the math typesetter as
+  // juxtaposed variables — "Discrete or continuous?" comes out
+  // as "Discrete ∨ continuous?" — so it stays plain text.
+  return format ? <MathDisplay value={normalizeMathDisplayValue(text)} format={format} inline /> : normalizePlainMathTypography(text);
+};
+
+/*
+ * PART BY PART (docs/platform/SHOWING_THE_PROCESS.md, section 3).
+ *
+ * One photo of a screen that holds every box answers all of it. Where the host
+ * asks for it (`partByPart`: the student answering a classroom item or a
+ * secure Test item, never a preview, a review, Path or Live Challenge, and
+ * never for a student with See every part at once), a question of two or more
+ * parts opens one at a time:
+ *   - the open part is the first one with no answer when the question opens,
+ *     so a reload comes back to it from the answers' own draft (no new saved
+ *     state); typing does not move on, Next part does;
+ *   - a part before it that has an answer is one line — its label, the
+ *     student's answer and Change, which opens it again;
+ *   - a part after it is not drawn;
+ *   - once every part has an answer, Review all parts lists them all before
+ *     the engine's own Submit, which is unchanged;
+ *   - after a graded miss the parts marked wrong are open, and stay open while
+ *     the student fixes them, and the right ones stay lines.
+ * Next part and Change use no attempt and tell the engine nothing: what it is
+ * told (onStateChange), the draft and Undo are the answers, exactly as before.
+ */
+const PART_LINE = {
+  display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '6px 14px', padding: '10px 14px',
+  borderRadius: '10px', background: 'var(--mm-surface-sunken)', color: 'var(--mm-text)', minWidth: 0,
+};
+const partButton = (enabled, quiet = false) => ({
+  minHeight: '44px', padding: quiet ? '6px 14px' : '8px 18px', borderRadius: '8px',
+  border: `2px solid ${enabled ? 'var(--mm-primary)' : 'var(--mm-border)'}`,
+  background: enabled ? 'var(--mm-surface)' : 'var(--mm-surface-control-strong)',
+  color: enabled ? 'var(--mm-primary-text)' : 'var(--mm-disabled-text)',
+  fontSize: 'calc(15 * var(--mm-px))', fontWeight: 800, cursor: enabled ? 'pointer' : 'not-allowed',
+});
 
 const renderChoiceText = (value, { dimensions = false } = {}) => {
   const text = String(value ?? '');
@@ -136,7 +184,9 @@ const ANSWERS_DRAFT = draftNormalizer(draftShape.map(draftShape.nullable(draftSh
 // `verdictsWithheld`: an exit ticket, a quiz or a test before its release
 // (QuestionEngine). Then the keypad says nothing about the answer
 // (withheldVerdictKeypad.js, N56); practice and classwork keep their scaffold.
-function MultiAnswerGrader({ question, onStateChange, onUndoStateChange, feedback, draftKey, verdictsWithheld = false }) {
+// `partByPart`: open one part at a time (PART BY PART, above). Off unless the
+// host asks: every other host draws every part, as it always has.
+function MultiAnswerGrader({ question, onStateChange, onUndoStateChange, feedback, draftKey, verdictsWithheld = false, partByPart = false }) {
   const { prompt, answerFields = NO_FIELDS } = question;
   // Read as the box its key says it is: an older import stamped some number
   // boxes as set boxes (RT02), and the grader reads them the same way.
@@ -246,6 +296,155 @@ function MultiAnswerGrader({ question, onStateChange, onUndoStateChange, feedbac
     return [field.id, { choiceOptions, inferredRequiredSymbols, requiredSymbols, answerShape, box, toolProfile, withheldKeys }];
   })), [safeFields, question, prompt, verdictsWithheld]);
 
+  // PART BY PART (above). A part is done when it has an answer its box would
+  // let the engine submit: an answer that breaks its shape keeps it open,
+  // where the reason is shown.
+  const walkParts = partByPart === true && safeFields.length > 1;
+  const partDone = useMemo(() => new Map(safeFields.map((field) => [
+    field.id,
+    parts.find((part) => part.id === field.id)?.isComplete === true && !formatProblems[field.id],
+  ])), [safeFields, parts, formatProblems]);
+  const firstOpenPart = () => safeFields.find((field) => !partDone.get(field.id))?.id ?? null;
+  // `open`: the open part's id, or null for Review all parts. `target`: what
+  // takes focus after the student moved (`focus` counts the moves).
+  // `gradedFor`: the graded attempt (feedback with part grades) last seen, and
+  // `afterMiss` the parts it left open: the wrong ones, and any the student
+  // opened again with Change. The engine drops its feedback once the student
+  // edits an answer; the parts stay open until the next attempt is graded.
+  const [walk, setWalk] = useState(() => ({ open: firstOpenPart(), target: null, focus: 0, announcement: '', gradedFor: null, afterMiss: NO_FIELDS }));
+  const gradedNow = walkParts && Array.isArray(feedback?.partGrades) ? feedback : null;
+  const wrongIn = (graded) => graded.partGrades.filter((part) => part?.isCorrect === false).map((part) => part.id);
+  if (gradedNow && walk.gradedFor !== gradedNow) {
+    // A newly graded attempt: its wrong parts open, its right ones shrink
+    // (state derived from a prop, set while rendering, as React allows).
+    setWalk((current) => ({ ...current, gradedFor: gradedNow, afterMiss: wrongIn(gradedNow) }));
+  }
+  const afterGrading = walkParts && (gradedNow !== null || walk.gradedFor !== null);
+  const afterMiss = gradedNow && walk.gradedFor !== gradedNow ? wrongIn(gradedNow) : walk.afterMiss;
+  // The grader's marks, on a part's line, while the engine shows them.
+  const lineGrades = Array.isArray(feedback?.partGrades) ? feedback.partGrades : null;
+  // A part emptied since it was passed (Undo, a restored draft) opens again.
+  const openPartId = (safeFields.some((field) => field.id === walk.open) ? walk.open : null) ?? firstOpenPart();
+  const reviewHeading = verdictsWithheld ? 'Review all parts, then submit' : 'Review all parts';
+  const partName = (id) => `Part ${safeFields.findIndex((field) => field.id === id) + 1} of ${safeFields.length}`;
+  const partState = (field) => {
+    if (afterGrading) return afterMiss.includes(field.id) || !partDone.get(field.id) ? 'open' : 'answered';
+    if (field.id === openPartId) return 'open';
+    return partDone.get(field.id) ? 'answered' : 'hidden';
+  };
+  // Where Next part goes: the next part with no answer, else an earlier one,
+  // else Review all parts.
+  const nextStop = (id) => {
+    const index = safeFields.findIndex((field) => field.id === id);
+    const waiting = [...safeFields.slice(index + 1), ...safeFields.slice(0, Math.max(0, index))]
+      .find((field) => !partDone.get(field.id));
+    return waiting ? waiting.id : null;
+  };
+  const moveTo = (id) => setWalk((current) => ({
+    ...current, open: id, target: id, focus: current.focus + 1, announcement: id === null ? reviewHeading : partName(id),
+  }));
+  const changePart = (id) => {
+    if (!afterGrading) {
+      moveTo(id);
+      return;
+    }
+    setWalk((current) => ({
+      ...current,
+      afterMiss: [...afterMiss.filter((open) => open !== id), id],
+      target: id,
+      focus: current.focus + 1,
+      announcement: partName(id),
+    }));
+  };
+  // Focus goes to the new part's heading (or the review's), only after the
+  // student moved, never on mount; and the page scrolls only as far as it
+  // must to show it, not to put it at the top.
+  const partFocusRef = useRef(null);
+  useEffect(() => {
+    if (!walk.focus) return;
+    const target = partFocusRef.current;
+    if (typeof target?.focus !== 'function') return;
+    target.focus({ preventScroll: true });
+    target.scrollIntoView?.({ block: 'nearest' });
+  }, [walk.focus]);
+
+  // One part's box: its label, its hints, and the control it is answered in.
+  const fieldBox = (field) => {
+    const grade = feedback?.partGrades?.find((part) => part.id === field.id);
+    const markId = `${markBase}-${field.id}-mark`;
+    const { choiceOptions, inferredRequiredSymbols, requiredSymbols, answerShape, box, toolProfile, withheldKeys } = fieldPresentation.get(field.id);
+    return (
+      <div key={field.id} style={{ padding: '16px', border: `2px solid ${grade ? (grade.isCorrect ? '#188038' : '#d93025') : 'var(--mm-border)'}`, borderRadius: '10px', background: grade && !grade.isCorrect ? 'var(--mm-error-subtle)' : 'var(--mm-surface)' }}>
+        <label style={{ display: 'block', marginBottom: '10px', fontWeight: 'bold', color: 'var(--mm-text)' }}>
+          {fieldLabelContent(field)}
+        </label>
+        {(answerShape.hint || box.example) && !choiceOptions && (
+          <p style={{ margin: '-4px 0 10px', fontSize: 'calc(13 * var(--mm-px))', lineHeight: 1.4, color: 'var(--mm-text-muted)', fontWeight: 600 }}>
+            {answerShape.hint}
+            {box.example ? <>{answerShape.hint ? ' ' : ''}For example <strong style={{ color: 'var(--mm-text)' }}>{box.example}</strong>.</> : null}
+          </p>
+        )}
+        {formatProblems[field.id] ? (
+          <p role="status" style={{ margin: '0 0 10px', padding: '6px 9px', borderRadius: '8px', fontSize: 'calc(13 * var(--mm-px))', lineHeight: 1.4, fontWeight: 700, background: 'var(--mm-warning-bg)', color: 'var(--mm-warning-text)' }}>
+            {formatProblems[field.id]}
+          </p>
+        ) : null}
+        {choiceOptions ? (
+          <ChoiceFieldOptions
+            label={accessibleFieldLabel(field)}
+            dimensions={choiceFieldAsksDimensions(field.label, question.prompt)}
+            options={choiceOptions}
+            value={String(answers[field.id] || '')}
+            grade={grade}
+            markId={markId}
+            onSelect={(raw) => history.setValue((current) => ({ ...current, [field.id]: raw }))}
+          />
+        ) : shouldUsePlainTextInput(field) ? (
+          <input
+            type="text"
+            value={answers[field.id] || ''}
+            onChange={(event) => history.setValue((current) => ({ ...current, [field.id]: event.target.value }))}
+            placeholder={box.placeholder}
+            aria-label={accessibleFieldLabel(field)}
+            {...gradedEntryInputProps(grade, markId)}
+            autoComplete="off"
+            spellCheck={false}
+            style={{
+              width: '100%',
+              minHeight: '54px',
+              padding: '12px 14px',
+              boxSizing: 'border-box',
+              borderRadius: '8px',
+              border: `2px solid ${grade ? (grade.isCorrect ? '#188038' : '#d93025') : '#1a73e8'}`,
+              background: grade && !grade.isCorrect ? 'var(--mm-error-subtle)' : grade?.isCorrect ? 'var(--mm-success-subtle)' : 'var(--mm-surface)',
+              color: 'var(--mm-text-strong)',
+              fontSize: 'calc(18 * var(--mm-px))',
+              fontFamily: 'inherit',
+            }}
+          />
+        ) : (
+          <MathInput
+            value={answers[field.id] || ''}
+            onChange={(value) => history.setValue((current) => ({ ...current, [field.id]: value }))}
+            placeholder={box.placeholder}
+            ariaLabel={accessibleFieldLabel(field)}
+            toolProfile={toolProfile}
+            answerFormat={field.answerFormat || field.inputContract?.format || field.notation || field.inputMode || (shouldUseInequalityInput(field) ? 'inequality' : '')}
+            requiredSymbols={withheldKeys ? NO_SYMBOLS : requiredSymbols}
+            extraKeys={withheldKeys || undefined}
+            hideNeededSymbols={Boolean(withheldKeys)}
+            // Open on arrival by the box's shape, and, with a scaffold, by its key.
+            showToolsInitially={shouldUseSetInput(field) || shouldUseInequalityInput(field) || (!withheldKeys && inferredRequiredSymbols.length > 0)}
+            inputStatus={grade ? (grade.isCorrect ? 'correct' : 'incorrect') : 'neutral'}
+            ariaInvalid={grade ? !grade.isCorrect : false}
+            ariaDescribedBy={grade ? markId : ''}
+          />
+        )}
+        <GradedEntryMark grade={grade} id={markId} />
+      </div>
+    );
+  };
+
   return (
     <div>
       {/* Classed so the Enlarge button can be given room beside it on a phone
@@ -302,93 +501,90 @@ function MultiAnswerGrader({ question, onStateChange, onUndoStateChange, feedbac
           ))}
         </div>
       )}
+      {walkParts ? (
+        <div
+          className="mathmaster-multipart-fields mathmaster-multipart-parts"
+          // The engine counts every part, not the one box on screen, so Enter
+          // never takes the open part for the whole answer (answerEntryUx.js
+          // countAnswerParts).
+          data-answer-part-count={safeFields.length}
+          style={{ display: 'grid', gap: '12px', marginTop: '24px', minWidth: 0 }}
+        >
+          <p role="status" data-part-announcer="true" style={SR_ONLY_STYLE}>{walk.announcement}</p>
+          {!afterGrading && openPartId === null && (
+            <h3 ref={walk.target === null ? partFocusRef : undefined} tabIndex={-1} style={{ margin: 0, color: 'var(--mm-text-strong)', fontSize: 'calc(17 * var(--mm-px))' }}>{reviewHeading}</h3>
+          )}
+          {safeFields.map((field, index) => {
+            const state = partState(field);
+            if (state === 'hidden') return null;
+            const grade = lineGrades?.find((part) => part.id === field.id);
+            if (state === 'answered') {
+              const markId = `${markBase}-${field.id}-mark`;
+              const value = String(answers[field.id] ?? '');
+              const { choiceOptions } = fieldPresentation.get(field.id);
+              return (
+                <div key={field.id} data-part-state="answered" data-part-id={field.id} data-part-index={index} data-part-value={value} style={{ ...PART_LINE, border: `2px solid ${grade?.isCorrect ? 'var(--mm-success-border)' : 'var(--mm-border)'}` }}>
+                  <span style={{ fontWeight: 800 }}>{fieldLabelContent(field)}</span>
+                  <span style={{ color: 'var(--mm-text-strong)', fontSize: 'calc(17 * var(--mm-px))', minWidth: 0, overflowWrap: 'anywhere' }}>
+                    {choiceOptions
+                      ? renderChoiceText(value, { dimensions: choiceFieldAsksDimensions(field.label, question.prompt) })
+                      : shouldUsePlainTextInput(field) ? value : <MathDisplay value={value} format="latex" inline />}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => changePart(field.id)}
+                    // Named by the part, and starting with what it says (WCAG 2.5.3).
+                    aria-label={`Change part ${index + 1}, ${accessibleFieldLabel(field)}`}
+                    style={{ ...partButton(true, true), marginLeft: 'auto' }}
+                  >
+                    Change
+                  </button>
+                  {grade ? <span style={{ flexBasis: '100%' }}><GradedEntryMark grade={grade} id={markId} /></span> : null}
+                </div>
+              );
+            }
+            const headingId = `${markBase}-${field.id}-part`;
+            const done = partDone.get(field.id) === true;
+            const next = afterGrading ? undefined : nextStop(field.id);
+            return (
+              <div
+                key={field.id}
+                role="group"
+                aria-labelledby={headingId}
+                data-part-state="open"
+                data-part-id={field.id}
+                data-part-index={index}
+                data-part-value={String(answers[field.id] ?? '')}
+                // Enter in the open part is Next part, once it has an answer;
+                // without one it does nothing (and never submits).
+                data-mm-enter-owner={afterGrading ? undefined : 'part'}
+                onKeyDown={afterGrading ? undefined : (event) => {
+                  if (event.key !== 'Enter' || event.isComposing || event.defaultPrevented) return;
+                  if (event.altKey || event.ctrlKey || event.metaKey || event.shiftKey) return;
+                  if (!isSingleLineAnswerTarget(event.target)) return;
+                  event.preventDefault();
+                  if (done) moveTo(next);
+                }}
+                style={{ display: 'grid', gap: '10px', minWidth: 0 }}
+              >
+                <h3 id={headingId} ref={walk.target === field.id ? partFocusRef : undefined} tabIndex={-1} style={{ margin: 0, color: 'var(--mm-text-strong)', fontSize: 'calc(15 * var(--mm-px))' }}>
+                  {partName(field.id)}
+                </h3>
+                {fieldBox(field)}
+                {!afterGrading && (
+                  <button type="button" disabled={!done} onClick={() => moveTo(next)} style={{ ...partButton(done), justifySelf: 'start' }}>
+                    {next === null ? 'Review all parts' : 'Next part'}
+                  </button>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      ) : (
       <div className="mathmaster-multipart-fields" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 240px), 1fr))', gap: '20px', marginTop: '24px' }}>
-        {safeFields.map((field) => {
-          const grade = feedback?.partGrades?.find((part) => part.id === field.id);
-          const markId = `${markBase}-${field.id}-mark`;
-          const { choiceOptions, inferredRequiredSymbols, requiredSymbols, answerShape, box, toolProfile, withheldKeys } = fieldPresentation.get(field.id);
-          return (
-            <div key={field.id} style={{ padding: '16px', border: `2px solid ${grade ? (grade.isCorrect ? '#188038' : '#d93025') : 'var(--mm-border)'}`, borderRadius: '10px', background: grade && !grade.isCorrect ? 'var(--mm-error-subtle)' : 'var(--mm-surface)' }}>
-              <label style={{ display: 'block', marginBottom: '10px', fontWeight: 'bold', color: 'var(--mm-text)' }}>
-                {(() => {
-                  const text = field.label || field.id;
-                  // "$x$-intercept", "Slope $m$ =": words and mathematics,
-                  // set the way MathText sets every other field label.
-                  if (!field.labelLatex && !field.labelFormat && labelHasDelimitedMath(text)) return <MathText>{text}</MathText>;
-                  const format = resolveLabelFormat(text, { latexFlag: field.labelLatex, explicitFormat: field.labelFormat });
-                  // An English label goes through the math typesetter as
-                  // juxtaposed variables — "Discrete or continuous?" comes out
-                  // as "Discrete ∨ continuous?" — so it stays plain text.
-                  return format ? <MathDisplay value={normalizeMathDisplayValue(text)} format={format} inline /> : normalizePlainMathTypography(text);
-                })()}
-              </label>
-              {(answerShape.hint || box.example) && !choiceOptions && (
-                <p style={{ margin: '-4px 0 10px', fontSize: 'calc(13 * var(--mm-px))', lineHeight: 1.4, color: 'var(--mm-text-muted)', fontWeight: 600 }}>
-                  {answerShape.hint}
-                  {box.example ? <>{answerShape.hint ? ' ' : ''}For example <strong style={{ color: 'var(--mm-text)' }}>{box.example}</strong>.</> : null}
-                </p>
-              )}
-              {formatProblems[field.id] ? (
-                <p role="status" style={{ margin: '0 0 10px', padding: '6px 9px', borderRadius: '8px', fontSize: 'calc(13 * var(--mm-px))', lineHeight: 1.4, fontWeight: 700, background: 'var(--mm-warning-bg)', color: 'var(--mm-warning-text)' }}>
-                  {formatProblems[field.id]}
-                </p>
-              ) : null}
-              {choiceOptions ? (
-                <ChoiceFieldOptions
-                  label={accessibleFieldLabel(field)}
-                  dimensions={choiceFieldAsksDimensions(field.label, question.prompt)}
-                  options={choiceOptions}
-                  value={String(answers[field.id] || '')}
-                  grade={grade}
-                  markId={markId}
-                  onSelect={(raw) => history.setValue((current) => ({ ...current, [field.id]: raw }))}
-                />
-              ) : shouldUsePlainTextInput(field) ? (
-                <input
-                  type="text"
-                  value={answers[field.id] || ''}
-                  onChange={(event) => history.setValue((current) => ({ ...current, [field.id]: event.target.value }))}
-                  placeholder={box.placeholder}
-                  aria-label={accessibleFieldLabel(field)}
-                  {...gradedEntryInputProps(grade, markId)}
-                  autoComplete="off"
-                  spellCheck={false}
-                  style={{
-                    width: '100%',
-                    minHeight: '54px',
-                    padding: '12px 14px',
-                    boxSizing: 'border-box',
-                    borderRadius: '8px',
-                    border: `2px solid ${grade ? (grade.isCorrect ? '#188038' : '#d93025') : '#1a73e8'}`,
-                    background: grade && !grade.isCorrect ? 'var(--mm-error-subtle)' : grade?.isCorrect ? 'var(--mm-success-subtle)' : 'var(--mm-surface)',
-                    color: 'var(--mm-text-strong)',
-                    fontSize: 'calc(18 * var(--mm-px))',
-                    fontFamily: 'inherit',
-                  }}
-                />
-              ) : (
-                <MathInput
-                  value={answers[field.id] || ''}
-                  onChange={(value) => history.setValue((current) => ({ ...current, [field.id]: value }))}
-                  placeholder={box.placeholder}
-                  ariaLabel={accessibleFieldLabel(field)}
-                  toolProfile={toolProfile}
-                  answerFormat={field.answerFormat || field.inputContract?.format || field.notation || field.inputMode || (shouldUseInequalityInput(field) ? 'inequality' : '')}
-                  requiredSymbols={withheldKeys ? NO_SYMBOLS : requiredSymbols}
-                  extraKeys={withheldKeys || undefined}
-                  hideNeededSymbols={Boolean(withheldKeys)}
-                  // Open on arrival by the box's shape, and, with a scaffold, by its key.
-                  showToolsInitially={shouldUseSetInput(field) || shouldUseInequalityInput(field) || (!withheldKeys && inferredRequiredSymbols.length > 0)}
-                  inputStatus={grade ? (grade.isCorrect ? 'correct' : 'incorrect') : 'neutral'}
-                  ariaInvalid={grade ? !grade.isCorrect : false}
-                  ariaDescribedBy={grade ? markId : ''}
-                />
-              )}
-              <GradedEntryMark grade={grade} id={markId} />
-            </div>
-          );
-        })}
+        {safeFields.map((field) => fieldBox(field))}
       </div>
+      )}
       </div>
       </div>
     </div>

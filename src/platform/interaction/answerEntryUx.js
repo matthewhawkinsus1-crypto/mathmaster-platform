@@ -290,7 +290,15 @@ export const countAnswerControls = (root) => visibleAnswerControls(root).length;
 export const countAnswerParts = (root) => {
   const parts = new Set(visibleAnswerControls(root));
   otherAnswerControlsIn(root).forEach((control) => parts.add(control));
-  return parts.size;
+  // A question that shows its parts one at a time (MultiAnswerGrader, part by
+  // part) declares how many it has: the one box on screen is not the whole
+  // answer, so Enter there never submits as a one-box question's does.
+  const declaring = [
+    ...(root?.getAttribute?.('data-answer-part-count') ? [root] : []),
+    ...(root?.querySelectorAll ? root.querySelectorAll('[data-answer-part-count]') : []),
+  ];
+  const declared = declaring.map((element) => Number(element.getAttribute('data-answer-part-count')) || 0);
+  return Math.max(parts.size, ...declared);
 };
 
 /**

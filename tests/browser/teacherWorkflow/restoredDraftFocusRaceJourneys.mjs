@@ -177,7 +177,12 @@ const openDevice = async (label, { server = null, device = 'chromebook', params 
     // React warnings and errors, and the MathLive compat alarm: none expected.
     if (/Warning:|React|MathLive compat|Maximum update depth|act\(/.test(text)) consoleProblems.push(`${label}: ${text.slice(0, 300)}`);
   });
-  const search = new URLSearchParams({ as: 'student', studentId: STUDENT, questions: 'real', ...params });
+  // The race is between two boxes on screen at once: box A, where a restore
+  // puts the cursor back, and box B, which the student clicks. A multi-part
+  // answer opens one part at a time (MultiAnswerGrader, part by part) except
+  // for a student with See every part at once, who sees both boxes of the
+  // line question, as every student did before: this student has it.
+  const search = new URLSearchParams({ as: 'student', studentId: STUDENT, questions: 'real', everyPartAtOnce: '1', ...params });
   if (!server) search.set('reset', '1');
   await page.goto(`${PAGE}?${search}`, { timeout: 180000 });
   await page.getByText('Log Out').first().waitFor({ timeout: 180000 });

@@ -118,6 +118,9 @@ export const getStudentSupportPresentation = (profile) => {
     // "Connect my points" on an exit ticket, quiz or test
     // (platform/graph/connectPointsPolicy.js).
     keyboardAccess: normalized.accommodations.includes('keyboard-access'),
+    // A multi-part answer shows every part at once, not one at a time
+    // (MultiAnswerGrader, part by part). Never implied by inclusion status.
+    everyPartAtOnce: normalized.accommodations.includes('every-part-at-once'),
     translationLanguage: normalized.translationLanguage,
   };
 };

@@ -493,6 +493,11 @@ const ToolItem = ({ question, policy, calculatorPolicy, supportProfile, rawStude
           assignmentLocked={Boolean(closed)}
           assignmentLockedMessage={closedMessage || null}
           executionScope={executionScope}
+          // A secure Test item's multi-part answer opens one part at a time
+          // inside the item (MultiAnswerGrader, part by part): the item
+          // boundary is unchanged. Corrections and the teacher's preview of a
+          // Test show every part.
+          partByPart={policy.secure && executionScope === 'student'}
           // The host's words for an item that cannot be drawn (`itemFailure`,
           // see the export below): a tool that throws inside the engine meets
           // them too, and not the engine's own panel.

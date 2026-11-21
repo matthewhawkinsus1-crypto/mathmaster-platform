@@ -197,7 +197,8 @@ test('nothing graded changes: the box publishes the same answer state either way
 test('QuestionEngine withholds the keypad\'s scaffold exactly where it withholds the verdict', () => {
   const engine = executableSource(readFileSync(path.join(ROOT, 'src/QuestionEngine.jsx'), 'utf8'));
   assert.match(engine, /const showOutcomeFeedback = resolvedActivityPolicy\?\.feedback === 'immediate' \|\| feedbackReleased === true;/);
-  assert.match(region(engine, "case 'multiAnswer':", "case 'relationshipModel':", 'the multi-answer mount'), /<MultiAnswerGrader \{\.\.\.commonModuleProps\} verdictsWithheld=\{!showOutcomeFeedback\} \/>/);
+  // Other props beside it (partByPart, the part-by-part walk) do not change what withholds the scaffold.
+  assert.match(region(engine, "case 'multiAnswer':", "case 'relationshipModel':", 'the multi-answer mount'), /<MultiAnswerGrader \{\.\.\.commonModuleProps\}[^>]* verdictsWithheld=\{!showOutcomeFeedback\}[^>]*\/>/);
 });
 
 test('the import reads a template\'s filter as a number, not as letters', () => {

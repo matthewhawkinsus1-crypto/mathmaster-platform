@@ -26,6 +26,7 @@ export const ACCOMMODATION_TYPES = {
   CALCULATOR_OVERRIDE_COMPUTATION: 'calculatorOverrideComputation',
   GRAPHIC_ORGANIZER: 'graphicOrganizer',
   REDUCED_ANSWER_CHOICES: 'reducedAnswerChoices',
+  EVERY_PART_AT_ONCE: 'everyPartAtOnce',
 
   // Timing / pacing
   EXTENDED_TIME: 'extendedTime',
@@ -56,6 +57,9 @@ export const normalizeStudentSupportProfile = (rawProfile = {}) => ({
     calculatorOverrideComputation: Boolean(rawProfile.accommodations?.calculatorOverrideComputation),
     graphicOrganizer: Boolean(rawProfile.accommodations?.graphicOrganizer),
     reducedChoices: Boolean(rawProfile.accommodations?.reducedChoices),
+    // A multi-part answer shows every part at once (catalog id
+    // 'every-part-at-once', src/studentSupport.js everyPartAtOnce).
+    everyPartAtOnce: Boolean(rawProfile.accommodations?.everyPartAtOnce),
     // Clamped: a malformed import must not hand a student a 100x timer or a
     // multiplier below 1, which would take time away from them.
     extendedTimeMultiplier: Math.min(4, Math.max(1, Number(rawProfile.accommodations?.extendedTimeMultiplier) || 1)),
@@ -119,6 +123,10 @@ export const resolveActiveSupports = ({ profile, questionSpec, activityRole } = 
 
   if (normalized.accommodations.reducedChoices) {
     applicable.push({ type: ACCOMMODATION_TYPES.REDUCED_ANSWER_CHOICES, presented: true });
+  }
+
+  if (normalized.accommodations.everyPartAtOnce) {
+    applicable.push({ type: ACCOMMODATION_TYPES.EVERY_PART_AT_ONCE, presented: true });
   }
 
   return {

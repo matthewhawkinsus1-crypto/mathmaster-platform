@@ -219,6 +219,17 @@ const entries = [
     evidence: ['provided'],
   },
   {
+    // SEE EVERY PART AT ONCE (docs/platform/SHOWING_THE_PROCESS.md, decision
+    // 6). A multi-part answer-box question opens one part at a time for the
+    // student answering a classroom or secure item; for a student whose IEP or
+    // 504 plan needs every part in view (working memory, a reader, planning
+    // across parts) the teacher turns that off. Applied by the platform where
+    // such a question is drawn (QuestionEngine), so it is `provided` there,
+    // per question, never claimed at launch.
+    id: 'every-part-at-once', classification: A, category: C.PRESENTATION, automation: AUTO,
+    label: 'See every part at once (IEP/504)', studentLabel: null, evidence: ['provided'],
+  },
+  {
     // Kept an ACCOMMODATION because that is how the teacher UI has always
     // classified it; reclassifying would retroactively turn students' past
     // work into Modified. It performs an algebra step the student chose but
@@ -492,6 +503,7 @@ const SHORT_LABELS = Object.freeze({
   'graph-read-out': 'Graph read-out',
   'word-processor-response': 'Word-processor response',
   'keyboard-access': 'Keyboard access',
+  'every-part-at-once': 'Every part at once',
   'algebra-auto-apply': 'Algebra Apply shortcut',
   'reduced-item-count-same-rigor': 'Fewer items, same rigor',
   'check-for-understanding': 'Check for understanding',
