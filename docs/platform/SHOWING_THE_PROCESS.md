@@ -1,8 +1,8 @@
 # Showing the process: answer boxes one screenshot cannot answer
 
-Status: **decided by the owner on 2026-11-20. Slice P1 (part by part, Review all
-parts, See every part at once) is built; P2 to P5 are not.** This page pairs with
-`docs/platform/WORKED_EXAMPLES.md`.
+Status: **decided by the owner on 2026-11-20. Slices P1 (part by part, Review all
+parts, See every part at once) and P2 (teacher signals) are built; P3 to P5 are
+not.** This page pairs with `docs/platform/WORKED_EXAMPLES.md`.
 
 Where P1 lives: `src/MultiAnswerGrader.jsx` (`partByPart`), asked for by the
 student's assignment (`assignmentWorkspaceView.jsx`, not a teacher preview),
@@ -12,6 +12,15 @@ is `every-part-at-once` (`functions/shared/supportCatalog.mjs`). A secure Test's
 *field* item (several `responseFields`, drawn by `RichQuestionRuntime`'s
 `FieldItem`, not `MultiAnswerGrader`) still shows every field at once. Drivers
 answer part by part through `tests/browser/support/partByPart.mjs`.
+
+Where P2 lives: the facts and the stored record are
+`src/platform/signals/attemptSignalFacts.js`; the question engine raises them
+beside the attempt (`useAttemptSignals.js`), and the student's assignment
+(`assignmentWorkspaceView.jsx`, not a preview and not post-deadline practice)
+writes each once to `grades/{studentId}/attemptSignals` (`firestore.rules`).
+The teacher reads them in **Worth a conversation**
+(`src/components/teacher/WorthAConversation.jsx`): on a Live tile and in the
+student's drawer. Section 7 has the details.
 
 ## 1. The problem
 
@@ -149,6 +158,44 @@ The rules:
   pattern: for example, a read-aloud or translation tool that moves focus off
   the page, or See every part at once.
 - The teacher sees "worth a conversation", with the facts, and can dismiss it.
+
+As built (P2):
+
+- **When a fact is raised.**
+  - *Left the page*: the page was hidden for 8 seconds or more (the Live
+    view's own floor for a focus loss), and within 60 seconds of its return
+    two or more parts were answered, and marked right when the attempt was
+    submitted.
+  - *Pasted*: a paste event in a math box, or in a plain answer box of a part.
+    The clipboard is not read.
+  - *Right first time*: the first submitted attempt, every part right, the
+    question's `difficultyBand` 3 or higher, and no work to look at: no
+    `checkpoint`, no tool response, no composed stages, no saved scratchpad,
+    and not a question whose answer is built in a tool. Band 3 is the most
+    common band in today's lessons, so this is the most frequent of the three.
+- **What is stored.** One document per fact, at
+  `grades/{studentId}/attemptSignals/{assignment}__{question}__{kind}` (a paste
+  adds the part). Its fields are a closed list, checked by `firestore.rules`:
+  the student, the assignment, the question's position, the kind, the section,
+  the attempt number, and for its kind a part position, a part count, seconds
+  away or the difficulty band. The first record of a fact stands.
+- **Who reads it.** The teacher who teaches the student, and the root
+  administrator. The student cannot read it back. The Live heartbeat carries
+  only how many there are (`attemptSignalCount`), so a tile reads the facts
+  only for a student who has some. The projector's tiles never show them.
+- **Dismiss.** The teacher's dismissal stamps the fact with who and when; the
+  fact itself cannot be edited or deleted.
+- **Exemptions**, from the support profile in effect today:
+  - no *left the page* for `text-to-speech`, `translation` (or a translation
+    language), `glossary-lookup` or `every-part-at-once`;
+  - no *pasted* for `word-processor-response`.
+- **Not a grade.** No grade, attempt or mastery path reads the collection, the
+  facts or the count: `tests/platform/attemptSignalsNeverGrade.test.mjs` reads
+  every source file of the app and both backends, and the grade paths by name.
+- **Where it is recorded.** The student's classroom assignment, on credit
+  work. Not in a teacher's preview, post-deadline practice, Recovery, My Math
+  Path or Live Challenge. A secure Test keeps its own log
+  (`examIntegrityLogger.js`).
 
 ## 8. Build slices
 
