@@ -205,11 +205,12 @@ test('the assignment screen and App: one hand-off each, to the writer and to the
   const appUses = app.split('\n').filter((line) => SIGNAL_WORDS.test(line)).map((line) => line.trim());
   assert.deepEqual(appUses, [
     "import { attemptSignalCount } from './platform/signals/signalPageNotes.js';",
-    'attemptSignalCount: attemptSignalCount(user.id, activeAssignmentId),',
+    'attemptSignalCount: attemptSignalCount(payload.studentId, payload.assignmentId),',
   ]);
-  // That one line is inside the Live heartbeat's payload.
-  const heartbeat = region(app, '...buildLiveStatus({', 'pageVisible:', 'the heartbeat payload');
-  assert.match(heartbeat, /attemptSignalCount: attemptSignalCount\(/);
+  // That one line is in the heartbeat's own write, read as it goes out: a fact
+  // is written a moment after the answer that raised it.
+  const heartbeat = region(app, 'const publishLatest = () => {', '}).catch(() => {', 'the heartbeat write');
+  assert.match(heartbeat, /setDoc\(presenceRef, \{\s*\.\.\.payload,\s*attemptSignalCount: attemptSignalCount\(payload\.studentId, payload\.assignmentId\),/);
 });
 
 test('the grade document is not a place a signal is stored, and its rules do not read one', () => {

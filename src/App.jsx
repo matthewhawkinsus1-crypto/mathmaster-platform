@@ -3201,8 +3201,6 @@ function App() {
         rapidCorrectCount: rapid.rapidCorrect,
         rapidDeepCorrectCount: rapid.rapidDeepCorrect,
         timedIndependentCorrectCount: rapid.timedIndependentCorrect,
-        // How many attempt facts wait for the teacher (never what they are).
-        attemptSignalCount: attemptSignalCount(user.id, activeAssignmentId),
         sessionActiveSeconds: Math.max(0, Number(liveSessionActiveSecondsRef.current.seconds) || 0),
         lastInteractionAt: lastAcademicInteractionRef.current,
         startedAt: liveStartedAtRef.current.at,
@@ -3258,6 +3256,9 @@ function App() {
       // Re-stamp it for every write while preserving lastInteractionAt.
       setDoc(presenceRef, {
         ...payload,
+        // Read as the heartbeat goes out: a fact is written a moment after
+        // the answer that raised it, when no payload is being rebuilt.
+        attemptSignalCount: attemptSignalCount(payload.studentId, payload.assignmentId),
         pageVisible: document.visibilityState === 'visible',
         updatedAt: Date.now(),
       }).catch(() => {
