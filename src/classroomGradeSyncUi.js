@@ -25,6 +25,9 @@ export function gradeSyncStatusLabel(sync = {}) {
   // Google refused it for its per-minute limit; it is queued again by itself.
   if (status === 'rate-limited') return 'Waiting: Classroom limit';
   if (status === 'skipped-unlinked') return 'Needs roster link';
+  // Nothing attempted between the due date and the final cutoff: nothing is
+  // sent, on purpose (functions/lib/classroomMissingWork.js).
+  if (status === 'skipped-no-work') return 'No work yet: Missing in Classroom';
   if (status === 'failed') return 'Failed';
   if (status === 'synced') return 'Synced';
   if (status === 'not-yet-synced') return 'Not yet synced';
@@ -45,6 +48,8 @@ export function gradeSyncErrorText(sync = {}) {
   // The grade went through; the row says in plain words why it was not
   // returned and what the teacher can do.
   if (status === 'graded-not-returned') return clean(sync?.message);
+  // Why a Retry sent nothing.
+  if (status === 'skipped-no-work') return clean(sync?.message);
   if (!['failed', 'rate-limited', 'auth-error'].includes(status)) return '';
   const message = clean(sync?.error || sync?.message);
   if (!message) return '';
@@ -64,4 +69,43 @@ export function isGradeSyncRetryEligible(sync = {}) {
 
 export function retryEligibleGradeSyncs(syncs = []) {
   return (Array.isArray(syncs) ? syncs : []).filter(isGradeSyncRetryEligible);
+}
+
+const count = (value) => Math.max(0, Math.floor(Number(value) || 0));
+
+/**
+ * What the teacher's last "Reconcile section grades" on an assignment did, as
+ * one line: "Last reconcile: 12 repaired, 40 already up to date, 3 not sent,
+ * 2 failed". The counts are grade columns (one student in one Classroom
+ * column), added up by the server from each student's push
+ * (functions/lib/classroomReconcileRuns.js). While pushes are still in the
+ * paced queue, or waiting out Google's limit, the line says how many, and it
+ * says so when a student's push never reported at all. Null
+ * when there is no run to show.
+ */
+export function reconcileRunSummaryText(run) {
+  if (!run || !clean(run.runId)) return null;
+  const parts = [
+    `${count(run.repaired)} repaired`,
+    `${count(run.upToDate)} already up to date`,
+    `${count(run.notSent)} not sent`,
+    `${count(run.failed)} failed`,
+  ];
+  const waiting = count(run.waiting);
+  const pending = count(run.pendingStudents);
+  // Students whose push never reported, long after it could have: not known.
+  const unreported = count(run.unreportedStudents);
+  const tail = [
+    waiting ? `${waiting} waiting for Google's limit` : '',
+    pending ? `${pending} student${pending === 1 ? '' : 's'} still in the queue` : '',
+    unreported ? `${unreported} student${unreported === 1 ? '' : 's'} did not report; check their rows` : '',
+  ].filter(Boolean);
+  return `Last reconcile: ${parts.join(', ')}${tail.length ? ` (${tail.join('; ')})` : ''}`;
+}
+
+/** The run for one assignment among the monitor's `reconcileRuns`, or null. */
+export function reconcileRunForAssignment(runs, assignmentId) {
+  const id = clean(assignmentId);
+  if (!id) return null;
+  return (Array.isArray(runs) ? runs : []).find((run) => clean(run?.assignmentId) === id) || null;
 }

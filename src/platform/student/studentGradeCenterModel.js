@@ -408,12 +408,15 @@ export const describeGradeMath = (summary = {}) => {
     .map(([count, label]) => `${count} ${label}`);
   if (notCounted.length) {
     /*
-     * True for THIS average only. After the due date the server's Classroom
-     * passback (functions/lib/classroomGradeRuntime.js due-checkpoint /
-     * final-deadline) posts unfinished work, so Classroom can show missing
-     * work as 0 even though MathMaster leaves it out of this number.
+     * True for THIS average only. The server's Classroom passback sends
+     * nothing for work with nothing done between the due date and the final
+     * deadline, so Classroom shows it as Missing
+     * (functions/lib/classroomMissingWork.js); at the final deadline it sends
+     * what was earned, a 0 included, even though MathMaster leaves that work
+     * out of this number. Unfinished work that was started is sent at the
+     * due date, as it always was.
      */
-    lines.push(`Not counted in this grade: ${notCounted.join(', ')}. These aren't in this MathMaster average, but after the due date Google Classroom may record missing work as 0.`);
+    lines.push(`Not counted in this grade: ${notCounted.join(', ')}. These aren't in this MathMaster average. In Google Classroom, work with nothing done shows as Missing after the due date, and is recorded as 0 once the final deadline passes.`);
   }
   return {
     headline,

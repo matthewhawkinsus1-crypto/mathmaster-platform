@@ -12,9 +12,11 @@
 //   2. Reconcile run again with nothing changed: no second return and no post,
 //      the same grades, the same rows.
 //   3. The due-date checkpoint across a class with a completed student, one
-//      with partial work and one with none: each column gets that student's
-//      own grade, and the completed sections keep theirs, FINAL, and are not
-//      sent again, at the due date or at the final cutoff.
+//      with partial work and one with none: each column with work gets that
+//      student's own grade, a section with no work is sent nothing (Missing,
+//      not a returned 0) until the final cutoff, and the completed sections
+//      keep theirs, FINAL, and are not sent again, at the due date or at the
+//      final cutoff.
 //
 // The queue is released as drainClassroomPushQueue releases it: its own
 // releaseSignalFor, one grade-document write per entry, and the trigger that
@@ -264,6 +266,7 @@ test('the due-date checkpoint gives every student their own grade and leaves com
 
   // Partial work: its real grade, assigned at the due date. Never a zero for
   // the Classwork it earned half of.
+  // (Its Warm-Up was answered, wrong: that is work, and its 0 is a grade.)
   assert.deepEqual(patchesOn(googleFor.partial, 'warmup'), [{ draftGrade: 0, assignedGrade: 0 }]);
   assert.deepEqual(patchesOn(googleFor.partial, 'classwork'), [{ draftGrade: points(50), assignedGrade: points(50) }]);
   for (const key of SECTIONS) {
@@ -271,14 +274,14 @@ test('the due-date checkpoint gives every student their own grade and leaves com
     assert.equal(row(db, 'partial', key).stage, 'due-checkpoint');
   }
 
-  // No work at all: the row says so, nothing attempted and nothing earned.
-  // (Whether that column should then hold a returned 0 or stay Missing until
-  // the final cutoff is a policy question; MathMaster's own screens show it as
-  // missing. Only the honest row is asserted.)
-  for (const key of SECTIONS) {
-    const none = row(db, 'none', key);
-    assert.deepEqual([none.grade, none.attempted], [0, 0], `none ${key}`);
-    assert.equal(mathMasterGrade(db, 'none', key), null, `none ${key}: MathMaster shows no grade`);
+  // A section with no work at the due date is Missing, not a returned 0 (the
+  // owner, 2026-11-19, #545): nothing is sent for it, so Classroom shows the
+  // work as Missing, as MathMaster's own screens do. The final cutoff still
+  // sends the 0 (the test below).
+  for (const [id, key] of SECTIONS.map((section) => ['none', section])) {
+    assert.deepEqual(steps(googleFor[id])[key], [], `${id} ${key}: Google is not asked`);
+    assert.equal(row(db, id, key), undefined, `${id} ${key}: no row says a grade was sent`);
+    assert.equal(mathMasterGrade(db, id, key), null, `${id} ${key}: MathMaster shows no grade`);
   }
 
   // Nobody's work changed: the checkpoint writes grades to Classroom, never to MathMaster.
@@ -317,6 +320,13 @@ test('at the final-deadline wake-up a completed section stays FINAL and is not s
   for (const key of SECTIONS) {
     assert.deepEqual([row(db, 'partial', key).stage, row(db, 'partial', key).isFinal, row(db, 'partial', key).returnedToStudent], ['final-deadline', true, true], `partial ${key}`);
   }
+  // The final cutoff is where no work becomes a grade: the 0 is assigned and
+  // returned, as before.
+  assert.deepEqual(steps(googleFor.none), { warmup: ['list', 'patch', 'return'], classwork: ['list', 'patch', 'return'] });
+  for (const key of SECTIONS) {
+    assert.deepEqual(patchesOn(googleFor.none, key), [{ draftGrade: 0, assignedGrade: 0 }], `none ${key}`);
+    assert.deepEqual([row(db, 'none', key).stage, row(db, 'none', key).grade, row(db, 'none', key).returnedToStudent], ['final-deadline', 0, true], `none ${key}`);
+  }
 });
 
 test('a completed section Classroom would not return is not sent again at the class\'s wake-ups either', async () => {
@@ -333,4 +343,198 @@ test('a completed section Classroom would not return is not sent again at the cl
       assert.deepEqual([row(db, 'done', key).status, row(db, 'done', key).stage], ['graded-not-returned', 'final-complete'], `${deadline} ${key}`);
     }
   }
+});
+
+/* --- 4. Reconcile after an ordinary push: nothing to repair ---------------- */
+
+// A reconcile resolves to the stage "manual-retry", and the stage is part of
+// the evidence fingerprint. A column last sent by an ordinary push ("progress-50",
+// "late-progress-50", "due-checkpoint") therefore never matched, and the first
+// reconcile sent every unfinished column again with the same grade, over
+// anything a teacher had typed in Classroom, and counted it as repaired
+// (#545, option A). For a reconcile, "current" is the grade Classroom holds
+// (lib/classroomSectionGradeReconciliation.js sectionGradeHeldByClassroom).
+const reconcileRuns = requireFromFunctions('./lib/classroomReconcileRuns.js');
+const lastRun = (db) => reconcileRuns.summarizeReconcileRun(db.data(`${reconcileRuns.CLASSROOM_RECONCILE_RUNS}/${reconcileRuns.reconcileRunDocumentId('A1', 't1')}`));
+const runCounts = (db) => {
+  const { repaired, upToDate, notSent, failed, waiting } = lastRun(db);
+  return { repaired, upToDate, notSent, failed, waiting };
+};
+
+/** One student's unfinished work, pushed by the trigger as the student saved it; then a teacher's Reconcile. */
+async function reconcileAfterOrdinaryPush({ assignment } = {}) {
+  const db = classFixture({ assignment, students: { p: null } });
+  const googleFor = { p: fakeGoogle({ states: { 'cw-warmup': 'TURNED_IN', 'cw-classwork': 'TURNED_IN' } }) };
+  await writeGrades({ db, google: googleFor.p, studentId: 'p', change: (grades) => ({ ...grades, gradesByAssignment: { A1: structuredClone(PARTIAL) } }) });
+  const before = rows(db);
+  googleFor.p.calls.length = 0;
+  await reconcile(db);
+  assert.deepEqual(await releaseQueue({ db, googleFor }), ['section-grade-reconcile p']);
+  return { db, google: googleFor.p, before };
+}
+
+test('Reconcile after an ordinary progress push makes no Classroom call and counts the columns already up to date', async () => {
+  const { db, google, before } = await reconcileAfterOrdinaryPush();
+  assert.deepEqual(Object.values(before).map((sent) => sent.stage).sort(), ['progress-100', 'progress-50'], 'the columns were sent as progress drafts');
+  assert.deepEqual(google.calls, [], 'the same grades: Google is not asked');
+  assert.deepEqual(rows(db), before, 'and the rows keep the stage they were sent with');
+  assert.deepEqual(runCounts(db), { repaired: 0, upToDate: 2, notSent: 0, failed: 0, waiting: 0 });
+});
+
+test('Reconcile after a late-progress push makes no Classroom call and counts the columns already up to date', async () => {
+  // Due a minute ago, late work open: the student's save went out as a late-progress grade, returned.
+  const { db, google, before } = await reconcileAfterOrdinaryPush({ assignment: lesson({ dueAt: iso(-60_000) }) });
+  assert.deepEqual(Object.values(before).map((sent) => [sent.stage, sent.returnedToStudent]).sort(), [['late-progress-100', true], ['late-progress-50', true]]);
+  assert.deepEqual(google.calls, []);
+  assert.deepEqual(rows(db), before);
+  assert.deepEqual(runCounts(db), { repaired: 0, upToDate: 2, notSent: 0, failed: 0, waiting: 0 });
+});
+
+test('Reconcile after the due-date checkpoint makes no Classroom call and counts the columns already up to date', async () => {
+  const { db, googleFor } = await classAtItsDueDate();
+  assert.deepEqual(SECTIONS.map((key) => row(db, 'partial', key).stage), ['due-checkpoint', 'due-checkpoint']);
+  const before = rows(db);
+  Object.values(googleFor).forEach((google) => { google.calls.length = 0; });
+  await reconcile(db);
+  // The two students with saved work; the one with none has nothing to reconcile.
+  assert.deepEqual((await releaseQueue({ db, googleFor })).sort(), ['section-grade-reconcile done', 'section-grade-reconcile partial']);
+  assert.deepEqual(Object.values(googleFor).flatMap((google) => google.calls), []);
+  assert.deepEqual(rows(db), before);
+  assert.deepEqual(runCounts(db), { repaired: 0, upToDate: 4, notSent: 0, failed: 0, waiting: 0 });
+});
+
+test('Reconcile still repairs a column whose grade differs from what Classroom was sent', async () => {
+  const { db, google } = await reconcileAfterOrdinaryPush();
+  // The row says Classroom was sent 20%; the saved work is worth 50%.
+  const stale = `classroomGradeSyncs/${gradeSyncDocumentId('pub-classwork', 'p')}`;
+  db.store.set(stale, { ...db.data(stale), grade: 20, classroomGrade: points(20) });
+  google.calls.length = 0;
+  await reconcile(db);
+  await releaseQueue({ db, googleFor: { p: google } });
+  assert.deepEqual(steps(google), { warmup: [], classwork: ['list', 'patch'] });
+  assert.deepEqual(patchesOn(google, 'classwork'), [{ draftGrade: points(50) }]);
+  assert.deepEqual(runCounts(db), { repaired: 1, upToDate: 1, notSent: 0, failed: 0, waiting: 0 });
+});
+
+/* --- 5. an expired connection and a student of another course --------------- */
+
+// The trigger asked for the teacher's Google client before it asked whether
+// the student is in the course. With the caller's connection expired, every
+// student of every other course was written "auth-error" on the caller's
+// columns and counted as failed in the caller's run.
+test('with the teacher\'s connection expired, a student who is not in the course is "not linked", not an auth error, and not a failure of the run', async () => {
+  const db = classFixture({ students: { mine: PARTIAL, theirs: PARTIAL } });
+  // `theirs` is in another class, and not on this course's roster.
+  db.store.set('grades/theirs', { ...db.data('grades/theirs'), classId: 'class-2' });
+  db.store.set('assignments/A1', { ...db.data('assignments/A1'), assignedClassIds: [CLASS_ID, 'class-2'] });
+  for (const key of SECTIONS) db.store.set(`classroomLinks/pub-${key}`, { ...db.data(`classroomLinks/pub-${key}`), classId: CLASS_ID });
+  db.store.delete(`classroomRosterLinks/${rosterLinkDocumentId(COURSE, 'theirs')}`);
+  const classroomLib = requireFromFunctions('./lib/classroom.js');
+  const connect = classroomLib.getClassroomClient;
+  classroomLib.getClassroomClient = async () => { throw new Error('Google Classroom is not connected.'); };
+  try {
+    await reconcile(db);
+    await releaseQueue({ db, googleFor: { mine: fakeGoogle(), theirs: fakeGoogle() } });
+  } finally {
+    classroomLib.getClassroomClient = connect;
+  }
+  assert.deepEqual(SECTIONS.map((key) => row(db, 'theirs', key).status), ['skipped-unlinked', 'skipped-unlinked']);
+  // The caller's own student did fail, for the reason the teacher can fix.
+  assert.deepEqual(SECTIONS.map((key) => row(db, 'mine', key).status), ['auth-error', 'auth-error']);
+  assert.deepEqual(runCounts(db), { repaired: 0, upToDate: 0, notSent: 0, failed: 2, waiting: 0 });
+});
+
+/* --- 6. a grade already assigned, and a reconcile that would only draft it -- */
+
+// At the due date the checkpoint assigns and returns the grade, extended time
+// or not. A reconcile afterwards resolves to "manual-retry", which is held as
+// a teacher's draft while the student's own extended time runs. The column
+// then looked changed (visible before, a draft now): it was patched again as
+// a draft, counted repaired, its row rewritten "TEACHER DRAFT", and the
+// student's visible receipt swapped for a draft one. A draft cannot take an
+// assigned grade back, so there is nothing to send.
+test('Reconcile leaves a returned grade alone for a student on extended time, and their receipt stays visible', async () => {
+  const overrides = await import('../../functions/shared/studentAssignmentOverrides.mjs');
+  const { db, googleFor } = await classAtItsDueDate();
+  // The partial student's own final cutoff is three weeks out, past the class's.
+  db.store.set(`${overrides.STUDENT_ASSIGNMENT_OVERRIDES_COLLECTION}/${overrides.studentAssignmentOverrideId('partial', 'A1')}`, {
+    studentId: 'partial', assignmentId: 'A1', lateDueAt: iso(21 * DAY),
+  });
+  assert.deepEqual(
+    SECTIONS.map((key) => [row(db, 'partial', key).stage, row(db, 'partial', key).studentVisible, row(db, 'partial', key).returnedToStudent]),
+    [['due-checkpoint', true, true], ['due-checkpoint', true, true]],
+  );
+  const before = rows(db);
+  const receiptBefore = structuredClone(db.data('grades/partial').classroomSectionSyncStatusByAssignment);
+  assert.equal(receiptBefore.A1.classwork.studentVisible, true);
+  Object.values(googleFor).forEach((google) => { google.calls.length = 0; });
+
+  await reconcile(db);
+  await releaseQueue({ db, googleFor });
+  assert.deepEqual(googleFor.partial.calls, [], 'nothing is sent as a draft over the returned grade');
+  assert.deepEqual(rows(db), before, 'the rows still say released to the student');
+  assert.deepEqual(db.data('grades/partial').classroomSectionSyncStatusByAssignment, receiptBefore, 'and the student\'s receipt is the one they could see');
+  assert.deepEqual(runCounts(db), { repaired: 0, upToDate: 4, notSent: 0, failed: 0, waiting: 0 });
+});
+
+/* --- 7. a row about an older post ------------------------------------------- */
+
+test('Reconcile sends the grade to a column that was reposted since the row was written', async () => {
+  const { db, google } = await reconcileAfterOrdinaryPush();
+  // The Classwork column was posted again: a new Classroom post, the same publication.
+  db.store.set('classroomLinks/pub-classwork', { ...db.data('classroomLinks/pub-classwork'), courseworkId: 'cw-classwork-reposted' });
+  google.calls.length = 0;
+  await reconcile(db);
+  await releaseQueue({ db, googleFor: { p: google } });
+  assert.deepEqual(google.calls.map((call) => [call.step, call.courseWorkId]), [['list', 'cw-classwork-reposted'], ['patch', 'cw-classwork-reposted']]);
+  assert.equal(row(db, 'p', 'classwork').courseworkId, 'cw-classwork-reposted');
+  assert.deepEqual(runCounts(db), { repaired: 1, upToDate: 1, notSent: 0, failed: 0, waiting: 0 });
+});
+
+/* --- 8. a Retry on a student with no work ----------------------------------- */
+
+const retrySignal = (grades) => ({
+  ...grades,
+  classroomReleaseSignals: { ...grades.classroomReleaseSignals, A1: { requestedAt: new Date(Date.now() + (releases += 1)).toISOString(), reason: 'manual-retry' } },
+});
+const priorRow = (db, key, fields) => db.store.set(`classroomGradeSyncs/${gradeSyncDocumentId(`pub-${key}`, 'none')}`, {
+  syncId: gradeSyncDocumentId(`pub-${key}`, 'none'), publicationId: `pub-${key}`, studentId: 'none', assignmentId: 'A1', courseworkId: `cw-${key}`, ...fields,
+});
+
+test('a Retry on a no-work student after the due date answers on a failed row, and leaves a row that names what the teacher must fix', async () => {
+  // Due a minute ago, late work open; the student opened the lesson and answered nothing.
+  const db = classFixture({ assignment: lesson({ dueAt: iso(-60_000) }), students: { none: {} } });
+  const google = fakeGoogle();
+  priorRow(db, 'warmup', { status: 'failed', stage: 'due-checkpoint', grade: 0, error: 'Google Classroom did not answer.', errorStatus: 'UNAVAILABLE' });
+  priorRow(db, 'classwork', { status: 'skipped-unlinked', stage: 'due-checkpoint', grade: 0, message: 'Student is not linked to this Classroom course.' });
+  const unlinkedBefore = structuredClone(row(db, 'none', 'classwork'));
+
+  await writeGrades({ db, google, studentId: 'none', change: retrySignal });
+  assert.deepEqual(google.calls, [], 'no 0 is sent');
+  const answered = row(db, 'none', 'warmup');
+  assert.deepEqual([answered.status, answered.grade, answered.error, answered.errorStatus], ['skipped-no-work', null, undefined, undefined]);
+  assert.match(answered.message, /^No work yet, so nothing was sent/);
+  // "Link roster first" is still true, and the final cutoff's grade would fail on it too.
+  assert.deepEqual(row(db, 'none', 'classwork'), unlinkedBefore);
+});
+
+test('a correction sync\'s Retry on a no-work student leaves a row that carries the correction\'s event', async () => {
+  const db = classFixture({ assignment: lesson({ dueAt: iso(-60_000) }), students: { none: {} } });
+  db.store.set('grades/none', { ...db.data('grades/none'), profile: { workloadCorrections: { A1: { eventId: 'correction-1' } } } });
+  priorRow(db, 'warmup', { status: 'failed', stage: 'due-checkpoint', grade: 0 });
+  // The correction's sync authorization is certified with its own suite; here
+  // it is taken as given, so the row this trigger writes is what is tested.
+  const corrections = requireFromFunctions('./lib/retroactiveAccommodation.js');
+  const real = { allowed: corrections.correctionSyncAllowed, waiver: corrections.readPracticeWaiver };
+  corrections.correctionSyncAllowed = async () => true;
+  corrections.readPracticeWaiver = async () => [];
+  try {
+    await writeGrades({ db, google: fakeGoogle(), studentId: 'none', change: retrySignal });
+  } finally {
+    corrections.correctionSyncAllowed = real.allowed;
+    corrections.readPracticeWaiver = real.waiver;
+  }
+  const answered = row(db, 'none', 'warmup');
+  assert.equal(answered.status, 'skipped-no-work');
+  assert.equal(answered.correctionEventId, 'correction-1', 'the correction history finds this row');
 });

@@ -181,7 +181,7 @@ test('the not-counted line does not claim Classroom never records a zero, and cl
   assert.equal(summary.notCountedOther, 1);
   assert.equal(summary.graded + summary.missing + summary.pending + summary.excused + summary.closed + summary.notCountedOther, summary.total);
   const line = describeGradeMath(summary).lines.find((text) => text.startsWith('Not counted'));
-  assert.equal(line, 'Not counted in this grade: 1 closed with no work recorded, 1 not started or not open yet. These aren\'t in this MathMaster average, but after the due date Google Classroom may record missing work as 0.');
+  assert.equal(line, 'Not counted in this grade: 1 closed with no work recorded, 1 not started or not open yet. These aren\'t in this MathMaster average. In Google Classroom, work with nothing done shows as Missing after the due date, and is recorded as 0 once the final deadline passes.');
   assert.doesNotMatch(line, /None of these count as a zero/);
 });
 

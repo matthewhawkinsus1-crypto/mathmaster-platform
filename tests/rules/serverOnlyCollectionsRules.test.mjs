@@ -16,7 +16,7 @@ import {
 // would do the most harm without anyone noticing: no screen reads or writes
 // them from a browser, so nothing in the app breaks to show that a rule opened.
 //
-//   * Fourteen are server-only (`allow read, write: if false`: Google Classroom
+//   * Fifteen are server-only (`allow read, write: if false`: Google Classroom
 //     links, the sign-in handshake, repair audits, the Path locks, a game's
 //     achievement jobs, a teacher's dry run ...): no student, teacher, root
 //     administrator or signed-out visitor reads, lists, creates, edits or
@@ -72,6 +72,7 @@ const SERVER_ONLY = [
   'classroomLinks', // which Classroom assignment an assignment was published as
   'classroomRosterLinks', // which Classroom student a student is
   'classroomGradeSyncs', // what was last pushed to a Classroom grade column
+  'classroomReconcileRuns', // what a teacher's reconcile run did, column counts and the teacher's uid
   'studentAliases', // a student's sign-in alias
   'assignmentRepairAudits', // who repaired which assignment, and what changed
   'assignmentRepairHistory', // the question history of a repaired assignment

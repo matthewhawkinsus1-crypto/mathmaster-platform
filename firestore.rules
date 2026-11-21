@@ -2344,6 +2344,10 @@ service cloud.firestore {
     match /classroomLinks/{publicationId} { allow read, write: if false; }
     match /classroomRosterLinks/{rosterLinkId} { allow read, write: if false; }
     match /classroomGradeSyncs/{syncId} { allow read, write: if false; }
+    // What a teacher's "Reconcile section grades" run did, column counts per
+    // student. Written by the grade trigger; teachers read it through the
+    // grade passback monitor's callable (functions/lib/classroomReconcileRuns.js).
+    match /classroomReconcileRuns/{runDocId} { allow read, write: if false; }
     match /studentCredentials/{docId} { allow read, write: if false; }
     match /studentAliases/{docId} { allow read, write: if false; }
     match /studentDirectory/{docId} { allow read, write: if false; }
