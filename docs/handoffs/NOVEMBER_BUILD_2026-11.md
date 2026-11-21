@@ -282,6 +282,13 @@ Nothing here has been deployed, and no operator script has been run.
   - **Steps.** A step that uses another skill, such as factoring, opens that skill's own slides.
   - **Coverage.** Every classwork question is covered by an example.
   - **Build order.** Any.
+- **Decided on 2026-11-21: teacher signals are evidence** (`docs/platform/SHOWING_THE_PROCESS.md` section 7; build session F, SP-2).
+  - **Storage.** Each signal is stored with the attempt, at school or at home.
+  - **Where it shows.** In Live Classroom, in the assignment's results, and in the Student Case Review: a "Work-pattern signals" section with patterns over time, on the timeline and in the export.
+  - **Review.** "Dismiss" marks a signal reviewed (who, when, a note) and never deletes it.
+  - **Context.** Whether the attempt was in or outside class time, and the supports in effect, are recorded with each signal.
+  - **Wording.** Facts only, labelled "not conclusive".
+  - **Limits.** Teachers only, and never read by any grade.
 - **Decided on 2026-11-20: showing the process** (spec: `docs/platform/SHOWING_THE_PROCESS.md`; not built yet).
   - **Part by part.** Every multi-part answer-box question shows one part at a time, in every section. DOL and Test add a "Review all parts" screen before Submit.
   - **Building on earlier answers.** Later parts may use the student's own earlier answer.
