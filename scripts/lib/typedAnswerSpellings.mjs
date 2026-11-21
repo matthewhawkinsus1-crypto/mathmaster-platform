@@ -43,6 +43,7 @@
  *
  * Read only; nothing here grades.
  */
+import { MAX_TYPED_ANSWER_LENGTH, hasDanglingOperator } from '../../functions/shared/typedEntryGuard.mjs';
 
 const OPENERS = '([{';
 const CLOSERS = ')]}';
@@ -607,5 +608,20 @@ export const typedNearMissesOf = (text, field = {}) => {
     add('mixed coordinates', at(`${sign}${numerator} ${rest}/${denominator}`));
     if (sign && whole > 1) add('mixed coordinates', at(`-${whole - 1} ${denominator - rest}/${denominator}`));
   });
+  // unfinished (#557): the key with a sign or a product sign left dangling.
+  // Not an answer yet, and never right (functions/shared/typedEntryGuard.mjs).
+  // Not where the key is itself written that way.
+  if (!hasDanglingOperator(source)) {
+    [`${source}+`, `${source} -`, `${source}*`, `${source}\\cdot`, `${source}\\times`, `*${source}`].forEach((miss) => {
+      if (hasDanglingOperator(miss)) add('unfinished', miss);
+    });
+  }
+  // over the length (#558): the key made longer than an answer may be while
+  // saying the same (plus signs before it, brackets round it). Refused whole.
+  const room = MAX_TYPED_ANSWER_LENGTH + 1 - source.length;
+  if (room > 0) {
+    add('over the length', `${'+'.repeat(room)}${source}`);
+    add('over the length', `${'('.repeat(Math.ceil(room / 2))}${source}${')'.repeat(Math.ceil(room / 2))}`);
+  }
   return [...out].map(([miss, spellingClass]) => ({ miss, spellingClass }));
 };

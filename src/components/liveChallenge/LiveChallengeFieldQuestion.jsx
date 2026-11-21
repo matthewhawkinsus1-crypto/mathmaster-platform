@@ -3,6 +3,8 @@ import MathInput from '../../MathInput.jsx';
 import MathText from '../common/MathText.jsx';
 import { liveChallengeResponseReadiness } from '../../../functions/shared/liveChallenge.mjs';
 import { radioGroupKeyAction, radioTabStopIndex } from '../../platform/interaction/radioGroupKeys.js';
+import TypedEntryNotice from '../common/TypedEntryNotice.jsx';
+import { liveChallengeEntryProblem, liveChallengeResponseComplete } from '../../platform/liveChallenge/liveChallengeEntry.js';
 
 const CHOICE_PROFILES = new Set([
   'choice', 'multiplechoice', 'multiple-choice', 'singlechoice', 'single-choice', 'select',
@@ -38,6 +40,9 @@ const hasMathContract = (field = {}) => (
   || (Array.isArray(field?.requiredSymbols) && field.requiredSymbols.length > 0)
   || (Array.isArray(field?.inputContract?.requiredSymbols) && field.inputContract.requiredSymbols.length > 0)
 );
+
+// How a field is drawn: a choice, the math editor, or a box of words.
+const fieldKind = (field = {}) => (CHOICE_PROFILES.has(profileOf(field)) ? 'choice' : hasMathContract(field) ? 'math' : 'text');
 
 function ResponseBadge({ readiness }) {
   const bad = !readiness?.eligible;
@@ -160,6 +165,7 @@ function MathField({ field, value, disabled, onChange, onSubmit }) {
           maxWidth={820}
         />
       </div>
+      <TypedEntryNotice message={disabled ? '' : liveChallengeEntryProblem('math', value)} entry={value ?? ''} />
     </div>
   );
 }
@@ -183,6 +189,7 @@ function TextField({ field, value, disabled, onChange, onSubmit, autoFocus }) {
         onKeyDown={(event) => { if (event.key === 'Enter') onSubmit(); }}
         style={{ display: 'block', width: '100%', boxSizing: 'border-box', marginTop: 6, padding: 12, border: '2px solid var(--mm-border)', borderRadius: 8, fontSize: 'calc(18 * var(--mm-px))' }}
       />
+      <TypedEntryNotice message={disabled ? '' : liveChallengeEntryProblem('text', value)} entry={value ?? ''} />
     </label>
   );
 }
@@ -222,9 +229,11 @@ function LiveChallengeFieldQuestionView({ question, disabled, onSubmit }) {
     lockButtonRef.current?.focus();
   }, [lockPressed, disabled, busy]);
 
+  // Every box answered, with an entry the round can grade: an unfinished or
+  // over-long entry cannot be locked in, and its box says why
+  // (liveChallengeEntry.js; #557, #558).
   const complete = readiness.eligible
-    && fields.length > 0
-    && fields.every((field) => String(responses[field.id] ?? '').trim() !== '');
+    && liveChallengeResponseComplete(fields.map((field) => ({ id: field.id, kind: fieldKind(field) })), responses);
 
   const submit = async () => {
     if (!complete || disabled || busy) return;
@@ -262,10 +271,9 @@ function LiveChallengeFieldQuestionView({ question, disabled, onSubmit }) {
       </MathText>
       <div style={{ display: 'grid', gap: 15 }}>
         {fields.map((field, fieldIndex) => {
-          const profile = profileOf(field);
           const locked = disabled || busy;
           const setValue = (next) => setResponses((current) => ({ ...current, [field.id]: next }));
-          if (CHOICE_PROFILES.has(profile)) {
+          if (fieldKind(field) === 'choice') {
             return (
               <ChoiceField
                 key={field.id}
@@ -277,7 +285,7 @@ function LiveChallengeFieldQuestionView({ question, disabled, onSubmit }) {
               />
             );
           }
-          if (hasMathContract(field)) {
+          if (fieldKind(field) === 'math') {
             return (
               <MathField
                 key={field.id}

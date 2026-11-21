@@ -13,7 +13,12 @@ teacher's Test preview); every other host draws every part at once. The support
 is `every-part-at-once` (`functions/shared/supportCatalog.mjs`). A secure Test's
 *field* item (several `responseFields`, drawn by `RichQuestionRuntime`'s
 `FieldItem`, not `MultiAnswerGrader`) still shows every field at once. Drivers
-answer part by part through `tests/browser/support/partByPart.mjs`.
+answer part by part through `tests/browser/support/partByPart.mjs`. Read aloud
+(the work bar's Read and the tray's "Read a part") reads the prompt, the open
+part and the answered lines, never a part not yet shown: `MultiAnswerGrader`
+reports the parts on the screen (`onShownPartsChange`) and `QuestionEngine`
+keeps only those (`readingPartsShown`, `questionReading.js`; SP-1c). Translate
+translates the prompt, which every part shows.
 
 Where P2 lives: the facts and the stored record are
 `src/platform/signals/attemptSignalFacts.js`; the question engine raises them

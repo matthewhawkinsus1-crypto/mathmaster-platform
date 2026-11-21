@@ -53,10 +53,16 @@ export const id = 'drafts';
 const plain = (value) => JSON.parse(JSON.stringify(value));
 const SUFFIX = { literal: 'literal', orderedPair: 'ordered-pair', system: 'system', multiAnswer: 'multi-answer', table: 'table' };
 const typedValue = (rng) => typedInput(rng, rng.pick(FREE_CLASSES), { maxLength: 600 }).text;
-// A Step Algebra draft's own text: every class but `long`. A long chain there
-// does not come back at all (see algebra-growth below), and a run that never
-// ends reports nothing.
-const SHORT_CLASSES = FREE_CLASSES.filter((inputClass) => inputClass !== 'long');
+// A Step Algebra draft's own text: every class but `long` and `manyTerms`. A
+// long chain there does not come back at all (see algebra-growth below), and
+// a run that never ends reports nothing. `manyTerms` is the same cost inside
+// 240 characters: a saved operand of 41 like terms with varied coefficients
+// took 203 s to reopen here, and a 47-link division chain 25 s (mathjs's rule
+// matcher; docs/handoffs/NOVEMBER_BUILD_2026-11.md section 6, "A long side").
+// The operation box refuses such an operand when it is typed
+// (stepAlgebraEquivalence.mjs STUDENT_EXPRESSION_BUDGET); a saved draft is not
+// read through that budget.
+const SHORT_CLASSES = FREE_CLASSES.filter((inputClass) => inputClass !== 'long' && inputClass !== 'manyTerms');
 const shortTypedValue = (rng) => typedInput(rng, rng.pick(SHORT_CLASSES)).text;
 
 /*

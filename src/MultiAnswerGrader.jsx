@@ -7,7 +7,7 @@ import './MultiAnswerGrader.css';
 import GraphDisplay from './GraphDisplay';
 import PathQuestionStimulus from './components/student/PathQuestionStimulus.jsx';
 import LinearRegressionPanel from './components/assessment/LinearRegressionPanel.jsx';
-import { answerCandidatesForField, looksLikeFiniteSetNotation, withoutStaleSetStamp } from './answerUtils';
+import { answerCandidatesForField, isChoiceAnswerField, looksLikeFiniteSetNotation, withoutStaleSetStamp } from './answerUtils';
 import { gradeMultiAnswerResponse } from '../functions/shared/ordinaryResponseGrading.mjs';
 // Registers the factoredForm / simplestRadicalForm comparators the shared
 // field grader reads (kept out of the first load: answerUtils.mjs).
@@ -18,6 +18,8 @@ import { describeAnswerFormat, describeBoxPlaceholder } from './platform/interac
 import { keypadProfileForResponseField } from './platform/interaction/interactionContract.js';
 import { declaredKeypadProfile, withheldVerdictKeys } from './platform/interaction/withheldVerdictKeypad.js';
 import { formatProblemForResponse } from './platform/interaction/answerShapeGuard.js';
+import { typedEntryNotice } from '../functions/shared/typedEntryGuard.mjs';
+import TypedEntryNotice from './components/common/TypedEntryNotice.jsx';
 import useUndoHistory from './useUndoHistory';
 import { draftNormalizer, draftShape } from './tools/shared/toolDraftShape.js';
 import { choiceAccessibleLabel, choiceFieldAsksDimensions, choiceOptionsForField, choiceSeed, stableShuffleChoices } from './platform/interaction/choiceOptions.js';
@@ -186,7 +188,11 @@ const ANSWERS_DRAFT = draftNormalizer(draftShape.map(draftShape.nullable(draftSh
 // (withheldVerdictKeypad.js, N56); practice and classwork keep their scaffold.
 // `partByPart`: open one part at a time (PART BY PART, above). Off unless the
 // host asks: every other host draws every part, as it always has.
-function MultiAnswerGrader({ question, onStateChange, onUndoStateChange, feedback, draftKey, verdictsWithheld = false, partByPart = false }) {
+// `onShownPartsChange`: told which parts are on the screen while the parts
+// open one at a time (the open one and the answered lines; every part in
+// Review all parts or after a graded attempt), or null when every part is
+// drawn. Read aloud reads only those (SP-1c).
+function MultiAnswerGrader({ question, onStateChange, onUndoStateChange, feedback, draftKey, verdictsWithheld = false, partByPart = false, onShownPartsChange = null }) {
   const { prompt, answerFields = NO_FIELDS } = question;
   // Read as the box its key says it is: an older import stamped some number
   // boxes as set boxes (RT02), and the grader reads them the same way.
@@ -229,7 +235,17 @@ function MultiAnswerGrader({ question, onStateChange, onUndoStateChange, feedbac
     field.id,
     formatProblemForResponse(field, answers[field.id]),
   ])), [safeFields, answers]);
-  const isComplete = graded.isComplete && !Object.values(formatProblems).some(Boolean);
+  // …nor is an entry left unfinished (`12 +`, `4*`) or longer than an answer
+  // may be (typedEntryGuard.mjs; #557, #558). A box of words, or of choices,
+  // is read for its length only.
+  const entryProblems = useMemo(() => Object.fromEntries(safeFields.map((field) => [
+    field.id,
+    typedEntryNotice(answers[field.id], {
+      words: shouldUsePlainTextInput(field) || isChoiceAnswerField(field) || Boolean(field.options?.length || field.choices?.length),
+      keys: acceptedAnswersForField(field),
+    }),
+  ])), [safeFields, answers]);
+  const isComplete = graded.isComplete && !Object.values(formatProblems).some(Boolean) && !Object.values(entryProblems).some(Boolean);
 
   useEffect(() => {
     const responseDetails = safeFields.map((field) => `${field.label || field.id}=${answers[field.id] ?? ''}`).join(', ');
@@ -302,8 +318,8 @@ function MultiAnswerGrader({ question, onStateChange, onUndoStateChange, feedbac
   const walkParts = partByPart === true && safeFields.length > 1;
   const partDone = useMemo(() => new Map(safeFields.map((field) => [
     field.id,
-    parts.find((part) => part.id === field.id)?.isComplete === true && !formatProblems[field.id],
-  ])), [safeFields, parts, formatProblems]);
+    parts.find((part) => part.id === field.id)?.isComplete === true && !formatProblems[field.id] && !entryProblems[field.id],
+  ])), [safeFields, parts, formatProblems, entryProblems]);
   const firstOpenPart = () => safeFields.find((field) => !partDone.get(field.id))?.id ?? null;
   // `open`: the open part's id, or null for Review all parts. `target`: what
   // takes focus after the student moved (`focus` counts the moves).
@@ -332,6 +348,16 @@ function MultiAnswerGrader({ question, onStateChange, onUndoStateChange, feedbac
     if (field.id === openPartId) return 'open';
     return partDone.get(field.id) ? 'answered' : 'hidden';
   };
+  // What is on the screen, for Read aloud (onShownPartsChange, above): told
+  // when it changes, and null once this grader is gone.
+  const shownPartIds = walkParts ? safeFields.filter((field) => partState(field) !== 'hidden').map((field) => field.id) : null;
+  const shownPartsKey = shownPartIds ? JSON.stringify(shownPartIds) : '';
+  const onShownPartsChangeRef = useRef(onShownPartsChange);
+  onShownPartsChangeRef.current = onShownPartsChange;
+  useEffect(() => {
+    onShownPartsChangeRef.current?.(shownPartsKey ? JSON.parse(shownPartsKey) : null);
+  }, [shownPartsKey]);
+  useEffect(() => () => onShownPartsChangeRef.current?.(null), []);
   // Where Next part goes: the next part with no answer, else an earlier one,
   // else Review all parts.
   const nextStop = (id) => {
@@ -389,6 +415,7 @@ function MultiAnswerGrader({ question, onStateChange, onUndoStateChange, feedbac
             {formatProblems[field.id]}
           </p>
         ) : null}
+        <TypedEntryNotice message={entryProblems[field.id]} entry={answers[field.id]} style={{ margin: '0 0 10px' }} />
         {choiceOptions ? (
           <ChoiceFieldOptions
             label={accessibleFieldLabel(field)}

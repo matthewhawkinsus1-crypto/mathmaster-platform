@@ -6,6 +6,8 @@ import QuestionPrompt from './QuestionPrompt';
 import GraphDisplay from './GraphDisplay';
 import QuestionVisual from './QuestionVisual';
 import { gradeSystemResponse } from '../functions/shared/ordinaryResponseGrading.mjs';
+import { typedEntryNotice } from '../functions/shared/typedEntryGuard.mjs';
+import TypedEntryNotice from './components/common/TypedEntryNotice.jsx';
 import EnlargeableFigure from './components/common/EnlargeableFigure.jsx';
 import { nameSystemLines } from './platform/graph/systemLineNames.js';
 
@@ -27,7 +29,11 @@ export default function SystemGrader({ question, onStateChange, onUndoStateChang
   // this screen, the deadline finalizer, the tests — marks alike.
   // The whole question: its key may be `solution` or `answer` (GR31).
   const graded = gradeSystemResponse(question, answer);
-  const { isComplete, isCorrect } = graded;
+  // An entry left unfinished or longer than an answer may be is not ready to
+  // submit, and uses no try (typedEntryGuard.mjs; #557, #558).
+  const entryProblem = typedEntryNotice(answer);
+  const isComplete = graded.isComplete && !entryProblem;
+  const { isCorrect } = graded;
 
   useEffect(() => {
     const equationDetails = equationsLatex.length ? ` Equations: ${equationsLatex.join(' and ')}.` : '';
@@ -66,6 +72,7 @@ export default function SystemGrader({ question, onStateChange, onUndoStateChang
       <div style={{ marginTop: '24px' }}>
         <MathDisplay value="(x, y) =" format="ascii-math" inline style={{ display: 'block', marginBottom: '10px', fontSize: 'calc(21 * var(--mm-px))', fontWeight: 'bold' }} />
         <MathInput value={answer} onChange={setAnswer} placeholder="(x, y)" ariaLabel="Solution to the system as an ordered pair" onUndoStateChange={onUndoStateChange} inputStatus={incorrect ? 'incorrect' : 'neutral'} />
+        <TypedEntryNotice message={entryProblem} entry={answer} />
       </div>
       </EnlargeableFigure>
     </div>
