@@ -78,6 +78,7 @@ import {
   recoveryFieldAnswers,
 } from './recoveryFixture.js';
 import { nextRecoveryPracticeItem } from '../../../functions/shared/sectionRecoveryService.mjs';
+import { answerParts } from '../support/partByPart.mjs';
 
 const { chromium } = await import(process.env.PLAYWRIGHT_MODULE || '/opt/node22/lib/node_modules/playwright/index.mjs');
 
@@ -223,24 +224,28 @@ const openResult = async (page, title) => {
   return card;
 };
 
-// Type each answer into its field the way a student does: MathLive for math,
-// a text box for words.
+// Type each answer into its part the way a student does: MathLive for math,
+// a text box for words. Recovery opens a multi-part answer one part at a time
+// (SHOWING_THE_PROCESS.md P1), so each part is answered, then Next part, as a
+// student moves on (tests/browser/support/partByPart.mjs).
 const answerQuestion = async (page, runner, answers) => {
-  const fields = runner.locator('.mathmaster-multipart-fields > div');
-  await fields.first().waitFor({ timeout: 30000 * SLOW_FACTOR });
-  for (const [index, answer] of answers.entries()) {
-    const input = fields.nth(index).locator('math-field, input[type="text"]').first();
-    await input.waitFor({ timeout: 10000 * SLOW_FACTOR });
-    if (await input.evaluate((element) => element.tagName === 'MATH-FIELD')) {
-      await input.evaluate((element, value) => {
-        element.setValue(value);
-        element.dispatchEvent(new Event('input', { bubbles: true }));
-      }, answer.value);
-    } else {
-      await input.fill(answer.value);
-    }
-    await page.waitForTimeout(150 * SLOW_FACTOR);
-  }
+  await runner.locator('.mathmaster-multipart-fields > div').first().waitFor({ timeout: 30000 * SLOW_FACTOR });
+  const root = `[data-recovery-runner="${await runner.getAttribute('data-recovery-runner')}"]`;
+  await answerParts(page, answers.map((answer) => answer.value), {
+    root,
+    type: async (input, value) => {
+      await input.waitFor({ timeout: 10000 * SLOW_FACTOR });
+      if (await input.evaluate((element) => element.tagName === 'MATH-FIELD')) {
+        await input.evaluate((element, text) => {
+          element.setValue(text);
+          element.dispatchEvent(new Event('input', { bubbles: true }));
+        }, value);
+      } else {
+        await input.fill(value);
+      }
+      await page.waitForTimeout(150 * SLOW_FACTOR);
+    },
+  });
   await runner.locator('.mathmaster-bar-submit').click();
 };
 

@@ -5,8 +5,8 @@ parts, See every part at once) is built; P2 to P5 are not.** This page pairs wit
 `docs/platform/WORKED_EXAMPLES.md`.
 
 Where P1 lives: `src/MultiAnswerGrader.jsx` (`partByPart`), asked for by the
-student's assignment (`assignmentWorkspaceView.jsx`, not a teacher preview) and a
-secure Test's tool item (`RichQuestionRuntime.jsx`, not Corrections or the
+student's assignment (`assignmentWorkspaceView.jsx`, not a teacher preview),
+Recovery (`SectionRecoveryRunner.jsx`) and a secure Test's tool item (`RichQuestionRuntime.jsx`, not Corrections or the
 teacher's Test preview); every other host draws every part at once. The support
 is `every-part-at-once` (`functions/shared/supportCatalog.mjs`). A secure Test's
 *field* item (several `responseFields`, drawn by `RichQuestionRuntime`'s

@@ -42,6 +42,7 @@ import { fileURLToPath } from 'node:url';
 
 import { watchUnimplementedCallables } from './journeyChecks.mjs';
 import { newSchoolContext } from './schoolClock.mjs';
+import { answerParts } from '../support/partByPart.mjs';
 import {
   CROSS_DEVICE_STUDENT_ID,
   RECOVERY_CROSS_DEVICE_ASSIGNMENT_ID,
@@ -190,27 +191,31 @@ const openRunner = async (page) => {
   return runner;
 };
 
-// Type each answer into its field the way a student does: MathLive for math,
-// a text box for words. Returns what each box then holds — what the student
-// typed, as the app reads it.
+// Type each answer into its part the way a student does: MathLive for math,
+// a text box for words. Recovery opens a multi-part answer one part at a time
+// (SHOWING_THE_PROCESS.md P1), so each part is answered, then Next part
+// (tests/browser/support/partByPart.mjs). Returns what each box then holds —
+// what the student typed, as the app reads it.
 const answerQuestion = async (page, runner, answers) => {
-  const fields = runner.locator('.mathmaster-multipart-fields > div');
-  await fields.first().waitFor({ timeout: 30000 });
+  await runner.locator('.mathmaster-multipart-fields > div').first().waitFor({ timeout: 30000 });
+  const root = `[data-recovery-runner="${await runner.getAttribute('data-recovery-runner')}"]`;
   const typed = [];
-  for (const [index, answer] of answers.entries()) {
-    const input = fields.nth(index).locator('math-field, input[type="text"]').first();
-    await input.waitFor({ timeout: 10000 });
-    if (await input.evaluate((element) => element.tagName === 'MATH-FIELD')) {
-      await input.evaluate((element, value) => {
-        element.setValue(value);
-        element.dispatchEvent(new Event('input', { bubbles: true }));
-      }, answer.value);
-    } else {
-      await input.fill(answer.value);
-    }
-    typed.push(await input.evaluate((element) => element.value));
-    await page.waitForTimeout(150);
-  }
+  await answerParts(page, answers.map((answer) => answer.value), {
+    root,
+    type: async (input, value) => {
+      await input.waitFor({ timeout: 10000 });
+      if (await input.evaluate((element) => element.tagName === 'MATH-FIELD')) {
+        await input.evaluate((element, text) => {
+          element.setValue(text);
+          element.dispatchEvent(new Event('input', { bubbles: true }));
+        }, value);
+      } else {
+        await input.fill(value);
+      }
+      typed.push(await input.evaluate((element) => element.value));
+      await page.waitForTimeout(150);
+    },
+  });
   await runner.locator('.mathmaster-bar-submit').click();
   return typed;
 };

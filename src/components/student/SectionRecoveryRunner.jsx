@@ -278,6 +278,11 @@ function PinnedQuestion({
       showStandardBadge={false}
       hintCostNote={hintCostNote}
       assignmentCalculatorMode={assignmentCalculatorMode}
+      // Recovery is the student answering again: a multi-part answer opens one
+      // part at a time, as on the assignment (MultiAnswerGrader, part by part;
+      // docs/platform/SHOWING_THE_PROCESS.md). The student's See every part at
+      // once support still turns it off (QuestionEngine).
+      partByPart
     />
   );
 }

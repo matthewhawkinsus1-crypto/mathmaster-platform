@@ -405,17 +405,18 @@ test('the engine walks the parts only where its host asks, and never for a stude
   assert.match(engine, /reportSupportEvidence\('every-part-at-once', 'provided'\)/, 'recorded where it changed the question');
 });
 
-test('the hosts: the student\'s assignment and a secure item walk the parts; previews, reviews, Path and Live Challenge do not', () => {
+test('the hosts: the student\'s assignment, a secure item and Recovery walk the parts; previews, reviews, Path and Live Challenge do not', () => {
   const workspace = executableSource(read('src/app/student/assignmentWorkspaceView.jsx'));
   assert.match(workspace, /partByPart=\{!preview\}/, 'the student answering a classroom item; a teacher preview sees every part');
   const rich = executableSource(read('src/components/question/RichQuestionRuntime.jsx'));
   assert.match(rich, /partByPart=\{policy\.secure && executionScope === 'student'\}/, 'a secure Test item; Corrections and the teacher\'s Test preview see every part');
+  const recovery = executableSource(read('src/components/student/SectionRecoveryRunner.jsx'));
+  assert.match(region(recovery, '<QuestionEngine', '/>', 'the Recovery engine'), /\bpartByPart\b/, 'Recovery is the student answering again');
   for (const host of [
     'src/components/teacher/TeacherQuestionReviewPanel.jsx',
     'src/components/teacher/PathSimulator.jsx',
     'src/components/student/PathSessionPlayer.jsx',
     'src/components/liveChallenge/LiveChallengeStudent.jsx',
-    'src/components/student/SectionRecoveryRunner.jsx',
     'src/components/demo/DemoExperience.jsx',
     'src/platform/ToolWrapper.jsx',
   ]) {
