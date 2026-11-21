@@ -5,6 +5,8 @@ import MathDisplay from './MathDisplay';
 import QuestionPrompt from './QuestionPrompt';
 import QuestionVisual from './QuestionVisual';
 import { gradeOrderedPairResponse } from '../functions/shared/ordinaryResponseGrading.mjs';
+import { typedEntryNotice } from '../functions/shared/typedEntryGuard.mjs';
+import TypedEntryNotice from './components/common/TypedEntryNotice.jsx';
 
 export default function OrderedPairGrader({ question, onStateChange, onUndoStateChange, feedback, draftKey }) {
   const { prompt, answer, solution, label = 'Ordered Pair' } = question;
@@ -13,7 +15,11 @@ export default function OrderedPairGrader({ question, onStateChange, onUndoState
   // this screen, the deadline finalizer, the tests — marks alike. Its
   // expectedPair is the key as [x, y], also when it was stored as '(2,3)'.
   const graded = gradeOrderedPairResponse({ answer, solution }, studentAnswer);
-  const { isComplete, isCorrect } = graded;
+  // An entry left unfinished (`(2, 3+`) or longer than an answer may be is not
+  // ready to submit, and uses no try (typedEntryGuard.mjs; #557, #558).
+  const entryProblem = typedEntryNotice(studentAnswer);
+  const isComplete = graded.isComplete && !entryProblem;
+  const { isCorrect } = graded;
 
   useEffect(() => {
     // The task and the student's answer only, never the key: these details
@@ -39,6 +45,7 @@ export default function OrderedPairGrader({ question, onStateChange, onUndoState
       <div style={{ marginTop: '24px' }}>
         <MathDisplay value="(x, y) =" format="ascii-math" inline style={{ display: 'block', marginBottom: '10px', fontSize: 'calc(21 * var(--mm-px))', fontWeight: 'bold' }} />
         <MathInput value={studentAnswer} onChange={setStudentAnswer} placeholder="(x, y)" ariaLabel="Ordered pair answer" answerFormat="orderedPair" onUndoStateChange={onUndoStateChange} inputStatus={incorrect ? 'incorrect' : 'neutral'} />
+        <TypedEntryNotice message={entryProblem} entry={studentAnswer} />
       </div>
     </div>
   );

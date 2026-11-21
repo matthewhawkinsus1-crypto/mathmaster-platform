@@ -5,6 +5,8 @@ import MathDisplay from './MathDisplay';
 import QuestionPrompt from './QuestionPrompt';
 import QuestionVisual from './QuestionVisual';
 import { gradeFractionResponse } from '../functions/shared/ordinaryResponseGrading.mjs';
+import { typedEntryNotice } from '../functions/shared/typedEntryGuard.mjs';
+import TypedEntryNotice from './components/common/TypedEntryNotice.jsx';
 import { fractionQuestionDisplay } from './fractionQuestionDisplay.js';
 import { fractionFormProblemForResponse } from './platform/interaction/answerShapeGuard.js';
 
@@ -24,7 +26,9 @@ export default function FractionGrader({ question, onStateChange, onUndoStateCha
   // not ready to submit: the student is told why instead of losing a try to
   // it (answerShapeGuard).
   const formProblem = fractionFormProblemForResponse(question, answer);
-  const isComplete = graded.isComplete && !formProblem;
+  // …nor an entry left unfinished or too long (typedEntryGuard.mjs; #557, #558).
+  const entryProblem = typedEntryNotice(answer);
+  const isComplete = graded.isComplete && !formProblem && !entryProblem;
   const { isCorrect } = graded;
 
   useEffect(() => {
@@ -58,6 +62,7 @@ export default function FractionGrader({ question, onStateChange, onUndoStateCha
           {formProblem}
         </p>
       ) : null}
+      <TypedEntryNotice message={entryProblem} entry={answer} style={{ margin: '12px auto 0', width: 'fit-content', maxWidth: '100%' }} />
       <p style={{ fontSize: 'calc(13 * var(--mm-px))', color: 'var(--mm-text-subtle)', marginTop: '15px' }}><em>Type / to create a stacked fraction, or open the focused math tools.</em></p>
     </div>
   );

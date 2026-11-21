@@ -4,6 +4,8 @@ import QuestionPrompt from './QuestionPrompt';
 import QuestionVisual from './QuestionVisual';
 import { resolveLabelFormat } from './labelFormat';
 import { gradeTableResponse, tableEditableKeys } from '../functions/shared/ordinaryResponseGrading.mjs';
+import { typedEntryNotice } from '../functions/shared/typedEntryGuard.mjs';
+import TypedEntryNotice from './components/common/TypedEntryNotice.jsx';
 import useUndoHistory from './useUndoHistory';
 import { draftNormalizer, draftShape } from './tools/shared/toolDraftShape.js';
 import { FRACTION_ENTRY_PROPS } from './platform/interaction/numberEntry.js';
@@ -53,7 +55,18 @@ export default function TableGrader({ question, onStateChange, onUndoStateChange
   // keys reports itself complete and stays silent about correct, rather than
   // reporting a filled-in table as wrong.
   const graded = gradeTableResponse({ table: { answers, blanks } }, studentAnswers);
-  const { parts, isComplete, isCorrect } = graded;
+  const { parts, isCorrect } = graded;
+  // A cell left unfinished (`12 +`) or longer than an answer may be is not
+  // ready to submit, and uses no try (typedEntryGuard.mjs; #557, #558). One
+  // sentence under the table names the first such cell.
+  const entryProblem = useMemo(() => {
+    for (const key of editableKeys) {
+      const message = typedEntryNotice(studentAnswers[key]);
+      if (message) return { key, message };
+    }
+    return null;
+  }, [editableKeys, studentAnswers]);
+  const isComplete = graded.isComplete && !entryProblem;
 
   useEffect(() => {
     const responseDetails = editableKeys.map((key) => `${key}=${studentAnswers[key] ?? ''}`).join(', ');
@@ -119,6 +132,11 @@ export default function TableGrader({ question, onStateChange, onUndoStateChange
           </tbody>
         </table>
       </div>
+      <TypedEntryNotice
+        message={entryProblem ? `Row ${Number(entryProblem.key.split(':')[0]) + 1}: ${entryProblem.message}` : ''}
+        entry={entryProblem ? studentAnswers[entryProblem.key] : ''}
+        style={{ margin: '12px auto 0', width: 'fit-content', maxWidth: '100%' }}
+      />
       <p style={{ fontSize: 'calc(13 * var(--mm-px))', color: 'var(--mm-text-subtle)', marginTop: '14px' }}>
         {graded.gradedHere
           // Not every activity shows results after a submit (an exit ticket holds
