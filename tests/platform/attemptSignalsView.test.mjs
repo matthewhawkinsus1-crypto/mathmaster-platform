@@ -11,7 +11,8 @@ import { readFileSync } from 'node:fs';
 import path from 'node:path';
 
 import {
-  ATTEMPT_SIGNAL_TITLE, WORTH_A_CONVERSATION, WORTH_A_CONVERSATION_NOTE, describeAttemptSignal, openAttemptSignals,
+  ATTEMPT_SIGNAL_TITLE, NOT_CONCLUSIVE, WORTH_A_CONVERSATION, WORTH_A_CONVERSATION_NOTE, describeAttemptSignal, describeAttemptSignals,
+  openAttemptSignals, questionAttemptSignals, reviewedAttemptSignals,
 } from '../../src/platform/teacher/attemptSignalsView.js';
 import { ATTEMPT_SIGNAL_KINDS } from '../../src/platform/signals/attemptSignalFacts.js';
 import { buildLiveStatus } from '../../src/livePresence.js';
@@ -56,7 +57,7 @@ test('a fact, never a verdict: no wording accuses the student', () => {
   assert.deepEqual(Object.keys(ATTEMPT_SIGNAL_TITLE).sort(), [...ATTEMPT_SIGNAL_KINDS].sort(), 'every kind has a title');
 });
 
-test('the open list: newest first, one assignment when asked, dismissed and unknown records left out', () => {
+test('the list that needs attention: newest first, one assignment when asked, reviewed and unknown records left out', () => {
   const withOthers = [
     ...SIGNALS,
     { id: 'a-1__5__pasted__0', kind: 'pasted', assignmentId: 'a-1', questionIndex: 5, partIndex: 0, attemptNumber: 1, recordedAt: 9000, dismissedAt: 9500, dismissedByEmail: 'teacher.a@example.test' },
@@ -81,19 +82,24 @@ const panel = executableSource(read('src/components/teacher/WorthAConversation.j
 const drawer = executableSource(read('src/components/teacher/StudentProfileDrawer.jsx'));
 const monitor = executableSource(read('src/components/teacher/LiveClassMonitor.jsx'));
 
-test('the panel lists the open signals, each with a Dismiss that records who dismissed it', () => {
+test('the panel lists the signals that need attention, each with Mark reviewed (who, when, an optional note)', () => {
   assert.match(panel, /watchAttemptSignals\(\{ db, studentId, assignmentId, onChange: setSignals, onError: \(\) => setReadFailed\(true\) \}\)/);
   // A read that was refused says so: it is never shown as "nothing is waiting".
   assert.match(panel, /\{readFailed \? \(\s*<p role="alert" data-attempt-signals-unavailable=""/);
   // The root administrator reads them too: the panel does not say "only you".
   assert.doesNotMatch(panel, /Only you see/);
   assert.match(panel, /Students never see them\./);
-  assert.match(panel, /openAttemptSignals\(signals, \{ assignmentId, assignmentsById \}\)/);
-  const dismiss = region(panel, 'const dismiss = async (signal) => {', '};', 'the dismiss handler');
-  assert.match(dismiss, /dismissAttemptSignal\(\{ db, studentId, signalId: signal\.id, teacherEmail \}\)/);
+  assert.match(panel, /describeAttemptSignals\(signals, \{ assignmentId, assignmentsById, formatWhen: signalWhen \}\)/);
+  const control = region(panel, 'export function ReviewSignalControl(', '\n}\n', 'the review control');
+  assert.match(control, /reviewAttemptSignal\(\{ db, studentId, signalId: signal\.id, teacherEmail, note \}\)/);
+  assert.match(control, /maxLength=\{REVIEW_NOTE_MAX\}/);
+  assert.match(control, /aria-label=\{`Mark reviewed: \$\{named\}`\}/);
+  // Nothing on a teacher's screen says "dismiss": a reviewed fact is kept.
+  assert.doesNotMatch(panel, />\s*Dismiss|Dismiss:/);
   const store = executableSource(read('src/platform/teacher/attemptSignalsStore.js'));
-  const write = region(store, 'export const dismissAttemptSignal', '};', 'dismissAttemptSignal');
-  assert.match(write, /updateDoc\(doc\(db, 'grades', student, ATTEMPT_SIGNALS_SUBCOLLECTION, id\), \{\s*dismissedAt: serverTimestamp\(\),\s*dismissedByEmail: email,\s*\}\)/);
+  const write = region(store, 'export const reviewAttemptSignal', '};', 'reviewAttemptSignal');
+  assert.match(write, /updateDoc\(doc\(db, 'grades', student, ATTEMPT_SIGNALS_SUBCOLLECTION, id\), \{\s*dismissedAt: serverTimestamp\(\),\s*dismissedByEmail: email,\s*\.\.\.\(words \? \{ reviewNote: words \} : \{\}\),\s*\}\)/);
+  assert.match(write, /const words = clean\(note\)\.slice\(0, REVIEW_NOTE_MAX\);/);
   // The email goes as signed in: the rules compare it with the token's own.
   assert.doesNotMatch(write, /toLowerCase/);
   // Both reads are bounded.
@@ -101,8 +107,84 @@ test('the panel lists the open signals, each with a Dismiss that records who dis
   assert.match(watch, /query\(signals, where\('assignmentId', '==', clean\(assignmentId\)\), limit\(ASSIGNMENT_SIGNAL_LIMIT\)\)/);
   assert.match(watch, /query\(signals, orderBy\('recordedAt', 'desc'\), limit\(STUDENT_SIGNAL_LIMIT\)\)/);
   assert.doesNotMatch(watch, /onSnapshot\(\s*signals\b/, 'the whole collection is never watched');
-  // A dismiss is the only write a teacher's screen makes to a signal.
+  // A review is the only write a teacher's screen makes to a signal, and nothing deletes one.
   assert.doesNotMatch(store, /\b(?:setDoc|addDoc|deleteDoc|writeBatch)\b/);
+});
+
+test('reviewed is not deleted: it leaves what needs attention and stays, with who, when and the note', () => {
+  const stored = [
+    ...SIGNALS,
+    { id: 'a-1__5__pasted__0', kind: 'pasted', assignmentId: 'a-1', questionIndex: 5, partIndex: 0, attemptNumber: 1, recordedAt: 9000, dismissedAt: 9500, dismissedByEmail: 'teacher.a@example.test', reviewNote: 'Talked with her on Tuesday.' },
+  ];
+  assert.deepEqual(openAttemptSignals(stored).map((entry) => entry.id), ['a-1__3__leftThenRight', 'a-1__3__pasted__1', 'a-2__0__hardFirstTry']);
+  const [kept] = reviewedAttemptSignals(stored);
+  assert.equal(kept.id, 'a-1__5__pasted__0');
+  assert.deepEqual([kept.reviewed, kept.reviewedBy, kept.reviewedAtMs, kept.reviewNote], [true, 'teacher.a@example.test', 9500, 'Talked with her on Tuesday.']);
+  assert.equal(describeAttemptSignals(stored).length, 4, 'every signal is still in the record');
+  // The drawer keeps them under "Reviewed"; the Live tile shows only what needs attention.
+  assert.match(panel, /\{!readFailed && reviewed\.length > 0 && \(\s*<details data-reviewed-signals=""/);
+  const compact = region(panel, 'if (compact) {', 'const count = open.length + fastAndRight.length;', 'the Live tile');
+  assert.doesNotMatch(compact, /reviewed\.map|data-reviewed-signals/);
+});
+
+test('every place a signal is shown says it is not conclusive, with its time, class time and supports', () => {
+  assert.equal(NOT_CONCLUSIVE, 'Not conclusive');
+  assert.match(WORTH_A_CONVERSATION_NOTE, /not conclusive/);
+  const described = describeAttemptSignal(
+    { ...SIGNALS[1], duringClass: false, supports: ['extra-time', 'text-to-speech'] },
+    { assignmentsById: ASSIGNMENTS, formatWhen: (ms) => `at ${ms}` },
+  );
+  assert.equal(described.notConclusive, 'Not conclusive');
+  assert.equal(described.when, 'at 2000');
+  assert.equal(described.classTime, "Outside the class's scheduled time");
+  assert.match(described.supports, /^Supports in effect: /);
+  assert.equal(described.partIndex, 1);
+  assert.equal(describeAttemptSignal({ ...SIGNALS[0], duringClass: true, supports: [] }).classTime, "During the class's scheduled time");
+  assert.equal(describeAttemptSignal({ ...SIGNALS[0], duringClass: true, supports: [] }).supports, 'No supports in effect');
+  // Not recorded is said by silence, never guessed.
+  assert.deepEqual([describeAttemptSignal(SIGNALS[0]).classTime, describeAttemptSignal(SIGNALS[0]).supports], ['', '']);
+  // Nothing about where the student was beyond the class's scheduled time.
+  assert.doesNotMatch(`${described.classTime} ${describeAttemptSignal({ ...SIGNALS[0], duringClass: true }).classTime}`, /home|school|location|device|phone/i);
+  // One drawing of a signal's facts, with the label, for every teacher surface.
+  const facts = region(panel, 'export function SignalFacts(', '\n}\n', 'SignalFacts');
+  assert.match(facts, /<span data-not-conclusive="" style=\{tagStyle\}>\{NOT_CONCLUSIVE\}<\/span>/);
+  assert.match(facts, /\[signal\.classTime, signal\.supports\]/);
+  assert.match(panel, /<li key=\{signal\.id\} data-attempt-signal=\{signal\.kind\} style=\{cardStyle\}>\s*<SignalFacts signal=\{signal\} \/>/);
+  const notes = executableSource(read('src/components/teacher/QuestionSignalNotes.jsx'));
+  assert.match(notes, /<SignalFacts signal=\{/);
+  const tab = executableSource(read('src/components/teacher/caseReview/CaseSignalsTab.jsx'));
+  assert.match(tab, /data-not-conclusive=""/);
+  assert.match(tab, /\(\{section\.notConclusive\.toLowerCase\(\)\}\)/);
+});
+
+test("in the assignment's results: a student's signals beside the question they belong to, from one shared read", async () => {
+  // What happened, when, and in which part, in the order it happened.
+  const stored = [
+    { id: 'a-1__3__pasted__1', kind: 'pasted', assignmentId: 'a-1', questionIndex: 3, partIndex: 1, attemptNumber: 1, recordedAt: 2000 },
+    { id: 'a-1__3__leftThenRight', kind: 'leftThenRight', assignmentId: 'a-1', questionIndex: 3, partCount: 2, awaySeconds: 20, attemptNumber: 1, recordedAt: 3000, dismissedAt: 4000, dismissedByEmail: 't@example.test' },
+    { id: 'a-1__4__pasted__0', kind: 'pasted', assignmentId: 'a-1', questionIndex: 4, partIndex: 0, attemptNumber: 1, recordedAt: 2500 },
+    { id: 'a-2__3__pasted__0', kind: 'pasted', assignmentId: 'a-2', questionIndex: 3, partIndex: 0, attemptNumber: 1, recordedAt: 2600 },
+  ];
+  const forQuestion = questionAttemptSignals(stored, { assignmentId: 'a-1', questionIndex: 3, formatWhen: (ms) => `at ${ms}` });
+  assert.deepEqual(forQuestion.map((entry) => [entry.id, entry.when, entry.reviewed]), [['a-1__3__pasted__1', 'at 2000', false], ['a-1__3__leftThenRight', 'at 3000', true]]);
+  assert.match(forQuestion[0].facts, /part 2/);
+  assert.deepEqual(questionAttemptSignals(stored, { assignmentId: 'a-1', questionIndex: 9 }), []);
+  // Drawn inside each question's card of the gradebook's student view, on demand.
+  const workspace = executableSource(read('src/app/teacher/TeacherWorkspace.jsx'));
+  assert.match(workspace, /<QuestionSignalNotes studentId=\{student\.id\} assignmentId=\{selectedAssignment\.id\} questionIndex=\{index\} teacherEmail=\{user\?\.role === 'teacher' \? user\.email \|\| '' : ''\} \/><\/article>/);
+  const panels = executableSource(read('src/app/teacher/teacherPanels.js'));
+  assert.match(panels, /^export const QuestionSignalNotes = drawnPanel\(\(\) => import\('\.\.\/\.\.\/components\/teacher\/QuestionSignalNotes\.jsx'\), ""\);$/m);
+  const graph = teacherFirstLoadGraph();
+  assert.ok(!graph.has(path.join(repo, 'src/components/teacher/QuestionSignalNotes.jsx')), "the notes are not in a teacher's first load");
+  // A dozen notes on one screen share one watch, started by the first and stopped with the last.
+  const notes = executableSource(read('src/components/teacher/QuestionSignalNotes.jsx'));
+  assert.match(notes, /useSyncExternalStore\(source\.subscribe, source\.read, source\.read\)/);
+  assert.match(notes, /if \(!studentId \|\| !assignmentId \|\| !signals\.length\) return null;/, 'nothing for a question with none');
+  const store = executableSource(read('src/platform/teacher/attemptSignalsStore.js'));
+  const shared = region(store, 'export const sharedAttemptSignals', '\n};\n', 'sharedAttemptSignals');
+  assert.match(shared, /if \(!shared\.has\(key\)\) \{/);
+  assert.match(shared, /if \(!current\.listeners\.size\) \{ current\.stop\?\.\(\); shared\.delete\(key\); \}/);
+  assert.match(shared, /onError: \(\) => publish\(\{ signals: \[\], failed: true, loaded: true \}\)/);
 });
 
 test("in the student's results: the drawer shows the panel to a signed-in teacher, beside fast-and-right", () => {

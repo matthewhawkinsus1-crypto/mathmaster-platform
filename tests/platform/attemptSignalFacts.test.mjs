@@ -14,12 +14,15 @@ import assert from 'node:assert/strict';
 
 import {
   ATTEMPT_SIGNAL_KIND,
+  ATTEMPT_SIGNAL_SUPPORT_IDS,
   MAX_AWAY_MS,
   MIN_AWAY_MS,
   PLATFORM_LINK_GRACE_MS,
   RETURN_WINDOW_MS,
   attemptHasToolWork,
   attemptSignalDocumentId,
+  attemptSignalPlace,
+  supportsInEffect,
   buildAttemptSignalRecord,
   createAttemptSignalTracker,
   createPageAwayClock,
@@ -180,18 +183,33 @@ test('a paste records the part it landed in and the attempt, and nothing else', 
   assert.deepEqual(tracker.pasteFact({ partIndex: 2, attemptNumber: 1 }), { kind: ATTEMPT_SIGNAL_KIND.PASTED, partIndex: 2, attemptNumber: 1 });
 });
 
-test('where a paste landed: a math box (with its part), a plain box inside a part, and nowhere else', () => {
+test('where a paste landed: a marked answer box by its part, a lone math box on an answer-box question, and nowhere else', () => {
   // A stand-in for an element: closest() by selector, as the DOM answers it.
   const element = (matches) => ({
     closest: (selector) => selector.split(',').map((entry) => entry.trim()).map((entry) => matches[entry]).find(Boolean) || null,
   });
-  const part = (index) => ({ getAttribute: (name) => (name === 'data-answer-box-index' ? String(index) : null) });
-  assert.equal(pastedPartIndex(element({ 'math-field': {}, '[data-answer-box-index]': part(2) })), 2);
-  assert.equal(pastedPartIndex(element({ 'math-field': {} })), 0, 'a single math box is part 1');
-  assert.equal(pastedPartIndex(element({ input: {}, '[data-answer-box-index]': part(1) })), 1);
-  assert.equal(pastedPartIndex(element({ textarea: {} })), null, 'a note or a scratchpad text box is not an answer field');
-  assert.equal(pastedPartIndex(element({})), null);
+  const box = (index, kind = null) => ({ getAttribute: (name) => (name === 'data-answer-box-index' ? String(index) : name === 'data-answer-box-kind' ? kind : null) });
+  const BOX = '[data-answer-box-index]';
+  // A part's box (MultiAnswerGrader), a table's cell (TableGrader): its own index.
+  assert.equal(pastedPartIndex(element({ 'math-field': {}, [BOX]: box(2) })), 2);
+  assert.equal(pastedPartIndex(element({ [BOX]: box(7) })), 7, 'a table cell is a plain input in a marked cell');
+  // A box that takes words is not a math box.
+  assert.equal(pastedPartIndex(element({ [BOX]: box(1, 'text') })), null);
+  // A math field outside any marked box: part 1 on a question that is answer
+  // boxes and nothing else; on a tool (Step Algebra's move boxes) it is one of
+  // the tool's own checked moves, not an answer.
+  assert.equal(pastedPartIndex(element({ 'math-field': {} }), { answerBoxesOnly: true }), 0);
+  assert.equal(pastedPartIndex(element({ 'math-field': {} }), { answerBoxesOnly: false }), null);
+  assert.equal(pastedPartIndex(element({ 'math-field': {} })), null);
+  // A note, a scratchpad text box, anything else.
+  assert.equal(pastedPartIndex(element({ textarea: {} }), { answerBoxesOnly: true }), null);
+  assert.equal(pastedPartIndex(element({}), { answerBoxesOnly: true }), null);
   assert.equal(pastedPartIndex(null), null);
+  // The boxes say so in the markup: a part's box names its index and its
+  // kind, a table's blank cell its position.
+  const read = (file) => executableSource(readFileSync(new URL(`../../${file}`, import.meta.url), 'utf8'));
+  assert.match(read('src/MultiAnswerGrader.jsx'), /data-answer-box-index=\{safeFields\.indexOf\(field\)\} data-answer-box-kind=\{shouldUsePlainTextInput\(field\) \? 'text' : undefined\}/);
+  assert.match(read('src/TableGrader.jsx'), /<td key=\{answerKey\} data-answer-box-index=\{isBlank \? rowIndex \* columns\.length \+ columnIndex : undefined\}/);
 });
 
 test('the stored record is positions and counts: no response, no pasted text, no unknown key', () => {
@@ -207,6 +225,7 @@ test('the stored record is positions and counts: no response, no pasted text, no
   ];
   assert.deepEqual(kinds(facts).sort(), [ATTEMPT_SIGNAL_KIND.HARD_FIRST_TRY, ATTEMPT_SIGNAL_KIND.LEFT_THEN_RIGHT, ATTEMPT_SIGNAL_KIND.PASTED].sort());
   const allowed = new Set(['schemaVersion', 'studentId', 'assignmentId', 'questionIndex', 'kind', 'attemptNumber', 'activityRole', 'partIndex', 'partCount', 'awaySeconds', 'difficultyBand']);
+  // (No class time or supports were given here: neither key appears.)
   facts.forEach((fact) => {
     const record = buildAttemptSignalRecord({ studentId: 'S1', assignmentId: 'a-1', questionIndex: 3, activityRole: 'classwork', fact });
     assert.ok(record, `${fact.kind} builds a record`);
@@ -327,7 +346,10 @@ test('saved work the engine was not told of (a scratchpad from before a reload) 
   const engine = executableSource(readFileSync(new URL('../../src/QuestionEngine.jsx', import.meta.url), 'utf8'));
   const call = region(engine, 'attemptSignals.attemptSubmitted({', 'const nextFeedback = result ||', 'the submit');
   assert.match(call, /\{ savedWork: onLoadScratchpad \? async \(\) => Boolean\(await onLoadScratchpad\(\)\) : null \}/);
-  assert.match(call, /drawnInAnswerBoxes: drawnKind\?\.route === DRAWN_QUESTION_ROUTE\.QUESTION_TYPE\s+&& ANSWER_BOX_TYPES\.includes\(drawnKind\.type\)\s+&& !\(drawnKind\.type === 'literal' && literalWorkspace\?\.question\)/);
+  assert.match(call, /^\s*drawnInAnswerBoxes,$/m);
+  assert.match(engine, /const drawnInAnswerBoxes = drawnKind\?\.route === DRAWN_QUESTION_ROUTE\.QUESTION_TYPE\s+&& ANSWER_BOX_TYPES\.includes\(drawnKind\.type\)\s+&& !\(drawnKind\.type === 'literal' && literalWorkspace\?\.question\);/);
+  // The same answer decides where a paste counts.
+  assert.match(region(engine, 'const attemptSignals = useAttemptSignals({', '});', 'the hook'), /answerBoxesOnly: drawnInAnswerBoxes,/);
   const boxes = engine.match(/const ANSWER_BOX_TYPES = \[([^\]]*)\]/)[1];
   assert.doesNotMatch(boxes, /'algebra'|stepAlgebra|graph|numberLine|modelingLab|relationshipModel/i, 'no tool-built type is called answer boxes');
 });
@@ -376,4 +398,55 @@ test('the writer counts a fact when its write lands, sends it once, and tries ag
   assert.equal(writes.length, before + 1);
   assert.equal(attemptSignalCount('S_W', 'a-w'), 2);
   resetAttemptSignalWriter();
+});
+
+// ---- signals as evidence (SP-2b) -------------------------------------------
+
+test('beside each fact: in the class\'s scheduled time or not, and the supports in effect, and nothing else about the student', () => {
+  const fact = { kind: ATTEMPT_SIGNAL_KIND.PASTED, partIndex: 0, attemptNumber: 1 };
+  const base = { studentId: 'S1', assignmentId: 'a-1', questionIndex: 0, fact };
+  assert.equal(buildAttemptSignalRecord({ ...base, duringClass: true }).duringClass, true);
+  assert.equal(buildAttemptSignalRecord({ ...base, duringClass: false }).duringClass, false);
+  // The schedule could not say: the key is left out, never guessed.
+  for (const unknown of [null, undefined, 'at home', 1]) assert.ok(!('duringClass' in buildAttemptSignalRecord({ ...base, duringClass: unknown })));
+  // Supports: catalog ids only, sorted, no repeats; a label or a note is dropped.
+  assert.deepEqual(
+    buildAttemptSignalRecord({ ...base, supports: ['text-to-speech', 'extra-time', 'extra-time', 'has an IEP for reading', '', null] }).supports,
+    ['extra-time', 'text-to-speech'],
+  );
+  assert.deepEqual(buildAttemptSignalRecord({ ...base, supports: [] }).supports, [], 'none in effect is recorded as none');
+  assert.ok(!('supports' in buildAttemptSignalRecord(base)), 'not given is not recorded');
+  // From the profile in effect today.
+  assert.deepEqual(supportsInEffect({ accommodations: ['large-text', 'calculator'], modifications: ['reduce-complexity'] }), ['calculator', 'large-text', 'reduce-complexity']);
+  assert.deepEqual(supportsInEffect({ accommodations: [], translationLanguage: 'es' }), ['translation']);
+  assert.deepEqual(supportsInEffect({ accommodations: [], translationLanguage: 'en-US' }), []);
+  assert.deepEqual(supportsInEffect(null), []);
+});
+
+test('the rules list the same support ids as the catalog', () => {
+  const rules = readFileSync(new URL('../../firestore.rules', import.meta.url), 'utf8');
+  const listed = region(rules, 'function attemptSignalSupportIds() {', '];', 'the rules\' support ids').match(/'([a-z0-9-]+)'/g).map((id) => id.slice(1, -1));
+  assert.deepEqual([...listed].sort(), [...ATTEMPT_SIGNAL_SUPPORT_IDS].sort(), 'a support added to the catalog must be added to firestore.rules attemptSignalSupportIds, or a signal naming it is refused');
+  assert.ok(ATTEMPT_SIGNAL_SUPPORT_IDS.length <= 60);
+});
+
+test('a fact belongs to the question its engine was showing, not the one the student has since opened', () => {
+  // The host's note of where the engine was, handed back with the fact.
+  assert.deepEqual(attemptSignalPlace({ questionIndex: 2, activityRole: 'classwork' }, { questionIndex: 3, activityRole: 'practice' }), { questionIndex: 2, activityRole: 'classwork' });
+  assert.deepEqual(attemptSignalPlace({ questionIndex: 0, activityRole: 'warmup' }, { questionIndex: 5, activityRole: 'dol' }), { questionIndex: 0, activityRole: 'warmup' }, 'question 1 is a place, not a missing one');
+  // No note (an older engine): where the host is now.
+  assert.deepEqual(attemptSignalPlace(null, { questionIndex: 3, activityRole: 'practice' }), { questionIndex: 3, activityRole: 'practice' });
+  // The hook takes the note when the fact happens, before any wait.
+  const hook = executableSource(readFileSync(new URL('../../src/platform/signals/useAttemptSignals.js', import.meta.url), 'utf8'));
+  const submitted = region(hook, 'const attemptSubmitted = useCallback(', '}, [raise]);', 'attemptSubmitted');
+  assert.ok(submitted.indexOf('const at = contextRef.current;') !== -1 && submitted.indexOf('const at = contextRef.current;') < submitted.indexOf('factsAfterSavedWork('), 'the place is read before the scratchpad is asked');
+  assert.match(submitted, /\.then\(\(facts\) => raise\(facts, at\)\)/);
+  assert.match(hook, /hostRef\.current\?\.\(fact, at\);/);
+  // And the assignment screen records the place, the class time and the supports as of the fact.
+  const view = executableSource(readFileSync(new URL('../../src/app/student/assignmentWorkspaceView.jsx', import.meta.url), 'utf8'));
+  const record = region(view, ': (fact, at) => { void recordAttemptSignal({', '}); },', 'the recorder');
+  assert.match(record, /\.\.\.attemptSignalPlace\(at, \{ questionIndex: currentQuestionIndex, activityRole: runtimeActivityRole \}\)/);
+  assert.match(record, /duringClass: classSchedule && user\.classPeriod \? studentClassInSession\(\{ schedule: classSchedule, classPeriod: user\.classPeriod, nowValue: Date\.now\(\) \}\) : null/);
+  assert.match(record, /supports: supportsInEffect\(user\.profile\)/);
+  assert.match(view, /attemptSignalContext=\{renderMemo\('attemptSignalContext', \[currentQuestionIndex, runtimeActivityRole\], \(\) => \(\{ questionIndex: currentQuestionIndex, activityRole: runtimeActivityRole \}\)\)\}/);
 });
