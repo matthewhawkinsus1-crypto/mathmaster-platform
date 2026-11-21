@@ -1,4 +1,5 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useSyncExternalStore } from 'react';
+import { isRoomProjected, subscribeRoomProjected } from '../../platform/teacher/roomProjection.js';
 import Dialog from '../../ui/Dialog.jsx';
 import StudentPerformanceBadge from '../common/StudentPerformanceBadge.jsx';
 import StudentLearningProfileView from './StudentLearningProfileView.jsx';
@@ -87,10 +88,10 @@ export default function StudentProfileDrawer({
   // Student Case Review / Academic Evidence Deep Dive. Only an entry point:
   // the case review's code and records load when it is opened.
   onOpenCaseReview = null,
+}) {
   // The live tiles are on the projector and this drawer opened over them:
   // what the room must not read about the student is withheld (TT26).
-  roomProjected = false,
-}) {
+  const roomProjected = useSyncExternalStore(subscribeRoomProjected, isRoomProjected, isRoomProjected);
   const closeRef = useRef(null);
   const panelRef = useRef(null);
   // One authorized read of this student's rewards per opening: it feeds the

@@ -114,15 +114,12 @@ test("in the student's results: the drawer shows the panel to a signed-in teache
   assert.match(drawer, /\{teacherEmail && studentId && !roomProjected && \(\s*<WorthAConversation/);
   // Opened over projected tiles, the drawer withholds it and says so.
   assert.match(drawer, /\{teacherEmail && studentId && roomProjected && \(\s*<p data-worth-a-conversation-withheld=""/);
-  assert.match(drawer, /roomProjected = false,/);
-  const workspace = executableSource(read('src/app/teacher/TeacherWorkspace.jsx'));
-  assert.match(region(workspace, '<StudentProfileDrawer', '/>', "the workspace's drawer"), /roomProjected=\{roomProjected\}/);
-  assert.match(workspace, /onRoomProjectedChange=\{setRoomProjected\}/);
+  assert.match(drawer, /const roomProjected = useSyncExternalStore\(subscribeRoomProjected, isRoomProjected, isRoomProjected\);/);
+  // Home says when its tiles are projected, and that it has left the screen.
   const home = executableSource(read('src/TeacherHome.jsx'));
   assert.match(region(home, '<LiveClassMonitor', '/>', "Home's monitor"), /onProjectingChange=\{reportRoomProjected\}/);
-  assert.match(region(home, 'const reportRoomProjected = useCallback(', '}, []);', 'reportRoomProjected'), /onRoomProjectedChangeRef\.current\?\.\(Boolean\(projected\)\)/);
-  // Home leaving the screen ends the projection for the drawer.
-  assert.match(home, /useEffect\(\(\) => \(\) => onRoomProjectedChangeRef\.current\?\.\(false\), \[\]\);/);
+  assert.match(region(home, 'const reportRoomProjected = useCallback(', '}, []);', 'reportRoomProjected'), /shareRoomProjected\(projected\);/);
+  assert.match(home, /useEffect\(\(\) => \(\) => shareRoomProjected\(false\), \[\]\);/);
   // Fast-and-right is today's rule, not a second one.
   assert.match(drawer, /const signal = buildArchivedIntegrityReviewSignal\(summary\);/);
 });
@@ -165,4 +162,21 @@ test("no student's first load carries the teacher's side of the signals", () => 
   }
   // The student's side is there: the engine's hook and the one writer.
   assert.ok(graph.has(path.join(repo, 'src/platform/signals/attemptSignalWriter.js')));
+});
+
+test('the page holds one answer to "are the tiles projected?", and tells whoever is listening when it changes', async () => {
+  const { isRoomProjected, setRoomProjected, subscribeRoomProjected } = await import('../../src/platform/teacher/roomProjection.js');
+  let told = 0;
+  const stop = subscribeRoomProjected(() => { told += 1; });
+  assert.equal(isRoomProjected(), false);
+  setRoomProjected(true);
+  assert.equal(isRoomProjected(), true);
+  setRoomProjected(true);
+  assert.equal(told, 1, 'told once per change');
+  setRoomProjected(false);
+  assert.equal(isRoomProjected(), false);
+  stop();
+  setRoomProjected(true);
+  assert.equal(told, 2, 'not after it stops listening');
+  setRoomProjected(false);
 });

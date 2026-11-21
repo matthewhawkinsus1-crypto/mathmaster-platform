@@ -54,7 +54,6 @@ const MAY_MENTION = new Map([
   ['src/components/teacher/WorthAConversation.jsx', "the teacher's panel"],
   ['src/components/teacher/StudentProfileDrawer.jsx', "the panel in a student's results"],
   ['src/components/teacher/LiveClassMonitor.jsx', 'the panel on a Live tile'],
-  ['src/app/teacher/TeacherWorkspace.jsx', 'tells the drawer the tiles are projected (a comment names the panel)'],
   ['src/app/teacher/teacherPanels.js', "fetches the tile's panel on demand"],
   ['src/app/teacher/teacherPanelPrefetch.js', 'fetches it while the browser is idle'],
   ['src/QuestionEngine.jsx', 'raises the facts beside the attempt'],

@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { setRoomProjected as shareRoomProjected } from './platform/teacher/roomProjection.js';
 import {
   CLASS_PERIODS,
   assignmentIsForStudent,
@@ -31,21 +32,19 @@ const greetingFor = (date) => {
 // Landing tab for teachers: today's classes at a glance, so a period's
 // status and roster are one click away instead of hunting through the
 // class-period dropdown on Grades or scrolling the full Classes grid.
-export default function TeacherHome({ allStudents = [], studentIdentityIndex = null, assignments = [], classSchedule, nowValue = Date.now(), presenceById = {}, onSelectPeriod, onOpenStudent, onUnlockDOL = null, dolUnlockBusyKey = null, onGrantDOLAttempt = null, dolAttemptGrantBusyKey = null, onToggleWarmup = null, warmupControlBusyKey = null, onToggleSectionAccess = null, sectionAccessBusyKey = null, needsAttention = [], needsAttentionCompletionCoverage = true, needsAttentionAcademicCoverage = true, onOpenWeeklyPath = null, onOpenAdministration = null, learningProfilesByStudentId = {}, activeClassId = null, classes = [], teacherUid = '', teacherEmail = '', teacherLabel = 'Your teacher', isRootAdmin = false, studentSupportEvents = [], studentSessionSummaries = [], onRecordStudentSupportEvent = null, onRecommendPersonalPath = null, pathInterventionBusyStudentId = null, liveTeachingSession = null, onTeachAssignment = null, onResumeTeaching = null, onEndLiveTeaching = null, onDolControl = null, dolControlBusyKey = null, onOpenAssignment = null, onSelectClass = null, liveFocus = null, gradingPeriodSettings = null, onLiveClassChange = null, onInspectResponse = null, onRoomProjectedChange = null }) {
+export default function TeacherHome({ allStudents = [], studentIdentityIndex = null, assignments = [], classSchedule, nowValue = Date.now(), presenceById = {}, onSelectPeriod, onOpenStudent, onUnlockDOL = null, dolUnlockBusyKey = null, onGrantDOLAttempt = null, dolAttemptGrantBusyKey = null, onToggleWarmup = null, warmupControlBusyKey = null, onToggleSectionAccess = null, sectionAccessBusyKey = null, needsAttention = [], needsAttentionCompletionCoverage = true, needsAttentionAcademicCoverage = true, onOpenWeeklyPath = null, onOpenAdministration = null, learningProfilesByStudentId = {}, activeClassId = null, classes = [], teacherUid = '', teacherEmail = '', teacherLabel = 'Your teacher', isRootAdmin = false, studentSupportEvents = [], studentSessionSummaries = [], onRecordStudentSupportEvent = null, onRecommendPersonalPath = null, pathInterventionBusyStudentId = null, liveTeachingSession = null, onTeachAssignment = null, onResumeTeaching = null, onEndLiveTeaching = null, onDolControl = null, dolControlBusyKey = null, onOpenAssignment = null, onSelectClass = null, liveFocus = null, gradingPeriodSettings = null, onLiveClassChange = null, onInspectResponse = null }) {
   const now = nowValue instanceof Date ? nowValue : new Date(nowValue);
   const [recoveryClassId, setRecoveryClassId] = useState('');
   // The live tiles are on the projector (LiveClassMonitor's Large room tiles).
   const [roomProjected, setRoomProjected] = useState(false);
-  // The workspace is told too: a student's drawer opened over projected tiles
-  // withholds what the room must not read (StudentProfileDrawer), and Home
-  // leaving the screen ends the projection.
-  const onRoomProjectedChangeRef = useRef(onRoomProjectedChange);
-  onRoomProjectedChangeRef.current = onRoomProjectedChange;
+  // The page is told too (platform/teacher/roomProjection.js): a student's
+  // drawer opened over projected tiles withholds what the room must not read,
+  // and Home leaving the screen ends the projection.
   const reportRoomProjected = useCallback((projected) => {
     setRoomProjected(Boolean(projected));
-    onRoomProjectedChangeRef.current?.(Boolean(projected));
+    shareRoomProjected(projected);
   }, []);
-  useEffect(() => () => onRoomProjectedChangeRef.current?.(false), []);
+  useEffect(() => () => shareRoomProjected(false), []);
   const [recoveryAssignmentId, setRecoveryAssignmentId] = useState('');
 
   const classOptions = classes.length

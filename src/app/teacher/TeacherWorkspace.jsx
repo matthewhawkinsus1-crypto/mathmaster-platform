@@ -329,9 +329,6 @@ export default function TeacherWorkspace({
   // AppErrorBoundary ("MathMaster was just updated"), as a teacher screen's
   // chunk that cannot load does.
   const [authoringKitError, setAuthoringKitError] = useState(null);
-  // Home's live tiles are on the projector: a student's drawer opened over
-  // them withholds "Worth a conversation" (StudentProfileDrawer).
-  const [roomProjected, setRoomProjected] = useState(false);
   // The closed panels' code and Home's math (./teacherPanelPrefetch.js), then
   // the authoring code, while the browser is idle once the workspace has drawn.
   useEffect(() => prefetchTeacherPanels(), []);
@@ -2185,7 +2182,6 @@ export default function TeacherWorkspace({
         gradingPeriodSettings={gradingPeriodSettings}
         onOpenAssignment={(assignmentId, classId) => { setProfileDrawerStudentId(null); openAssignmentHub(assignmentId, classId); }}
         onOpenStudentWork={(classId, assignmentId, studentId) => { setProfileDrawerStudentId(null); openGradebookFor(classId, assignmentId, studentId); }}
-        roomProjected={roomProjected}
         teacherEmail={user?.role === 'teacher' ? user.email || '' : ''}
         studentSupportProfile={profileDrawerStudent?.profile || null}
         onSupportProfileSaved={handleSupportProfileSaved}
@@ -2778,7 +2774,6 @@ export default function TeacherWorkspace({
           {teacherTab === 'home' && (
             <TeacherHome
               onLiveClassChange={reportLiveClass}
-              onRoomProjectedChange={setRoomProjected}
               allStudents={allStudents}
               studentIdentityIndex={teacherStudentIdentityIndex}
               assignments={assignments}
