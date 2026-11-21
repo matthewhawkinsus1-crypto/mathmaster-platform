@@ -977,16 +977,29 @@ test('edge cases: a = −1, h = 0 and k = 0, fractional a, b = −1, decay, a b 
 
 test('end to end: the Hint control, "Try a similar one" and "Let\'s back up" give this family\'s content', () => {
   let siblings = 0;
+  let familyBackUps = 0;
+  let authoredBackUps = 0;
   for (const { source, question } of [...CLAIMED_LAB, ...CLAIMED_DESCRIBE]) {
     const ladder = buildQuestionHints(question);
     const fromFamily = ladder.filter((hint) => hint.source === 'family').map((hint) => hint.text);
     assert.deepEqual(fromFamily, transformations.hints(question).slice(0, fromFamily.length), `${source}: the ladder is the family's`);
     assert.ok(fromFamily.length >= 2, `${source}: family hints reach the ladder`);
     const backUp = backUpStepFor(question);
-    assert.equal(backUp.source, 'family', `${source}: the back-up step is the family's`);
     assert.ok(backUp.options.includes(backUp.correct) && backUp.options.length === 2);
     const direct = transformations.backUpQuestion(question);
-    assert.equal(backUp.prompt, direct.prompt);
+    if (question.scaffold?.prompt) {
+      // A lesson that writes its own back-up step is given it (the Algebra II
+      // Honors Thanksgiving packet writes one on every question); the family
+      // still has one behind it.
+      assert.equal(backUp.source, 'authored', `${source}: the lesson's own back-up step comes first`);
+      assert.equal(backUp.prompt, question.scaffold.prompt);
+      assert.ok(direct?.prompt, `${source}: the family has a back-up step too`);
+      authoredBackUps += 1;
+    } else {
+      assert.equal(backUp.source, 'family', `${source}: the back-up step is the family's`);
+      assert.equal(backUp.prompt, direct.prompt);
+      familyBackUps += 1;
+    }
     const worked = buildSimilarWorkedExample(question, { seed: 4 });
     if (worked) {
       siblings += 1;
@@ -995,6 +1008,8 @@ test('end to end: the Hint control, "Try a similar one" and "Let\'s back up" giv
     }
   }
   assert.ok(siblings >= 250, `${siblings} siblings reach "Try a similar one"`);
+  // Nearly every claimed question takes the family's back-up step: the few that write their own are the packet's.
+  assert.ok(familyBackUps >= 250 && authoredBackUps <= 10, `${familyBackUps} family back-up steps, ${authoredBackUps} authored`);
   // A describe item's back-up never says "up" (a verdict there).
   const describe = CLAIMED_LAB.find(({ question }) => question.mode === 'describe').question;
   assert.doesNotMatch(backUpStepFor(describe).prompt, /\bup\b/);

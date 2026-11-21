@@ -33,6 +33,7 @@ import {
   classworkExampleCoverage,
   coverageHeadline,
   exampleSkillOf,
+  summarizeClassworkExampleCoverage,
 } from '../../src/platform/supports/workedExample/classworkCoverage.js';
 import { asQuestionEngineReceivesIt, lessonFiles, measureClassworkExampleCoverage } from '../../scripts/lib/classworkExampleCoverageReport.mjs';
 import { componentSource, executableSource, region } from './helpers/sourceContract.mjs';
@@ -189,8 +190,26 @@ const realMeasurement = () => {
   return measured;
 };
 
+/*
+ * Section 8's numbers are those of the lessons written BEFORE the coverage
+ * rule: they write no example and no exemption, and are not back-filled (the
+ * owner's scope). A lesson written under the rule names its examples, so it is
+ * told apart by having one of its own, and is held to the rule in the test
+ * after this one. Adding such a lesson leaves these numbers as they are.
+ */
+const writesItsOwnExamples = (lesson) => lesson.summary.byStatus.own > 0 || lesson.summary.byStatus.exempt > 0;
+const lessonsBeforeTheRule = () => {
+  const lessons = realMeasurement().lessons.filter((lesson) => !writesItsOwnExamples(lesson));
+  return {
+    lessons,
+    summary: summarizeClassworkExampleCoverage(lessons.flatMap((lesson) => lesson.questions)),
+    lessonsWithClasswork: lessons.length,
+    lessonsWithNoBuiltIn: lessons.filter((lesson) => lesson.summary.byStatus.builtIn === 0).length,
+  };
+};
+
 test('the real lessons: 137 of 496 Classwork questions have a built-in example, and 14 of 41 lessons have none (WORKED_EXAMPLES.md section 8)', () => {
-  const { lessons, summary, lessonsWithClasswork, lessonsWithNoBuiltIn } = realMeasurement();
+  const { lessons, summary, lessonsWithClasswork, lessonsWithNoBuiltIn } = lessonsBeforeTheRule();
   assert.equal(lessonsWithClasswork, 41);
   assert.equal(summary.total, 496);
   assert.equal(summary.byStatus.builtIn, 137);
@@ -210,6 +229,18 @@ test('the real lessons: 137 of 496 Classwork questions have a built-in example, 
   // questions follow an earlier covered question on their skill.
   assert.deepEqual(summary.byStatus, { own: 0, earlierSameSkill: 43, builtIn: 137, exempt: 0, uncovered: 316 });
   assert.equal(summary.covered, 180);
+});
+
+test('the real lessons written under the rule leave no Classwork question uncovered (the Thanksgiving packet is the first)', () => {
+  const written = realMeasurement().lessons.filter(writesItsOwnExamples);
+  assert.deepEqual(written.map((lesson) => lesson.file), ['teacher-import-jsons/thanksgiving-packet/Algebra2_Honors_Thanksgiving_Packet.json']);
+  written.forEach((lesson) => {
+    assert.deepEqual(lesson.questions.filter(({ status }) => status === STATUS.UNCOVERED).map(({ questionId }) => questionId), [], lesson.file);
+    assert.equal(lesson.summary.covered + lesson.summary.exempt, lesson.summary.total, lesson.file);
+    assert.ok(lesson.summary.byStatus.own >= lesson.summary.total / 2, `${lesson.file}: most questions open an example of their own`);
+  });
+  // Every lesson is in one group or the other, so none escapes both tests.
+  assert.equal(written.length + lessonsBeforeTheRule().lessonsWithClasswork, realMeasurement().lessonsWithClasswork);
 });
 
 test('the real lessons: every uncovered question has a fill hint, and generator means a rich tool or a family', () => {

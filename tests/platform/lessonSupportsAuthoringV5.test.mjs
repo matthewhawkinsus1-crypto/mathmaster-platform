@@ -470,7 +470,17 @@ const withNewFields = (source) => {
 };
 
 /*
- * No lesson in teacher-import-jsons carries a new field, so each compiles to
+ * A lesson written since the fields existed authors them itself: it is told
+ * apart by carrying one, named here so that an older lesson gaining a field is
+ * a change someone looks at, and held to the same rule in the test after this
+ * one. The Thanksgiving packet is the first.
+ */
+const authorsNewFields = (file) => keysFound(JSON.parse(readFileSync(file, 'utf8'))).size > 0;
+const LESSONS_AUTHORING_THE_FIELDS = LESSON_FILES.filter(authorsNewFields);
+const LESSONS_BEFORE_THE_FIELDS = LESSON_FILES.filter((file) => !authorsNewFields(file));
+
+/*
+ * No lesson written before the new fields carries one, so each compiles to
  * exactly what it compiled to before them (checked byte for byte against the
  * compile of main before AG-1, 43 lessons, when this was written). What
  * proves it here without pinning today's output: the same lesson compiled
@@ -478,9 +488,12 @@ const withNewFields = (source) => {
  * lesson compiled without them.
  */
 test('on every existing assignment, the new fields pass through unchanged and change nothing else, byte for byte', () => {
-  assert.ok(LESSON_FILES.length >= 40, `found ${LESSON_FILES.length} lessons`);
+  assert.ok(LESSONS_BEFORE_THE_FIELDS.length >= 40, `found ${LESSONS_BEFORE_THE_FIELDS.length} lessons`);
+  assert.deepEqual(LESSONS_AUTHORING_THE_FIELDS.map((file) => path.relative(ROOT, file)), [
+    'teacher-import-jsons/thanksgiving-packet/Algebra2_Honors_Thanksgiving_Packet.json',
+  ], 'the lessons that author the new fields themselves (held to the rule in the next test)');
   let carried = 0;
-  LESSON_FILES.forEach((file) => {
+  LESSONS_BEFORE_THE_FIELDS.forEach((file) => {
     const name = path.relative(ROOT, file);
     const original = JSON.parse(readFileSync(file, 'utf8'));
     const before = compiledView(parseAssignmentBlueprintText(JSON.stringify(original)));
@@ -512,4 +525,35 @@ test('on every existing assignment, the new fields pass through unchanged and ch
     assert.deepEqual(validateLessonSupportsV5(parsedAfter.assignmentV5).errors, [], `${name}: stored`);
   });
   assert.ok(carried > 100, `parts carrying a field across the lessons: ${carried}`);
+});
+
+/*
+ * The same rule, read the other way, for a lesson that authors the fields: they
+ * arrive as written, and with them taken out of the compiled lesson it is byte
+ * for byte the lesson compiled from the file with them taken out.
+ */
+test('on a lesson that authors the new fields, they arrive as written and change nothing else, byte for byte', () => {
+  assert.ok(LESSONS_AUTHORING_THE_FIELDS.length >= 1);
+  LESSONS_AUTHORING_THE_FIELDS.forEach((file) => {
+    const name = path.relative(ROOT, file);
+    const original = JSON.parse(readFileSync(file, 'utf8'));
+    const parsed = parseAssignmentBlueprintText(JSON.stringify(original));
+    const without = compiledView(parseAssignmentBlueprintText(JSON.stringify(withoutNewFields(original))));
+    assert.deepEqual([...keysFound(without)], [], `${name}: compiled without them, it carries none`);
+    assert.equal(JSON.stringify(withoutNewFields(compiledView(parsed))), JSON.stringify(without), `${name}: compiled output`);
+
+    assert.deepEqual(parsed.assignmentV5.lessonSupports, original.lessonSupports, `${name}: lessonSupports`);
+    const authored = original.sections.flatMap((section) => section.questions || []);
+    authored.forEach((question, index) => {
+      assert.deepEqual(parsed.questions[index].example, question.example, `${name} question ${index + 1}: example`);
+    });
+    const authoredParts = authored.flatMap((question) => question.responses || question.answerFields || [])
+      .filter((part) => part?.checkpoint || part?.followThrough);
+    const carriedParts = parsed.questions
+      .flatMap((question) => [...(question.answerFields || []), ...(question.fields || [])])
+      .filter((part) => part?.checkpoint || part?.followThrough);
+    assert.ok(authoredParts.length >= 1, `${name}: it authors a checkpoint or a follow-through`);
+    assert.deepEqual(carriedParts.map((part) => [part.checkpoint, part.followThrough]), authoredParts.map((part) => [part.checkpoint, part.followThrough]), `${name}: every part's checkpoint or followThrough`);
+    assert.deepEqual(validateLessonSupportsV5(parsed.assignmentV5).errors, [], `${name}: stored`);
+  });
 });

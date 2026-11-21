@@ -341,6 +341,20 @@ const PUBLIC_GRADER_READS = Object.freeze({
     // and the variables (symbol and meaning) a student writes a model in.
     'sourceConstraints', 'modeling.variables', 'modeling.variables[].symbol', 'modeling.variables[].label',
   ],
+  /*
+   * Supports a student is shown while answering. A grader first read them with
+   * the Algebra II Honors Thanksgiving packet: its graph-analysis questions
+   * carry a back-up step, guided notes and a worked example's id, and the
+   * Graph Workspace fingerprints the whole question (JSON.stringify) for its
+   * model cache, which reads every field. None of these holds a key: the
+   * back-up step's own answer (`scaffold.correct`) and the notes' text
+   * (`guidedNotes.steps`) are moved by the split, and `example` is the id of a
+   * worked example in the lesson's `lessonSupports` (a sibling problem, never
+   * the item), or the reason the question needs none.
+   */
+  'supports the student is shown, whose own keys move (scaffold.correct, guidedNotes.steps)': [
+    'scaffold', 'scaffold.prompt', 'scaffold.options', 'guidedNotes', 'example',
+  ],
 });
 
 const PUBLIC_ENTRIES = Object.entries(PUBLIC_GRADER_READS).flatMap(([reason, entries]) => entries.map((entry) => ({ entry, reason })));

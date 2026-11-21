@@ -98,6 +98,8 @@ const PINNED = Object.freeze({
   'teacher-import-jsons/algebra2-polynomials-radicals/3_Radical_Expressions.json': ['3/3/3 ready', '2/2/2 ready'],
   'teacher-import-jsons/algebra2-polynomials-radicals/4_Rational_Exponents.json': ['3/3/3 ready', '2/2/2 ready'],
   'teacher-import-jsons/algebra2-polynomials-radicals/5_Solving_Radical_Equations.json': ['3/3/3 ready', '2/2/2 ready'],
+  // The Algebra II Honors Thanksgiving packet is eleven Classwork sections and a Practice section: no Warm-Up, no DOL.
+  'teacher-import-jsons/thanksgiving-packet/Algebra2_Honors_Thanksgiving_Packet.json': ['0/0/0 notPresent', '0/0/0 notPresent'],
 });
 
 const TOTALS = Object.freeze({
