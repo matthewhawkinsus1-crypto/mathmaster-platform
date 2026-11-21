@@ -444,11 +444,41 @@ test('at the due date a student with no work is sent nothing, and a student with
 
 test('a teacher\'s Retry after the due date still sends no 0 for a student with no work', async () => {
   await clearWaiting();
-  // A row for the retry button to act on, as a roster problem would have left.
+  // A row left failed from before this rule, on the caller's section column
+  // and on their whole-assignment column: what the Retry button acts on.
+  for (const target of [POST.sectionA, POST.wholeA]) {
+    // eslint-disable-next-line no-await-in-loop
+    await db.collection('classroomGradeSyncs').doc(gradeSyncDocumentId(target.id, STUDENT.noWork)).set({
+      syncId: gradeSyncDocumentId(target.id, STUDENT.noWork), publicationId: target.id, assignmentId: ASSIGNMENT, studentId: STUDENT.noWork,
+      status: 'failed', stage: 'due-checkpoint', grade: 0, error: 'Google Classroom did not answer.', errorStatus: 'UNAVAILABLE', updatedAt: new Date(),
+    });
+  }
   await accounts.a.call('retryClassroomGradeSync', { publicationId: POST.sectionA.id, studentId: STUDENT.noWork, assignmentId: ASSIGNMENT });
   google.length = 0;
   await drainAndPush();
   assert.deepEqual(callsFor(STUDENT.noWork), []);
+  // The Retry is answered on the row: it leaves "failed", says why nothing
+  // was sent, and shows no grade. A column with no row gets none.
+  for (const target of [POST.sectionA, POST.wholeA]) {
+    // eslint-disable-next-line no-await-in-loop
+    const row = await auditRow(target, STUDENT.noWork);
+    assert.equal(row.status, 'skipped-no-work', target.id);
+    assert.equal(row.grade, null, target.id);
+    assert.match(row.message, /^No work yet, so nothing was sent\. Google Classroom shows this as Missing until the final cutoff/, target.id);
+    assert.equal(row.error, undefined, `${target.id}: the old error is cleared`);
+    assert.equal(row.errorStatus, undefined);
+  }
+  assert.equal(await auditRow(POST.sectionB, STUDENT.noWork), null);
+  const monitor = await accounts.a.call('listClassroomGradeSyncs', {});
+  assert.deepEqual(
+    monitor.syncs.filter((row) => row.studentId === STUDENT.noWork).map((row) => row.status).sort(),
+    ['skipped-no-work', 'skipped-no-work'],
+    'the monitor no longer shows a failure to retry',
+  );
+  // Retry all has nothing left of this student's to queue.
+  await clearWaiting();
+  await accounts.a.call('retryAllClassroomGradeSyncs', {});
+  assert.equal((await waiting()).some((entry) => entry.studentId === STUDENT.noWork), false);
 });
 
 test('at the final cutoff the student with no work gets their final 0, assigned and returned, as before', async () => {

@@ -39,7 +39,7 @@ const classroomGradeSyncRows = require("./lib/classroomGradeSyncRows");
 // it is returned) is the lib's: one rule for this whole-assignment trigger and
 // the section trigger (tests/platform/classroomReleasePolicyOneRule.test.mjs).
 const { classroomGradeReleasePolicy, classroomReceiptNeedsWriting, deferredClassCheckpoint } = require("./lib/classroomGradeRuntime");
-const { noWorkIsMissingNotZero } = require("./lib/classroomMissingWork");
+const { noWorkIsMissingNotZero, noWorkRetryRow, noWorkRetryRowIsDue } = require("./lib/classroomMissingWork");
 // What wakes the two grade triggers: a tracker that moved beyond time on task.
 const { trackerChangedBeyondTimeOnTask } = require("./lib/classroomTrackerChange");
 const {
@@ -3224,7 +3224,30 @@ exports.syncGradeToClassroom = onDocumentWritten(
       // No work at the due date: nothing is sent, and Classroom shows the
       // work as Missing, as the section columns do
       // (lib/classroomMissingWork.js).
-      if (noWorkIsMissingNotZero({ stage, progress })) continue;
+      if (noWorkIsMissingNotZero({ stage, progress })) {
+        // A teacher's Retry on a row that was left failed is answered on the
+        // row: why nothing was sent (lib/classroomMissingWork.js).
+        if (releaseSignalReason(releaseSignal) === "manual-retry") {
+          // eslint-disable-next-line no-await-in-loop
+          const noWorkLinks = await db.collection("classroomLinks").where("assignmentId", "==", assignmentId).get();
+          for (const linkDoc of noWorkLinks.docs) {
+            const link = linkDoc.data() || {};
+            // Only the columns this trigger sends to.
+            if (link.status !== "published" || !link.courseworkId || link.gradePassbackEnabled === false || !String(link.courseId || "")) continue;
+            // eslint-disable-next-line no-await-in-loop
+            const noWorkPrior = await db.doc(`classroomGradeSyncs/${gradeSyncDocumentId(linkDoc.id, event.params.studentId)}`).get();
+            if (!noWorkRetryRowIsDue({ signalReason: "manual-retry", priorExists: noWorkPrior.exists, prior: noWorkPrior.data() || {} })) continue;
+            // eslint-disable-next-line no-await-in-loop
+            await writeGradeSyncAudit(db, linkDoc.id, event.params.studentId, {
+              assignmentId,
+              courseId: String(link.courseId || ""),
+              courseworkId: link.courseworkId || null,
+              ...noWorkRetryRow({ stage, progress, clearedErrors: clearedClassroomErrorFields() }),
+            });
+          }
+        }
+        continue;
+      }
 
       const grade = progress.grade;
       const isFinal = ["final-complete", "final-deadline"].includes(stage);

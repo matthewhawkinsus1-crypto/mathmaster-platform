@@ -27,6 +27,8 @@ const requireFromFunctions = createRequire(path.join(root, 'functions/package.js
 const runs = requireFromFunctions('./lib/classroomReconcileRuns.js');
 const queue = requireFromFunctions('./lib/classroomPushQueue.js');
 const runtime = requireFromFunctions('./lib/classroomMissingWork.js');
+const reconciliation = requireFromFunctions('./lib/classroomSectionGradeReconciliation.js');
+const { gradeSyncStatusLabel, gradeSyncErrorText, isGradeSyncRetryEligible } = await import('../../src/classroomGradeSyncUi.js');
 
 test('only a teacher\'s reconcile signal has a scope, and the scope is that teacher', () => {
   const signal = { reason: 'section-grade-reconcile', runId: 'run-1', scopeTeacherUid: 'teacher-a' };
@@ -94,10 +96,10 @@ test('the monitor\'s summary adds up the current run\'s students and ignores a r
       // A push of the run this one replaced, written after it.
       'run-1': { k9: { repaired: 5, upToDate: 5, notSent: 5, failed: 5, waiting: 5 } },
     },
-  });
+  }, { nowMs: Date.parse('2026-11-20T10:05:00.000Z') });
   assert.deepEqual(summary, {
     assignmentId: 'a1', runId: 'run-2', requestedAt: '2026-11-20T10:00:00.000Z', publications: 2,
-    queuedStudents: 4, reportedStudents: 3, pendingStudents: 1,
+    queuedStudents: 4, reportedStudents: 3, pendingStudents: 1, unreportedStudents: 0,
     repaired: 2, upToDate: 1, notSent: 1, failed: 1, waiting: 1,
   });
   // The teacher's uid and the per-student entries stay on the server.
@@ -139,6 +141,112 @@ test('no work between the due date and the final cutoff is Missing, not a 0 to s
   assert.equal(runtime.noWorkIsMissingNotZero({ stage: 'assessment-release', progress: none }), false);
 });
 
+test('for a reconcile a column is current when Classroom holds the same grade, whatever the last push was called', () => {
+  const prior = {
+    status: 'synced', stage: 'progress-50', reconciliationVersion: reconciliation.CLASSROOM_SECTION_GRADE_RECONCILIATION_VERSION,
+    grade: 50, classroomGrade: 25, maxPoints: 50, studentVisible: false, returnedToStudent: false,
+  };
+  const now = { grade: 50, classroomGrade: 25, maxPoints: 50, studentVisible: false, returnedToStudent: false, shouldReturn: false };
+  const held = (priorPatch = {}, nowPatch = {}) => reconciliation.sectionGradeHeldByClassroom({ prior: { ...prior, ...priorPatch }, ...now, ...nowPatch });
+  assert.equal(held(), true);
+  assert.equal(held({ stage: 'late-progress-50' }), true, 'the stage label is not part of it');
+  // Anything Classroom would show differently is a repair.
+  assert.equal(held({}, { grade: 75, classroomGrade: 37.5 }), false, 'another grade');
+  assert.equal(held({}, { maxPoints: 100, classroomGrade: 50 }), false, 'another maximum');
+  assert.equal(held({}, { studentVisible: true, shouldReturn: true }), false, 'now visible to the student');
+  assert.equal(held({ studentVisible: true }, { studentVisible: true, shouldReturn: true }), false, 'due back, and not returned');
+  assert.equal(held({ studentVisible: true, returnedToStudent: true }, { studentVisible: true, shouldReturn: true, returnedToStudent: true }), true);
+  // A refused return is asked again only by a Retry.
+  assert.equal(held({ status: 'graded-not-returned', studentVisible: true }, { studentVisible: true, shouldReturn: true }), true);
+  // A row that does not say Classroom holds a grade is never current.
+  for (const status of ['failed', 'rate-limited', 'skipped-unlinked', 'skipped-no-work', 'recovery-held', undefined]) {
+    assert.equal(held({ status }), false, String(status));
+  }
+  assert.equal(held({ grade: null }), false, 'no number was sent');
+  assert.equal(held({ reconciliationVersion: 0 }), false, 'a row from before the audit contract');
+  assert.equal(reconciliation.sectionGradeHeldByClassroom(), false);
+});
+
+test('a student\'s counts are written again after contention, a deadline or a blip, and given up only after that', async () => {
+  const fakeDb = (failures) => {
+    const calls = [];
+    return {
+      calls,
+      collection: () => ({ doc: (id) => ({ update: async (...args) => {
+        calls.push([id, args[1]]);
+        const failure = failures.shift();
+        if (failure) throw Object.assign(new Error(failure.message || 'refused'), { code: failure.code });
+      } }) }),
+    };
+  };
+  const scope = { teacherUid: 'teacher-a', runId: 'run-1' };
+  const record = (db, errors) => runs.recordReconcileStudent(db, {
+    assignmentId: 'a1', scope, studentId: 's1', counts: { repaired: 1 }, wait: async () => {}, onError: (error) => errors.push(error.code),
+  });
+  // ABORTED (contention), then DEADLINE_EXCEEDED, then it goes through.
+  let errors = [];
+  let db = fakeDb([{ code: 10 }, { code: 4 }]);
+  assert.equal(await record(db, errors), true);
+  assert.equal(db.calls.length, 3);
+  assert.deepEqual(db.calls[2][1], { repaired: 1, upToDate: 0, notSent: 0, failed: 0, waiting: 0 }, 'the same whole value each time');
+  assert.deepEqual(errors, []);
+  // Still unavailable after every attempt: logged once, and the push goes on.
+  errors = [];
+  db = fakeDb([{ code: 14 }, { code: 14 }, { code: 14 }, { code: 14 }]);
+  assert.equal(await record(db, errors), false);
+  assert.equal(db.calls.length, 4);
+  assert.deepEqual(errors, [14]);
+  // An error that will not pass is not retried.
+  errors = [];
+  db = fakeDb([{ code: 7 }]);
+  assert.equal(await record(db, errors), false);
+  assert.equal(db.calls.length, 1);
+  assert.deepEqual(errors, [7]);
+  // The run's document is gone: nothing to write, and nothing to report.
+  errors = [];
+  db = fakeDb([{ code: 5 }]);
+  assert.equal(await record(db, errors), false);
+  assert.deepEqual([db.calls.length, errors], [1, []]);
+  // No run on the signal: nothing is written.
+  db = fakeDb([]);
+  assert.equal(await runs.recordReconcileStudent(db, { assignmentId: 'a1', scope: { teacherUid: 'teacher-a', runId: null }, studentId: 's1', counts: {} }), false);
+  assert.equal(db.calls.length, 0);
+});
+
+test('a student who never reports is waited for only so long, then said to be unknown', () => {
+  const requestedAt = '2026-11-20T10:00:00.000Z';
+  const run = { runId: 'run-1', assignmentId: 'a1', requestedAt, queuedStudents: 3, results: { 'run-1': { k1: { repaired: 1 } } } };
+  const at = (ms) => runs.summarizeReconcileRun(run, { nowMs: Date.parse(requestedAt) + ms });
+  assert.deepEqual([at(60_000).pendingStudents, at(60_000).unreportedStudents], [2, 0], 'still in the queue');
+  const late = at(runs.RECONCILE_REPORT_TIMEOUT_MS + 1);
+  assert.deepEqual([late.pendingStudents, late.unreportedStudents], [0, 2], 'longer than the queue ever holds a push');
+  assert.equal(
+    reconcileRunSummaryText(late),
+    'Last reconcile: 1 repaired, 0 already up to date, 0 not sent, 0 failed (2 students did not report; check their rows)',
+  );
+});
+
+test('a Retry on a student with no work answers on the row, and only on a row that does not say Classroom holds a grade', () => {
+  const due = (prior, extra = {}) => runtime.noWorkRetryRowIsDue({ signalReason: 'manual-retry', priorExists: true, prior, ...extra });
+  assert.equal(due({ status: 'failed' }), true);
+  assert.equal(due({ status: 'skipped-unlinked' }), true);
+  // Classroom holds that grade (a 0 returned before this shipped, say): still true.
+  assert.equal(due({ status: 'synced' }), false);
+  assert.equal(due({ status: 'graded-not-returned' }), false);
+  // No row, no new row: a due-date wake-up for a whole class writes nothing.
+  assert.equal(due({}, { priorExists: false }), false);
+  assert.equal(due({ status: 'failed' }, { signalReason: 'due-checkpoint' }), false);
+  const row = runtime.noWorkRetryRow({ stage: 'manual-retry', progress: { attempted: 0, total: 4 }, clearedErrors: { error: 'cleared' } });
+  assert.deepEqual(row, {
+    error: 'cleared', status: 'skipped-no-work', stage: 'manual-retry', grade: null, attempted: 0, total: 4,
+    isFinal: false, studentVisible: false, returnedToStudent: false, message: runtime.CLASSROOM_NO_WORK_MESSAGE,
+  });
+  // In the monitor: said plainly, with why, and no longer offered to "Retry all".
+  assert.equal(gradeSyncStatusLabel(row), 'No work yet: Missing in Classroom');
+  assert.equal(gradeSyncErrorText(row), runtime.CLASSROOM_NO_WORK_MESSAGE);
+  assert.equal(isGradeSyncRetryEligible({ ...row, publicationId: 'p', assignmentId: 'a', studentId: 's' }), false);
+});
+
 test('both grade triggers keep to the caller\'s posts for a reconcile, and hold no work at the due date', () => {
   // The whole-assignment trigger is in the backend's domain modules; the
   // section trigger has always had its own entry file.
@@ -155,4 +263,11 @@ test('both grade triggers keep to the caller\'s posts for a reconcile, and hold 
     // A requeue after Google's limit keeps the run and the caller.
     assert.match(source, /requeueClassroomPushAfterQuota\(db, \{[^}]*runId: releaseSignal\?\.runId,[^}]*scopeTeacherUid: releaseSignal\?\.scopeTeacherUid,/, name);
   }
+  // The section trigger asks whether the student is in the course before it
+  // asks for the teacher's Google client: an expired connection must not mark
+  // another course's students "auth-error".
+  const roster = section.indexOf('const rosterLinkId = rosterLinkDocumentId(courseId, event.params.studentId);');
+  // (The last one: the publish callable also builds a client, far above.)
+  const client = section.lastIndexOf('classroom = await classroomLib.getClassroomClient(teacherUid);');
+  assert.ok(roster > 0 && client > roster, 'roster link first, then the client');
 });

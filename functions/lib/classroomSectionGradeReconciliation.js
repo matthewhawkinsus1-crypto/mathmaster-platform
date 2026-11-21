@@ -60,8 +60,45 @@ function sectionGradeSyncIsCurrent({
   return prior.status === CLASSROOM_GRADED_NOT_RETURNED;
 }
 
+/**
+ * FOR A RECONCILE: DOES CLASSROOM ALREADY HOLD THIS GRADE, WHATEVER THE LAST
+ * PUSH WAS CALLED?
+ *
+ * The evidence fingerprint includes the push's stage label. A reconcile
+ * resolves to the stage "manual-retry", so a column last sent as
+ * "progress-50", "late-progress-50" or "due-checkpoint" never matched: the
+ * first reconcile sent every unfinished column again with the same grade,
+ * over anything a teacher had typed in Classroom, and called it repaired
+ * (issue #545, option A). For a reconcile the label is left out. The column
+ * is current when Classroom was last sent the same grade, the same points
+ * out of the same maximum, with the same visibility to the student, and the
+ * return state the release asks for. Its row, stage included, is then left
+ * as it is.
+ */
+function sectionGradeHeldByClassroom({
+  prior = {},
+  grade,
+  classroomGrade,
+  maxPoints,
+  studentVisible = false,
+  returnedToStudent = false,
+  shouldReturn = false,
+} = {}) {
+  if (Number(prior.reconciliationVersion || 0) < CLASSROOM_SECTION_GRADE_RECONCILIATION_VERSION) return false;
+  if (!["synced", CLASSROOM_GRADED_NOT_RETURNED].includes(prior.status)) return false;
+  const same = (a, b) => Number.isFinite(Number(a)) && Number(a) === Number(b);
+  if (prior.grade == null || !same(prior.grade, grade)) return false;
+  if (prior.classroomGrade == null || !same(prior.classroomGrade, classroomGrade)) return false;
+  if (!same(prior.maxPoints, maxPoints)) return false;
+  if (Boolean(prior.studentVisible) !== Boolean(studentVisible)) return false;
+  if (prior.status === "synced") return !shouldReturn || returnedToStudent;
+  // Saved, and its return refused: asked again only by a teacher's Retry.
+  return true;
+}
+
 module.exports = {
   CLASSROOM_SECTION_GRADE_RECONCILIATION_VERSION,
+  sectionGradeHeldByClassroom,
   sectionGradeEvidenceFingerprint,
   sectionGradeSyncIsCurrent,
 };

@@ -37,6 +37,16 @@ const CLASSROOM_RECONCILE_RUNS = "classroomReconcileRuns";
 const RECONCILE_REASON = "section-grade-reconcile";
 const OUTCOMES = Object.freeze(["repaired", "upToDate", "notSent", "failed", "waiting"]);
 
+// gRPC ABORTED (contention), DEADLINE_EXCEEDED and UNAVAILABLE.
+const TRANSIENT_CODES = new Set([10, 4, 14]);
+const RECORD_ATTEMPTS = 4;
+const RECORD_BACKOFF_MS = 200;
+// A queued push that is refused for Google's limit eight times gives up after
+// about two hours (lib/classroomPushQueue.js). A student who has not reported
+// by then will not: their push failed before it could, or their grade record
+// is gone. The line then says so, and stops waiting.
+const RECONCILE_REPORT_TIMEOUT_MS = 3 * 60 * 60 * 1000;
+
 const clean = (value) => String(value ?? "").trim();
 
 function reconcileRunDocumentId(assignmentId, teacherUid) {
@@ -107,24 +117,40 @@ async function startReconcileRun(db, { assignmentId, teacherUid, runId, queuedSt
  * wrote for them. Never throws: the report must not fail a grade push. A run
  * whose document is gone (the assignment's posts were removed) is not written.
  */
-async function recordReconcileStudent(db, { assignmentId, scope, studentId, counts, onError = () => {} }) {
+async function recordReconcileStudent(db, {
+  assignmentId, scope, studentId, counts, onError = () => {}, wait = (ms) => new Promise((resolve) => { setTimeout(resolve, ms); }),
+}) {
   if (!scope?.runId) return false;
-  try {
-    await db.collection(CLASSROOM_RECONCILE_RUNS).doc(reconcileRunDocumentId(assignmentId, scope.teacherUid)).update(
-      new FieldPath("results", scope.runId, reconcileStudentKey(scope.runId, studentId)),
-      Object.fromEntries(OUTCOMES.map((name) => [name, Math.max(0, Number(counts?.[name]) || 0)])),
-      "updatedAt",
-      FieldValue.serverTimestamp()
-    );
-    return true;
-  } catch (error) {
-    if (error?.code !== 5 && !/no document to update|not[ _-]?found/i.test(String(error?.message || ""))) onError(error);
-    return false;
+  const ref = db.collection(CLASSROOM_RECONCILE_RUNS).doc(reconcileRunDocumentId(assignmentId, scope.teacherUid));
+  const value = Object.fromEntries(OUTCOMES.map((name) => [name, Math.max(0, Number(counts?.[name]) || 0)]));
+  // A class's pushes all write this one document within a minute. A write
+  // lost to contention, a deadline or a blip is tried again (the value is
+  // set, so a repeat is harmless); only then is it given up and logged.
+  for (let attempt = 0; attempt < RECORD_ATTEMPTS; attempt += 1) {
+    try {
+      // eslint-disable-next-line no-await-in-loop
+      await ref.update(
+        new FieldPath("results", scope.runId, reconcileStudentKey(scope.runId, studentId)),
+        value,
+        "updatedAt",
+        FieldValue.serverTimestamp()
+      );
+      return true;
+    } catch (error) {
+      if (error?.code === 5 || /no document to update|not[ _-]?found/i.test(String(error?.message || ""))) return false;
+      if (!TRANSIENT_CODES.has(Number(error?.code)) || attempt === RECORD_ATTEMPTS - 1) {
+        onError(error);
+        return false;
+      }
+      // eslint-disable-next-line no-await-in-loop
+      await wait(RECORD_BACKOFF_MS * 2 ** attempt + Math.floor(Math.random() * RECORD_BACKOFF_MS));
+    }
   }
+  return false;
 }
 
 /** A run document as the monitor shows it: the students added up. */
-function summarizeReconcileRun(run = {}) {
+function summarizeReconcileRun(run = {}, { nowMs = Date.now() } = {}) {
   const runId = clean(run.runId);
   const byStudent = (run.results && typeof run.results === "object" ? run.results[runId] : null) || {};
   const totals = emptyOutcomeCounts();
@@ -133,6 +159,9 @@ function summarizeReconcileRun(run = {}) {
   });
   const queuedStudents = Math.max(0, Number(run.queuedStudents) || 0);
   const reportedStudents = Object.keys(byStudent).length;
+  const missing = Math.max(0, queuedStudents - reportedStudents);
+  const requestedMs = Date.parse(clean(run.requestedAt));
+  const timedOut = Number.isFinite(requestedMs) && nowMs - requestedMs > RECONCILE_REPORT_TIMEOUT_MS;
   return {
     assignmentId: clean(run.assignmentId),
     runId,
@@ -141,7 +170,9 @@ function summarizeReconcileRun(run = {}) {
     queuedStudents,
     reportedStudents,
     // Students whose push has not run yet (still in the paced queue).
-    pendingStudents: Math.max(0, queuedStudents - reportedStudents),
+    pendingStudents: timedOut ? 0 : missing,
+    // Students who never reported and no longer will: outcome unknown.
+    unreportedStudents: timedOut ? missing : 0,
     ...totals,
   };
 }
@@ -161,6 +192,7 @@ async function readTeacherReconcileRuns(db, teacherUid, { limit = 200 } = {}) {
 module.exports = {
   CLASSROOM_RECONCILE_RUNS,
   OUTCOMES,
+  RECONCILE_REPORT_TIMEOUT_MS,
   RECONCILE_REASON,
   newReconcileRunId,
   publicationInReconcileScope,

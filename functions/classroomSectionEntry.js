@@ -45,7 +45,7 @@ const {
   deferredClassCheckpoint,
   toDate,
 } = require("./lib/classroomGradeRuntime");
-const { noWorkIsMissingNotZero } = require("./lib/classroomMissingWork");
+const { noWorkIsMissingNotZero, noWorkRetryRow, noWorkRetryRowIsDue } = require("./lib/classroomMissingWork");
 const { trackerChangedBeyondTimeOnTask } = require("./lib/classroomTrackerChange");
 const { assignmentFeedbackIsHeld } = require("./lib/activityFeedback");
 const sectionRecoveryGrades = require("./lib/sectionRecoveryGrades");
@@ -63,6 +63,7 @@ const classroomReconcileRuns = require("./lib/classroomReconcileRuns");
 const classroomCheckpointScan = require("./lib/classroomCheckpointScan");
 const classroomStudentCheckpoints = require("./lib/classroomStudentCheckpoints");
 const {
+  sectionGradeHeldByClassroom,
   CLASSROOM_SECTION_GRADE_RECONCILIATION_VERSION,
   sectionGradeEvidenceFingerprint,
   sectionGradeSyncIsCurrent,
@@ -949,7 +950,27 @@ const syncSectionGradeToClassroom = onDocumentWritten(
         if (!stage) { countNotSent(); continue; }
         // No work at the due date: nothing is sent, and Classroom shows the
         // work as Missing (lib/classroomMissingWork.js).
-        if (noWorkIsMissingNotZero({ stage, progress: gradeResult })) { countNotSent(); continue; }
+        if (noWorkIsMissingNotZero({ stage, progress: gradeResult })) {
+          // A teacher's Retry on a row that was left failed is answered on
+          // the row: why nothing was sent (lib/classroomMissingWork.js).
+          if (signalReason === "manual-retry") {
+            // eslint-disable-next-line no-await-in-loop
+            const noWorkPrior = await db.doc(`classroomGradeSyncs/${gradeSyncDocumentId(publicationDoc.id, event.params.studentId)}`).get();
+            if (noWorkRetryRowIsDue({ signalReason, priorExists: noWorkPrior.exists, prior: noWorkPrior.data() || {} })) {
+              // eslint-disable-next-line no-await-in-loop
+              await writeGradeSyncAudit(db, publicationDoc.id, event.params.studentId, {
+                assignmentId,
+                courseId: publication.courseId || null,
+                courseworkId: publication.courseworkId || null,
+                sectionKey: gradeResult.sectionKey,
+                sectionLabel: gradeResult.sectionLabel,
+                ...noWorkRetryRow({ stage, progress: gradeResult, clearedErrors: clearedClassroomErrorFields() }),
+              });
+            }
+          }
+          countNotSent();
+          continue;
+        }
         const releasePolicy = classroomGradeReleasePolicy({
           stage, assignment, nowValue: stageNow, studentDueAt: ownDeadlines.studentDueAt, studentFinalCutoff: ownDeadlines.studentFinalCutoff,
         });
@@ -995,12 +1016,24 @@ const syncSectionGradeToClassroom = onDocumentWritten(
         if (
           (!forceRetry || (afterData.profile?.workloadCorrections?.[assignmentId]?.eventId
             && prior.correctionEventId === afterData.profile.workloadCorrections[assignmentId].eventId))
-          && sectionGradeSyncIsCurrent({
+          && (sectionGradeSyncIsCurrent({
             prior,
             evidenceFingerprint,
             returnedToStudent: priorReturned,
             shouldReturn: releasePolicy.shouldReturn,
           })
+            // A reconcile's own stage label never matches the last ordinary
+            // push's: for it, "current" is the grade Classroom holds
+            // (lib/classroomSectionGradeReconciliation.js).
+            || (signalReason === classroomReconcileRuns.RECONCILE_REASON && sectionGradeHeldByClassroom({
+              prior,
+              grade: gradeResult.grade,
+              classroomGrade,
+              maxPoints,
+              studentVisible: releasePolicy.studentVisible,
+              returnedToStudent: priorReturned,
+              shouldReturn: releasePolicy.shouldReturn,
+            })))
         ) {
           // Current because this run sent it (an earlier pass, or the same
           // event delivered twice): still repaired, not "already up to date".
@@ -1012,6 +1045,43 @@ const syncSectionGradeToClassroom = onDocumentWritten(
 
         const teacherUid = String(publication.teacherUid || "").trim();
         if (!teacherUid) { countNotSent(); continue; }
+        // The roster link before the teacher's Google client: a student who
+        // is not in this course is "not linked", whatever state the teacher's
+        // connection is in. Asked the other way round, an expired connection
+        // marked every student of every other course "auth-error" on this
+        // teacher's columns, and a reconcile counted them as failed.
+        const rosterLinkId = rosterLinkDocumentId(courseId, event.params.studentId);
+        // eslint-disable-next-line no-await-in-loop
+        const rosterLinkSnapshot = await db.doc(`classroomRosterLinks/${rosterLinkId}`).get();
+        const googleUserId = rosterLinkSnapshot.exists
+          ? String(rosterLinkSnapshot.data()?.googleUserId || "").trim()
+          : "";
+        if (!googleUserId) {
+          // eslint-disable-next-line no-await-in-loop
+          await writeGradeSyncAudit(db, publicationDoc.id, event.params.studentId, {
+            ...(afterData.profile?.workloadCorrections?.[assignmentId] ? { correctionEventId: afterData.profile.workloadCorrections[assignmentId].eventId } : {}),
+            assignmentId,
+            courseId,
+            courseworkId: publication.courseworkId,
+            sectionKey: gradeResult.sectionKey,
+            sectionLabel: gradeResult.sectionLabel,
+            status: "skipped-unlinked",
+            stage,
+            grade: gradeResult.grade,
+            classroomGrade,
+            maxPoints,
+            attempted: gradeResult.attempted,
+            total: gradeResult.total,
+            creditOnAttempted: gradeResult.creditOnAttempted,
+            isFinal,
+            studentVisible: releasePolicy.studentVisible,
+            returnedToStudent: false,
+            message: "Student is not linked to this Classroom course.",
+          });
+          countNotSent();
+          continue;
+        }
+
         let classroom = classroomByTeacher.get(teacherUid);
         if (!classroom) {
           try {
@@ -1043,38 +1113,6 @@ const syncSectionGradeToClassroom = onDocumentWritten(
             runTally?.count("failed");
             continue;
           }
-        }
-
-        const rosterLinkId = rosterLinkDocumentId(courseId, event.params.studentId);
-        // eslint-disable-next-line no-await-in-loop
-        const rosterLinkSnapshot = await db.doc(`classroomRosterLinks/${rosterLinkId}`).get();
-        const googleUserId = rosterLinkSnapshot.exists
-          ? String(rosterLinkSnapshot.data()?.googleUserId || "").trim()
-          : "";
-        if (!googleUserId) {
-          // eslint-disable-next-line no-await-in-loop
-          await writeGradeSyncAudit(db, publicationDoc.id, event.params.studentId, {
-            ...(afterData.profile?.workloadCorrections?.[assignmentId] ? { correctionEventId: afterData.profile.workloadCorrections[assignmentId].eventId } : {}),
-            assignmentId,
-            courseId,
-            courseworkId: publication.courseworkId,
-            sectionKey: gradeResult.sectionKey,
-            sectionLabel: gradeResult.sectionLabel,
-            status: "skipped-unlinked",
-            stage,
-            grade: gradeResult.grade,
-            classroomGrade,
-            maxPoints,
-            attempted: gradeResult.attempted,
-            total: gradeResult.total,
-            creditOnAttempted: gradeResult.creditOnAttempted,
-            isFinal,
-            studentVisible: releasePolicy.studentVisible,
-            returnedToStudent: false,
-            message: "Student is not linked to this Classroom course.",
-          });
-          countNotSent();
-          continue;
         }
 
         if (teachersAtClassroomLimit.has(teacherUid)) {
