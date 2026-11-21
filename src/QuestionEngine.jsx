@@ -27,7 +27,7 @@ import MathText from './components/common/MathText.jsx';
 import { buildQuestionHints, diagnosisHint, hintLadderView, hintRelease } from './platform/supports/hints/questionHints.js';
 import { hintCostSentence } from './platform/supports/hints/hintCopy.js';
 import { hintPanelFocusTarget, keepHintPanelInView, requestedHintPanelPlace } from './platform/supports/hints/hintPanelReveal.js';
-import { exampleOpensByItself, exampleSectionRule, workedExampleFor } from './platform/supports/workedExample/examplePlayer.js';
+import { exampleOpensByItself, exampleSectionRule, lessonExampleContext, workedExampleFor } from './platform/supports/workedExample/examplePlayer.js';
 import PracticeLikeThis from './platform/supports/workedExample/PracticeLikeThis.jsx';
 import { chosenOptionReasons, oneTryNotice } from './platform/supports/feedback/oneTryChoice.js';
 import { SAME_ANSWER_AGAIN, focusOnText, missOutcomeText, submitActionLabel, submitTryCost, triesLeftText } from './platform/student/submitCost.js';
@@ -72,7 +72,7 @@ import CalculatorPanel from './components/CalculatorPanel';
 import ProblemUnderstandingPanel from './components/ProblemUnderstandingPanel';
 import MobileViewportContainer, { isMobileQuestionViewport } from './components/student/MobileViewportContainer';
 import { normalizeContextualQuestion } from './platform/context/wordProblemLayer';
-import { getEffectiveActivityPolicy, isActivityRole } from './platform/policies/activityPolicies';
+import { getEffectiveActivityPolicy, isActivityRole, resolveQuestionActivityRole } from './platform/policies/activityPolicies';
 import { CALCULATOR_MODES, calculatorKeyPointsShown, resolveCalculatorPolicy } from './platform/policies/calculatorPolicy';
 import { getToolDefinition } from './tools/toolRegistry';
 import { buildRawPathResponse } from './platform/path/pathToolResponses';
@@ -396,12 +396,12 @@ function QuestionEngineBody({
   // help does not count toward unlocking (HELP-4). Null: "Hints never lower
   // your score. Your teacher can see you used one." (hintCopy.js).
   hintCostNote = null,
-  // What the assignment knows about this question's worked example
-  // (examplePlayer.js lessonExampleContext): the section's own role, the
-  // lesson's examples, the assignment's problems, and whether this is the
-  // first Classwork question on a new skill. Null on every other host: the
-  // example is then on request only, wherever hints are allowed.
-  workedExampleContext = null,
+  // The lesson around this question, for its worked example: { sectionRole
+  // (the section's OWN role), questions, index, assignment }. From it the
+  // example's rules are worked out below (examplePlayer.js
+  // lessonExampleContext). Null on every other host: the example is then on
+  // request only, wherever hints are allowed.
+  workedExampleLesson = null,
 }) {
   useRenderPerformance('QuestionEngine', String(question?.toolId || question?.type || 'question'));
   const resolvedActivityPolicy = activityPolicy || getEffectiveActivityPolicy(activityRole);
@@ -1958,6 +1958,13 @@ function QuestionEngineBody({
    * the first question on a new skill. Where it is not offered it is not
    * built, so nothing of it can reach the page.
    */
+  const workedExampleContext = useMemo(() => (workedExampleLesson ? lessonExampleContext({
+    questions: workedExampleLesson.questions,
+    index: workedExampleLesson.index,
+    sectionRole: workedExampleLesson.sectionRole,
+    roleOf: (candidate) => resolveQuestionActivityRole({ question: candidate, assignment: workedExampleLesson.assignment || {} }),
+    lessonSupports: workedExampleLesson.assignment?.lessonSupports,
+  }) : null), [workedExampleLesson]);
   const exampleRule = exampleSectionRule({
     sectionRole: workedExampleContext?.sectionRole,
     activityRole: resolvedActivityPolicy?.role,

@@ -137,12 +137,16 @@ test('where the section shows no example, QuestionEngine builds none and draws n
   assert.match(region(engine, 'const openSimilarExample = (place) => {', '};', 'opening on request'), /if \(!similarExample\) return;/);
   assert.match(region(engine, 'const hintPanel = helpControlAvailable ? (', ') : null;', 'the hint panel'), /similar=\{similarExample\}/);
   assert.doesNotMatch(engine, /buildSimilarWorkedExample/, 'no second way to an example');
-  // The assignment gives the section's OWN role, not the role it runs as.
+  // The assignment gives the section's OWN role, not the role it runs as, and the lesson around the question.
   const host = executableSource(read('src/app/student/assignmentWorkspaceView.jsx'));
-  const context = region(host, "renderMemo('workedExampleContext',", '}));', 'the example context');
-  assert.match(context, /sectionRole: activeQuestionRole,/);
-  assert.doesNotMatch(context, /runtimeActivityRole/);
-  assert.match(host, /workedExampleContext=\{currentWorkedExampleContext\}/);
+  const lesson = region(host, "renderMemo('workedExampleLesson',", '}));', 'the lesson handed over');
+  assert.match(lesson, /sectionRole: activeQuestionRole,/);
+  assert.doesNotMatch(lesson, /runtimeActivityRole/);
+  for (const line of [/questions,/, /index: currentQuestionIndex,/, /assignment,/]) assert.match(lesson, line);
+  assert.match(host, /workedExampleLesson=\{currentWorkedExampleLesson\}/);
+  // QuestionEngine works the context out from it, with each question's own section role.
+  const context = region(engine, 'const workedExampleContext = useMemo(() => (workedExampleLesson ? lessonExampleContext({', '}) : null), [workedExampleLesson]);', 'the example context');
+  for (const line of [/questions: workedExampleLesson\.questions,/, /index: workedExampleLesson\.index,/, /sectionRole: workedExampleLesson\.sectionRole,/, /roleOf: \(candidate\) => resolveQuestionActivityRole\(\{ question: candidate, assignment: workedExampleLesson\.assignment \|\| \{\} \}\),/, /lessonSupports: workedExampleLesson\.assignment\?\.lessonSupports,/]) assert.match(context, line);
 });
 
 test('it opens by itself before the first Classwork question on a new skill, once', () => {
@@ -495,6 +499,9 @@ test('the Hint panel loads the player on demand, and draws nothing of it with no
   for (const file of ['src/QuestionEngine.jsx', 'src/app/student/assignmentWorkspaceView.jsx', 'src/platform/supports/workedExample/examplePlayer.js']) {
     assert.doesNotMatch(executableSource(read(file)), /WorkedExamplePlayer\.jsx/, `${file} does not load the player itself`);
   }
+  // The assignment screen is in Home's first load: it hands the lesson over and imports none of the example's code
+  // (its rules reach the question families and their graders).
+  assert.doesNotMatch(executableSource(read('src/app/student/assignmentWorkspaceView.jsx')), /supports\/workedExample\//);
   // The student's screen does not load the teacher's coverage report for the skill.
   assert.doesNotMatch(executableSource(read('src/platform/supports/workedExample/examplePlayer.js')), /classworkCoverage/);
 });

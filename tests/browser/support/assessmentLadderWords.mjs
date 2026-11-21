@@ -14,6 +14,11 @@ import { MISCONCEPTION_STUDENT_MESSAGES } from '../../../functions/shared/miscon
 import { GENERIC_MISS_MESSAGES } from '../../../src/platform/supports/feedback/genericMissChecks.js';
 import { FALLBACK_HINTS } from '../../../src/platform/supports/hints/questionHints.js';
 import { PENDING_RUNG_TEXT } from '../../../src/platform/supports/hints/hintCopy.js';
+import {
+  EXAMPLE_OPENED_BY_ITSELF_TEXT,
+  EXAMPLE_PROBLEM_NOTE,
+  EXAMPLE_YOUR_TURN_TEXT,
+} from '../../../src/platform/supports/workedExample/examplePlayer.js';
 
 // Authored supports (marked LEAKCHECK in the fixtures) and the ladder's own
 // words.
@@ -25,7 +30,22 @@ export const LADDER_WORDS = Object.freeze(['LEAKCHECK', 'A hint is ready', 'Show
   // every fallback (none may reach a DOL or test).
   'These hints are general', ...Object.values(FALLBACK_HINTS).flat(),
   // Hint-ladder timing: the line a rung shows while its tool loads.
-  PENDING_RUNG_TEXT]);
+  PENDING_RUNG_TEXT,
+  // The worked-example player (WE-A): its hand-over sentence, the line it
+  // opens with on Classwork, the line under its problem, and its loading line.
+  // A DOL, quiz or test never shows an example. Its name ("Worked example")
+  // and its last button ("Your turn") are words real prompts use too, so the
+  // gate looks for the player itself instead (EXAMPLE_CONTROL_SELECTORS).
+  EXAMPLE_YOUR_TURN_TEXT, EXAMPLE_OPENED_BY_ITSELF_TEXT, EXAMPLE_PROBLEM_NOTE, 'Loading the example']);
+
+/**
+ * Every control of the worked example: the open example, the player inside
+ * it, and the offer of one after a miss. None may be in a DOL, quiz or test
+ * page's document, drawn or hidden.
+ */
+export const EXAMPLE_CONTROL_SELECTORS = Object.freeze([
+  '[data-similar-example]', '[data-worked-example-player]', '[data-similar-offer]', '[data-example-opened-by-itself]', '[data-example-next]', '[data-example-your-turn]',
+]);
 
 // Every misconception and generic miss message.
 export const MISS_MESSAGES = Object.freeze([...Object.values(MISCONCEPTION_STUDENT_MESSAGES), ...Object.values(GENERIC_MISS_MESSAGES)]);
