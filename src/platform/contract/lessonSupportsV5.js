@@ -15,11 +15,13 @@
  *
  * WHAT THIS FILE DOES AND DOES NOT DO. It checks the shapes and the owner's
  * rules, and nothing else: the compiler carries the fields through unchanged
- * (authoringIntentV5Core.js), and no grader, renderer or student screen reads
- * them yet. The worked-example player, reference cards, follow-through grading
- * and checkpoints are later packages (WE-A, WE-H, SP-3, SP-4) that read these
- * fields as they stand here. So an assignment that carries none of the fields
- * is judged and compiled exactly as before.
+ * (authoringIntentV5Core.js). The worked-example player (WE-A) reads a
+ * question's `example` and a lesson's step cards
+ * (supports/workedExample/examplePlayer.js); no grader reads any of them.
+ * Tool replays, reference cards, follow-through grading and checkpoints are
+ * later packages (WE-C to WE-E, WE-H, SP-3, SP-4) that read these fields as
+ * they stand here. So an assignment that carries none of the fields is judged
+ * and compiled exactly as before.
  *
  * The messages lead with "Section S Question Q <field path>", the locator
  * Pre-Flight's diagnostics read (preflightDiagnostics.js), so each lands on

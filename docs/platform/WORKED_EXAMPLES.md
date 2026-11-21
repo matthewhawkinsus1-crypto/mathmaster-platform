@@ -1,9 +1,34 @@
 # Worked examples: the platform teaches each new skill
 
-Status: **decided by the owner on 2026-11-20; not built yet.** This page is the
-spec. The build is split into slices that can ship in any order (section 9).
-Its companion, `docs/platform/SHOWING_THE_PROCESS.md`, covers answer boxes that
-one screenshot cannot answer.
+Status: **decided by the owner on 2026-11-20. Slice A (the player and the
+section rules) and slice B (the coverage report) are built; C to H are not.**
+This page is the spec. The build is split into slices that can ship in any
+order (section 9). Its companion, `docs/platform/SHOWING_THE_PROCESS.md`,
+covers answer boxes that one screenshot cannot answer.
+
+Where slice A lives:
+- **The rules and the slides:** `src/platform/supports/workedExample/examplePlayer.js`
+  (which sections show an example, which example a question gets, when it
+  opens by itself, what each slide says).
+- **The player:** `WorkedExamplePlayer.jsx`, loaded on demand by the Hint panel
+  (`HintPanel.jsx`), so a page that shows no example never fetches it.
+- **Opening and recording:** `QuestionEngine.jsx`. The student's assignment
+  (`assignmentWorkspaceView.jsx`) hands it the section's own role and the
+  lesson around the question (`workedExampleLesson`); every other host gets
+  the example on request only.
+- **A lesson's own examples:** `lessonSupports` is stored with the assignment
+  (`storedAssignmentV5.js`), so a question's `example` finds its entry.
+- **Tests:** `tests/platform/workedExamplePlayer.test.mjs`,
+  `tests/browser/workedExamplePlayer.mjs`, and the assessment leak gate
+  (`tests/browser/assessmentLeakGates.mjs`).
+
+What slice A plays: the question family's sibling, or the step card a lesson
+wrote (`steps`), when it passes `similarExampleIsSafe`. Not yet: a tool replay
+(`moves`, slices C to E; such a question gets its family's sibling meanwhile),
+sub-skill slides (slice D), the faded second example (slice C), and a sibling
+for a question no family claims (an authored step card, or the generators of
+WE-I in the build plan). A built-in step is a full sentence that carries its own reason;
+only a lesson's step card has a separate "why" line.
 
 ## 1. The goal
 
@@ -19,7 +44,7 @@ Build on these; do not write a second version of any of them.
 
 | Piece | Where | What it does today |
 |---|---|---|
-| "See a similar problem worked" | `src/platform/supports/workedExample/similarProblem.js`, `QuestionEngine.jsx` | The question's support family works a sibling problem with different numbers, as a list of text steps. It is shown only on request and only where a family exists. `similarExampleIsSafe` refuses a sibling that shares the question's prompt or answer, or whose steps state that answer. Opening one is recorded as `workedExampleUsed`. It is withheld wherever hints are. |
+| "See a similar problem worked" | `src/platform/supports/workedExample/similarProblem.js`, `examplePlayer.js`, `QuestionEngine.jsx` | The question's support family works a sibling problem with different numbers. Since slice A it plays one slide at a time, and on Classwork it opens by itself before the first question on a new skill; before that it was a list of text steps, shown only on request. `similarExampleIsSafe` refuses a sibling that shares the question's prompt or answer, or whose steps state that answer. Opening one is recorded as `workedExampleUsed`. It is withheld wherever hints are, and on every DOL, quiz and test section. |
 | "Practise one like this" | `practiceLikeThis.js`, `PracticeLikeThis.jsx` | After a miss on Classwork or Practice, an unscored sibling the student answers. Nothing is recorded. |
 | Sibling builders | `numericVariant.js`, `factoringVariant.js`, `radicalVariant.js`, `polynomialVariant.js`, `matrixSystemVariant.js` | New numbers for an item whose method does not change. |
 | Support families | `src/platform/supports/families/` (11 families) | Each has `similarProblem`. Nine also write `workedSolution`. |
@@ -27,7 +52,8 @@ Build on these; do not write a second version of any of them.
 | Solution Review | `closedQuestionReview.js` | `solutionReview.reasoning` (or `steps`), `answerSummary` and `commonError`, shown after the item closes. |
 | Hints and scaffolds | `questionHints.js` | `hintRelease` gives nothing where `hintsAllowed` is false (DOL, quiz, test). |
 
-The gaps:
+The gaps when this was written (slice A has since closed the second, and
+slice B the fourth):
 - Examples are text only. None plays on the tool the student uses.
 - Nothing opens before a new skill: every example waits to be asked for.
 - A question with no support family has no example.
