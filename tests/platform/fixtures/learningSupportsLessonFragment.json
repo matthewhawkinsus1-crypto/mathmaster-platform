@@ -31,12 +31,12 @@
         "id": "ex-line-two-points",
         "skill": "lines.equationFromTwoPoints",
         "source": "authored",
-        "problem": "A line passes through (1, 2) and (3, 8). Find its slope, its y-intercept and its equation.",
+        "problem": "A line passes through (1, 4) and (5, 24). Find its slope, its y-intercept and its equation.",
         "steps": [
-          { "show": "m = (8 - 2) / (3 - 1) = 6 / 2 = 3", "why": "Slope is the change in y over the change in x." },
-          { "show": "2 = 3(1) + b, so b = -1", "why": "Put one point and the slope into y = mx + b to find b." },
-          { "show": "y = 3x - 1", "why": "Write the slope and the y-intercept into y = mx + b." },
-          { "show": "8 = 3(3) - 1", "why": "Check with the other point." }
+          { "show": "m = (24 - 4) / (5 - 1) = 20 / 4 = 5", "why": "Slope is the change in y over the change in x." },
+          { "show": "4 = 5(1) + b, so b = -1", "why": "Put one point and the slope into y = mx + b to find b." },
+          { "show": "y = 5x - 1", "why": "Write the slope and the y-intercept into y = mx + b." },
+          { "show": "24 = 5(5) - 1", "why": "Check with the other point." }
         ],
         "fade": { "fromStep": 3 }
       }

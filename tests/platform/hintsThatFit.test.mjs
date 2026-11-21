@@ -234,9 +234,11 @@ test('over every real lesson, every teacher-written hint is shown, and none of t
   // version of Solving Radical Equations — Honors 51 (the same hints as the
   // analyzer version's, which is among the 272), and the Algebra II Honors
   // Thanksgiving Break Packet 222 (three on each of its 72 unit questions, and
-  // the bank's own one on each of its six audited SAT items), every one shown
-  // (none is in BASE_DROPPED, and nowDropped is unchanged).
-  assert.equal(total, 200 + 87 + 90 + 39 + 66 + 44 + 417 + 430 + 229 + 272 + 58 + 227 + 370 + 21 + 51 + 222);
+  // the bank's own one on each of its six audited SAT items), and the Algebra I
+  // Thanksgiving Break Packet 357 (three on each of the 54 questions of the
+  // regular file and the 65 of its Honors file), every one shown (none is in
+  // BASE_DROPPED, and nowDropped is unchanged).
+  assert.equal(total, 200 + 87 + 90 + 39 + 66 + 44 + 417 + 430 + 229 + 272 + 58 + 227 + 370 + 21 + 51 + 222 + 357);
   assert.equal(BASE_DROPPED.length, 32);
   // The Lesson 3 Honors file repeats the Regular lesson's questions (and their
   // ids), so each hint that is shown now is listed once, not once per file.

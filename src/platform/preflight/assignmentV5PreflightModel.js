@@ -1,5 +1,6 @@
 import { normalizeAssignmentV5, validateAssignmentV5, flattenV5Sections } from '../contract/assignmentSchemaV5.js';
 import { validateLessonSupportsV5 } from '../contract/lessonSupportsV5.js';
+import { authoredExampleWarnings } from '../supports/workedExample/lessonExample.js';
 import { validateAssignmentQuestions } from '../../assignmentBlueprint.js';
 import { validateQuestionsSemantics } from '../contract/semanticValidation.js';
 import { validateAlignments, auditAlignmentSpecificity } from '../contract/alignments.js';
@@ -119,6 +120,13 @@ export const buildAssignmentV5PreflightModel = (input = {}, { titleOverride = nu
   const supports = validateLessonSupportsV5(source);
   structural.errors.push(...supports.errors);
   structural.warnings.push(...supports.warnings);
+  // An authored example the player will not show on the question that names
+  // it (it is the question's own problem, or a step gives its answer;
+  // lessonExample.js): the author is told here, because the student is shown
+  // nothing. A warning only, and only for an assignment that writes examples.
+  try {
+    structural.warnings.push(...authoredExampleWarnings(source));
+  } catch { /* the reading of an optional field never stops Pre-Flight */ }
   const sections = (runtimeSource.sections || []).map(withRuntimeSectionMetadata);
   const persistenceSections = (source.sections || []).map(withRuntimeSectionMetadata);
 

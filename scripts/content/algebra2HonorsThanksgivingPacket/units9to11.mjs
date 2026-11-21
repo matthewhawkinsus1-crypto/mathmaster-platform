@@ -69,23 +69,23 @@ const U9 = {
   }),
   rationalize: example('ex-u9-rationalize', {
     skill: 'radicals.rationalizeDenominator',
-    problem: 'Simplify 10/√5 so that no radical is in the denominator.',
+    problem: 'Simplify 20/√5 so that no radical is in the denominator.',
     steps: [
       ['Multiply the top and bottom by √5', 'This multiplies the fraction by 1, so its value stays the same.'],
       ['Bottom: √5 · √5 = 5', 'A square root times itself is the number under the root.'],
-      ['Top: 10 · √5 = 10√5', 'The fraction is now 10√5/5.'],
-      ['10√5/5 = 2√5', 'Divide the outside numbers: 10 ÷ 5 = 2.'],
+      ['Top: 20 · √5 = 20√5', 'The fraction is now 20√5/5.'],
+      ['20√5/5 = 4√5', 'Divide the outside numbers: 20 ÷ 5 = 4.'],
     ],
   }),
   foil: example('ex-u9-foil', {
     skill: 'radicals.multiplyBinomials',
-    problem: 'Simplify (3 + √2)(1 + √2).',
+    problem: 'Simplify (4 + √2)(3 + √2).',
     steps: [
-      ['First: 3 · 1 = 3', 'Multiply the four pairs, as with any two binomials.'],
-      ['Outer and inner: 3√2 + √2 = 4√2', 'These two are like radicals, so they combine.'],
+      ['First: 4 · 3 = 12', 'Multiply the four pairs, as with any two binomials.'],
+      ['Outer and inner: 4√2 + 3√2 = 7√2', 'These two are like radicals, so they combine.'],
       ['Last: √2 · √2 = 2', 'A square root times itself is the number under the root.'],
-      ['Whole numbers: 3 + 2 = 5', 'Combine the terms with no radical.'],
-      ['5 + 4√2', 'A whole number and a radical are not like terms, so this is the answer.'],
+      ['Whole numbers: 12 + 2 = 14', 'Combine the terms with no radical.'],
+      ['14 + 7√2', 'A whole number and a radical are not like terms, so this is the answer.'],
     ],
   }),
 };
@@ -284,11 +284,11 @@ const U10 = {
   }),
   evaluate: example('ex-u10-evaluate', {
     skill: 'rationalExponents.evaluate',
-    problem: 'Evaluate 16^(3/4).',
+    problem: 'Evaluate 81^(3/4).',
     steps: [
-      ['16^(3/4) = (⁴√16)³', 'Do the root first: it keeps the numbers small.'],
-      ['⁴√16 = 2', '2 · 2 · 2 · 2 = 16.'],
-      ['2³ = 8', 'Then use the numerator as the power.'],
+      ['81^(3/4) = (⁴√81)³', 'Do the root first: it keeps the numbers small.'],
+      ['⁴√81 = 3', '3 · 3 · 3 · 3 = 81.'],
+      ['3³ = 27', 'Then use the numerator as the power.'],
     ],
   }),
   negative: example('ex-u10-negative', {
@@ -312,12 +312,12 @@ const U10 = {
   }),
   radicals: example('ex-u10-radicals', {
     skill: 'rationalExponents.multiplyRadicals',
-    problem: 'Write ⁴√x · √x as a single radical, where x ≥ 0.',
+    problem: 'Write ⁴√x · ⁸√x as a single radical, where x ≥ 0.',
     steps: [
-      ['⁴√x = x^(1/4) and √x = x^(1/2)', 'Write each radical as a power. The index becomes the denominator.'],
-      ['x^(1/4) · x^(1/2) = x^(1/4 + 1/2)', 'Same base, multiplying: add the exponents.'],
-      ['1/4 + 2/4 = 3/4', 'Use a common denominator.'],
-      ['x^(3/4) = ⁴√(x³)', 'Back to radical form: the denominator is the index and the numerator is the power.'],
+      ['⁴√x = x^(1/4) and ⁸√x = x^(1/8)', 'Write each radical as a power. The index becomes the denominator.'],
+      ['x^(1/4) · x^(1/8) = x^(1/4 + 1/8)', 'Same base, multiplying: add the exponents.'],
+      ['2/8 + 1/8 = 3/8', 'Use a common denominator.'],
+      ['x^(3/8) = ⁸√(x³)', 'Back to radical form: the denominator is the index and the numerator is the power.'],
     ],
   }),
 };

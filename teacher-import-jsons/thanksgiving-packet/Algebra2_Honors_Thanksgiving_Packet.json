@@ -126,7 +126,7 @@
         "skill": "relations.domainRangeFunction",
         "tool": "relationMapping",
         "source": "authored",
-        "problem": "For the relation {(1, 2), (3, 2), (3, 5)}, state the domain and range and decide whether it is a function.",
+        "problem": "For the relation {(1, 2), (3, 2), (3, 5)}, state the domain and the range. Does each input have only one output?",
         "steps": [
           {
             "show": "Arrows: 1 → 2, 3 → 2, 3 → 5",
@@ -141,8 +141,8 @@
             "why": "The range is the set of outputs. List each one once."
           },
           {
-            "show": "Not a function",
-            "why": "The input 3 has two different outputs, 2 and 5. A function gives each input exactly one output."
+            "show": "No: the input 3 has two outputs, 2 and 5",
+            "why": "That makes it not a function. A function gives each input only one output."
           }
         ]
       },
@@ -151,48 +151,27 @@
         "skill": "functions.increasingDecreasingPositiveNegative",
         "tool": "graphAnalysis",
         "source": "authored",
-        "problem": "For f(x) = |x + 1| − 2, state where f is increasing, decreasing, positive and negative.",
+        "problem": "For f(x) = |x + 4| − 2, state where f is increasing, decreasing, positive and negative.",
         "steps": [
           {
-            "show": "The vertex is (−1, −2) and the V opens up",
+            "show": "The vertex is (−4, −2) and the V opens up",
             "why": "The graph turns around at its vertex."
           },
           {
-            "show": "Decreasing on (−∞, −1); increasing on (−1, ∞)",
+            "show": "Decreasing on (−∞, −4); increasing on (−4, ∞)",
             "why": "Left of the vertex the graph falls; right of it the graph rises. Use x-values."
           },
           {
-            "show": "x-intercepts: |x + 1| = 2, so x = −3 and x = 1",
+            "show": "x-intercepts: |x + 4| = 2, so x = −6 and x = −2",
             "why": "The sign of f can only change where the graph crosses the x-axis."
           },
           {
-            "show": "Negative on (−3, 1)",
+            "show": "Negative on (−6, −2)",
             "why": "Between the intercepts the graph is below the x-axis."
           },
           {
-            "show": "Positive on (−∞, −3) ∪ (1, ∞)",
+            "show": "Positive on (−∞, −6) ∪ (−2, ∞)",
             "why": "Outside the intercepts the graph is above the x-axis."
-          }
-        ]
-      },
-      {
-        "id": "ex-u2-parent",
-        "skill": "parentFunctions.keyAttributes",
-        "tool": "graphAnalysis",
-        "source": "authored",
-        "problem": "For the parent function f(x) = |x|, state the domain, the range and the vertex.",
-        "steps": [
-          {
-            "show": "Vertex: (0, 0)",
-            "why": "The V turns around at the origin."
-          },
-          {
-            "show": "Domain: (−∞, ∞)",
-            "why": "You can take the absolute value of any number, and the graph keeps going both ways."
-          },
-          {
-            "show": "Range: [0, ∞)",
-            "why": "An absolute value is never negative. The lowest y is 0, at the vertex."
           }
         ]
       },
@@ -280,23 +259,23 @@
         "skill": "transformations.matchGraph",
         "tool": "transformationsLab",
         "source": "authored",
-        "problem": "A dashed graph is y = x³ moved and stretched. Its center point is (−2, 1), and one step right of the center it is 3 units higher. Find a, h and k.",
+        "problem": "A dashed graph is y = x³ moved and stretched. Its center point is (−3, 4), and one step right of the center it is 3 units higher. Find a, h and k.",
         "steps": [
           {
-            "show": "h = −2 and k = 1",
+            "show": "h = −3 and k = 4",
             "why": "The center point (0, 0) of y = x³ moves to (h, k)."
           },
           {
-            "show": "One step right of the center, the graph is 3 higher",
-            "why": "For y = x³, one step right of the center is 1 step up. Here it is a times that."
+            "show": "One step right of the center, the graph is 3 units higher",
+            "why": "For y = x³, one step right of the center is one step up. Here it is a times that."
           },
           {
             "show": "a = 3",
             "why": "The graph rises to the right, so a is positive."
           },
           {
-            "show": "y = 3(x + 2)³ + 1",
-            "why": "Check the point one step right: 3(−1 + 2)³ + 1 = 4, which is 3 above the center."
+            "show": "y = 3(x + 3)³ + 4",
+            "why": "Check the point one step right: 3(−2 + 3)³ + 4 = 7, which is 3 above the center."
           }
         ]
       },
@@ -462,22 +441,22 @@
         "skill": "absoluteValue.readAHK",
         "tool": "transformationsLab",
         "source": "authored",
-        "problem": "A V-shaped graph of y = a|x − h| + k has its vertex at (4, −1) and opens up with slopes 1 and −1. Find a, h and k.",
+        "problem": "A V-shaped graph of y = a|x − h| + k has its vertex at (4, −1). One step right of the vertex it is 3 units higher. Find a, h and k.",
         "steps": [
           {
             "show": "h = 4 and k = −1",
             "why": "The vertex of y = a|x − h| + k is (h, k)."
           },
           {
-            "show": "One step right of the vertex, the graph is 1 unit higher",
+            "show": "One step right of the vertex, the graph is 3 units higher",
             "why": "The rise after one step right of the vertex is a."
           },
           {
-            "show": "a = 1",
-            "why": "The V opens up and is as steep as y = |x|."
+            "show": "a = 3",
+            "why": "The V opens up and is three times as steep as y = |x|."
           },
           {
-            "show": "y = |x − 4| − 1",
+            "show": "y = 3|x − 4| − 1",
             "why": "h = 4 is written x − 4."
           }
         ]
@@ -487,26 +466,26 @@
         "skill": "absoluteValue.graphByMapping",
         "tool": "transformationsLab",
         "source": "authored",
-        "problem": "Graph g(x) = −|x + 2| + 4 by moving the points (−1, 1), (0, 0) and (1, 1) of f(x) = |x|.",
+        "problem": "Graph g(x) = −|x + 4| + 6 by moving the points (−2, 2), (0, 0) and (2, 2) of f(x) = |x|.",
         "steps": [
           {
-            "show": "Rule: (x, y) → (x − 2, −y + 4)",
-            "why": "h = −2 shifts x left 2. a = −1 flips y, and k = 4 adds 4."
+            "show": "Rule: (x, y) → (x − 4, −y + 6)",
+            "why": "h = −4 shifts x left 4. a = −1 flips y, and k = 6 adds 6."
           },
           {
-            "show": "(0, 0) → (−2, 4)",
+            "show": "(0, 0) → (−4, 6)",
             "why": "The vertex moves to (h, k)."
           },
           {
-            "show": "(−1, 1) → (−3, 3)",
-            "why": "x: −1 − 2 = −3. y: −1 + 4 = 3."
+            "show": "(−2, 2) → (−6, 4)",
+            "why": "x: −2 − 4 = −6. y: −2 + 6 = 4."
           },
           {
-            "show": "(1, 1) → (−1, 3)",
-            "why": "x: 1 − 2 = −1. y: −1 + 4 = 3."
+            "show": "(2, 2) → (−2, 4)",
+            "why": "x: 2 − 4 = −2. y: −2 + 6 = 4."
           },
           {
-            "show": "The new V has its vertex at (−2, 4) and opens down",
+            "show": "The new V has its vertex at (−4, 6) and opens down",
             "why": "a is negative, so the graph is reflected across the x-axis."
           }
         ]
@@ -541,26 +520,26 @@
         "skill": "absoluteValue.isolateThenSolve",
         "tool": "stepAlgebra",
         "source": "authored",
-        "problem": "Solve 3|x − 2| + 1 = 13.",
+        "problem": "Solve 3|x − 2| + 1 = 16.",
         "steps": [
           {
-            "show": "3|x − 2| = 12",
+            "show": "3|x − 2| = 15",
             "why": "Subtract 1 from both sides. Get the bars alone before you split."
           },
           {
-            "show": "|x − 2| = 4",
+            "show": "|x − 2| = 5",
             "why": "Divide both sides by 3."
           },
           {
-            "show": "x − 2 = 4 or x − 2 = −4",
+            "show": "x − 2 = 5 or x − 2 = −5",
             "why": "Now split into two equations."
           },
           {
-            "show": "x = 6 or x = −2",
+            "show": "x = 7 or x = −3",
             "why": "Add 2 in each equation."
           },
           {
-            "show": "3|6 − 2| + 1 = 13 and 3|−2 − 2| + 1 = 13",
+            "show": "3|7 − 2| + 1 = 16 and 3|−3 − 2| + 1 = 16",
             "why": "Check both answers in the original equation."
           }
         ]
@@ -1157,10 +1136,10 @@
         "id": "ex-u8-gcf",
         "skill": "factor.gcf",
         "source": "authored",
-        "problem": "Factor 8x³ + 12x.",
+        "problem": "Factor 20x³ + 28x.",
         "steps": [
           {
-            "show": "The GCF of 8 and 12 is 4",
+            "show": "The GCF of 20 and 28 is 4",
             "why": "Start with the largest number that divides both coefficients."
           },
           {
@@ -1168,15 +1147,15 @@
             "why": "Take the lowest power of x that every term has."
           },
           {
-            "show": "8x³ ÷ 4x = 2x² and 12x ÷ 4x = 3",
+            "show": "20x³ ÷ 4x = 5x² and 28x ÷ 4x = 7",
             "why": "Divide each term by the GCF, 4x."
           },
           {
-            "show": "4x(2x² + 3)",
+            "show": "4x(5x² + 7)",
             "why": "Write the GCF outside and what is left inside."
           },
           {
-            "show": "4x · 2x² + 4x · 3 = 8x³ + 12x",
+            "show": "4x · 5x² + 4x · 7 = 20x³ + 28x",
             "why": "Check by distributing."
           }
         ]
@@ -1186,22 +1165,22 @@
         "skill": "factor.trinomial",
         "tool": "polynomialWorkshop",
         "source": "authored",
-        "problem": "Factor x² + 8x + 15.",
+        "problem": "Factor x² + 9x + 14.",
         "steps": [
           {
-            "show": "Find two numbers that multiply to 15 and add to 8",
+            "show": "Find two numbers that multiply to 14 and add to 9",
             "why": "x² + bx + c = (x + p)(x + q), where p · q = c and p + q = b."
           },
           {
-            "show": "Pairs for 15: 1 and 15 (sum 16), 3 and 5 (sum 8)",
+            "show": "Pairs for 14: 1 and 14 (sum 15), 2 and 7 (sum 9)",
             "why": "List the factor pairs and their sums. Both numbers are positive because c and b are positive."
           },
           {
-            "show": "(x + 3)(x + 5)",
+            "show": "(x + 2)(x + 7)",
             "why": "The pair with the right sum gives the two factors."
           },
           {
-            "show": "x² + 5x + 3x + 15 = x² + 8x + 15",
+            "show": "x² + 7x + 2x + 14 = x² + 9x + 14",
             "why": "Check by multiplying back."
           }
         ]
@@ -1289,30 +1268,30 @@
         "id": "ex-u8-ac",
         "skill": "factor.trinomialAC",
         "source": "authored",
-        "problem": "Factor 3x² + 10x + 8.",
+        "problem": "Factor 5x² + 16x + 3.",
         "steps": [
           {
-            "show": "a · c = 3 · 8 = 24",
+            "show": "a · c = 5 · 3 = 15",
             "why": "When the x² coefficient is not 1, multiply a and c first."
           },
           {
-            "show": "Pairs for 24: 1 and 24 (25), 2 and 12 (14), 3 and 8 (11), 4 and 6 (10)",
-            "why": "Find the pair that adds to b = 10: 4 and 6."
+            "show": "Pairs for 15: 1 and 15 (sum 16), 3 and 5 (sum 8)",
+            "why": "Find the pair that adds to b = 16: 1 and 15."
           },
           {
-            "show": "3x² + 4x + 6x + 8",
+            "show": "5x² + x + 15x + 3",
             "why": "Split the middle term with that pair."
           },
           {
-            "show": "x(3x + 4) + 2(3x + 4)",
+            "show": "x(5x + 1) + 3(5x + 1)",
             "why": "Group the first two terms and the last two, and factor each group."
           },
           {
-            "show": "(3x + 4)(x + 2)",
+            "show": "(5x + 1)(x + 3)",
             "why": "Factor out the binomial the two groups share."
           },
           {
-            "show": "3x² + 6x + 4x + 8 = 3x² + 10x + 8",
+            "show": "5x² + 15x + x + 3 = 5x² + 16x + 3",
             "why": "Check by multiplying back."
           }
         ]
@@ -1470,7 +1449,7 @@
         "id": "ex-u9-rationalize",
         "skill": "radicals.rationalizeDenominator",
         "source": "authored",
-        "problem": "Simplify 10/√5 so that no radical is in the denominator.",
+        "problem": "Simplify 20/√5 so that no radical is in the denominator.",
         "steps": [
           {
             "show": "Multiply the top and bottom by √5",
@@ -1481,12 +1460,12 @@
             "why": "A square root times itself is the number under the root."
           },
           {
-            "show": "Top: 10 · √5 = 10√5",
-            "why": "The fraction is now 10√5/5."
+            "show": "Top: 20 · √5 = 20√5",
+            "why": "The fraction is now 20√5/5."
           },
           {
-            "show": "10√5/5 = 2√5",
-            "why": "Divide the outside numbers: 10 ÷ 5 = 2."
+            "show": "20√5/5 = 4√5",
+            "why": "Divide the outside numbers: 20 ÷ 5 = 4."
           }
         ]
       },
@@ -1494,14 +1473,14 @@
         "id": "ex-u9-foil",
         "skill": "radicals.multiplyBinomials",
         "source": "authored",
-        "problem": "Simplify (3 + √2)(1 + √2).",
+        "problem": "Simplify (4 + √2)(3 + √2).",
         "steps": [
           {
-            "show": "First: 3 · 1 = 3",
+            "show": "First: 4 · 3 = 12",
             "why": "Multiply the four pairs, as with any two binomials."
           },
           {
-            "show": "Outer and inner: 3√2 + √2 = 4√2",
+            "show": "Outer and inner: 4√2 + 3√2 = 7√2",
             "why": "These two are like radicals, so they combine."
           },
           {
@@ -1509,11 +1488,11 @@
             "why": "A square root times itself is the number under the root."
           },
           {
-            "show": "Whole numbers: 3 + 2 = 5",
+            "show": "Whole numbers: 12 + 2 = 14",
             "why": "Combine the terms with no radical."
           },
           {
-            "show": "5 + 4√2",
+            "show": "14 + 7√2",
             "why": "A whole number and a radical are not like terms, so this is the answer."
           }
         ]
@@ -1547,18 +1526,18 @@
         "id": "ex-u10-evaluate",
         "skill": "rationalExponents.evaluate",
         "source": "authored",
-        "problem": "Evaluate 16^(3/4).",
+        "problem": "Evaluate 81^(3/4).",
         "steps": [
           {
-            "show": "16^(3/4) = (⁴√16)³",
+            "show": "81^(3/4) = (⁴√81)³",
             "why": "Do the root first: it keeps the numbers small."
           },
           {
-            "show": "⁴√16 = 2",
-            "why": "2 · 2 · 2 · 2 = 16."
+            "show": "⁴√81 = 3",
+            "why": "3 · 3 · 3 · 3 = 81."
           },
           {
-            "show": "2³ = 8",
+            "show": "3³ = 27",
             "why": "Then use the numerator as the power."
           }
         ]
@@ -1611,22 +1590,22 @@
         "id": "ex-u10-radicals",
         "skill": "rationalExponents.multiplyRadicals",
         "source": "authored",
-        "problem": "Write ⁴√x · √x as a single radical, where x ≥ 0.",
+        "problem": "Write ⁴√x · ⁸√x as a single radical, where x ≥ 0.",
         "steps": [
           {
-            "show": "⁴√x = x^(1/4) and √x = x^(1/2)",
+            "show": "⁴√x = x^(1/4) and ⁸√x = x^(1/8)",
             "why": "Write each radical as a power. The index becomes the denominator."
           },
           {
-            "show": "x^(1/4) · x^(1/2) = x^(1/4 + 1/2)",
+            "show": "x^(1/4) · x^(1/8) = x^(1/4 + 1/8)",
             "why": "Same base, multiplying: add the exponents."
           },
           {
-            "show": "1/4 + 2/4 = 3/4",
+            "show": "2/8 + 1/8 = 3/8",
             "why": "Use a common denominator."
           },
           {
-            "show": "x^(3/4) = ⁴√(x³)",
+            "show": "x^(3/8) = ⁸√(x³)",
             "why": "Back to radical form: the denominator is the index and the numerator is the power."
           }
         ]
@@ -2072,7 +2051,7 @@
               },
               {
                 "title": "Worked example",
-                "instruction": "For the relation {(1, 2), (3, 2), (3, 5)}, state the domain and range and decide whether it is a function. Arrows: 1 → 2, 3 → 2, 3 → 5 → Domain: {1, 3} → Range: {2, 5} → Not a function"
+                "instruction": "For the relation {(1, 2), (3, 2), (3, 5)}, state the domain and the range. Does each input have only one output? Arrows: 1 → 2, 3 → 2, 3 → 5 → Domain: {1, 3} → Range: {2, 5} → No: the input 3 has two outputs, 2 and 5"
               }
             ]
           },
@@ -2200,7 +2179,7 @@
               },
               {
                 "title": "Worked example",
-                "instruction": "For f(x) = |x + 1| − 2, state where f is increasing, decreasing, positive and negative. The vertex is (−1, −2) and the V opens up → Decreasing on (−∞, −1); increasing on (−1, ∞) → x-intercepts: |x + 1| = 2, so x = −3 and x = 1 → Negative on (−3, 1) → Positive on (−∞, −3) ∪ (1, ∞)"
+                "instruction": "For f(x) = |x + 4| − 2, state where f is increasing, decreasing, positive and negative. The vertex is (−4, −2) and the V opens up → Decreasing on (−∞, −4); increasing on (−4, ∞) → x-intercepts: |x + 4| = 2, so x = −6 and x = −2 → Negative on (−6, −2) → Positive on (−∞, −6) ∪ (−2, ∞)"
               }
             ]
           },
@@ -2271,16 +2250,11 @@
             "h": 0,
             "k": 0
           },
-          "example": "ex-u2-parent",
           "guidedNotes": {
             "steps": [
               {
                 "title": "Key idea",
                 "instruction": "A parent function is the simplest graph of its family. Know its shape, its turning point, and which x- and y-values it uses."
-              },
-              {
-                "title": "Worked example",
-                "instruction": "For the parent function f(x) = |x|, state the domain, the range and the vertex. Vertex: (0, 0) → Domain: (−∞, ∞) → Range: [0, ∞)"
               }
             ]
           },
@@ -2582,7 +2556,7 @@
               },
               {
                 "title": "Worked example",
-                "instruction": "A dashed graph is y = x³ moved and stretched. Its center point is (−2, 1), and one step right of the center it is 3 units higher. Find a, h and k. h = −2 and k = 1 → One step right of the center, the graph is 3 higher → a = 3 → y = 3(x + 2)³ + 1"
+                "instruction": "A dashed graph is y = x³ moved and stretched. Its center point is (−3, 4), and one step right of the center it is 3 units higher. Find a, h and k. h = −3 and k = 4 → One step right of the center, the graph is 3 units higher → a = 3 → y = 3(x + 3)³ + 4"
               }
             ]
           },
@@ -3097,7 +3071,7 @@
               },
               {
                 "title": "Worked example",
-                "instruction": "A V-shaped graph of y = a|x − h| + k has its vertex at (4, −1) and opens up with slopes 1 and −1. Find a, h and k. h = 4 and k = −1 → One step right of the vertex, the graph is 1 unit higher → a = 1 → y = |x − 4| − 1"
+                "instruction": "A V-shaped graph of y = a|x − h| + k has its vertex at (4, −1). One step right of the vertex it is 3 units higher. Find a, h and k. h = 4 and k = −1 → One step right of the vertex, the graph is 3 units higher → a = 3 → y = 3|x − 4| − 1"
               }
             ]
           },
@@ -3190,7 +3164,7 @@
               },
               {
                 "title": "Worked example",
-                "instruction": "Graph g(x) = −|x + 2| + 4 by moving the points (−1, 1), (0, 0) and (1, 1) of f(x) = |x|. Rule: (x, y) → (x − 2, −y + 4) → (0, 0) → (−2, 4) → (−1, 1) → (−3, 3) → (1, 1) → (−1, 3) → The new V has its vertex at (−2, 4) and opens down"
+                "instruction": "Graph g(x) = −|x + 4| + 6 by moving the points (−2, 2), (0, 0) and (2, 2) of f(x) = |x|. Rule: (x, y) → (x − 4, −y + 6) → (0, 0) → (−4, 6) → (−2, 2) → (−6, 4) → (2, 2) → (−2, 4) → The new V has its vertex at (−4, 6) and opens down"
               }
             ]
           },
@@ -3301,7 +3275,7 @@
               },
               {
                 "title": "Worked example",
-                "instruction": "Solve 3|x − 2| + 1 = 13. 3|x − 2| = 12 → |x − 2| = 4 → x − 2 = 4 or x − 2 = −4 → x = 6 or x = −2 → 3|6 − 2| + 1 = 13 and 3|−2 − 2| + 1 = 13"
+                "instruction": "Solve 3|x − 2| + 1 = 16. 3|x − 2| = 15 → |x − 2| = 5 → x − 2 = 5 or x − 2 = −5 → x = 7 or x = −3 → 3|7 − 2| + 1 = 16 and 3|−3 − 2| + 1 = 16"
               }
             ]
           },
@@ -4916,7 +4890,7 @@
               },
               {
                 "title": "Worked example",
-                "instruction": "Factor 8x³ + 12x. The GCF of 8 and 12 is 4 → The GCF of x³ and x is x → 8x³ ÷ 4x = 2x² and 12x ÷ 4x = 3 → 4x(2x² + 3) → 4x · 2x² + 4x · 3 = 8x³ + 12x"
+                "instruction": "Factor 20x³ + 28x. The GCF of 20 and 28 is 4 → The GCF of x³ and x is x → 20x³ ÷ 4x = 5x² and 28x ÷ 4x = 7 → 4x(5x² + 7) → 4x · 5x² + 4x · 7 = 20x³ + 28x"
               }
             ]
           },
@@ -4977,7 +4951,7 @@
               },
               {
                 "title": "Worked example",
-                "instruction": "Factor x² + 8x + 15. Find two numbers that multiply to 15 and add to 8 → Pairs for 15: 1 and 15 (sum 16), 3 and 5 (sum 8) → (x + 3)(x + 5) → x² + 5x + 3x + 15 = x² + 8x + 15"
+                "instruction": "Factor x² + 9x + 14. Find two numbers that multiply to 14 and add to 9 → Pairs for 14: 1 and 14 (sum 15), 2 and 7 (sum 9) → (x + 2)(x + 7) → x² + 7x + 2x + 14 = x² + 9x + 14"
               }
             ]
           },
@@ -5330,7 +5304,7 @@
               },
               {
                 "title": "Worked example",
-                "instruction": "Factor 3x² + 10x + 8. a · c = 3 · 8 = 24 → Pairs for 24: 1 and 24 (25), 2 and 12 (14), 3 and 8 (11), 4 and 6 (10) → 3x² + 4x + 6x + 8 → x(3x + 4) + 2(3x + 4) → (3x + 4)(x + 2) → 3x² + 6x + 4x + 8 = 3x² + 10x + 8"
+                "instruction": "Factor 5x² + 16x + 3. a · c = 5 · 3 = 15 → Pairs for 15: 1 and 15 (sum 16), 3 and 5 (sum 8) → 5x² + x + 15x + 3 → x(5x + 1) + 3(5x + 1) → (5x + 1)(x + 3) → 5x² + 15x + x + 3 = 5x² + 16x + 3"
               }
             ]
           },
@@ -6012,7 +5986,7 @@
               },
               {
                 "title": "Worked example",
-                "instruction": "Simplify 10/√5 so that no radical is in the denominator. Multiply the top and bottom by √5 → Bottom: √5 · √5 = 5 → Top: 10 · √5 = 10√5 → 10√5/5 = 2√5"
+                "instruction": "Simplify 20/√5 so that no radical is in the denominator. Multiply the top and bottom by √5 → Bottom: √5 · √5 = 5 → Top: 20 · √5 = 20√5 → 20√5/5 = 4√5"
               }
             ]
           },
@@ -6106,7 +6080,7 @@
               },
               {
                 "title": "Worked example",
-                "instruction": "Simplify (3 + √2)(1 + √2). First: 3 · 1 = 3 → Outer and inner: 3√2 + √2 = 4√2 → Last: √2 · √2 = 2 → Whole numbers: 3 + 2 = 5 → 5 + 4√2"
+                "instruction": "Simplify (4 + √2)(3 + √2). First: 4 · 3 = 12 → Outer and inner: 4√2 + 3√2 = 7√2 → Last: √2 · √2 = 2 → Whole numbers: 12 + 2 = 14 → 14 + 7√2"
               }
             ]
           },
@@ -6319,7 +6293,7 @@
               },
               {
                 "title": "Worked example",
-                "instruction": "Evaluate 16^(3/4). 16^(3/4) = (⁴√16)³ → ⁴√16 = 2 → 2³ = 8"
+                "instruction": "Evaluate 81^(3/4). 81^(3/4) = (⁴√81)³ → ⁴√81 = 3 → 3³ = 27"
               }
             ]
           },
@@ -6596,7 +6570,7 @@
               },
               {
                 "title": "Worked example",
-                "instruction": "Write ⁴√x · √x as a single radical, where x ≥ 0. ⁴√x = x^(1/4) and √x = x^(1/2) → x^(1/4) · x^(1/2) = x^(1/4 + 1/2) → 1/4 + 2/4 = 3/4 → x^(3/4) = ⁴√(x³)"
+                "instruction": "Write ⁴√x · ⁸√x as a single radical, where x ≥ 0. ⁴√x = x^(1/4) and ⁸√x = x^(1/8) → x^(1/4) · x^(1/8) = x^(1/4 + 1/8) → 2/8 + 1/8 = 3/8 → x^(3/8) = ⁸√(x³)"
               }
             ]
           },

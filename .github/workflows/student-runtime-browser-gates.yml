@@ -135,6 +135,8 @@ name: Student Runtime Browser Gates
 #
 #   pass3-student-screens and pass3-student-screens-2 (plain Vite, 5199)
 #     submitNotQueued, toolDraftSyncSweep, matrixLabFeedback, afterLastMiss,
+#     workedExamplePlayer (WE-A: the worked example stepped through; it opens
+#     by itself on Classwork, plays on request on Practice, never on a DOL),
 #     day1SystemsJourney, day2NonuniqueJourneys, assignmentMobile,
 #     studentHomeToday, studentGradesRaise, studentResultUpNext,
 #     studentWhatChanged, gradeCenterMobile; and wave 7's stepNotQueued
@@ -512,6 +514,12 @@ jobs:
           PLAYWRIGHT_MODULE: playwright
           AUDIT_ORIGIN: "http://127.0.0.1:5199"
         run: node tests/browser/afterLastMiss.mjs
+      - name: The worked-example player — Classwork opens it, Practice on request, never on a DOL (WE-A)
+        if: ${{ !cancelled() }}
+        env:
+          PLAYWRIGHT_MODULE: playwright
+          AUDIT_ORIGIN: "http://127.0.0.1:5199"
+        run: node tests/browser/workedExamplePlayer.mjs
       - name: Composed questions on a phone
         if: ${{ !cancelled() }}
         env:

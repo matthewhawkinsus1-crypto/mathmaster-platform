@@ -56,24 +56,24 @@ const U1 = {
   relation: example('ex-u1-relation', {
     skill: 'relations.domainRangeFunction',
     tool: 'relationMapping',
-    problem: 'For the relation {(1, 2), (3, 2), (3, 5)}, state the domain and range and decide whether it is a function.',
+    problem: 'For the relation {(1, 2), (3, 2), (3, 5)}, state the domain and the range. Does each input have only one output?',
     steps: [
       ['Arrows: 1 → 2, 3 → 2, 3 → 5', 'Each ordered pair (x, y) is one arrow from an input to an output.'],
       ['Domain: {1, 3}', 'The domain is the set of inputs. List each one once.'],
       ['Range: {2, 5}', 'The range is the set of outputs. List each one once.'],
-      ['Not a function', 'The input 3 has two different outputs, 2 and 5. A function gives each input exactly one output.'],
+      ['No: the input 3 has two outputs, 2 and 5', 'That makes it not a function. A function gives each input only one output.'],
     ],
   }),
   attributes: example('ex-u1-attributes', {
     skill: 'functions.increasingDecreasingPositiveNegative',
     tool: 'graphAnalysis',
-    problem: 'For f(x) = |x + 1| − 2, state where f is increasing, decreasing, positive and negative.',
+    problem: 'For f(x) = |x + 4| − 2, state where f is increasing, decreasing, positive and negative.',
     steps: [
-      ['The vertex is (−1, −2) and the V opens up', 'The graph turns around at its vertex.'],
-      ['Decreasing on (−∞, −1); increasing on (−1, ∞)', 'Left of the vertex the graph falls; right of it the graph rises. Use x-values.'],
-      ['x-intercepts: |x + 1| = 2, so x = −3 and x = 1', 'The sign of f can only change where the graph crosses the x-axis.'],
-      ['Negative on (−3, 1)', 'Between the intercepts the graph is below the x-axis.'],
-      ['Positive on (−∞, −3) ∪ (1, ∞)', 'Outside the intercepts the graph is above the x-axis.'],
+      ['The vertex is (−4, −2) and the V opens up', 'The graph turns around at its vertex.'],
+      ['Decreasing on (−∞, −4); increasing on (−4, ∞)', 'Left of the vertex the graph falls; right of it the graph rises. Use x-values.'],
+      ['x-intercepts: |x + 4| = 2, so x = −6 and x = −2', 'The sign of f can only change where the graph crosses the x-axis.'],
+      ['Negative on (−6, −2)', 'Between the intercepts the graph is below the x-axis.'],
+      ['Positive on (−∞, −6) ∪ (−2, ∞)', 'Outside the intercepts the graph is above the x-axis.'],
     ],
   }),
 };
@@ -197,16 +197,6 @@ const unit1 = unit(1, 'Interval notation, domain and range', U1, [
 /* ---------------------------------------------------------------- Unit 2 */
 
 const U2 = {
-  parent: example('ex-u2-parent', {
-    skill: 'parentFunctions.keyAttributes',
-    tool: 'graphAnalysis',
-    problem: 'For the parent function f(x) = |x|, state the domain, the range and the vertex.',
-    steps: [
-      ['Vertex: (0, 0)', 'The V turns around at the origin.'],
-      ['Domain: (−∞, ∞)', 'You can take the absolute value of any number, and the graph keeps going both ways.'],
-      ['Range: [0, ∞)', 'An absolute value is never negative. The lowest y is 0, at the vertex.'],
-    ],
-  }),
   identify: example('ex-u2-identify', {
     skill: 'transformations.readAHK',
     tool: 'transformationsLab',
@@ -244,12 +234,12 @@ const U2 = {
   match: example('ex-u2-match', {
     skill: 'transformations.matchGraph',
     tool: 'transformationsLab',
-    problem: 'A dashed graph is y = x³ moved and stretched. Its center point is (−2, 1), and one step right of the center it is 3 units higher. Find a, h and k.',
+    problem: 'A dashed graph is y = x³ moved and stretched. Its center point is (−3, 4), and one step right of the center it is 3 units higher. Find a, h and k.',
     steps: [
-      ['h = −2 and k = 1', 'The center point (0, 0) of y = x³ moves to (h, k).'],
-      ['One step right of the center, the graph is 3 higher', 'For y = x³, one step right of the center is 1 step up. Here it is a times that.'],
+      ['h = −3 and k = 4', 'The center point (0, 0) of y = x³ moves to (h, k).'],
+      ['One step right of the center, the graph is 3 units higher', 'For y = x³, one step right of the center is one step up. Here it is a times that.'],
       ['a = 3', 'The graph rises to the right, so a is positive.'],
-      ['y = 3(x + 2)³ + 1', 'Check the point one step right: 3(−1 + 2)³ + 1 = 4, which is 3 above the center.'],
+      ['y = 3(x + 3)³ + 4', 'Check the point one step right: 3(−2 + 3)³ + 4 = 7, which is 3 above the center.'],
     ],
   }),
 };
@@ -262,7 +252,6 @@ const unit2 = unit(2, 'Parent functions and transformations', U2, [
       analysisRequests: [{ id: 'vertex', kind: 'point', feature: 'vertex', label: 'Vertex' }],
       function: { family: 'quadratic', a: 1, h: 0, k: 0 },
     },
-    example: U2.parent,
     idea: 'A parent function is the simplest graph of its family. Know its shape, its turning point, and which x- and y-values it uses.',
     hints: [
       'The vertex is the point where the parabola turns around.',
@@ -586,24 +575,24 @@ const U4 = {
   vertex: example('ex-u4-vertex', {
     skill: 'absoluteValue.readAHK',
     tool: 'transformationsLab',
-    problem: 'A V-shaped graph of y = a|x − h| + k has its vertex at (4, −1) and opens up with slopes 1 and −1. Find a, h and k.',
+    problem: 'A V-shaped graph of y = a|x − h| + k has its vertex at (4, −1). One step right of the vertex it is 3 units higher. Find a, h and k.',
     steps: [
       ['h = 4 and k = −1', 'The vertex of y = a|x − h| + k is (h, k).'],
-      ['One step right of the vertex, the graph is 1 unit higher', 'The rise after one step right of the vertex is a.'],
-      ['a = 1', 'The V opens up and is as steep as y = |x|.'],
-      ['y = |x − 4| − 1', 'h = 4 is written x − 4.'],
+      ['One step right of the vertex, the graph is 3 units higher', 'The rise after one step right of the vertex is a.'],
+      ['a = 3', 'The V opens up and is three times as steep as y = |x|.'],
+      ['y = 3|x − 4| − 1', 'h = 4 is written x − 4.'],
     ],
   }),
   plot: example('ex-u4-plot', {
     skill: 'absoluteValue.graphByMapping',
     tool: 'transformationsLab',
-    problem: 'Graph g(x) = −|x + 2| + 4 by moving the points (−1, 1), (0, 0) and (1, 1) of f(x) = |x|.',
+    problem: 'Graph g(x) = −|x + 4| + 6 by moving the points (−2, 2), (0, 0) and (2, 2) of f(x) = |x|.',
     steps: [
-      ['Rule: (x, y) → (x − 2, −y + 4)', 'h = −2 shifts x left 2. a = −1 flips y, and k = 4 adds 4.'],
-      ['(0, 0) → (−2, 4)', 'The vertex moves to (h, k).'],
-      ['(−1, 1) → (−3, 3)', 'x: −1 − 2 = −3. y: −1 + 4 = 3.'],
-      ['(1, 1) → (−1, 3)', 'x: 1 − 2 = −1. y: −1 + 4 = 3.'],
-      ['The new V has its vertex at (−2, 4) and opens down', 'a is negative, so the graph is reflected across the x-axis.'],
+      ['Rule: (x, y) → (x − 4, −y + 6)', 'h = −4 shifts x left 4. a = −1 flips y, and k = 6 adds 6.'],
+      ['(0, 0) → (−4, 6)', 'The vertex moves to (h, k).'],
+      ['(−2, 2) → (−6, 4)', 'x: −2 − 4 = −6. y: −2 + 6 = 4.'],
+      ['(2, 2) → (−2, 4)', 'x: 2 − 4 = −2. y: −2 + 6 = 4.'],
+      ['The new V has its vertex at (−4, 6) and opens down', 'a is negative, so the graph is reflected across the x-axis.'],
     ],
   }),
   equation: example('ex-u4-equation', {
@@ -620,13 +609,13 @@ const U4 = {
   isolate: example('ex-u4-isolate', {
     skill: 'absoluteValue.isolateThenSolve',
     tool: 'stepAlgebra',
-    problem: 'Solve 3|x − 2| + 1 = 13.',
+    problem: 'Solve 3|x − 2| + 1 = 16.',
     steps: [
-      ['3|x − 2| = 12', 'Subtract 1 from both sides. Get the bars alone before you split.'],
-      ['|x − 2| = 4', 'Divide both sides by 3.'],
-      ['x − 2 = 4 or x − 2 = −4', 'Now split into two equations.'],
-      ['x = 6 or x = −2', 'Add 2 in each equation.'],
-      ['3|6 − 2| + 1 = 13 and 3|−2 − 2| + 1 = 13', 'Check both answers in the original equation.'],
+      ['3|x − 2| = 15', 'Subtract 1 from both sides. Get the bars alone before you split.'],
+      ['|x − 2| = 5', 'Divide both sides by 3.'],
+      ['x − 2 = 5 or x − 2 = −5', 'Now split into two equations.'],
+      ['x = 7 or x = −3', 'Add 2 in each equation.'],
+      ['3|7 − 2| + 1 = 16 and 3|−3 − 2| + 1 = 16', 'Check both answers in the original equation.'],
     ],
   }),
   formulate: example('ex-u4-formulate', {

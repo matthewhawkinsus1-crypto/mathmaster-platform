@@ -53,7 +53,7 @@ export const item = (questionId, {
   if (String(prompt).split(/(?<=[.?!])\s+/).length > 4) fail(questionId, `the prompt is at most four short sentences: ${prompt}`);
   const exempt = worked === 'setup' || worked === 'explain';
   if (worked && !exempt && !idea) fail(questionId, 'a question that opens a worked example gives its idea in one sentence.');
-  if (idea && (!worked || exempt)) fail(questionId, 'an idea belongs to a question that opens a worked example.');
+  if (idea && exempt) fail(questionId, 'an idea belongs to a question that teaches a skill.');
   return {
     questionId,
     ...teks(...standards),
@@ -66,6 +66,10 @@ export const item = (questionId, {
     ...(worked && !exempt ? {
       guidedNotes: { steps: [{ title: 'Key idea', instruction: idea }, { title: 'Worked example', instruction: oneLine(worked) }] },
     } : {}),
+    // A first question whose honest sibling would state its answers (a parent
+    // function's facts are its family's) names no authored example: it gives
+    // the idea, and the platform's own sibling is the example.
+    ...(!worked && idea ? { guidedNotes: { steps: [{ title: 'Key idea', instruction: idea }] } } : {}),
     hints,
     scaffold: backUp(...back),
     solutionReview: review(headline, reasoning, answerSummary, commonError),

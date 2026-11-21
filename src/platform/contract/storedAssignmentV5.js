@@ -45,6 +45,22 @@ export const testCycleContractFields = (source = {}) => {
   return fields;
 };
 
+/*
+ * THE LESSON'S LEARNING SUPPORTS (lessonSupportsV5.js: its worked examples and
+ * reference cards) are not sections either, and the same save paths dropped
+ * them: a question kept its `example` id, the `lessonSupports.examples` entry
+ * the id names was never stored, and so no student could be shown it (WE-A)
+ * and an edit of the assignment was refused for an id that named nothing.
+ * Every path that turns a reviewed V5 into a stored assignment, or back,
+ * carries them through this one function. An assignment that has none stores
+ * no field at all, so every existing assignment is written exactly as before.
+ */
+export const lessonSupportFields = (source = {}) => (
+  isObject(source) && isObject(source.lessonSupports) && Object.keys(source.lessonSupports).length
+    ? { lessonSupports: source.lessonSupports }
+    : {}
+);
+
 /**
  * Canonical runtime readers.
  *
@@ -278,6 +294,7 @@ export const storedAssignmentToV5 = (assignment = {}, {
     provenance: assignment.provenance,
     preflight: assignment.preflight,
     ...testCycleContractFields(assignment),
+    ...lessonSupportFields(assignment),
     ...(runtimeCompatibility ? { runtimeCompatibility } : {}),
   });
 };
@@ -309,6 +326,7 @@ export const canonicalV5PersistencePatch = (assignmentV5 = {}) => {
     classroomIntegration: safeAssignmentV5.classroomIntegration || null,
     provenance: safeAssignmentV5.provenance || null,
     preflight: safeAssignmentV5.preflight || { required: true },
+    ...lessonSupportFields(safeAssignmentV5),
     ...(runtimeCompatibility ? { runtimeCompatibility } : {}),
   };
 };

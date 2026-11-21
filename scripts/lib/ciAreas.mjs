@@ -327,6 +327,10 @@ export const CI_AREAS = {
     'tests/browser/matrixLabFeedback*',
     'tests/browser/algebra2MatricesLesson*',
     'tests/browser/afterLastMiss*',
+    // The worked-example player (WE-A): its driver, its page, and the
+    // authoring guide's example lesson the page compiles.
+    'tests/browser/workedExamplePlayer*',
+    'tests/platform/fixtures/learningSupportsLessonFragment.json',
     'tests/browser/day1Systems*',
     'tests/browser/day2Nonunique*',
     'tests/browser/assignmentMobile*',

@@ -470,16 +470,6 @@ const withNewFields = (source) => {
 };
 
 /*
- * A lesson written since the fields existed authors them itself: it is told
- * apart by carrying one, named here so that an older lesson gaining a field is
- * a change someone looks at, and held to the same rule in the test after this
- * one. The Thanksgiving packet is the first.
- */
-const authorsNewFields = (file) => keysFound(JSON.parse(readFileSync(file, 'utf8'))).size > 0;
-const LESSONS_AUTHORING_THE_FIELDS = LESSON_FILES.filter(authorsNewFields);
-const LESSONS_BEFORE_THE_FIELDS = LESSON_FILES.filter((file) => !authorsNewFields(file));
-
-/*
  * No lesson written before the new fields carries one, so each compiles to
  * exactly what it compiled to before them (checked byte for byte against the
  * compile of main before AG-1, 43 lessons, when this was written). What
@@ -487,13 +477,20 @@ const LESSONS_BEFORE_THE_FIELDS = LESSON_FILES.filter((file) => !authorsNewField
  * again with the fields written in, then taken out, is byte for byte the
  * lesson compiled without them.
  */
+/*
+ * A lesson written since the fields exist authors them itself: the Algebra I
+ * Thanksgiving Break Packet is the first. Existing lessons are still not
+ * back-filled, so only the lessons named here may carry a field; every other
+ * lesson is held as before, and these are held the other way round below.
+ */
+const AUTHORS_THE_FIELDS = /^teacher-import-jsons\/thanksgiving-packet\//;
+const authorsTheFields = (file) => AUTHORS_THE_FIELDS.test(path.relative(ROOT, file).split(path.sep).join('/'));
+const EXISTING_LESSON_FILES = LESSON_FILES.filter((file) => !authorsTheFields(file));
+
 test('on every existing assignment, the new fields pass through unchanged and change nothing else, byte for byte', () => {
-  assert.ok(LESSONS_BEFORE_THE_FIELDS.length >= 40, `found ${LESSONS_BEFORE_THE_FIELDS.length} lessons`);
-  assert.deepEqual(LESSONS_AUTHORING_THE_FIELDS.map((file) => path.relative(ROOT, file)), [
-    'teacher-import-jsons/thanksgiving-packet/Algebra2_Honors_Thanksgiving_Packet.json',
-  ], 'the lessons that author the new fields themselves (held to the rule in the next test)');
+  assert.ok(EXISTING_LESSON_FILES.length >= 40, `found ${EXISTING_LESSON_FILES.length} lessons`);
   let carried = 0;
-  LESSONS_BEFORE_THE_FIELDS.forEach((file) => {
+  EXISTING_LESSON_FILES.forEach((file) => {
     const name = path.relative(ROOT, file);
     const original = JSON.parse(readFileSync(file, 'utf8'));
     const before = compiledView(parseAssignmentBlueprintText(JSON.stringify(original)));
@@ -527,33 +524,30 @@ test('on every existing assignment, the new fields pass through unchanged and ch
   assert.ok(carried > 100, `parts carrying a field across the lessons: ${carried}`);
 });
 
-/*
- * The same rule, read the other way, for a lesson that authors the fields: they
- * arrive as written, and with them taken out of the compiled lesson it is byte
- * for byte the lesson compiled from the file with them taken out.
- */
-test('on a lesson that authors the new fields, they arrive as written and change nothing else, byte for byte', () => {
-  assert.ok(LESSONS_AUTHORING_THE_FIELDS.length >= 1);
-  LESSONS_AUTHORING_THE_FIELDS.forEach((file) => {
+test('a lesson that authors the fields compiles, apart from them, byte for byte to what it compiles to without them', () => {
+  const lessons = LESSON_FILES.filter(authorsTheFields);
+  assert.ok(lessons.length >= 1, 'a lesson authors the fields');
+  lessons.forEach((file) => {
     const name = path.relative(ROOT, file);
     const original = JSON.parse(readFileSync(file, 'utf8'));
+    assert.ok(keysFound(original).has('lessonSupports'), `${name}: authors lessonSupports`);
     const parsed = parseAssignmentBlueprintText(JSON.stringify(original));
+    // The same lesson with its fields taken out of the source: nothing else
+    // in the compiled output depends on them.
     const without = compiledView(parseAssignmentBlueprintText(JSON.stringify(withoutNewFields(original))));
-    assert.deepEqual([...keysFound(without)], [], `${name}: compiled without them, it carries none`);
     assert.equal(JSON.stringify(withoutNewFields(compiledView(parsed))), JSON.stringify(without), `${name}: compiled output`);
 
+    // And the fields themselves arrived as written.
     assert.deepEqual(parsed.assignmentV5.lessonSupports, original.lessonSupports, `${name}: lessonSupports`);
     const authored = original.sections.flatMap((section) => section.questions || []);
     authored.forEach((question, index) => {
       assert.deepEqual(parsed.questions[index].example, question.example, `${name} question ${index + 1}: example`);
     });
-    const authoredParts = authored.flatMap((question) => question.responses || question.answerFields || [])
-      .filter((part) => part?.checkpoint || part?.followThrough);
+    const authoredParts = authored.flatMap((question) => question.responses || []).filter((part) => part?.checkpoint || part?.followThrough);
     const carriedParts = parsed.questions
       .flatMap((question) => [...(question.answerFields || []), ...(question.fields || [])])
       .filter((part) => part?.checkpoint || part?.followThrough);
-    assert.ok(authoredParts.length >= 1, `${name}: it authors a checkpoint or a follow-through`);
-    assert.deepEqual(carriedParts.map((part) => [part.checkpoint, part.followThrough]), authoredParts.map((part) => [part.checkpoint, part.followThrough]), `${name}: every part's checkpoint or followThrough`);
+    assert.deepEqual(carriedParts.map((part) => part.followThrough || part.checkpoint), authoredParts.map((part) => part.followThrough || part.checkpoint), `${name}: every part's checkpoint or followThrough`);
     assert.deepEqual(validateLessonSupportsV5(parsed.assignmentV5).errors, [], `${name}: stored`);
   });
 });

@@ -24,7 +24,7 @@ One assignment. Eleven Classwork sections, one per unit in the order taught, the
 - **72 unit questions**, 56 of them in a tool. Units 9 and 10 have no dedicated tool, so they use answer boxes that ask for one small step of the method in each part (students answer one part at a time), and sorts.
 - **Easy to grade level in every unit.** The first question is the building block (a perfect root before a non-perfect one, a GCF before a trinomial), and the last is at grade level.
 - **Every question** has a short prompt, three hints, a "Let's back up" step, a worked solution and the usual mistake. Three tries each.
-- **Worked examples.** The first question on each skill names an authored example (`lessonSupports.examples`, 67 in all): a sibling problem with different numbers, in 3 to 6 small steps, each with its reason. The same question carries two guided notes, the idea and that example on one line, which Classwork shows today. The step-through player will play the step cards when it ships (`docs/platform/WORKED_EXAMPLES.md`).
+- **Worked examples.** The first question on each skill names an authored example (`lessonSupports.examples`, 66 in all): a sibling problem with different numbers, in 3 to 6 small steps, each with its reason. The example player shows every one: none states an answer of a question that plays it. The same question carries two guided notes, the idea and that example on one line. The two parent-function questions of Unit 2 (x² and √x) have no authored example, because any honest sibling states the same domain, range and vertex; the platform's own similar problem is their example.
 - **None of the items is copied** from a lesson the class has done: the method is the lesson's, the numbers and contexts are new.
 
 ## Standard and Honors versions
@@ -47,7 +47,7 @@ One import serves both. Honors comes from the class, not the file.
 - `tests/platform/thanksgivingPacketAlgebra2Honors.test.mjs` holds, on every run:
   - the committed file is what the builder writes;
   - the structure, counts and standards above;
-  - every Classwork question is covered by a worked example;
+  - every Classwork question is covered by a worked example, and no example gives away the answer of a question that plays it;
   - every one of the 72 answers, worked out in the test from what the student is shown, is accepted by the platform's own grader, and a wrong answer is refused;
   - the SAT items are the bank's own;
   - the Honors version is READY and replaces nothing.
@@ -66,4 +66,4 @@ The questions are in `scripts/content/algebra2HonorsThanksgivingPacket/` (`units
 ## Known limits
 
 - Follow-through grading and checkpoints are written into the answer boxes (`followThrough`, `checkpoint`) but nothing reads them yet. Until they ship, each part is graded against its own key.
-- The Step Algebra example for radical equations carries both a step card and a tool replay (`moves`). The absolute value examples carry step cards only: the documented replay vocabulary has no move for splitting an absolute value equation.
+- Every example has a step card (`steps`), which is what the player plays. The Step Algebra example for radical equations also carries a tool replay (`moves`), which does not play yet. The absolute value examples carry step cards only: the documented replay vocabulary has no move for splitting an absolute value equation.

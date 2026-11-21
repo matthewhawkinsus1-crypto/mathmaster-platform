@@ -17,8 +17,9 @@
  *     question with three hints, a "Let's back up" step, worked steps and the
  *     usual mistake;
  *   - worked examples: every Classwork question is covered, every authored
- *     example is a sibling problem with 3 to 6 explained steps, and the first
- *     question on each skill carries short guided notes;
+ *     example is a sibling problem with 3 to 6 explained steps that gives
+ *     away no answer of a question that plays it, and the first question on
+ *     each skill carries short guided notes;
  *   - tools: at least three questions in four are worked in a tool, and the
  *     answer boxes with three or more parts each carry a follow-through or a
  *     checkpoint;
@@ -41,6 +42,8 @@ import { gradeMultiAnswerResponse } from '../../functions/shared/ordinaryRespons
 import { relationWorkspaceWork, stepAlgebraWorkGrader } from '../../functions/shared/serverGrading/stepAlgebraWorkspaceGrading.mjs';
 import { gradeToolCheck } from '../../src/tools/shared/sharedToolGrading.js';
 import { classworkExampleCoverage } from '../../src/platform/supports/workedExample/classworkCoverage.js';
+import { authoredExampleProblem, authoredExampleWarnings, authoredStepCard, lessonExampleContext } from '../../src/platform/supports/workedExample/lessonExample.js';
+import { buildSimilarWorkedExample } from '../../src/platform/supports/workedExample/similarProblem.js';
 import { collectReviewBlockers, summarizePreflightReadiness } from '../../src/components/teacher/preflightSteps.js';
 import { HONORS_CCMR_STATUS, confirmHonorsCandidateForCreate } from '../../src/platform/assignments/canonicalCcmrHydration.js';
 import {
@@ -163,8 +166,12 @@ test('worked examples: every Classwork question is covered, and nothing is left 
   assert.equal(summary.covered + summary.exempt, 72);
   // A question that names an example names one the lesson has.
   assert.deepEqual(questions.filter((entry) => entry.missingExample).map((entry) => entry.questionId), []);
-  // The first question of every unit opens an example of its own.
-  UNITS.forEach((section) => assert.equal(typeof section.questions[0].example, 'string', section.title));
+  // The first question of every unit has an example of its own: one the lesson
+  // wrote or, for Unit 2's parent function (below), the platform's sibling.
+  UNITS.forEach((section) => {
+    const first = questions.find((entry) => entry.questionId === section.questions[0].questionId);
+    assert.ok(['own', 'builtIn'].includes(first.status), `${section.title}: ${first.status}`);
+  });
   // No example is shown where it may not be: the Practice section names none.
   RAW.sections[11].questions.forEach((question) => assert.equal(question.example, undefined, question.questionId));
 });
@@ -193,11 +200,50 @@ test('worked examples: each is an authored sibling problem with 3 to 6 small ste
   assert.deepEqual(referenceCards, [{ id: 'cubes', skill: 'factor.sumDifferenceOfCubes', sections: ['unit-8'] }]);
 });
 
+/*
+ * THE PLAYER HIDES AN EXAMPLE THAT GIVES ITS QUESTION'S ANSWER AWAY
+ * (lessonExample.js authoredExampleProblem): its problem or a step holds one
+ * of the question's expressions, points or words, or states one of its
+ * numbers as a result. Every Classwork question is checked against the
+ * example it would play, its own or the one it borrows from an earlier
+ * question on its skill. A question with no authored example must have the
+ * platform's sibling instead.
+ */
+const NO_AUTHORED_EXAMPLE = ['tgp-u2-1', 'tgp-u2-2'];
+test('worked examples: none gives away the answer of a question that plays it, so the player shows every one', () => {
+  assert.deepEqual(authoredExampleWarnings(PACKET.model.assignmentV5), []);
+  const supports = PACKET.model.assignmentV5.lessonSupports;
+  const hidden = [];
+  const withoutOne = [];
+  let played = 0;
+  PACKET.questions.forEach((question, index) => {
+    if (question.activityRole !== 'classwork') return;
+    const context = lessonExampleContext({ questions: PACKET.questions, index, lessonSupports: supports, roleOf: (entry) => entry.activityRole });
+    const card = authoredStepCard(context?.example);
+    if (!card) { withoutOne.push(question.questionId); return; }
+    const problem = authoredExampleProblem(question, card);
+    if (problem) hidden.push(`${question.questionId} (${card.id}): ${problem.reason}`);
+    else played += 1;
+  });
+  assert.deepEqual(hidden, []);
+  assert.equal(played, 70);
+  // Unit 2's parent functions: any honest sibling of "the domain, range and
+  // vertex of x²" states the same facts (|x| has that vertex, that domain and
+  // that range), so the lesson writes none and the platform's own sibling, a
+  // graph on part of the plane, is the example.
+  assert.deepEqual(withoutOne, NO_AUTHORED_EXAMPLE);
+  NO_AUTHORED_EXAMPLE.forEach((id) => {
+    assert.ok(buildSimilarWorkedExample(item(id))?.steps?.length, `${id}: the platform works a sibling`);
+    assert.equal(raw(id).example, undefined);
+  });
+});
+
 test('worked examples: a question that opens one carries two guided notes, the idea and a one-line example', () => {
   const byId = new Map(RAW.lessonSupports.examples.map((example) => [example.id, example]));
   CLASSWORK.forEach((question) => {
     if (typeof question.example !== 'string') {
-      assert.equal(question.guidedNotes, undefined, `${question.questionId}: notes belong to the first question on a skill`);
+      // No authored example: no notes, or the idea alone on a first question.
+      assert.deepEqual((question.guidedNotes?.steps || []).map((step) => step.title), question.questionId === 'tgp-u2-1' ? ['Key idea'] : [], `${question.questionId}: notes belong to the first question on a skill`);
       return;
     }
     const steps = question.guidedNotes.steps;
