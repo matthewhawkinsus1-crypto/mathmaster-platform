@@ -235,6 +235,13 @@ async function drainAndPush(nowMs = Date.now() + 1_000) {
   return events;
 }
 
+// Each behaviour starts from an empty queue, so a test fails for what it
+// checks, never for an entry an earlier test left waiting.
+const clearWaiting = async () => {
+  const snapshot = await db.collection(queue.CLASSROOM_PUSH_QUEUE).where('assignmentId', '==', ASSIGNMENT).get();
+  await Promise.all(snapshot.docs.map((doc) => doc.ref.delete()));
+};
+
 const lastRun = async (account) => {
   const result = await account.call('listClassroomGradeSyncs', {});
   return (result.reconcileRuns || []).find((run) => run.assignmentId === ASSIGNMENT) || null;
@@ -309,6 +316,7 @@ test('the monitor says what the run did, to the teacher who ran it', async () =>
  * ======================================================================== */
 
 test('a second reconcile finds every column up to date and costs no Classroom call', async () => {
+  await clearWaiting();
   const result = await accounts.a.call('reconcileClassroomSectionGrades', { assignmentId: ASSIGNMENT });
   assert.notEqual(result.runId, firstRunId);
   google.length = 0;
@@ -320,6 +328,7 @@ test('a second reconcile finds every column up to date and costs no Classroom ca
 });
 
 test('a teacher\'s Retry still sends a column Classroom already holds', async () => {
+  await clearWaiting();
   await accounts.a.call('retryClassroomGradeSync', { publicationId: POST.sectionA.id, studentId: STUDENT.worked, assignmentId: ASSIGNMENT });
   google.length = 0;
   await drainAndPush();
@@ -334,6 +343,7 @@ test('a teacher\'s Retry still sends a column Classroom already holds', async ()
  * ======================================================================== */
 
 test('a column Google refuses for its limit is queued again inside the same run, and counted once when it goes through', async () => {
+  await clearWaiting();
   // The student gets the second question right: the column's grade changes.
   await gradeRef(STUDENT.worked).update(new FieldPath('gradesByAssignment', ASSIGNMENT, '1'), { status: 'correct', attemptCount: 2, totalAttempts: 2 });
   const { runId } = await accounts.a.call('reconcileClassroomSectionGrades', { assignmentId: ASSIGNMENT });
@@ -377,6 +387,7 @@ test('a column Google refuses for its limit is queued again inside the same run,
 });
 
 test('a teacher with no section column of their own on the assignment is refused, and nothing is queued', async () => {
+  await clearWaiting();
   await db.collection('classroomLinks').doc(POST.sectionB.id).update({ status: 'removed' });
   const refusal = await refusalOf(accounts.b.call('reconcileClassroomSectionGrades', { assignmentId: ASSIGNMENT }));
   assert.equal(refusal?.code, 'functions/failed-precondition');
@@ -389,6 +400,7 @@ test('a teacher with no section column of their own on the assignment is refused
  * ======================================================================== */
 
 test('at the due date a student with no work is sent nothing, and a student with work is assigned and returned', async () => {
+  await clearWaiting();
   // Due an hour ago; late work is open until tomorrow.
   await setDates(-HOUR, DAY);
   await fns.queueClassroomSectionGradeCheckpoints.run({});
@@ -419,6 +431,7 @@ test('at the due date a student with no work is sent nothing, and a student with
 });
 
 test('a teacher\'s Retry after the due date still sends no 0 for a student with no work', async () => {
+  await clearWaiting();
   // A row for the retry button to act on, as a roster problem would have left.
   await accounts.a.call('retryClassroomGradeSync', { publicationId: POST.sectionA.id, studentId: STUDENT.noWork, assignmentId: ASSIGNMENT });
   google.length = 0;
@@ -427,6 +440,7 @@ test('a teacher\'s Retry after the due date still sends no 0 for a student with 
 });
 
 test('at the final cutoff the student with no work gets their final 0, assigned and returned, as before', async () => {
+  await clearWaiting();
   // Due yesterday; the late window closed a minute ago.
   await setDates(-DAY, -60_000);
   await fns.queueClassroomSectionGradeCheckpoints.run({});
