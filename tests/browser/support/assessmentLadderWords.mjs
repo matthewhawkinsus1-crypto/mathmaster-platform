@@ -14,13 +14,13 @@ import { MISCONCEPTION_STUDENT_MESSAGES } from '../../../functions/shared/miscon
 import { GENERIC_MISS_MESSAGES } from '../../../src/platform/supports/feedback/genericMissChecks.js';
 import { FALLBACK_HINTS } from '../../../src/platform/supports/hints/questionHints.js';
 import { PENDING_RUNG_TEXT } from '../../../src/platform/supports/hints/hintCopy.js';
+import { EXAMPLE_COULD_NOT_LOAD_TEXT } from '../../../src/platform/supports/hints/hintCopy.js';
+import { EXAMPLE_OPENED_ANNOUNCEMENT } from '../../../src/platform/supports/workedExample/examplePlayer.js';
 import {
-  EXAMPLE_COULD_NOT_LOAD_TEXT,
-  EXAMPLE_OPENED_ANNOUNCEMENT,
   EXAMPLE_OPENED_BY_ITSELF_TEXT,
   EXAMPLE_PROBLEM_NOTE,
   EXAMPLE_YOUR_TURN_TEXT,
-} from '../../../src/platform/supports/workedExample/examplePlayer.js';
+} from '../../../src/platform/supports/workedExample/exampleSlides.js';
 
 // Authored supports (marked LEAKCHECK in the fixtures) and the ladder's own
 // words.

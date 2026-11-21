@@ -32,3 +32,10 @@ export const selfCheckCostSentence = (override = null) => `This counts as a hint
 // What a rung asked for before its tool's own rungs arrived says in its place
 // while the tool loads (hint-ladder timing, HintPanel.jsx).
 export const PENDING_RUNG_TEXT = 'Loading the hint for this question…';
+
+// The two sentences around the whole example, shown as a list when the
+// step-through player cannot load (HintPanel.jsx). Written here, not read
+// from the player's own module (workedExample/exampleSlides.js), which only
+// the player's chunk loads.
+export const EXAMPLE_COULD_NOT_LOAD_TEXT = 'The step-by-step player could not load, so here is the whole example.';
+export const EXAMPLE_USE_THE_STEPS_TEXT = 'Your question uses different numbers — use the same steps on it.';

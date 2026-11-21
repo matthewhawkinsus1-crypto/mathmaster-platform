@@ -50,24 +50,26 @@ import { splitGrade } from '../../src/platform/teacher/gradeEvidence.js';
 import { WORKED_EXAMPLE_SHOWN_AUTO, attemptSupportUsageFrom, rememberSupportUse, restoredSupportUse, supportUseFromRecord } from '../../src/platform/supports/supportUseMemory.js';
 import { similarExampleIsSafe } from '../../src/platform/supports/workedExample/similarProblem.js';
 import { exampleSkillOf } from '../../src/platform/supports/workedExample/exampleSkill.js';
+import { EXAMPLE_COULD_NOT_LOAD_TEXT, EXAMPLE_USE_THE_STEPS_TEXT } from '../../src/platform/supports/hints/hintCopy.js';
 import {
-  EXAMPLE_COULD_NOT_LOAD_TEXT,
-  EXAMPLE_OPENED_ANNOUNCEMENT,
   EXAMPLE_PROBLEM_NOTE,
-  EXAMPLE_SUB_SKILLS,
   EXAMPLE_YOUR_TURN_LABEL,
   EXAMPLE_YOUR_TURN_TEXT,
+  exampleSlideAt,
+  exampleSlides,
+  slideReadingText,
+  slideTranslationText,
+} from '../../src/platform/supports/workedExample/exampleSlides.js';
+import {
+  EXAMPLE_OPENED_ANNOUNCEMENT,
+  EXAMPLE_SUB_SKILLS,
   NO_EXAMPLE_SECTION_ROLES,
   assignmentProblemKeys,
   authoredStepCard,
   exampleOpensByItself,
   exampleSectionRule,
-  exampleSlideAt,
-  exampleSlides,
   lessonExampleContext,
   questionExampleExemption,
-  slideReadingText,
-  slideTranslationText,
   workedExampleFor,
 } from '../../src/platform/supports/workedExample/examplePlayer.js';
 
@@ -142,18 +144,25 @@ test('where the section shows no example, QuestionEngine builds none and draws n
   assert.match(region(engine, 'const openSimilarExample = (place) => {', '};', 'opening on request'), /if \(!similarExample\) return;/);
   assert.match(region(engine, 'const hintPanel = helpControlAvailable ? (', ') : null;', 'the hint panel'), /similar=\{similarExample\}/);
   assert.doesNotMatch(engine, /buildSimilarWorkedExample/, 'no second way to an example');
-  // The assignment gives the section's OWN role, not the role it runs as, and the lesson around the question.
+  // The assignment hands over the lesson around the question as three plain values that stay the same between
+  // renders: its stored questions, which of them this student is given (a retired or omitted one is not among
+  // them), and the lesson's own examples.
   const host = executableSource(read('src/app/student/assignmentWorkspaceView.jsx'));
-  const lesson = region(host, "renderMemo('workedExampleLesson',", '}));', 'the lesson handed over');
-  assert.match(lesson, /sectionRole: activeQuestionRole,/);
-  assert.doesNotMatch(lesson, /runtimeActivityRole/);
-  // The questions this student is given (a retired or omitted one is not among them), and every question for the item check.
-  for (const line of [/questions: includedQuestionIndices\.map\(\(index\) => questions\[index\]\),/, /index: includedQuestionIndices\.indexOf\(currentQuestionIndex\),/, /assignmentQuestions: questions,/, /assignment,/]) assert.match(lesson, line);
+  assert.match(host, /lessonQuestions=\{questions\}\s+lessonGiven=\{includedQuestionIndices\.join\(\)\}\s+lessonSupports=\{assignment\.lessonSupports\}/);
   assert.match(host, /const includedQuestionIndices = projectedEntries\.map\(\(entry\) => entry\.storageIndex\);/);
-  assert.match(host, /workedExampleLesson=\{currentWorkedExampleLesson\}/);
-  // QuestionEngine works the context out from it, with each question's own section role.
-  const context = region(engine, 'const workedExampleContext = useMemo(() => (workedExampleLesson ? lessonExampleContext({', '}) : null), [workedExampleLesson]);', 'the example context');
-  for (const line of [/questions: workedExampleLesson\.questions,/, /index: workedExampleLesson\.index,/, /sectionRole: workedExampleLesson\.sectionRole,/, /roleOf: \(candidate\) => resolveQuestionActivityRole\(\{ question: candidate, assignment: workedExampleLesson\.assignment \|\| \{\} \}\),/, /lessonSupports: workedExampleLesson\.assignment\?\.lessonSupports,/, /assignmentQuestions: workedExampleLesson\.assignmentQuestions,/]) assert.match(context, line);
+  // QuestionEngine works the context out from them. The section's role is the stored question's OWN role
+  // (activityRole), never the role it runs under: resolvedActivityPolicy is not read here.
+  const context = region(engine, 'const workedExampleContext = useMemo(() => {', '}, [lessonQuestions, lessonGiven, lessonSupports, question]);', 'the example context');
+  assert.match(context, /const roleOf = \(candidate\) => \(isActivityRole\(candidate\?\.activityRole\) \? String\(candidate\.activityRole\)\.trim\(\)\.toLowerCase\(\) : null\);/);
+  for (const line of [/questions: given\.map\(\(index\) => lessonQuestions\[index\]\),/, /index: given\.indexOf\(lessonQuestions\.indexOf\(question\)\),/, /sectionRole: roleOf\(question\),/, /lessonSupports,/, /assignmentQuestions: lessonQuestions,/]) assert.match(context, line);
+  assert.doesNotMatch(context, /resolvedActivityPolicy/);
+  // A stored question's activityRole is its section's role: the DOL question of the guide's lesson says "dol",
+  // which is what the host itself reads (resolveQuestionActivityRole).
+  const stored = storedLesson();
+  for (const entry of lessonQuestions(stored)) {
+    assert.equal(entry.activityRole, resolveQuestionActivityRole({ question: entry, assignment: stored }), entry.questionId);
+  }
+  assert.equal(lessonQuestions(stored).find((entry) => entry.questionId === 'ls-dol-1').activityRole, 'dol');
 });
 
 test('it opens by itself before the first Classwork question on a new skill, once', () => {
@@ -592,10 +601,11 @@ test("the lesson's examples reach the student's assignment; one without them is 
   const barePatch = canonicalV5PersistencePatch(parseAssignmentBlueprintText(JSON.stringify(bare)).assignmentV5);
   assert.equal('lessonSupports' in barePatch, false);
   assert.equal('lessonSupports' in storedAssignmentToV5({ id: 'lesson-2', ...barePatch }), false);
-  for (const empty of [undefined, null, {}, { lessonSupports: null }, { lessonSupports: [] }, { lessonSupports: {} }, { lessonSupports: { examples: [], referenceCards: [] } }]) {
+  // Nothing to carry: no key. What the lesson wrote is carried as written (the validator judged its shape).
+  for (const empty of [undefined, null, {}, { lessonSupports: null }, { lessonSupports: [] }, { lessonSupports: 'cards' }]) {
     assert.deepEqual(lessonSupportsFields(empty), {});
   }
-  assert.deepEqual(lessonSupportsFields({ lessonSupports: { examples: [SAFE_CARD], other: 1 } }), { lessonSupports: { examples: [SAFE_CARD] } });
+  assert.deepEqual(lessonSupportsFields({ lessonSupports: { examples: [SAFE_CARD] } }), { lessonSupports: { examples: [SAFE_CARD] } });
 });
 
 // -------------------------------------------------------------- 6. the screen
@@ -604,6 +614,8 @@ const withModules = async (run) => {
   const server = await createServer({ server: { middlewareMode: true }, appType: 'custom', logLevel: 'silent' });
   try {
     return await run({
+      MathText: (await server.ssrLoadModule('/src/components/common/MathText.jsx')).default,
+      SupportedTextActions: (await server.ssrLoadModule('/src/platform/supports/SupportedText.jsx')).SupportedTextActions,
       Player: (await server.ssrLoadModule('/src/platform/supports/workedExample/WorkedExamplePlayer.jsx')).default,
       HintPanel: (await server.ssrLoadModule('/src/platform/supports/hints/HintPanel.jsx')).default,
     });
@@ -615,8 +627,9 @@ const withModules = async (run) => {
 const SIBLING = { source: 'family', prompt: 'Write 10/15 in lowest terms.', steps: ['5 divides 10 and 15.', '10 ÷ 5 = 2 and 15 ÷ 5 = 3.'], answer: '2/3' };
 
 test('the player draws one slide, with Back and Next, in a polite live region', async () => {
-  await withModules(({ Player }) => {
-    const render = (props) => renderToStaticMarkup(React.createElement(Player, { example: SIBLING, ...props }));
+  await withModules(({ Player, MathText, SupportedTextActions }) => {
+    // The panel hands the player the two components it draws with (the player imports neither).
+    const render = (props) => renderToStaticMarkup(React.createElement(Player, { example: SIBLING, MathText, SupportedTextActions, ...props }));
     const first = render({});
     assert.match(first, /<div role="group" aria-label="Worked example" data-worked-example-player="" data-example-source="family" data-example-slide-number="1" data-example-slide-count="4" data-example-slide-kind="problem"/);
     // One slide: the problem, and none of the steps or the answer yet.
@@ -668,9 +681,18 @@ test('the Hint panel loads the player on demand, and draws nothing of it with no
   const panel = executableSource(read('src/platform/supports/hints/HintPanel.jsx'));
   assert.match(panel, /const WorkedExamplePlayer = lazy\(\(\) => import\('\.\.\/workedExample\/WorkedExamplePlayer\.jsx'\)\);/);
   const opened = region(panel, '{similar && similarOpen && (', '</details>', 'the open example');
-  assert.match(opened, /<Suspense fallback=\{<p role="status"[^\n]*\}>\s*<WorkedExamplePlayer\s+example=\{similar\}[\s\S]*onYourTurn=\{onYourTurn\}\s+openedByItself=\{similarOpenedByItself\}\s*\/>\s*<\/Suspense>/);
+  assert.match(opened, /<Suspense fallback=\{<p role="status"[^\n]*\}>\s*<WorkedExamplePlayer\s+MathText=\{MathText\}\s+SupportedTextActions=\{SupportedTextActions\}\s+example=\{similar\}[\s\S]*onYourTurn=\{onYourTurn\}\s+openedByItself=\{similarOpenedByItself\}\s*\/>\s*<\/Suspense>/);
   for (const file of ['src/QuestionEngine.jsx', 'src/app/student/assignmentWorkspaceView.jsx', 'src/platform/supports/workedExample/examplePlayer.js']) {
     assert.doesNotMatch(executableSource(read(file)), /WorkedExamplePlayer\.jsx/, `${file} does not load the player itself`);
+  }
+  // The player's chunk shares no module with the question's: it imports React and its own slides, and nothing else,
+  // and nothing in the question's chunk imports those slides. (Shared modules are split out by the build, and some
+  // of that reached the first load: scripts/check-first-load-budget.mjs.)
+  const playerImports = [...read('src/platform/supports/workedExample/WorkedExamplePlayer.jsx').matchAll(/^import [^;]*? from '([^']+)';/gms)].map((match) => match[1]);
+  assert.deepEqual(playerImports, ['react', './exampleSlides.js']);
+  assert.doesNotMatch(read('src/platform/supports/workedExample/exampleSlides.js'), /^import /m);
+  for (const file of ['src/QuestionEngine.jsx', 'src/platform/supports/hints/HintPanel.jsx', 'src/platform/supports/workedExample/examplePlayer.js', 'src/platform/supports/workedExample/yourTurnFocus.js']) {
+    assert.doesNotMatch(executableSource(read(file)), /exampleSlides/, `${file} does not import the player's slides`);
   }
   // The assignment screen is in Home's first load: it hands the lesson over and imports none of the example's code
   // (its rules reach the question families and their graders).

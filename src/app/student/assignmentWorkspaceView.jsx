@@ -193,21 +193,6 @@ export function createAssignmentWorkspaceView(
     const runtimeQuestionActivityPolicy = currentReplacementAllowed === runtimeActivityPolicy.allowReplacement
       ? runtimeActivityPolicy
       : renderMemo('activityPolicy', [runtimeActivityPolicy, currentReplacementAllowed], () => ({ ...runtimeActivityPolicy, allowReplacement: currentReplacementAllowed }));
-    // What this question's worked example needs from the assignment (WE-A;
-    // examplePlayer.js lessonExampleContext): the section's own role (a DOL
-    // practised after its due date is still a DOL, and shows none), and the
-    // lesson around the question, from which QuestionEngine works out whether
-    // this is the first Classwork question on a new skill. Only handed over
-    // here: the example's code loads with the question, not with Home.
-    // `questions` are the ones THIS student is given, in order: a question
-    // retired or left out of their work taught them nothing.
-    const currentWorkedExampleLesson = renderMemo('workedExampleLesson', [questions, includedQuestionIndices.join(','), currentQuestionIndex, activeQuestionRole, assignment], () => ({
-      sectionRole: activeQuestionRole,
-      questions: includedQuestionIndices.map((index) => questions[index]),
-      index: includedQuestionIndices.indexOf(currentQuestionIndex),
-      assignmentQuestions: questions,
-      assignment,
-    }));
     const currentSectionVariantMode = getSectionVariantMode(assignment, activeQuestionRole);
     const generationStudentKey = currentSectionVariantMode === 'shared'
       ? `shared-version:${assignment.id}:${activeQuestionRole}`
@@ -1350,7 +1335,16 @@ export function createAssignmentWorkspaceView(
               // Practice sections only, by the section's own role (a DOL in
               // post-due practice runs as 'practice' but is still a DOL).
               practiceLikeThisAllowed={['classwork', 'practice'].includes(activeQuestionRole)}
-              workedExampleLesson={currentWorkedExampleLesson}
+              // The lesson around this question, for its worked example (WE-A;
+              // examplePlayer.js): its questions, which of them this student
+              // is given, in order (a retired or omitted one taught them
+              // nothing), and the lesson's own examples. Three plain values
+              // that stay the same between renders; QuestionEngine works the
+              // rest out, so none of the example's code loads with Home. The
+              // section's OWN role is each stored question's activityRole.
+              lessonQuestions={questions}
+              lessonGiven={includedQuestionIndices.join()}
+              lessonSupports={assignment.lessonSupports}
               activityPolicy={runtimeQuestionActivityPolicy}
               // The assignment's calculator setting (e.g. "graphing"), above the
               // question's own: calculatorPolicy.js resolveCalculatorPolicy.

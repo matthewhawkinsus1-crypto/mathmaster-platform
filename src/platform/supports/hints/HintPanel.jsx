@@ -3,9 +3,8 @@ import MathText from '../../../components/common/MathText.jsx';
 import { SupportedTextActions } from '../SupportedText.jsx';
 import { useAskTeacherControl } from '../AskTeacherControl.jsx';
 import { authoredLineFor } from '../../language/authoredSupportText.js';
-import { PENDING_RUNG_TEXT, hintCostSentence } from './hintCopy.js';
+import { EXAMPLE_COULD_NOT_LOAD_TEXT, EXAMPLE_USE_THE_STEPS_TEXT, PENDING_RUNG_TEXT, hintCostSentence } from './hintCopy.js';
 import QuestionSupplementBoundary from '../../../QuestionSupplementBoundary.jsx';
-import { EXAMPLE_COULD_NOT_LOAD_TEXT, EXAMPLE_YOUR_TURN_TEXT } from '../workedExample/examplePlayer.js';
 
 // The step-through player, loaded when an example is opened: a page that
 // shows none (Home, a DOL, a quiz, a test) never fetches it.
@@ -89,7 +88,7 @@ function WholeExample({ example, readAloud, translation, onSupportEvidence }) {
         {steps.map((step, index) => <li key={`ex-${index}`} style={{ lineHeight: 1.55 }}><MathText>{step}</MathText></li>)}
       </ol>
       {answer ? <p style={{ margin: 0, fontWeight: 800 }}>Answer: <MathText>{answer}</MathText></p> : null}
-      <p style={{ margin: 0, color: 'var(--mm-text-muted)' }}>{EXAMPLE_YOUR_TURN_TEXT}</p>
+      <p style={{ margin: 0, color: 'var(--mm-text-muted)' }}>{EXAMPLE_USE_THE_STEPS_TEXT}</p>
       <SupportedTextActions text={[example?.prompt, ...steps, answer ? `Answer: ${answer}` : ''].filter(Boolean).join(' ')} readAloud={readAloud} translation={translation} label="the worked example" onEvidence={onSupportEvidence} />
     </div>
   );
@@ -236,6 +235,8 @@ export default function HintPanel({
           >
             <Suspense fallback={<p role="status" style={{ margin: 0, color: 'var(--mm-text-muted)' }}>Loading the example…</p>}>
               <WorkedExamplePlayer
+                MathText={MathText}
+                SupportedTextActions={SupportedTextActions}
                 example={similar}
                 readAloud={readAloud}
                 translation={translation}

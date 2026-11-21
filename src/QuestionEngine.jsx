@@ -75,7 +75,7 @@ import CalculatorPanel from './components/CalculatorPanel';
 import ProblemUnderstandingPanel from './components/ProblemUnderstandingPanel';
 import MobileViewportContainer, { isMobileQuestionViewport } from './components/student/MobileViewportContainer';
 import { normalizeContextualQuestion } from './platform/context/wordProblemLayer';
-import { getEffectiveActivityPolicy, isActivityRole, resolveQuestionActivityRole } from './platform/policies/activityPolicies';
+import { getEffectiveActivityPolicy, isActivityRole } from './platform/policies/activityPolicies';
 import { CALCULATOR_MODES, calculatorKeyPointsShown, resolveCalculatorPolicy } from './platform/policies/calculatorPolicy';
 import { getToolDefinition } from './tools/toolRegistry';
 import { buildRawPathResponse } from './platform/path/pathToolResponses';
@@ -408,13 +408,15 @@ function QuestionEngineBody({
   // help does not count toward unlocking (HELP-4). Null: "Hints never lower
   // your score. Your teacher can see you used one." (hintCopy.js).
   hintCostNote = null,
-  // The lesson around this question, for its worked example: { sectionRole
-  // (the section's OWN role), questions (the ones this student is given),
-  // index, assignmentQuestions, assignment }. From it the
-  // example's rules are worked out below (examplePlayer.js
-  // lessonExampleContext). Null on every other host: the example is then on
-  // request only, wherever hints are allowed.
-  workedExampleLesson = null,
+  // The lesson around this question, for its worked example (examplePlayer.js
+  // lessonExampleContext): the assignment's stored questions (each carries its
+  // section's OWN role as activityRole), the storage indices of the ones this
+  // student is given ("0,1,4"), and the lesson's own examples. Absent on
+  // every other host: the example is then on request only, wherever hints
+  // are allowed.
+  lessonQuestions = null,
+  lessonGiven = null,
+  lessonSupports = null,
 }) {
   useRenderPerformance('QuestionEngine', String(question?.toolId || question?.type || 'question'));
   const resolvedActivityPolicy = activityPolicy || getEffectiveActivityPolicy(activityRole);
@@ -2012,14 +2014,23 @@ function QuestionEngineBody({
    * the first question on a new skill. Where it is not offered it is not
    * built, so nothing of it can reach the page.
    */
-  const workedExampleContext = useMemo(() => (workedExampleLesson ? lessonExampleContext({
-    questions: workedExampleLesson.questions,
-    index: workedExampleLesson.index,
-    sectionRole: workedExampleLesson.sectionRole,
-    roleOf: (candidate) => resolveQuestionActivityRole({ question: candidate, assignment: workedExampleLesson.assignment || {} }),
-    lessonSupports: workedExampleLesson.assignment?.lessonSupports,
-    assignmentQuestions: workedExampleLesson.assignmentQuestions,
-  }) : null), [workedExampleLesson]);
+  const workedExampleContext = useMemo(() => {
+    if (!Array.isArray(lessonQuestions)) return null;
+    const given = typeof lessonGiven === 'string'
+      ? lessonGiven.split(',').filter(Boolean).map(Number)
+      : lessonQuestions.map((_, index) => index);
+    // The section's OWN role, never the role the question runs under: a DOL
+    // practised after its due date is still a DOL.
+    const roleOf = (candidate) => (isActivityRole(candidate?.activityRole) ? String(candidate.activityRole).trim().toLowerCase() : null);
+    return lessonExampleContext({
+      questions: given.map((index) => lessonQuestions[index]),
+      index: given.indexOf(lessonQuestions.indexOf(question)),
+      sectionRole: roleOf(question),
+      roleOf,
+      lessonSupports,
+      assignmentQuestions: lessonQuestions,
+    });
+  }, [lessonQuestions, lessonGiven, lessonSupports, question]);
   const exampleRule = exampleSectionRule({
     sectionRole: workedExampleContext?.sectionRole,
     activityRole: resolvedActivityPolicy?.role,

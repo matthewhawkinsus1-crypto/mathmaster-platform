@@ -47,6 +47,15 @@ import { buildSimilarWorkedExample, similarExampleIsSafe } from './similarProble
 import { exampleSkillOf } from './exampleSkill.js';
 import { familyFor } from '../families/index.js';
 
+// A step as { show, why } (the same reading exampleSlides.js gives it; that
+// module is the player's own, and is not imported here: see its header).
+const stepOf = (step) => (step && typeof step === 'object' && !Array.isArray(step)
+  ? { show: typeof step.show === 'string' ? step.show.trim() : '', why: typeof step.why === 'string' ? step.why.trim() : '' }
+  : { show: typeof step === 'string' ? step.trim() : '', why: '' });
+
+/** Said to a screen reader when Classwork opens an example by itself. */
+export const EXAMPLE_OPENED_ANNOUNCEMENT = 'A worked example opened above your question: a problem like yours, one step at a time. Your answer box is still where you are.';
+
 const text = (value) => (typeof value === 'string' ? value.trim() : '');
 const lower = (value) => text(value).toLowerCase();
 const isObject = (value) => Boolean(value) && typeof value === 'object' && !Array.isArray(value);
@@ -104,10 +113,6 @@ export const assignmentProblemKeys = (questions = []) => new Set(list(questions)
 const isAssignmentItem = (prompt, assignmentProblems) => Boolean(
   assignmentProblems && typeof assignmentProblems.has === 'function' && assignmentProblems.has(problemKey(prompt)),
 );
-
-const stepOf = (step) => (isObject(step)
-  ? { show: text(step.show), why: text(step.why) }
-  : { show: text(step), why: '' });
 
 /**
  * The step card a lesson wrote for this question, or null: the entry of
@@ -225,66 +230,3 @@ export const exampleOpensByItself = ({ rule = null, newSkill = false, example = 
     && !(Number(attemptCount) > 0)
     && !(Number(totalAttempts) > 0),
 );
-
-/* ---------------------------------------------------------------- the slides */
-
-export const EXAMPLE_SLIDE = Object.freeze({ PROBLEM: 'problem', STEP: 'step', ANSWER: 'answer' });
-export const EXAMPLE_PROBLEM_NOTE = 'This problem is like yours, with different numbers. Go through each step, then do yours.';
-export const EXAMPLE_YOUR_TURN_TEXT = 'Your question uses different numbers — use the same steps on it.';
-export const EXAMPLE_YOUR_TURN_LABEL = 'Your turn';
-export const EXAMPLE_OPENED_BY_ITSELF_TEXT = 'New skill. Here is one like it, worked step by step, before you start yours.';
-
-/**
- * The example as slides, one move each: the problem (with a line on what to
- * do with it), each step with its why, and the answer. The last slide carries "Your turn". A step card ends on its
- * own last step, so it gets no separate answer slide.
- */
-export const exampleSlides = (example) => {
-  if (!isObject(example)) return [];
-  const prompt = text(example.prompt);
-  const steps = list(example.steps).map(stepOf).filter((step) => step.show);
-  if (!prompt || !steps.length) return [];
-  const slides = [{ kind: EXAMPLE_SLIDE.PROBLEM, label: 'The problem', show: prompt, why: '', note: EXAMPLE_PROBLEM_NOTE }];
-  steps.forEach((step, index) => {
-    slides.push({ kind: EXAMPLE_SLIDE.STEP, label: `Step ${index + 1} of ${steps.length}`, show: step.show, why: step.why });
-  });
-  const answer = text(example.answer);
-  if (answer && example.source !== 'authored') slides.push({ kind: EXAMPLE_SLIDE.ANSWER, label: 'The answer', show: answer, why: '' });
-  return slides.map((slide, index) => ({ ...slide, index, last: index === slides.length - 1 }));
-};
-
-/** The slide a move lands on: never before the first or past the last. */
-export const exampleSlideAt = (slides, index) => {
-  const count = list(slides).length;
-  if (!count) return 0;
-  return Math.min(Math.max(Number.isInteger(index) ? index : 0, 0), count - 1);
-};
-
-/** What Read aloud and Translate are given for a slide: its move, then its why. */
-export const slideReadingText = (slide) => {
-  if (!isObject(slide)) return '';
-  const closed = (value) => (/[.!?:]$/.test(value) ? value : `${value}.`);
-  return [
-    closed(slide.label),
-    slide.kind === EXAMPLE_SLIDE.ANSWER ? `Answer: ${slide.show}` : slide.show,
-    slide.why ? `Why: ${slide.why}` : '',
-    slide.note || '',
-    slide.last ? EXAMPLE_YOUR_TURN_TEXT : '',
-  ].filter(Boolean).join(' ');
-};
-
-/**
- * What Translate is given for a slide: the example's own sentence, as the
- * language pack knows it (the prompt, a step, "Answer: …"), with a lesson's
- * why after it. The player's labels are not part of it.
- */
-export const slideTranslationText = (slide) => {
-  if (!isObject(slide)) return '';
-  return [
-    slide.kind === EXAMPLE_SLIDE.ANSWER ? `Answer: ${slide.show}` : slide.show,
-    slide.kind === EXAMPLE_SLIDE.STEP ? slide.why : '',
-  ].filter(Boolean).join(' ');
-};
-
-export const EXAMPLE_OPENED_ANNOUNCEMENT = 'A worked example opened above your question: a problem like yours, one step at a time. Your answer box is still where you are.';
-export const EXAMPLE_COULD_NOT_LOAD_TEXT = 'The step-by-step player could not load, so here is the whole example.';

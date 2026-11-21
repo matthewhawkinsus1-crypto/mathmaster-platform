@@ -51,18 +51,14 @@ export const testCycleContractFields = (source = {}) => {
  * `lessonSupports` (the lesson's own worked examples and reference cards;
  * lessonSupportsV5.js) sits beside `sections`, so the same save paths dropped
  * it: a question could name its `example`, and the student's assignment had no
- * example of that name to play. Carried only when the lesson wrote one, so an
- * assignment without it is stored exactly as before.
+ * example of that name to play. Carried as the lesson wrote it (the validator
+ * has already judged its shape), and only when the lesson has one, so an
+ * assignment without it is stored exactly as before. Kept to one line on
+ * purpose: this module is in the first load.
  */
-export const lessonSupportsFields = (source = {}) => {
-  if (!isObject(source) || !isObject(source.lessonSupports)) return {};
-  const { referenceCards, examples } = source.lessonSupports;
-  const kept = {
-    ...(Array.isArray(referenceCards) && referenceCards.length ? { referenceCards } : {}),
-    ...(Array.isArray(examples) && examples.length ? { examples } : {}),
-  };
-  return Object.keys(kept).length ? { lessonSupports: kept } : {};
-};
+export const lessonSupportsFields = (source) => (
+  isObject(source?.lessonSupports) ? { lessonSupports: source.lessonSupports } : {}
+);
 
 /**
  * Canonical runtime readers.

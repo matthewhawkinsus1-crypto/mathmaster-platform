@@ -229,16 +229,12 @@ const studentProfile = SUPPORT_PROFILES[params.get('support')] || {};
 // A stored question carries its section's role, and its skill is its student
 // action with its standard (exampleSkill.js).
 const onTheSkill = (entry) => ({ studentActions: ['multipleResponses'], standard: 'A.3A', ...entry, activityRole: params.get('section') });
-const workedExampleLesson = params.get('section')
-  ? {
-    sectionRole: params.get('section'),
-    questions: params.get('newskill') === '1'
-      ? [onTheSkill(question)]
-      : [onTheSkill({ ...question, questionId: 'earlier-on-the-skill' }), onTheSkill(question)],
-    index: params.get('newskill') === '1' ? 0 : 1,
-    assignment: null,
-  }
+const lessonQuestions = params.get('section')
+  ? (params.get('newskill') === '1'
+    ? [question]
+    : [onTheSkill({ ...question, questionId: 'earlier-on-the-skill' }), question])
   : null;
+if (lessonQuestions) Object.assign(question, onTheSkill(question));
 
 window.__mmGrades = [];
 window.__mmHelp = [];
@@ -284,7 +280,8 @@ function Harness() {
           assignmentId={assignmentId}
           executionScope="student"
           studentProfile={studentProfile}
-          workedExampleLesson={workedExampleLesson}
+          lessonQuestions={lessonQuestions}
+          lessonGiven={lessonQuestions ? lessonQuestions.map((_, index) => index).join() : null}
           onGrade={onGrade}
           serverGrading={serverGrading}
           // The delivered family instance's own prompt, as plain text: the page

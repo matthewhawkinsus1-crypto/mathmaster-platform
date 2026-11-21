@@ -1,6 +1,4 @@
 import { useMemo, useState } from 'react';
-import MathText from '../../../components/common/MathText.jsx';
-import { SupportedTextActions } from '../SupportedText.jsx';
 import {
   EXAMPLE_OPENED_BY_ITSELF_TEXT,
   EXAMPLE_SLIDE,
@@ -10,7 +8,7 @@ import {
   exampleSlides,
   slideReadingText,
   slideTranslationText,
-} from './examplePlayer.js';
+} from './exampleSlides.js';
 
 /*
  * THE WORKED-EXAMPLE PLAYER (WE-A; docs/platform/WORKED_EXAMPLES.md section 4
@@ -32,7 +30,9 @@ import {
  * (SupportedTextActions).
  *
  * Loaded on demand (HintPanel.jsx): nothing here is in a page that shows no
- * example.
+ * example. This chunk imports only React and its own slides (exampleSlides.js)
+ * and shares no module with the question's chunk, so opening an example adds
+ * nothing to what a page loads first (scripts/check-first-load-budget.mjs).
  */
 const button = {
   minHeight: 44,
@@ -49,6 +49,11 @@ const primaryButton = { ...button, border: '2px solid var(--mm-primary-text)' };
 const muted = { margin: 0, color: 'var(--mm-text-muted)' };
 
 export default function WorkedExamplePlayer({
+  // The two components every slide is drawn with, handed over by the panel
+  // (HintPanel.jsx), which has them already: importing them here would make
+  // the build share them out between this chunk and the question's.
+  MathText,
+  SupportedTextActions,
   example = null,
   readAloud = null,
   translation = null,
