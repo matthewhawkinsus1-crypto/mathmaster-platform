@@ -5,6 +5,8 @@ import MathDisplay from './MathDisplay';
 import QuestionPrompt from './QuestionPrompt';
 import QuestionVisual from './QuestionVisual';
 import { gradeLiteralResponse } from '../functions/shared/ordinaryResponseGrading.mjs';
+import { typedEntryNotice } from '../functions/shared/typedEntryGuard.mjs';
+import TypedEntryNotice from './components/common/TypedEntryNotice.jsx';
 
 export default function LiteralGrader({ question, onStateChange, onUndoStateChange, feedback, draftKey }) {
   const { formula, formulaLatex, solveFor, solveForLatex, prompt, acceptedAnswers = [] } = question;
@@ -18,7 +20,11 @@ export default function LiteralGrader({ question, onStateChange, onUndoStateChan
   // to this screen: the deadline finalizer marks the same response with the
   // same call, so a manual Submit and an auto-submit cannot disagree.
   const graded = gradeLiteralResponse({ acceptedAnswers: safeAcceptedAnswers, solveFor }, answer);
-  const { isComplete, isCorrect } = graded;
+  // An entry left unfinished (`C/2 +`) or longer than an answer may be is not
+  // ready to submit, and uses no try (typedEntryGuard.mjs; #557, #558).
+  const entryProblem = typedEntryNotice(answer, { keys: safeAcceptedAnswers });
+  const isComplete = graded.isComplete && !entryProblem;
+  const { isCorrect } = graded;
 
   useEffect(() => {
     const questionText = `${prompt || (variable ? `Solve the literal equation for ${variable}.` : 'Solve the literal equation.')} Formula: ${formula || formulaLatex || ''}.`;
@@ -51,6 +57,7 @@ export default function LiteralGrader({ question, onStateChange, onUndoStateChan
         ) : null}
         <MathInput value={answer} onChange={setAnswer} placeholder={variable ? `type expression for ${variable}` : 'type your answer'} ariaLabel={variable ? `${variable} =` : 'Your answer'} onUndoStateChange={onUndoStateChange} inputStatus={lastPart ? (lastPart.isCorrect ? 'correct' : 'incorrect') : 'neutral'} />
       </div>
+      <TypedEntryNotice message={entryProblem} entry={answer} style={{ margin: '12px auto 0', width: 'fit-content', maxWidth: '100%' }} />
     </div>
   );
 }

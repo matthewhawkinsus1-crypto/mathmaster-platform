@@ -8,6 +8,9 @@ import SolutionReviewPanel from '../../SolutionReviewPanel.jsx';
 import LinearRegressionPanel from '../assessment/LinearRegressionPanel.jsx';
 import SecureItemAccessSupports from '../assessment/SecureItemAccessSupports.jsx';
 import SecureMathAnswerField from '../assessment/SecureMathAnswerField.jsx';
+import TypedEntryNotice from '../common/TypedEntryNotice.jsx';
+import { typedEntryNotice } from '../../../functions/shared/typedEntryGuard.mjs';
+import { normalizeInteractionInputProfile } from '../../platform/interaction/interactionContract.js';
 import { SECURE_ACTIVITY_ROLE, secureAccessEntitlement, secureFigureLanguage } from '../../platform/assessment/secureItemAccess.js';
 import { FigureWordsProvider } from '../../platform/language/figureReadings.js';
 import { loadFigureWords } from '../../platform/language/figureSay.js';
@@ -205,7 +208,19 @@ const FieldItem = ({ question, policy, calculatorPolicy, studentSupportProfile, 
   const figurePack = loadedFigureWords?.language === figureLanguage ? loadedFigureWords.pack : null;
   const fields = question?.responseFields?.length ? question.responseFields : [{ id: 'answer', label: 'Answer', inputProfile: 'text' }];
   const choices = Array.isArray(question?.choices) ? question.choices : [];
-  const complete = fields.every((field) => String(responses[field.id] ?? '').trim());
+  // An entry left unfinished (`12 +`, `4*`) or longer than an answer may be
+  // (typedEntryGuard.mjs; #557, #558) is said at its box. Where this item has
+  // a Submit (Corrections), it is not submitted and no try is used. In a
+  // secure test nothing is submitted per question: the draft is still saved as
+  // typed, so nothing is lost, and the box says the entry will not be marked
+  // right as it stands (the server refuses it at the close).
+  const entryProblems = Object.fromEntries(fields.map((field) => {
+    const typed = !(field.choices?.length || (fields.length === 1 && choices.length));
+    const words = (normalizeInteractionInputProfile(field.inputProfile) || 'text') === 'text';
+    const message = typed ? typedEntryNotice(responses[field.id], { words, tries: !navigationMode }) : '';
+    return [field.id, message && navigationMode ? `${message} As it stands it cannot be marked right.` : message];
+  }));
+  const complete = fields.every((field) => String(responses[field.id] ?? '').trim()) && !Object.values(entryProblems).some(Boolean);
   const locked = busy || closed;
   const supportUsage = (used = calculatorUsed) => ({ calculatorUsed: used, accommodations: studentSupportProfile?.accommodations || [], modifications: studentSupportProfile?.modifications || [] });
 
@@ -291,6 +306,7 @@ const FieldItem = ({ question, policy, calculatorPolicy, studentSupportProfile, 
                       examType={examType}
                     />
                   )}
+                  <TypedEntryNotice message={locked ? '' : entryProblems[field.id]} entry={responses[field.id] ?? ''} />
                 </fieldset>
               );
             })}

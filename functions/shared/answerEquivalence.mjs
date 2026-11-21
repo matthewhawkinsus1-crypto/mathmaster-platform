@@ -22,6 +22,10 @@ import { sameLinearInequality } from './linearInequalityEquivalence.mjs';
 import { LINE_FORMS, LINE_FORM_ANY, pointSlopeParts, sameLine, wholeMultipleOfLine, writtenLineForm } from './linearEquationForm.mjs';
 import { sameNonnegativeRadicalExpression as sameNonnegativeRadicalExpressionAsTyped } from './nonnegativeRadicalExpressionEquivalence.mjs';
 import { sameRationalExpression as sameRationalExpressionAsTyped } from './rationalExpressionEquivalence.mjs';
+import { refusesTypedEntry } from './typedEntryGuard.mjs';
+
+// The entry rule, for the graders that load this module on demand (functions/lib/mathPath.js).
+export { MAX_TYPED_ANSWER_LENGTH, hasDanglingOperator, isOverLongAnswer, refusesTypedEntry } from './typedEntryGuard.mjs';
 
 const UNICODE_MINUS = /[−–—]/g;
 
@@ -1031,6 +1035,8 @@ const commutedProduct = (term) => {
       // A product sign, then any factor: a number is one only here (`x*2`).
       const numeral = /^\*(\d+(?:\.\d+)?)(?![\d.\\])/.exec(rest);
       if (numeral) {
+        // (A product sign with no factor before it finishes nothing: below.)
+        if (!coefficient && !factors.length) return null;
         end = attachmentsEnd(term, index + numeral[0].length);
         if (end < 0) return null;
         factors.push(term.slice(index + 1, end));
@@ -1038,6 +1044,11 @@ const commutedProduct = (term) => {
         letterRun = 0;
         onlyLetters = false;
       } else {
+        // …and it stands between two factors. With none before it (`*38`),
+        // or none after it (`12*`, `3**x`), the entry is unfinished: it is
+        // not read as the product without the sign (#557).
+        if (!coefficient && !factors.length) return null;
+        if (index + 1 >= term.length || term[index + 1] === '*') return null;
         index += 1;
       }
       continue;
@@ -2026,6 +2037,10 @@ const constantTermsLast = (text) => {
     }
   }
   if (token) terms.push(`${sign}${token}`);
+  // A sign with no term after it (`12+`, `x-`) is kept, as a term of its own:
+  // dropped, the unfinished `12+` read as the finished `+12` (#557). A sign
+  // that opens the side has its term and never ends here.
+  else if (text) terms.push(sign);
   const isConstant = (term) => !/[A-Za-z]/.test(term.replace(/\\(?:frac|sqrt|cdot|times)/g, ''));
   return [...terms.filter((term) => !isConstant(term)), ...terms.filter(isConstant)].join('');
 };
@@ -2174,6 +2189,11 @@ const sameEquationSideBySide = (left, right, tolerance) => (
 export const sameValue = (studentValue, right, tolerance = 1e-6, { thousandsSeparators = true, exactNumber = false, arithmetic = true, anyLineForm = false, sidesAsKeyed = false, typed = false, orderedPair = false } = {}) => {
   // A typed field's answer, read as the editor writes it (fieldValueOptions
   // `typed`): `(x-2)²` is `(x-2)^{2}`, `4·y` is `4\cdot y`.
+  // An entry that is not graded (typedEntryGuard.mjs): longer than an answer
+  // may be, which is refused before anything reads it (#558), or left with a
+  // sign or product sign dangling (#557). Never right, whatever the key,
+  // unless the key is itself written that way.
+  if (refusesTypedEntry(studentValue, right)) return false;
   const left = typed ? typedAsEditorSpelling(studentValue) : studentValue;
   // A number box that takes no calculation refuses one before any comparison
   // below can work it out (GR01; fieldValueOptions `arithmetic`).

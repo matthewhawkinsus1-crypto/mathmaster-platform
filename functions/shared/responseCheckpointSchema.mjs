@@ -16,6 +16,7 @@
 
 import { normalizeDeliveryPin } from './questionGenerationIdentity.mjs';
 import { normalizeToolResponse } from './serverGrading/toolResponseContract.mjs';
+import { TYPED_ANSWER_WIRE_LENGTH } from './typedEntryGuard.mjs';
 
 export const RESPONSE_CHECKPOINT_SCHEMA_VERSION = 2;
 
@@ -79,7 +80,9 @@ export const FORBIDDEN_CHECKPOINT_FIELDS = Object.freeze([
 
 const MAX_RESPONSE_VALUE_LENGTH = 2000;
 const MAX_RESPONSE_FIELDS = 60;
-const MAX_FIELD_VALUE_LENGTH = 240;
+// One past the limit of a typed answer, so that an over-long box is still seen
+// to be over-long when the stored response is graded (typedEntryGuard.mjs).
+const MAX_FIELD_VALUE_LENGTH = TYPED_ANSWER_WIRE_LENGTH;
 
 const keyPart = (value) => encodeURIComponent(String(value ?? ''));
 const text = (value) => String(value ?? '');
