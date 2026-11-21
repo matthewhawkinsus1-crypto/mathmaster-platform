@@ -12,9 +12,11 @@
 //   2. Reconcile run again with nothing changed: no second return and no post,
 //      the same grades, the same rows.
 //   3. The due-date checkpoint across a class with a completed student, one
-//      with partial work and one with none: each column gets that student's
-//      own grade, and the completed sections keep theirs, FINAL, and are not
-//      sent again, at the due date or at the final cutoff.
+//      with partial work and one with none: each column with work gets that
+//      student's own grade, a section with no work is sent nothing (Missing,
+//      not a returned 0) until the final cutoff, and the completed sections
+//      keep theirs, FINAL, and are not sent again, at the due date or at the
+//      final cutoff.
 //
 // The queue is released as drainClassroomPushQueue releases it: its own
 // releaseSignalFor, one grade-document write per entry, and the trigger that
@@ -264,6 +266,7 @@ test('the due-date checkpoint gives every student their own grade and leaves com
 
   // Partial work: its real grade, assigned at the due date. Never a zero for
   // the Classwork it earned half of.
+  // (Its Warm-Up was answered, wrong: that is work, and its 0 is a grade.)
   assert.deepEqual(patchesOn(googleFor.partial, 'warmup'), [{ draftGrade: 0, assignedGrade: 0 }]);
   assert.deepEqual(patchesOn(googleFor.partial, 'classwork'), [{ draftGrade: points(50), assignedGrade: points(50) }]);
   for (const key of SECTIONS) {
@@ -271,14 +274,14 @@ test('the due-date checkpoint gives every student their own grade and leaves com
     assert.equal(row(db, 'partial', key).stage, 'due-checkpoint');
   }
 
-  // No work at all: the row says so, nothing attempted and nothing earned.
-  // (Whether that column should then hold a returned 0 or stay Missing until
-  // the final cutoff is a policy question; MathMaster's own screens show it as
-  // missing. Only the honest row is asserted.)
-  for (const key of SECTIONS) {
-    const none = row(db, 'none', key);
-    assert.deepEqual([none.grade, none.attempted], [0, 0], `none ${key}`);
-    assert.equal(mathMasterGrade(db, 'none', key), null, `none ${key}: MathMaster shows no grade`);
+  // A section with no work at the due date is Missing, not a returned 0 (the
+  // owner, 2026-11-19, #545): nothing is sent for it, so Classroom shows the
+  // work as Missing, as MathMaster's own screens do. The final cutoff still
+  // sends the 0 (the test below).
+  for (const [id, key] of SECTIONS.map((section) => ['none', section])) {
+    assert.deepEqual(steps(googleFor[id])[key], [], `${id} ${key}: Google is not asked`);
+    assert.equal(row(db, id, key), undefined, `${id} ${key}: no row says a grade was sent`);
+    assert.equal(mathMasterGrade(db, id, key), null, `${id} ${key}: MathMaster shows no grade`);
   }
 
   // Nobody's work changed: the checkpoint writes grades to Classroom, never to MathMaster.
@@ -316,6 +319,13 @@ test('at the final-deadline wake-up a completed section stays FINAL and is not s
   assert.deepEqual(steps(googleFor.partial), { warmup: ['list', 'patch', 'return'], classwork: ['list', 'patch', 'return'] });
   for (const key of SECTIONS) {
     assert.deepEqual([row(db, 'partial', key).stage, row(db, 'partial', key).isFinal, row(db, 'partial', key).returnedToStudent], ['final-deadline', true, true], `partial ${key}`);
+  }
+  // The final cutoff is where no work becomes a grade: the 0 is assigned and
+  // returned, as before.
+  assert.deepEqual(steps(googleFor.none), { warmup: ['list', 'patch', 'return'], classwork: ['list', 'patch', 'return'] });
+  for (const key of SECTIONS) {
+    assert.deepEqual(patchesOn(googleFor.none, key), [{ draftGrade: 0, assignedGrade: 0 }], `none ${key}`);
+    assert.deepEqual([row(db, 'none', key).stage, row(db, 'none', key).grade, row(db, 'none', key).returnedToStudent], ['final-deadline', 0, true], `none ${key}`);
   }
 });
 

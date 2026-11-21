@@ -221,7 +221,7 @@ test('once the student has turned it in, the next push returns it and the row is
   assert.equal(db.data(`grades/${STUDENT}`).classroomSectionSyncStatusByAssignment.A1.warmup.returnedToStudent, true);
 });
 
-test('a teacher\'s Retry asks Google again; a reconcile sends the grade again but does not', async () => {
+test('a teacher\'s Retry asks Google again; a reconcile sends nothing for a grade Classroom already holds', async () => {
   const retried = await completeWarmup();
   retried.google.calls.length = 0;
   logged.length = 0;
@@ -233,7 +233,10 @@ test('a teacher\'s Retry asks Google again; a reconcile sends the grade again bu
   const reconciled = await completeWarmup();
   reconciled.google.calls.length = 0;
   await writeGrades({ db: reconciled.db, google: reconciled.google, studentId: STUDENT, change: signal('section-grade-reconcile') });
-  assert.deepEqual(reconciled.google.steps('cw-warmup'), ['list', 'patch']);
+  // A reconcile no longer forces a send (the owner, 2026-11-19, #545 option
+  // A): the column is current, so Google is not called, and the refused
+  // return is not asked for again.
+  assert.deepEqual(reconciled.google.steps('cw-warmup'), []);
   assert.equal(row(reconciled.db, 'warmup').status, 'graded-not-returned');
 });
 
