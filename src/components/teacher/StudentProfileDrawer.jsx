@@ -4,7 +4,8 @@ import StudentPerformanceBadge from '../common/StudentPerformanceBadge.jsx';
 import StudentLearningProfileView from './StudentLearningProfileView.jsx';
 import { resolveAdaptiveRigorFromProfile } from '../../platform/rigor/courseRigor.js';
 import { courseLabel, courseLevelLabel } from '../../../functions/shared/classModel.mjs';
-import { SUPPORT_EVENT_LABEL, SUPPORT_STAGE_LABEL } from '../../platform/teacher/studentSupportSignals.js';
+import { SUPPORT_EVENT_LABEL, SUPPORT_STAGE_LABEL, buildArchivedIntegrityReviewSignal } from '../../platform/teacher/studentSupportSignals.js';
+import WorthAConversation from './WorthAConversation.jsx';
 import StudentAssignmentsList from './StudentAssignmentsList.jsx';
 import StudentSupportEvidencePanel from './StudentSupportEvidencePanel.jsx';
 import StudentRewardsPanel, { useStudentRewards } from './rewards/StudentRewardsPanel.jsx';
@@ -116,6 +117,19 @@ export default function StudentProfileDrawer({
 
   if (!open) return null;
 
+  // Today's fast-and-right signal, from the sessions already loaded here: the
+  // same rule the Live view and the archive use (studentSupportSignals.js).
+  const fastAndRight = sessionSummaries.slice(0, 8).map((summary) => {
+    const signal = buildArchivedIntegrityReviewSignal(summary);
+    if (!signal) return null;
+    const ended = new Date(Number(summary.endedAt) || 0);
+    return {
+      key: `fast-${summary.id}`,
+      where: [summary.assignmentTitle || 'Assignment session', Number.isNaN(ended.getTime()) || !Number(summary.endedAt) ? '' : ended.toLocaleDateString()].filter(Boolean).join(' · '),
+      facts: `${signal.evidence.rapidCorrect} of ${signal.evidence.timedIndependentCorrect} independent correct answers came faster than the question's expected time; ${signal.evidence.rapidDeepCorrect} were on higher-demand questions.`,
+    };
+  }).filter(Boolean);
+
   // Which of the student's two numbers is which (studentDistrictIdModel.js).
   const district = describeStudentDistrictId({ ...studentRecord, id: studentId || studentRecord?.id });
   const level = courseContext?.courseLevel || classRecord?.courseLevel || 'standard';
@@ -186,6 +200,18 @@ export default function StudentProfileDrawer({
                 />
               </div>
             </details>
+          )}
+
+          {/* Teacher signals: facts about this student's attempts, beside the
+              fast-and-right pattern of their archived sessions. Teachers only. */}
+          {teacherEmail && studentId && (
+            <WorthAConversation
+              studentId={studentId}
+              studentName={studentName}
+              assignments={assignments}
+              teacherEmail={teacherEmail}
+              fastAndRight={fastAndRight}
+            />
           )}
 
           {onOpenCaseReview && studentId && (
