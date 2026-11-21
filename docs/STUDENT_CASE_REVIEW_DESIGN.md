@@ -228,6 +228,26 @@ Recovery), support evidence present, evidence missing, and a suggested instructi
 fixed rules (concern standard with the most not-correct items and DOL below instruction first). Never a
 diagnosis.
 
+### 3.10 Work-pattern signals (`workPatternSignals.js`)
+
+Added with the teacher signals (`docs/platform/SHOWING_THE_PROCESS.md`,
+section 7). The inputs are the student's stored signals
+(`grades/{sid}/attemptSignals`, read under its own rule) and the case's
+question rows. The section holds counts only:
+
+- how often each kind occurs among the questions answered in the window;
+- first-attempt and final accuracy on answered questions with a signal, beside
+  those without;
+- counts by section, and in or outside the class's scheduled time;
+- each signal, with its review (who, when, the teacher's note).
+
+It is labelled "not conclusive" wherever it is drawn. It feeds the timeline
+(kind `work-pattern-signal`, group `signals`), the Signals CSV, print section
+13 and "What needs attention?" (the count not yet reviewed). It does not feed
+the narrative facts: `narrativeFacts.js` never reads it, and
+`narrativeGuard.js` has an `integrity-conclusion` family that refuses a
+template saying a student cheated, copied or used AI.
+
 ## 4. The case review model and exports (`studentCaseReview.js`, `caseReviewExport.js`)
 
 `buildStudentCaseReview(inputs)` calls PR #401's `buildSupportEvidenceReport` once (same selection, rows,
