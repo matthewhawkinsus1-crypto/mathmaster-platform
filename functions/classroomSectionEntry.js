@@ -464,7 +464,7 @@ const reconcileClassroomSectionGrades = onCall(async (request) => {
     db,
     assignmentId,
     assignment,
-    reason: classroomReconcileRuns.RECONCILE_REASON,
+    reason: "section-grade-reconcile",
     requireSavedTracker: true,
     onlyClassIds,
     run,
