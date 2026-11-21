@@ -142,11 +142,13 @@ test('where the section shows no example, QuestionEngine builds none and draws n
   const lesson = region(host, "renderMemo('workedExampleLesson',", '}));', 'the lesson handed over');
   assert.match(lesson, /sectionRole: activeQuestionRole,/);
   assert.doesNotMatch(lesson, /runtimeActivityRole/);
-  for (const line of [/questions,/, /index: currentQuestionIndex,/, /assignment,/]) assert.match(lesson, line);
+  // The questions this student is given (a retired or omitted one is not among them), and every question for the item check.
+  for (const line of [/questions: includedQuestionIndices\.map\(\(index\) => questions\[index\]\),/, /index: includedQuestionIndices\.indexOf\(currentQuestionIndex\),/, /assignmentQuestions: questions,/, /assignment,/]) assert.match(lesson, line);
+  assert.match(host, /const includedQuestionIndices = projectedEntries\.map\(\(entry\) => entry\.storageIndex\);/);
   assert.match(host, /workedExampleLesson=\{currentWorkedExampleLesson\}/);
   // QuestionEngine works the context out from it, with each question's own section role.
   const context = region(engine, 'const workedExampleContext = useMemo(() => (workedExampleLesson ? lessonExampleContext({', '}) : null), [workedExampleLesson]);', 'the example context');
-  for (const line of [/questions: workedExampleLesson\.questions,/, /index: workedExampleLesson\.index,/, /sectionRole: workedExampleLesson\.sectionRole,/, /roleOf: \(candidate\) => resolveQuestionActivityRole\(\{ question: candidate, assignment: workedExampleLesson\.assignment \|\| \{\} \}\),/, /lessonSupports: workedExampleLesson\.assignment\?\.lessonSupports,/]) assert.match(context, line);
+  for (const line of [/questions: workedExampleLesson\.questions,/, /index: workedExampleLesson\.index,/, /sectionRole: workedExampleLesson\.sectionRole,/, /roleOf: \(candidate\) => resolveQuestionActivityRole\(\{ question: candidate, assignment: workedExampleLesson\.assignment \|\| \{\} \}\),/, /lessonSupports: workedExampleLesson\.assignment\?\.lessonSupports,/, /assignmentQuestions: workedExampleLesson\.assignmentQuestions,/]) assert.match(context, line);
 });
 
 test('it opens by itself before the first Classwork question on a new skill, once', () => {
@@ -170,6 +172,19 @@ test('it opens by itself before the first Classwork question on a new skill, onc
     { questionId: 'b', activityRole: 'classwork', studentActions: ['multipleResponses'], standard: 'A.2B', prompt: 'Describe the other graph.' },
   ];
   assert.equal(lessonExampleContext({ questions: bare, index: 1, sectionRole: 'classwork' }).newSkill, true);
+
+  // Question Family slots are stored as blueprints, with no numbers until delivered: the family is the skill, and a
+  // slot a support family claims taught it. The second slot opens none; another family's slot is a new skill.
+  const slot = (questionId, id) => ({ questionId, type: 'multiAnswer', activityRole: 'classwork', questionFamily: { id, version: 1, tool: 'multiAnswer' } });
+  const slots = [slot('f1', 'linear.twoStepEquation'), slot('f2', 'linear.twoStepEquation'), slot('f3', 'quadratics.identifyVertex')];
+  assert.deepEqual(slots.map((_, index) => lessonExampleContext({ questions: slots, index, sectionRole: 'classwork' }).newSkill), [true, false, true]);
+  // A question the student is not given (retired, or left out of their work) taught nothing: the host passes only
+  // theirs, so with CW 2 gone CW 3 is the first equation they meet. Every question still counts as an item.
+  const given = questions.filter((question) => question.questionId !== 'ls-cw-2');
+  const withoutCw2 = lessonExampleContext({ questions: given, index: indexOfQuestion(given, 'ls-cw-3'), sectionRole: 'classwork', assignmentQuestions: questions, roleOf: (question) => resolveQuestionActivityRole({ question, assignment }) });
+  assert.equal(withoutCw2.newSkill, true);
+  assert.deepEqual([...withoutCw2.assignmentProblems], [...contextAt(assignment, 'ls-cw-3', 'classwork').assignmentProblems]);
+  assert.equal(lessonExampleContext({ questions: given, index: -1, sectionRole: 'classwork' }).newSkill, false, 'a question not among theirs opens none');
 
   const rule = exampleSectionRule({ sectionRole: 'classwork', activityRole: 'classwork', hintsAllowed: true });
   const example = { prompt: 'p', steps: ['s'], answer: 'a' };

@@ -196,10 +196,13 @@ export function createAssignmentWorkspaceView(
     // lesson around the question, from which QuestionEngine works out whether
     // this is the first Classwork question on a new skill. Only handed over
     // here: the example's code loads with the question, not with Home.
-    const currentWorkedExampleLesson = renderMemo('workedExampleLesson', [questions, currentQuestionIndex, activeQuestionRole, assignment], () => ({
+    // `questions` are the ones THIS student is given, in order: a question
+    // retired or left out of their work taught them nothing.
+    const currentWorkedExampleLesson = renderMemo('workedExampleLesson', [questions, includedQuestionIndices.join(','), currentQuestionIndex, activeQuestionRole, assignment], () => ({
       sectionRole: activeQuestionRole,
-      questions,
-      index: currentQuestionIndex,
+      questions: includedQuestionIndices.map((index) => questions[index]),
+      index: includedQuestionIndices.indexOf(currentQuestionIndex),
+      assignmentQuestions: questions,
       assignment,
     }));
     const currentSectionVariantMode = getSectionVariantMode(assignment, activeQuestionRole);

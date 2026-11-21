@@ -397,7 +397,8 @@ function QuestionEngineBody({
   // your score. Your teacher can see you used one." (hintCopy.js).
   hintCostNote = null,
   // The lesson around this question, for its worked example: { sectionRole
-  // (the section's OWN role), questions, index, assignment }. From it the
+  // (the section's OWN role), questions (the ones this student is given),
+  // index, assignmentQuestions, assignment }. From it the
   // example's rules are worked out below (examplePlayer.js
   // lessonExampleContext). Null on every other host: the example is then on
   // request only, wherever hints are allowed.
@@ -1964,6 +1965,7 @@ function QuestionEngineBody({
     sectionRole: workedExampleLesson.sectionRole,
     roleOf: (candidate) => resolveQuestionActivityRole({ question: candidate, assignment: workedExampleLesson.assignment || {} }),
     lessonSupports: workedExampleLesson.assignment?.lessonSupports,
+    assignmentQuestions: workedExampleLesson.assignmentQuestions,
   }) : null), [workedExampleLesson]);
   const exampleRule = exampleSectionRule({
     sectionRole: workedExampleContext?.sectionRole,

@@ -42,6 +42,7 @@
  */
 import { buildSimilarWorkedExample, similarExampleIsSafe } from './similarProblem.js';
 import { exampleSkillOf } from './exampleSkill.js';
+import { familyFor } from '../families/index.js';
 
 const text = (value) => (typeof value === 'string' ? value.trim() : '');
 const lower = (value) => text(value).toLowerCase();
@@ -157,6 +158,19 @@ export const workedExampleFor = (question, { seed = 0, lessonSupports = null, se
 
 /* --------------------------------------- before the first question on a skill */
 
+// A Question Family slot is stored as a blueprint: its numbers, and so its
+// worked sibling, exist only once it is delivered. Its skill is its family,
+// and it has an example when a support family claims it.
+const familySlotId = (question) => (isObject(question?.questionFamily) ? text(question.questionFamily.id) : '');
+const lessonSkillOf = (question) => exampleSkillOf(question) || familySlotId(question) || null;
+const claimedFamilySlot = (question) => {
+  try {
+    return Boolean(familySlotId(question)) && Boolean(familyFor(question));
+  } catch {
+    return false;
+  }
+};
+
 /**
  * What the assignment tells the question about its example: the section's own
  * role, the lesson's examples, the assignment's problems, and whether this is
@@ -164,25 +178,29 @@ export const workedExampleFor = (question, { seed = 0, lessonSupports = null, se
  * (`newSkill`). An earlier question on the same skill that showed one has
  * taught it already; a question that says it needs none opens none.
  *
- *   questions   the assignment's questions, in the order a student meets them;
- *   index       this question's place in them;
- *   roleOf      (question) → its section's role.
+ *   questions            the questions THIS student is given, in the order
+ *                        they meet them (a retired or omitted question taught
+ *                        nothing);
+ *   index                this question's place in them;
+ *   roleOf               (question) → its section's role;
+ *   assignmentQuestions  every question of the assignment, for "never another
+ *                        item on the same assignment" (default: `questions`).
  */
-export const lessonExampleContext = ({ questions = [], index = -1, sectionRole = null, roleOf = null, lessonSupports = null } = {}) => {
+export const lessonExampleContext = ({ questions = [], index = -1, sectionRole = null, roleOf = null, lessonSupports = null, assignmentQuestions = null } = {}) => {
   const supports = isObject(lessonSupports) ? lessonSupports : null;
   const all = list(questions);
-  const assignmentProblems = assignmentProblemKeys(all);
+  const assignmentProblems = assignmentProblemKeys(Array.isArray(assignmentQuestions) ? assignmentQuestions : all);
   const context = { sectionRole: lower(sectionRole) || null, lessonSupports: supports, assignmentProblems, newSkill: false };
   const question = all[index];
   if (!isObject(question) || context.sectionRole !== 'classwork' || questionExampleExemption(question)) return context;
-  const skill = exampleSkillOf(question);
+  const skill = lessonSkillOf(question);
   const role = (candidate) => lower(typeof roleOf === 'function' ? roleOf(candidate) : candidate?.activityRole);
   const taughtEarlier = Boolean(skill) && all.slice(0, index).some((earlier) => (
     isObject(earlier)
       && role(earlier) === 'classwork'
       && !questionExampleExemption(earlier)
-      && exampleSkillOf(earlier) === skill
-      && Boolean(workedExampleFor(earlier, { lessonSupports: supports, sectionRole: 'classwork', assignmentProblems }))
+      && lessonSkillOf(earlier) === skill
+      && (claimedFamilySlot(earlier) || Boolean(workedExampleFor(earlier, { lessonSupports: supports, sectionRole: 'classwork', assignmentProblems })))
   ));
   return { ...context, newSkill: !taughtEarlier };
 };
