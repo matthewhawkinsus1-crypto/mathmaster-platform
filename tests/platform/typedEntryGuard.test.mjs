@@ -26,7 +26,7 @@ import '../../functions/shared/formSpecificFieldGrading.mjs';
 import { gradeLiteralResponse, gradeMultiAnswerResponse, gradeOrderedPairResponse, gradeTableResponse, normalizeOrdinaryResponse } from '../../functions/shared/ordinaryResponseGrading.mjs';
 import { gradeServerResponse } from '../../functions/shared/serverGrading/serverResponseGrading.mjs';
 import { typedFieldCorpus } from '../../scripts/lib/graderFuzz/corpus.mjs';
-import { manyTermsInput } from '../../scripts/lib/graderFuzz/inputs.mjs';
+import * as fuzzInputs from '../../scripts/lib/graderFuzz/inputs.mjs';
 import { createRng } from '../../scripts/lib/graderFuzz/prng.mjs';
 import { editorTypedSpellings } from '../../scripts/lib/editorTypedSpelling.mjs';
 import { typedSpellingsOf } from '../../scripts/lib/typedAnswerSpellings.mjs';
@@ -248,7 +248,7 @@ test('#558, the work: many short terms inside 240 characters cost milliseconds, 
     `${'('.repeat(119)}x${')'.repeat(119)}`,
     '(\\frac{1}{2}+'.repeat(18),
   ]);
-  for (let index = 0; index < 40; index += 1) inputs.add(manyTermsInput(rng));
+  for (let index = 0; index < 40; index += 1) inputs.add(fuzzInputs.manyTermsInput(rng));
   const keys = ['5x', 'x^2+5x+6', '(x+2)(x+3)', '\\frac{x+1}{x-2}', '3\\sqrt{2}', '12', 'x/4', 'y=2x+1', 'y-5=2(x-1)', '2x+3y=6', 'x^2+5x+6=0', 'y<2x+1', '(2,3)', '[-3, 5)', '|x-3|=5'];
   const comparisons = {
     sameValue: (typed, key) => sameValue(typed, key),

@@ -115,7 +115,7 @@ for (const device of DEVICES) {
 
     // 1. A sign left dangling.
     const unfinished = await typeAndRead(context, device, surface, unfinishedKeys);
-    check(/\+$/.test(unfinished.typed), `${label}: the box holds ${JSON.stringify(unfinishedKeys)}`, JSON.stringify(unfinished.typed));
+    check(unfinished.typed.endsWith('+'), `${label}: the box holds ${JSON.stringify(unfinishedKeys)}`, JSON.stringify(unfinished.typed));
     check(unfinished.early.length === 0, `${label}: nothing is said while the entry is still being typed`, JSON.stringify(unfinished.early));
     check(unfinished.notices.length === 1 && NOT_FINISHED.test(unfinished.notices[0]), `${label}: the box says the answer is not finished`, JSON.stringify(unfinished.notices));
     if (surface.tries) {
@@ -124,7 +124,7 @@ for (const device of DEVICES) {
       check(unfinished.submits === 0, `${label}: nothing was submitted, by the button or by Enter`, `${unfinished.submits} submit(s)`);
     } else {
       check(/cannot be marked right/.test(unfinished.notices[0] || '') && !/try/.test(unfinished.notices[0] || ''), `${label}: the box says it cannot be marked right as it stands, and names no try`, JSON.stringify(unfinished.notices));
-      check(unfinished.drafts.length > 0 && /\+$/.test(String(unfinished.drafts.at(-1))), `${label}: the draft is still saved as typed (nothing is lost)`, JSON.stringify(unfinished.drafts.slice(-1)));
+      check(unfinished.drafts.length > 0 && String(unfinished.drafts.at(-1)).endsWith('+'), `${label}: the draft is still saved as typed (nothing is lost)`, JSON.stringify(unfinished.drafts.slice(-1)));
       check(unfinished.submits === 0, `${label}: nothing is recorded per question`, `${unfinished.submits}`);
     }
     check(!unfinished.errors.length, `${label}: no page errors`, unfinished.errors.slice(0, 2).join(' | '));
