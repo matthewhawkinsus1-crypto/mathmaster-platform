@@ -43,6 +43,13 @@ function reconcileRunDocumentId(assignmentId, teacherUid) {
   return [assignmentId, teacherUid].map((part) => encodeURIComponent(clean(part))).join("__");
 }
 
+// A student's entry is keyed by a digest of the run and their id: the report
+// needs one entry a student, not who they are, so the document names no
+// student and student erasure has nothing to find in it.
+function reconcileStudentKey(runId, studentId) {
+  return crypto.createHash("sha256").update(`${clean(runId)}/${clean(studentId)}`).digest("hex").slice(0, 20);
+}
+
 function newReconcileRunId() {
   return crypto.randomUUID();
 }
@@ -104,7 +111,7 @@ async function recordReconcileStudent(db, { assignmentId, scope, studentId, coun
   if (!scope?.runId) return false;
   try {
     await db.collection(CLASSROOM_RECONCILE_RUNS).doc(reconcileRunDocumentId(assignmentId, scope.teacherUid)).update(
-      new FieldPath("results", scope.runId, clean(studentId)),
+      new FieldPath("results", scope.runId, reconcileStudentKey(scope.runId, studentId)),
       Object.fromEntries(OUTCOMES.map((name) => [name, Math.max(0, Number(counts?.[name]) || 0)])),
       "updatedAt",
       FieldValue.serverTimestamp()
@@ -160,6 +167,7 @@ module.exports = {
   readTeacherReconcileRuns,
   reconcileRunDocumentId,
   reconcileScopeOfSignal,
+  reconcileStudentKey,
   reconcileTally,
   recordReconcileStudent,
   startReconcileRun,

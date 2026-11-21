@@ -65,3 +65,38 @@ export function isGradeSyncRetryEligible(sync = {}) {
 export function retryEligibleGradeSyncs(syncs = []) {
   return (Array.isArray(syncs) ? syncs : []).filter(isGradeSyncRetryEligible);
 }
+
+const count = (value) => Math.max(0, Math.floor(Number(value) || 0));
+
+/**
+ * What the teacher's last "Reconcile section grades" on an assignment did, as
+ * one line: "Last reconcile: 12 repaired, 40 already up to date, 3 not sent,
+ * 2 failed". The counts are grade columns (one student in one Classroom
+ * column), added up by the server from each student's push
+ * (functions/lib/classroomReconcileRuns.js). While pushes are still in the
+ * paced queue, or waiting out Google's limit, the line says how many. Null
+ * when there is no run to show.
+ */
+export function reconcileRunSummaryText(run) {
+  if (!run || !clean(run.runId)) return null;
+  const parts = [
+    `${count(run.repaired)} repaired`,
+    `${count(run.upToDate)} already up to date`,
+    `${count(run.notSent)} not sent`,
+    `${count(run.failed)} failed`,
+  ];
+  const waiting = count(run.waiting);
+  const pending = count(run.pendingStudents);
+  const tail = [
+    waiting ? `${waiting} waiting for Google's limit` : '',
+    pending ? `${pending} student${pending === 1 ? '' : 's'} still in the queue` : '',
+  ].filter(Boolean);
+  return `Last reconcile: ${parts.join(', ')}${tail.length ? ` (${tail.join('; ')})` : ''}`;
+}
+
+/** The run for one assignment among the monitor's `reconcileRuns`, or null. */
+export function reconcileRunForAssignment(runs, assignmentId) {
+  const id = clean(assignmentId);
+  if (!id) return null;
+  return (Array.isArray(runs) ? runs : []).find((run) => clean(run?.assignmentId) === id) || null;
+}

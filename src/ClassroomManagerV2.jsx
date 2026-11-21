@@ -50,6 +50,8 @@ import {
   gradeSyncStudentDisplay,
   gradeSyncErrorText,
   gradeSyncStatusLabel,
+  reconcileRunForAssignment,
+  reconcileRunSummaryText,
   retryEligibleGradeSyncs,
 } from './classroomGradeSyncUi';
 
@@ -124,9 +126,13 @@ export default function ClassroomManagerV2({
   const [gradeSyncs, setGradeSyncs] = useState([]);
   // Grade pushes waiting in the server's paced queue (functions/lib/classroomPushQueue.js).
   const [pushQueueWaiting, setPushQueueWaiting] = useState(0);
+  // What this teacher's last "Reconcile section grades" did, one entry an
+  // assignment (functions/lib/classroomReconcileRuns.js).
+  const [reconcileRuns, setReconcileRuns] = useState([]);
   const applyGradeSyncResult = (result) => {
     setGradeSyncs(result?.syncs || []);
     setPushQueueWaiting(Number(result?.pushQueue?.waiting) || 0);
+    setReconcileRuns(Array.isArray(result?.reconcileRuns) ? result.reconcileRuns : []);
   };
   const [selectedCourseIds, setSelectedCourseIds] = useState([]);
   const [rosterCourseId, setRosterCourseId] = useState('');
@@ -1156,15 +1162,21 @@ export default function ClassroomManagerV2({
               Regrade an assignment that is already closed
             </h4>
             <div style={{ marginTop: 4, color: 'var(--mm-text-muted)', fontSize: 'calc(12 * var(--mm-px))', lineHeight: 1.45 }}>
-              This independently recalculates every published section grade from canonical saved MathMaster work and repairs stale or false-zero Classroom columns. Students do not need to reopen or redo the assignment.
+              This independently recalculates your published section grades from canonical saved MathMaster work and repairs stale or false-zero Classroom columns. A column Classroom already holds is left as it is; use a row's Recalculate &amp; resend to send one again. Students do not need to reopen or redo the assignment.
             </div>
+            {reconcileRunSummaryText(reconcileRunForAssignment(reconcileRuns, selectedAssignment.id)) && (
+              <div role="status" style={{ marginTop: 6, color: 'var(--mm-primary-text)', fontSize: 'calc(12 * var(--mm-px))', fontWeight: 800, lineHeight: 1.45 }}>
+                {reconcileRunSummaryText(reconcileRunForAssignment(reconcileRuns, selectedAssignment.id))}
+                <span style={{ fontWeight: 400, color: 'var(--mm-text-muted)' }}> Counted in grade columns; refresh to update.</span>
+              </div>
+            )}
             <button
               type="button"
               style={{ ...secondary, marginTop: 8, borderColor: '#1a73e8', color: 'var(--mm-primary-text)', background: 'var(--mm-surface)' }}
               disabled={busy}
               onClick={() => {
                 const confirmed = window.confirm(
-                  `Reconcile section grades for "${selectedAssignment?.title || 'this assignment'}"?\n\nThis will independently update the existing Google Classroom section columns using each student's saved MathMaster work. It will not create posts or change student work.`
+                  `Reconcile section grades for "${selectedAssignment?.title || 'this assignment'}"?\n\nThis will update your existing Google Classroom section columns that differ from each student's saved MathMaster work. It will not create posts, change student work, or touch another teacher's columns.`
                 );
                 if (!confirmed) return;
                 run(async () => {
@@ -1172,7 +1184,7 @@ export default function ClassroomManagerV2({
                     assignmentId: selectedAssignment.id,
                   });
                   applyGradeSyncResult(await listClassroomGradeSyncs());
-                  setStatus(`Queued section-grade reconciliation for ${result.queuedStudents} student${result.queuedStudents === 1 ? '' : 's'} across ${result.publications} preserved Classroom publication${result.publications === 1 ? '' : 's'}. MathMaster sends them a minute's worth at a time to stay within Google's limit. Their saved MathMaster work remains unchanged.`);
+                  setStatus(`Queued section-grade reconciliation for ${result.queuedStudents} student${result.queuedStudents === 1 ? '' : 's'} across ${result.publications} preserved Classroom publication${result.publications === 1 ? '' : 's'}. MathMaster sends them a minute's worth at a time to stay within Google's limit; refresh to see what the run repaired. Their saved MathMaster work remains unchanged.`);
                 });
               }}
             >
