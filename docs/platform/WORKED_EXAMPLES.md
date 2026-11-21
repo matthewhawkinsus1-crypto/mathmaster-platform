@@ -1,6 +1,9 @@
 # Worked examples: the platform teaches each new skill
 
-Status: **decided by the owner on 2026-11-20; not built yet.** This page is the
+Status: **decided by the owner on 2026-11-20.** Built so far: slice A (the
+player and the section rules, for step cards and the built-in examples) and
+slice B (the coverage report). Tool replays and the other slices are not built
+yet. This page is the
 spec. The build is split into slices that can ship in any order (section 9).
 Its companion, `docs/platform/SHOWING_THE_PROCESS.md`, covers answer boxes that
 one screenshot cannot answer.

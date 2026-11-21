@@ -28,6 +28,7 @@ import { buildQuestionHints, diagnosisHint, hintLadderView, hintRelease } from '
 import { hintCostSentence } from './platform/supports/hints/hintCopy.js';
 import { hintPanelFocusTarget, keepHintPanelInView, requestedHintPanelPlace } from './platform/supports/hints/hintPanelReveal.js';
 import { buildSimilarWorkedExample } from './platform/supports/workedExample/similarProblem.js';
+import { lessonExampleContext, resolveWorkedExample } from './platform/supports/workedExample/lessonExample.js';
 import PracticeLikeThis from './platform/supports/workedExample/PracticeLikeThis.jsx';
 import { chosenOptionReasons, oneTryNotice } from './platform/supports/feedback/oneTryChoice.js';
 import { SAME_ANSWER_AGAIN, focusOnText, missOutcomeText, submitActionLabel, submitTryCost, triesLeftText } from './platform/student/submitCost.js';
@@ -286,6 +287,19 @@ function QuestionEngineBody({
   // section). Recovery, corrections, Path and previews of other hosts never
   // pass it, whatever policy they run on (practiceLikeThis.js).
   practiceLikeThisAllowed = false,
+  // What the lesson says about this question's worked example, from the host
+  // that holds the whole assignment (lessonExample.js lessonExampleContext):
+  // the section's own role, the authored example the question names (or an
+  // earlier Classwork question on its skill does), an exemption, and whether
+  // this is the first question on its skill. Null from every other host:
+  // the built-in sibling is then offered on request, as before.
+  workedExampleContext = null,
+  // Or what that is worked out from, for a host that must stay light (the
+  // student's assignment screen is in the first load; the reading is not):
+  // { questions, index, sectionRoles, lessonSupports }, the assignment's
+  // questions in order, this one's place, each one's section role, and the
+  // assignment's `lessonSupports`.
+  workedExampleLesson = null,
   activityPolicy = null,
   feedbackReleased = false,
   // The teacher released the ASSIGNMENT's feedback (not the per-item
@@ -406,6 +420,17 @@ function QuestionEngineBody({
   // 'practice': legacy practice content mounts without one.
   const ladderRoleKnown = Boolean(activityPolicy) || isActivityRole(String(activityRole ?? '').trim().toLowerCase());
   const stableQuestion = useDeepStableValue(question);
+  const lessonQuestions = workedExampleLesson?.questions;
+  const lessonQuestionIndex = workedExampleLesson?.index;
+  const lessonSectionRoles = workedExampleLesson?.sectionRoles;
+  const lessonSupports = workedExampleLesson?.lessonSupports;
+  const lessonExample = useMemo(
+    () => (Array.isArray(lessonQuestions)
+      ? lessonExampleContext({ questions: lessonQuestions, index: lessonQuestionIndex, lessonSupports, roleOf: (_question, at) => lessonSectionRoles?.[at] })
+      : null),
+    [lessonQuestions, lessonQuestionIndex, lessonSectionRoles, lessonSupports],
+  );
+  const stableExampleContext = useDeepStableValue(workedExampleContext || lessonExample);
   const stableStudentProfile = useDeepStableValue(studentProfile);
   // Deep-stabilised like the profile: `adaptation` is rebuilt on every parent
   // render, so a raw object reference in the dependency list would regenerate
@@ -683,6 +708,10 @@ function QuestionEngineBody({
   const [missRungReads, setMissRungReads] = useState(0);
   const [workedExampleUsed, setWorkedExampleUsed] = useState(restoredSupport.workedExampleUsed);
   const [similarOpen, setSimilarOpen] = useState(false);
+  // The example opened by itself (Classwork, the first question on a skill):
+  // which question it opened on, and whether the student has finished with it.
+  const [similarOpenedByItself, setSimilarOpenedByItself] = useState(false);
+  const exampleByItselfRef = useRef(null);
   // The graded work behind the feedback on screen, kept beside it for the
   // display-only miss message (missDiagnosis.js). Never sent anywhere.
   const [gradedForDisplay, setGradedForDisplay] = useState(null);
@@ -846,6 +875,7 @@ function QuestionEngineBody({
     setHintPanelOpen(false);
     setWorkedExampleUsed(restored.workedExampleUsed);
     setSimilarOpen(false);
+    setSimilarOpenedByItself(false);
     setGradedForDisplay(null);
     setWorkflowSubmissionReview(null);
     setPreviousMiss(null);
@@ -1944,9 +1974,23 @@ function QuestionEngineBody({
   // Where the platform carries the ladder, a registry tool hands its rungs to
   // it instead of showing a second ladder (ToolShell HintPanel).
   const toolHintPublisher = hintControlAllowed ? toolHintChannel.publish : null;
+  /*
+   * THE WORKED EXAMPLE (WE-A, lessonExample.js): the lesson's authored step
+   * card where the question names one (or an earlier Classwork question on
+   * its skill does), else the built-in sibling. Stepped through in the Hint
+   * panel. The section rules are decided there, from the section's own role
+   * and this same permission: nothing on a DOL, quiz or test, nothing where
+   * hints are withheld, and nothing for a question the lesson exempts.
+   */
   const similarExample = useMemo(
-    () => (hintControlAllowed ? buildSimilarWorkedExample(processedQuestion, { seed: Number(record.variantIndex) || 0 }) : null),
-    [hintControlAllowed, processedQuestion, record.variantIndex],
+    () => resolveWorkedExample({
+      question: processedQuestion,
+      context: stableExampleContext,
+      builtIn: () => buildSimilarWorkedExample(processedQuestion, { seed: Number(record.variantIndex) || 0 }),
+      activityRole: resolvedActivityPolicy?.role || activityRole,
+      hintsAllowed: hintControlAllowed,
+    }),
+    [hintControlAllowed, processedQuestion, record.variantIndex, stableExampleContext, resolvedActivityPolicy?.role, activityRole],
   );
   const askTeacher = typeof onAskTeacher === 'function' && !locked && !serverGrading
     ? { ...askTeacherContext, requested: Boolean(helpRequested), onToggle: () => onAskTeacher(!helpRequested) }
@@ -1995,9 +2039,58 @@ function QuestionEngineBody({
     if (!similarExample) return;
     requestHintFocus('example', place);
     setSimilarOpen(true);
+    setSimilarOpenedByItself(false);
     setWorkedExampleUsed(true);
     placeHintPanel(place);
     setHintPanelOpen(true);
+  };
+  /*
+   * ON CLASSWORK IT OPENS BY ITSELF BEFORE THE FIRST QUESTION ON A SKILL, ONCE
+   * (WE-A; the owner's decision 1). Only where the example says so
+   * (lessonExample.js: a Classwork section, the first question on its skill),
+   * only before the first try, and only if this student has not had it on
+   * this question already: an example seen is recorded as workedExampleUsed
+   * and kept per draft key (supportUseMemory.js), so coming back to the
+   * question does not open it again. It is recorded exactly as a requested
+   * one is, and takes no focus: the student did not ask for it. A reset of
+   * the question's state before the student has finished with it (the
+   * question arriving again) opens it again rather than leaving it shut.
+   */
+  const exampleOpensByItself = Boolean(similarExample?.opensByItself && helpControlAvailable && !locked && !(Number(record.attemptCount) > 0));
+  useEffect(() => {
+    if (!exampleOpensByItself) return;
+    const key = draftKey || String(processedQuestion?.questionId || 'question');
+    const mine = exampleByItselfRef.current;
+    if (mine?.key === key) {
+      if (mine.done || similarOpen) return;
+    } else if (workedExampleUsed || restoredSupportUse({ draftKey, record }).workedExampleUsed) {
+      exampleByItselfRef.current = { key, done: true };
+      return;
+    }
+    exampleByItselfRef.current = { key, done: false };
+    setSimilarOpenedByItself(true);
+    setSimilarOpen(true);
+    setWorkedExampleUsed(true);
+    setHintPanelPlace('top');
+    setHintPanelOpen(true);
+  }, [exampleOpensByItself, draftKey, processedQuestion, similarOpen]); // eslint-disable-line react-hooks/exhaustive-deps
+  // "Your turn": the example closes and the student is back on their own
+  // question, in its first answer box (or on the Hint control, where the
+  // question has no box to type in), brought into view without animation
+  // where motion is reduced. An example that opened by itself takes the panel
+  // it brought with it; one the student asked for leaves the panel as it was.
+  // It can be opened again from the Hint panel on every question that has one.
+  const finishSimilarExample = () => {
+    if (exampleByItselfRef.current) exampleByItselfRef.current.done = true;
+    if (similarOpenedByItself) setHintPanelOpen(false);
+    setSimilarOpen(false);
+    setSimilarOpenedByItself(false);
+    focusAuthority.request(() => {
+      const root = questionEngineRef.current;
+      if (!focusFirstAnswerControl(root)) root?.querySelector?.('[data-hint-control]')?.focus?.({ preventScroll: true });
+      const landed = root?.ownerDocument?.activeElement;
+      if (landed && root.contains(landed)) landed.scrollIntoView?.({ block: 'nearest', behavior: scrollMotion() });
+    }, { since: 'now' });
   };
   // The diagnosis rung, read on request: recorded exactly like a hint.
   const showMissDiagnosis = (from) => {
@@ -2047,6 +2140,8 @@ function QuestionEngineBody({
       similar={similarExample}
       similarOpen={similarOpen}
       onOpenSimilar={openSimilarExample}
+      onExampleDone={finishSimilarExample}
+      similarOpenedByItself={similarOpenedByItself}
       askTeacher={askTeacher}
       readAloud={supportedTextReadAloud}
       translation={supportedTextTranslation}

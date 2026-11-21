@@ -9,6 +9,8 @@
 //   ?record=partial|expired        the item's record: one half-right attempt, or
 //                                  out of attempts
 //   ?review=1                      the teacher has released the assignment's feedback
+//   ?section=<role>&authored=0     q=worked-example: the section's own role where it is
+//                                  not the running one, and no authored example
 //   ?ask=1&hand=1&locked=1         an "Ask my teacher" host, a hand already raised on
 //                                  this question, the section locked (every call the
 //                                  engine makes lands in __mmHelp)
@@ -146,6 +148,15 @@ const FIXTURES = {
     misconceptions: [{ match: ['-3/4', '-\\frac{3}{4}'], message: 'LEAKCHECK-MISCONCEPTION: a sign was dropped.' }],
     solutionReview: { headline: 'LEAKCHECK-REVIEW headline', reasoning: ['LEAKCHECK-REVIEW: change in y is 3.'], answerSummary: 'LEAKCHECK-REVIEW: the slope is 3/4.' },
   }),
+  // The worked-example player (WE-A): a slope question the platform can work
+  // a sibling for, on a lesson that also gives it an authored step card
+  // (WORKED_EXAMPLE_CONTEXT below, every line marked LEAKCHECK).
+  'worked-example': () => ({
+    questionId: 'leak-gates-worked-example',
+    type: 'multiAnswer',
+    prompt: 'A line passes through (1, 2) and (5, 5). Find its slope.',
+    answerFields: [{ id: 'slope', label: 'Slope', answer: '3/4', inputProfile: 'text' }],
+  }),
   // A Question Family instance: the server's classifier would name the miss.
   'feedback-family': () => ({
     questionId: 'leak-gates-feedback-family',
@@ -252,6 +263,27 @@ const RECORDS = {
 RECORDS.expired = { status: 'expired', attemptCount: 3 };
 const questionRecord = RECORDS[params.get('record')] || { status: 'unattempted', attemptCount: 0 };
 
+// What the lesson says about the worked-example fixture's example
+// (lessonExample.js lessonExampleContext): the section's own role (?section,
+// else the running role: a DOL replayed after its due date is ?role=practice
+// &section=dol), the first question on its skill, and, unless ?authored=0, an
+// authored step card.
+const WORKED_EXAMPLE_CONTEXT = which === 'worked-example' ? {
+  sectionRole: params.get('section') || role,
+  exempt: false,
+  firstOnSkill: true,
+  from: params.get('authored') === '0' ? null : 'own',
+  example: params.get('authored') === '0' ? null : {
+    id: 'leak-gates-example',
+    source: 'authored',
+    problem: 'LEAKCHECK-EXAMPLE: a line passes through (0, 1) and (2, 11).',
+    steps: [
+      { show: 'LEAKCHECK-EXAMPLE-STEP: rise 10, run 2', why: 'LEAKCHECK-EXAMPLE-WHY: subtract in the same order.' },
+      { show: 'LEAKCHECK-EXAMPLE-STEP: m = 10 / 2 = 5', why: 'LEAKCHECK-EXAMPLE-WHY: slope is rise over run.' },
+    ],
+  },
+} : null;
+
 const assignmentId = `leak-gates-${run}`;
 const draftKey = buildQuestionDraftKey({ studentId: 'leak-gates-student', assignmentId, questionIndex: 0, variantIndex: 0, sessionMode: 'graded' });
 
@@ -265,6 +297,7 @@ function Harness() {
         questionRecord={questionRecord}
         generationKey={`${assignmentId}|${which}`}
         activityRole={role}
+        workedExampleContext={WORKED_EXAMPLE_CONTEXT}
         feedbackReleased={released}
         assessmentReviewReleased={reviewReleased}
         assignmentLocked={sectionLocked}

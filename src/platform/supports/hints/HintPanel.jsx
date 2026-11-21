@@ -4,6 +4,8 @@ import { SupportedTextActions } from '../SupportedText.jsx';
 import { useAskTeacherControl } from '../AskTeacherControl.jsx';
 import { authoredLineFor } from '../../language/authoredSupportText.js';
 import { PENDING_RUNG_TEXT, hintCostSentence } from './hintCopy.js';
+import WorkedExamplePlayer from '../workedExample/WorkedExamplePlayer.jsx';
+import { EXAMPLE_PLAYER_COPY } from '../workedExample/lessonExample.js';
 
 /*
  * THE PLATFORM HINT PANEL — opened from the work bar's Hint control (and the
@@ -11,7 +13,9 @@ import { PENDING_RUNG_TEXT, hintCostSentence } from './hintCopy.js';
  *
  * Shows only what the student asked for: hints already revealed, a button for
  * the next one when its release rule allows (questionHints.js hintRelease),
- * "Try a similar one" (a worked sibling problem, similarProblem.js) and
+ * "Try a similar one" (a worked example stepped through one slide at a time:
+ * the lesson's authored step card or the built-in sibling, lessonExample.js,
+ * WorkedExamplePlayer.jsx) and
  * "Ask my teacher". Revealing a hint or opening the worked example is
  * recorded by the caller (QuestionEngine) as hintUsed / workedExampleUsed.
  * Rendered only where hints are allowed and the question is still open.
@@ -70,6 +74,12 @@ export default function HintPanel({
   similar = null,
   similarOpen = false,
   onOpenSimilar = null,
+  // "Your turn" on the example's last slide: the caller closes the example
+  // and returns the student to their own question.
+  onExampleDone = null,
+  // The example opened by itself (Classwork, the first question on a skill),
+  // so the player says so once: no press moved focus to it.
+  similarOpenedByItself = false,
   askTeacher = null,
   readAloud = null,
   translation = null,
@@ -133,8 +143,19 @@ export default function HintPanel({
       })}
     </ol>
   );
+  // The worked example, stepped through one slide a step to "Your turn"
+  // (WE-A). Asked for, it opens under the hints, where its button was. Opened
+  // by itself (Classwork, the first question on a skill) it is what the panel
+  // is open for, so it comes first.
+  const example = exampleOpen ? (
+    <details open data-similar-example="" data-example-opened-by-itself={similarOpenedByItself ? '' : undefined} style={{ padding: '12px 14px', borderRadius: 10, border: '1px solid var(--mm-tint-border)', background: 'var(--mm-surface-tint)', minWidth: 0 }}>
+      <summary style={{ ...summaryStyle, marginBottom: 6 }}>{EXAMPLE_PLAYER_COPY.title}</summary>
+      <WorkedExamplePlayer example={similar} readAloud={readAloud} translation={translation} onSupportEvidence={onSupportEvidence} onYourTurn={onExampleDone} openedByItself={similarOpenedByItself} />
+    </details>
+  ) : null;
   return (
     <section aria-label="Hints" data-hint-panel="" data-hint-sources={hints.map((hint) => hint.source || '').join(' ')} tabIndex={-1} style={{ textAlign: 'left', color: 'var(--mm-text)', display: 'grid', gap: 12 }}>
+      {similarOpenedByItself ? example : null}
       {shown.length ? (
         <>
           {folded.length ? (
@@ -183,18 +204,7 @@ export default function HintPanel({
         {ask.button}
       </div>
       {ask.status}
-      {similar && similarOpen && (
-        <details open data-similar-example="" style={{ padding: '12px 14px', borderRadius: 10, border: '1px solid var(--mm-tint-border)', background: 'var(--mm-surface-tint)' }}>
-          <summary style={{ ...summaryStyle, marginBottom: 6 }}>A similar problem, worked out</summary>
-          <MathText as="p" style={{ margin: '0 0 8px', fontWeight: 700 }}>{similar.prompt}</MathText>
-          <ol style={{ margin: 0, paddingLeft: 22, display: 'grid', gap: 6 }}>
-            {similar.steps.map((step, index) => <li key={`ex-${index}`} style={{ lineHeight: 1.55 }}><MathText>{step}</MathText></li>)}
-          </ol>
-          <p style={{ margin: '8px 0 0', fontWeight: 800 }}>Answer: <MathText>{similar.answer}</MathText></p>
-          <p style={{ margin: '8px 0 0', color: 'var(--mm-text-muted)' }}>Your question uses different numbers — use the same steps on it.</p>
-          <SupportedTextActions text={[similar.prompt, ...similar.steps, `Answer: ${similar.answer}`].join(' ')} readAloud={readAloud} translation={translation} label="the worked example" onEvidence={onSupportEvidence} />
-        </details>
-      )}
+      {similarOpenedByItself ? null : example}
     </section>
   );
 }
