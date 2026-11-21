@@ -6,10 +6,14 @@
     "folder": "Algebra I/Thanksgiving Packet",
     "instructionalPurpose": "review",
     "gradingPurpose": "classwork",
-    "instructions": "This packet reviews everything from the start of the year. There is one section for each unit, and each section starts with the basics and builds up. Work in the tool on each question: it checks your steps. A worked example opens before each new kind of question; read it first. You have 3 tries on each question, and hints are there when you need them. Do a section or two a day."
+    "instructions": "This packet reviews everything from the start of the year. There is one section for each unit, and each section starts with the basics and builds up. Work in the tool on each question: it checks your steps. A worked example opens before each new kind of question; read it first. You can try each question as many times as you need, and hints are there when you need them. The answer is not shown until you get it right. Do a section or two a day."
   },
   "variantPolicy": {
     "mode": "shared"
+  },
+  "gradingPolicy": {
+    "attemptPolicy": "unlimited",
+    "scoring": "platformDefault"
   },
   "lessonSupports": {
     "examples": [
@@ -1144,7 +1148,6 @@
       "recommendedMinutes": 30,
       "feedbackMode": "immediate",
       "hintsAllowed": true,
-      "attemptsAllowed": 3,
       "questions": [
         {
           "questionId": "tg-u1-q1",
@@ -1582,7 +1585,6 @@
       "recommendedMinutes": 60,
       "feedbackMode": "immediate",
       "hintsAllowed": true,
-      "attemptsAllowed": 3,
       "questions": [
         {
           "questionId": "tg-u2-q1",
@@ -2255,7 +2257,6 @@
       "recommendedMinutes": 32,
       "feedbackMode": "immediate",
       "hintsAllowed": true,
-      "attemptsAllowed": 3,
       "questions": [
         {
           "questionId": "tg-u3-q1",
@@ -2579,7 +2580,6 @@
       "recommendedMinutes": 28,
       "feedbackMode": "immediate",
       "hintsAllowed": true,
-      "attemptsAllowed": 3,
       "questions": [
         {
           "questionId": "tg-u4-q1",
@@ -2924,7 +2924,6 @@
       "recommendedMinutes": 26,
       "feedbackMode": "immediate",
       "hintsAllowed": true,
-      "attemptsAllowed": 3,
       "questions": [
         {
           "questionId": "tg-u5-q1",
@@ -3173,7 +3172,6 @@
       "recommendedMinutes": 45,
       "feedbackMode": "immediate",
       "hintsAllowed": true,
-      "attemptsAllowed": 3,
       "questions": [
         {
           "questionId": "tg-u6-q1",
@@ -3539,7 +3537,6 @@
       "recommendedMinutes": 38,
       "feedbackMode": "immediate",
       "hintsAllowed": true,
-      "attemptsAllowed": 3,
       "questions": [
         {
           "questionId": "tg-u7-q1",
@@ -3840,7 +3837,6 @@
       "recommendedMinutes": 36,
       "feedbackMode": "immediate",
       "hintsAllowed": true,
-      "attemptsAllowed": 3,
       "questions": [
         {
           "questionId": "tg-u8-q1",
@@ -4214,7 +4210,6 @@
       "recommendedMinutes": 40,
       "feedbackMode": "immediate",
       "hintsAllowed": true,
-      "attemptsAllowed": 3,
       "questions": [
         {
           "questionId": "tg-u9-q1",
@@ -4511,7 +4506,6 @@
       "recommendedMinutes": 48,
       "feedbackMode": "immediate",
       "hintsAllowed": true,
-      "attemptsAllowed": 3,
       "questions": [
         {
           "questionId": "tg-u10-q1",

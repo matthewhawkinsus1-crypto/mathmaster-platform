@@ -6,7 +6,7 @@
     "folder": "Algebra II Honors/Thanksgiving Packet",
     "instructionalPurpose": "review",
     "gradingPurpose": "classwork",
-    "instructions": "This packet reviews everything from the start of the year, one unit at a time. Each unit starts with the basics and builds up. When a question starts something new, read its notes and worked example first. You have 3 tries on each question, and hints are there when you need them.",
+    "instructions": "This packet reviews everything from the start of the year, one unit at a time. Each unit starts with the basics and builds up. When a question starts something new, read its notes and worked example first. You can try each question as many times as you need, and hints are there when you need them. The answer is not shown until you get it right.",
     "teacherNotes": "A cumulative review for students to work alone over Thanksgiving break: 11 units in the order they were taught, 72 questions, each unit running from its building block to grade level. Nearly every question is worked in a tool; units 9 and 10 (radical expressions and rational exponents) have no dedicated tool, so they use answer boxes that take one small step at a time, and sorts. The first question on each skill opens an authored worked example (a sibling problem with different numbers) and carries short guided notes. The last section is six audited Digital SAT questions on standards the packet reviews, so an Honors class meets its CCMR share with the file as it is."
   },
   "variantPolicy": {
@@ -17,6 +17,10 @@
     },
     "avoidRecentTemplates": true,
     "avoidDuplicateParameters": true
+  },
+  "gradingPolicy": {
+    "attemptPolicy": "unlimited",
+    "scoring": "platformDefault"
   },
   "lessonSupports": {
     "referenceCards": [
@@ -1807,7 +1811,6 @@
       "title": "Unit 1 — Interval notation, domain and range",
       "feedbackMode": "immediate",
       "hintsAllowed": true,
-      "attemptsAllowed": 3,
       "questions": [
         {
           "questionId": "tgp-u1-1",
@@ -2216,7 +2219,6 @@
       "title": "Unit 2 — Parent functions and transformations",
       "feedbackMode": "immediate",
       "hintsAllowed": true,
-      "attemptsAllowed": 3,
       "questions": [
         {
           "questionId": "tgp-u2-1",
@@ -2592,7 +2594,6 @@
       "title": "Unit 3 — Inverses, operations on functions and composition",
       "feedbackMode": "immediate",
       "hintsAllowed": true,
-      "attemptsAllowed": 3,
       "questions": [
         {
           "questionId": "tgp-u3-1",
@@ -3035,7 +3036,6 @@
       "title": "Unit 4 — Absolute value: graphs, equations and inequalities",
       "feedbackMode": "immediate",
       "hintsAllowed": true,
-      "attemptsAllowed": 3,
       "questions": [
         {
           "questionId": "tgp-u4-1",
@@ -3577,7 +3577,6 @@
       "title": "Unit 5 — 3×3 systems and matrices",
       "feedbackMode": "immediate",
       "hintsAllowed": true,
-      "attemptsAllowed": 3,
       "questions": [
         {
           "questionId": "tgp-u5-1",
@@ -4054,7 +4053,6 @@
       "title": "Unit 6 — Operations on polynomials",
       "feedbackMode": "immediate",
       "hintsAllowed": true,
-      "attemptsAllowed": 3,
       "questions": [
         {
           "questionId": "tgp-u6-1",
@@ -4353,7 +4351,6 @@
       "title": "Unit 7 — Dividing polynomials; the Remainder and Factor Theorems",
       "feedbackMode": "immediate",
       "hintsAllowed": true,
-      "attemptsAllowed": 3,
       "questions": [
         {
           "questionId": "tgp-u7-1",
@@ -4828,7 +4825,6 @@
       "title": "Unit 8 — Factoring",
       "feedbackMode": "immediate",
       "hintsAllowed": true,
-      "attemptsAllowed": 3,
       "questions": [
         {
           "questionId": "tgp-u8-1",
@@ -5436,7 +5432,6 @@
       "title": "Unit 9 — nth roots and operations with radical expressions",
       "feedbackMode": "immediate",
       "hintsAllowed": true,
-      "attemptsAllowed": 3,
       "questions": [
         {
           "questionId": "tgp-u9-1",
@@ -6116,7 +6111,6 @@
       "title": "Unit 10 — Rational exponents",
       "feedbackMode": "immediate",
       "hintsAllowed": true,
-      "attemptsAllowed": 3,
       "questions": [
         {
           "questionId": "tgp-u10-1",
@@ -6607,7 +6601,6 @@
       "title": "Unit 11 — Solving radical equations",
       "feedbackMode": "immediate",
       "hintsAllowed": true,
-      "attemptsAllowed": 3,
       "questions": [
         {
           "questionId": "tgp-u11-1",
@@ -7020,7 +7013,6 @@
       "title": "College-readiness check — SAT questions",
       "feedbackMode": "immediate",
       "hintsAllowed": true,
-      "attemptsAllowed": 3,
       "questions": [
         {
           "questionId": "tgp-sat-1",

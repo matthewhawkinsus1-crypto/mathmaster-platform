@@ -88,7 +88,6 @@ const satSection = () => ({
   title: 'College-readiness check — SAT questions',
   feedbackMode: 'immediate',
   hintsAllowed: true,
-  attemptsAllowed: 3,
   questions: PACKET_SAT_ITEMS.map((entry, index) => auditedCcmrQuestion({ ...entry, questionId: `tgp-sat-${index + 1}` })),
 });
 
@@ -104,7 +103,7 @@ export const buildThanksgivingPacket = () => {
       folder: 'Algebra II Honors/Thanksgiving Packet',
       instructionalPurpose: 'review',
       gradingPurpose: 'classwork',
-      instructions: 'This packet reviews everything from the start of the year, one unit at a time. Each unit starts with the basics and builds up. When a question starts something new, read its notes and worked example first. You have 3 tries on each question, and hints are there when you need them.',
+      instructions: 'This packet reviews everything from the start of the year, one unit at a time. Each unit starts with the basics and builds up. When a question starts something new, read its notes and worked example first. You can try each question as many times as you need, and hints are there when you need them. The answer is not shown until you get it right.',
       teacherNotes: 'A cumulative review for students to work alone over Thanksgiving break: 11 units in the order they were taught, 72 questions, each unit running from its building block to grade level. Nearly every question is worked in a tool; units 9 and 10 (radical expressions and rational exponents) have no dedicated tool, so they use answer boxes that take one small step at a time, and sorts. The first question on each skill opens an authored worked example (a sibling problem with different numbers) and carries short guided notes. The last section is six audited Digital SAT questions on standards the packet reviews, so an Honors class meets its CCMR share with the file as it is.',
     },
     // Classwork is the same for everyone, so a student can ask a classmate or
@@ -116,6 +115,7 @@ export const buildThanksgivingPacket = () => {
       avoidRecentTemplates: true,
       avoidDuplicateParameters: true,
     },
+    gradingPolicy: { attemptPolicy: 'unlimited', scoring: 'platformDefault' },
     lessonSupports: {
       // The one pattern of the packet that is a formula to look up, not a
       // method to follow: pinned beside the factoring unit.

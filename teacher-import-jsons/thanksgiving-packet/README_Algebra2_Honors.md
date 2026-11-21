@@ -23,7 +23,7 @@ One assignment. Eleven Classwork sections, one per unit in the order taught, the
 
 - **72 unit questions**, 56 of them in a tool. Units 9 and 10 have no dedicated tool, so they use answer boxes that ask for one small step of the method in each part (students answer one part at a time), and sorts.
 - **Easy to grade level in every unit.** The first question is the building block (a perfect root before a non-perfect one, a GCF before a trinomial), and the last is at grade level.
-- **Every question** has a short prompt, three hints, a "Let's back up" step, a worked solution and the usual mistake. Three tries each.
+- **Every question** has a short prompt, three hints, a "Let's back up" step, a worked solution and the usual mistake. Unlimited tries on the unit questions (the answer stays hidden until it is right); import the file only after the platform release that adds unlimited attempts is live.
 - **Worked examples.** The first question on each skill names an authored example (`lessonSupports.examples`, 66 in all): a sibling problem with different numbers, in 3 to 6 small steps, each with its reason. The example player shows every one: none states an answer of a question that plays it. The same question carries two guided notes, the idea and that example on one line. The two parent-function questions of Unit 2 (x² and √x) have no authored example, because any honest sibling states the same domain, range and vertex; the platform's own similar problem is their example.
 - **None of the items is copied** from a lesson the class has done: the method is the lesson's, the numbers and contexts are new.
 

@@ -11,7 +11,7 @@ Two Assignment V5 teacher imports: a cumulative review of everything taught from
 
 1. Import `Algebra1_Thanksgiving_Packet.json` for Algebra I classes and `Algebra1_Thanksgiving_Packet_Honors.json` for Algebra I Honors classes. Pre-Flight shows each one ready, with no errors and no warnings. Its one advice note is the note every lesson here gets: the hints and worked solutions have no Spanish version.
 2. For an Honors class, Pre-Flight keeps every question. The packet has no Practice section, so no question is replaced by an exam item, and the Honors file supplies all four depth areas by itself.
-3. Students get 3 tries on each question, with hints and immediate feedback. Every student gets the same numbers.
+3. Students get unlimited tries on each question, with hints and immediate feedback; the answer stays hidden until they get it right. The grade is on accuracy. (This needs the platform release that adds unlimited attempts; import the file only after it is live.) Every student gets the same numbers.
 4. The sections are Classwork on purpose. A worked example opens by itself only on Classwork, and is never shown on a DOL, quiz or test.
 
 ## What is in it

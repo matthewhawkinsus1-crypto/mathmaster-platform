@@ -80,11 +80,10 @@ const section = (unit, questions, minutes) => ({
   recommendedMinutes: minutes,
   feedbackMode: 'immediate',
   hintsAllowed: true,
-  attemptsAllowed: 3,
   questions: clone(questions),
 });
 
-const INSTRUCTIONS = 'This packet reviews everything from the start of the year. There is one section for each unit, and each section starts with the basics and builds up. Work in the tool on each question: it checks your steps. A worked example opens before each new kind of question; read it first. You have 3 tries on each question, and hints are there when you need them. Do a section or two a day.';
+const INSTRUCTIONS = 'This packet reviews everything from the start of the year. There is one section for each unit, and each section starts with the basics and builds up. Work in the tool on each question: it checks your steps. A worked example opens before each new kind of question; read it first. You can try each question as many times as you need, and hints are there when you need them. The answer is not shown until you get it right. Do a section or two a day.';
 
 const packet = ({ title, instructions, units, examples }) => {
   const lesson = {
@@ -98,6 +97,7 @@ const packet = ({ title, instructions, units, examples }) => {
       instructions,
     },
     variantPolicy: { mode: 'shared' },
+    gradingPolicy: { attemptPolicy: 'unlimited', scoring: 'platformDefault' },
     lessonSupports: { examples: clone(examples) },
     sections: units,
   };

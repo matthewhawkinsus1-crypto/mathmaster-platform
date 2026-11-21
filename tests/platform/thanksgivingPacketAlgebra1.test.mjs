@@ -202,7 +202,7 @@ for (const [name, packet] of PACKETS) {
       // Classwork on purpose: a worked example opens by itself only there.
       assert.equal(section.role, 'classwork');
       assert.match(section.title, new RegExp(`^Unit ${index + 1} — \\S`));
-      assert.deepEqual([section.feedbackMode, section.hintsAllowed, section.attemptsAllowed], ['immediate', true, 3]);
+      assert.deepEqual([section.feedbackMode, section.hintsAllowed, section.attemptsAllowed], ['immediate', true, undefined]);
       assert.equal(section.questions.length, counts[index], section.title);
       section.questions.forEach((question) => {
         const primary = question.alignments.filter((alignment) => alignment.role === 'primary');

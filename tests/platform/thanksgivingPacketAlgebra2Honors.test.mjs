@@ -118,7 +118,7 @@ test('one review assignment: a Classwork section for each of the eleven units, i
     assert.equal(section.id, `unit-${index + 1}`);
     assert.equal(section.role, 'classwork', `${title}: worked examples open by themselves only on Classwork`);
     assert.equal(section.title, title);
-    assert.deepEqual([section.feedbackMode, section.hintsAllowed, section.attemptsAllowed], ['immediate', true, 3], title);
+    assert.deepEqual([section.feedbackMode, section.hintsAllowed, section.attemptsAllowed], ['immediate', true, undefined], title);
     assert.equal(section.questions.length, count, title);
     assert.deepEqual([...new Set(section.questions.map((question) => question.standard))].sort(), standards, title);
     section.questions.forEach((question, place) => assert.equal(question.questionId, `tgp-u${index + 1}-${place + 1}`));

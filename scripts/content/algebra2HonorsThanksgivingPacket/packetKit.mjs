@@ -88,7 +88,6 @@ export const unit = (number, title, examples, questions) => {
       title: `Unit ${number} — ${title}`,
       feedbackMode: 'immediate',
       hintsAllowed: true,
-      attemptsAllowed: 3,
       questions,
     },
   };
