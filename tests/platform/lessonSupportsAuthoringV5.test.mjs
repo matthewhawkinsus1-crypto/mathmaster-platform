@@ -470,7 +470,7 @@ const withNewFields = (source) => {
 };
 
 /*
- * No lesson in teacher-import-jsons carries a new field, so each compiles to
+ * No lesson written before the new fields carries one, so each compiles to
  * exactly what it compiled to before them (checked byte for byte against the
  * compile of main before AG-1, 43 lessons, when this was written). What
  * proves it here without pinning today's output: the same lesson compiled

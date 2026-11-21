@@ -867,6 +867,14 @@ const workedExamplePrompts = [
   ['Simplify each root.', 'Simplifica cada raíz.'],
   ['Assume every variable is positive.', 'Supón que todas las variables son positivas.'],
   ['The variables can be any real numbers: use absolute value where it is needed.', 'Las variables pueden ser cualquier número real: usa el valor absoluto donde haga falta.'],
+  // The Algebra II Honors Thanksgiving packet's first questions on a skill: a
+  // factor pair, the Factor Theorem by evaluating, a quadratic read from its
+  // vertex, and a parent function asked for its vertex.
+  ['Find {1} and {2} so that {3}.', 'Halla {1} y {2} de modo que {3}.'],
+  ['Is {1} a factor of {2}?', '¿Es {1} un factor de {2}?'],
+  ['Evaluate {1} to decide.', 'Evalúa {1} para decidir.'],
+  ['A transformed quadratic graph has its vertex at {1} and passes through {2} and {3}.', 'Una gráfica cuadrática transformada tiene su vértice en {1} y pasa por {2} y {3}.'],
+  ['State the domain, the range and its vertex (intervals in interval notation).', 'Indica el dominio, el rango y su vértice (intervalos en notación de intervalo).'],
 ];
 
 const workedExampleAnswers = [
@@ -966,6 +974,11 @@ const workedExampleAnswers = [
   ['Answer: First perfect square factor {1}; First root {2}; Second perfect cube factor {3}; Second root {4}', 'Respuesta: factor cuadrado perfecto de la primera {1}; primera raíz {2}; factor cubo perfecto de la segunda {3}; segunda raíz {4}'],
   ['Answer: First base {1}; Second root {2}', 'Respuesta: base de la primera {1}; segunda raíz {2}'],
   ['Answer: Base {1}; Simplified {2}', 'Respuesta: base {1}; forma simplificada {2}'],
+  // The Algebra II Honors Thanksgiving packet (see workedExamplePrompts).
+  ['Answer: {1}, {2}', 'Respuesta: {1}, {2}'],
+  ['Answer: {1}, so {2} is not a factor', 'Respuesta: {1}, así que {2} no es un factor'],
+  ['Answer: domain {1}; range {2}; vertex {3}', 'Respuesta: dominio {1}; rango {2}; vértice {3}'],
+  ['Answer: arrows {1} → {2}, {3} → {4}, {5} → {6}, {7} → {8}; points {9}, {10}, {11}, {12}; domain {{13}, {14}, {15}, {16}}; range {{17}, {18}, {19}}; passes the function test', 'Respuesta: flechas {1} → {2}, {3} → {4}, {5} → {6}, {7} → {8}; puntos {9}, {10}, {11}, {12}; dominio {{13}, {14}, {15}, {16}}; rango {{17}, {18}, {19}}; pasa la prueba de función'],
 ];
 
 const workedExampleSteps = [
@@ -1258,6 +1271,16 @@ const workedExampleSteps = [
   ['The calculator gives A⁻¹ {1}.', 'La calculadora da A⁻¹ {1}.'],
   ['{1} A⁻¹{2}, so {3}, {4}, {5}.', '{1} A⁻¹{2}, así que {3}, {4}, {5}.'],
   ['Check: substitute {1}, {2}, {3} into each original equation; every one is true.', 'Comprobación: sustituye {1}, {2}, {3} en cada ecuación original; todas son verdaderas.'],
+  // The Algebra II Honors Thanksgiving packet (see workedExamplePrompts).
+  ['We need {1} and {2}.', 'Necesitamos {1} y {2}.'],
+  ['Go through the factor pairs of {1}, positive and negative, and look for the one that adds to {2}.', 'Revisa los pares de factores de {1}, positivos y negativos, y busca el que suma {2}.'],
+  ['{1} and {2} work: {3} and {4}.', '{1} y {2} funcionan: {3} y {4}.'],
+  ['No other factor pair of {1} has that sum.', 'Ningún otro par de factores de {1} tiene esa suma.'],
+  ['So {1}, with {2} and {3}.', 'Entonces {1}, con {2} y {3}.'],
+  ['Undo {1} in reverse order (subtract {2}): {3}⁻¹{4}.', 'Deshaz {1} en orden inverso (resta {2}): {3}⁻¹{4}.'],
+  ['Substitute {1}: {2}.', 'Sustituye {1}: {2}.'],
+  ['Work out each term: {1}.', 'Calcula cada término: {1}.'],
+  ['These add to {1}, which is not zero, so by the Factor Theorem {2} is not a factor of {3}.', 'Estos suman {1}, que no es cero, así que por el teorema del factor {2} no es un factor de {3}.'],
 ];
 
 // --- The platform's question families (functions/shared/questionFamily*):
@@ -1777,6 +1800,7 @@ const supportFamilyWorkedSolutions = [
   ['So the arrows are {1} → {2}, {3} → {4}, {5} → {6}, {7} → {8}, the domain is {{9}, {10}, {11}, {12}} and the range is {{13}, {14}, {15}}.', 'Así que las flechas son {1} → {2}, {3} → {4}, {5} → {6}, {7} → {8}, el dominio es {{9}, {10}, {11}, {12}} y el rango es {{13}, {14}, {15}}.'],
   ['So the arrows are {1} → {2}, {3} → {4}, {5} → {6}, the domain is {{7}, {8}, {9}} and the range is {{10}, {11}, {12}}.', 'Así que las flechas son {1} → {2}, {3} → {4}, {5} → {6}, el dominio es {{7}, {8}, {9}} y el rango es {{10}, {11}, {12}}.'],
   ['So the arrows are {1} → {2}, {3} → {4}, {5} → {6}, {7} → {8}, the points are {9}, {10}, {11}, {12}, the domain is {{13}, {14}, {15}}, the range is {{16}, {17}, {18}} and it is not a function (No — at least one input has more than one output).', 'Así que las flechas son {1} → {2}, {3} → {4}, {5} → {6}, {7} → {8}, los puntos son {9}, {10}, {11}, {12}, el dominio es {{13}, {14}, {15}}, el rango es {{16}, {17}, {18}} y no es una función (No, al menos una entrada tiene más de una salida).'],
+  ['So the arrows are {1} → {2}, {3} → {4}, {5} → {6}, {7} → {8}, the points are {9}, {10}, {11}, {12}, the domain is {{13}, {14}, {15}, {16}}, the range is {{17}, {18}, {19}} and it is a function (Yes — every input has exactly one output).', 'Así que las flechas son {1} → {2}, {3} → {4}, {5} → {6}, {7} → {8}, los puntos son {9}, {10}, {11}, {12}, el dominio es {{13}, {14}, {15}, {16}}, el rango es {{17}, {18}, {19}} y es una función (Sí, cada entrada tiene exactamente una salida).'],
   // A rule over listed inputs: separate points.
   ['Only the listed inputs are used, so the graph is {1} separate points, not a connected line: the relation is discrete.', 'Solo se usan las entradas de la lista, así que la gráfica son {1} puntos separados, no una recta continua: la relación es discreta.'],
   ['Plot {1}, {2}, {3}, {4} as separate points without connecting them.', 'Marca {1}, {2}, {3}, {4} como puntos separados sin unirlos.'],
@@ -1857,6 +1881,7 @@ const supportFamilyWorkedSolutions = [
   ['So it is increasing on {1}, it is decreasing on {2}, it is positive on {3} and it is negative on {4} ∪ {5}.', 'Así que es creciente en {1}, decreciente en {2}, positiva en {3} y negativa en {4} ∪ {5}.'],
   ['The turning point {1} is the lowest point nearby, so it is the local minimum.', 'El punto de giro {1} es el punto más bajo a su alrededor, así que es el mínimo local.'],
   ['So the domain is {1}, the range is {2}, the vertex is {3} and the local minimum is {4}.', 'Así que el dominio es {1}, el rango es {2}, el vértice es {3} y el mínimo local es {4}.'],
+  ['So the domain is {1}, the range is {2} and the vertex is {3}.', 'Así que el dominio es {1}, el rango es {2} y el vértice es {3}.'],
   ['So the domain is {1}, the range is {2}, the x-intercepts are {3} and the y-intercept is {4}.', 'Así que el dominio es {1}, el rango es {2}, las intersecciones con el eje x son {3} y la intersección con el eje y es {4}.'],
   ['So the domain is {1}, the range is {2} and it is increasing on {3}.', 'Así que el dominio es {1}, el rango es {2} y es creciente en {3}.'],
   ['So the domain is {1}, the range is {2}, it is increasing on {3} and the y-intercept is {4}.', 'Así que el dominio es {1}, el rango es {2}, es creciente en {3} y la intersección con el eje y es {4}.'],
@@ -1917,6 +1942,7 @@ const supportFamilyWorkedSolutions = [
   ['The arrows are {1} → {2}, {3} → {4}, {5} → {6}, {7} → {8}; the domain is {{9}, {10}, {11}, {12}}; the range is {{13}, {14}, {15}}', 'Las flechas son {1} → {2}, {3} → {4}, {5} → {6}, {7} → {8}; el dominio es {{9}, {10}, {11}, {12}}; el rango es {{13}, {14}, {15}}'],
   ['The arrows are {1} → {2}, {3} → {4}, {5} → {6}; the domain is {{7}, {8}, {9}}; the range is {{10}, {11}, {12}}', 'Las flechas son {1} → {2}, {3} → {4}, {5} → {6}; el dominio es {{7}, {8}, {9}}; el rango es {{10}, {11}, {12}}'],
   ['The arrows are {1} → {2}, {3} → {4}, {5} → {6}, {7} → {8}; the points are {9}, {10}, {11}, {12}; the domain is {{13}, {14}, {15}}; the range is {{16}, {17}, {18}}; it is not a function (No — at least one input has more than one output)', 'Las flechas son {1} → {2}, {3} → {4}, {5} → {6}, {7} → {8}; los puntos son {9}, {10}, {11}, {12}; el dominio es {{13}, {14}, {15}}; el rango es {{16}, {17}, {18}}; no es una función (No, al menos una entrada tiene más de una salida)'],
+  ['The arrows are {1} → {2}, {3} → {4}, {5} → {6}, {7} → {8}; the points are {9}, {10}, {11}, {12}; the domain is {{13}, {14}, {15}, {16}}; the range is {{17}, {18}, {19}}; it is a function (Yes — every input has exactly one output)', 'Las flechas son {1} → {2}, {3} → {4}, {5} → {6}, {7} → {8}; los puntos son {9}, {10}, {11}, {12}; el dominio es {{13}, {14}, {15}, {16}}; el rango es {{17}, {18}, {19}}; es una función (Sí, cada entrada tiene exactamente una salida)'],
   ['The table is {1}, {2}, {3}, {4}; it is discrete; the graph is the points {5}, {6}, {7}, {8}; the domain is {{9}, {10}, {11}, {12}}; the range is {{13}, {14}, {15}, {16}}', 'La tabla es {1}, {2}, {3}, {4}; la relación es discreta; la gráfica son los puntos {5}, {6}, {7}, {8}; el dominio es {{9}, {10}, {11}, {12}}; el rango es {{13}, {14}, {15}, {16}}'],
   ['The table is {1}, {2}, {3}, {4}, {5}; it is discrete; the graph is the points {6}, {7}, {8}, {9}, {10}; the range is {{11}, {12}, {13}, {14}, {15}}', 'La tabla es {1}, {2}, {3}, {4}, {5}; la relación es discreta; la gráfica son los puntos {6}, {7}, {8}, {9}, {10}; el rango es {{11}, {12}, {13}, {14}, {15}}'],
   ['The domain: {1}; the range: {2}', 'El dominio: {1}; el rango: {2}'],
@@ -1945,6 +1971,7 @@ const supportFamilyWorkedSolutions = [
   ['It is increasing on {1}; it is decreasing on {2}; it is positive on {3} ∪ {4}; it is negative on {5}', 'Es creciente en {1}; es decreciente en {2}; es positiva en {3} ∪ {4}; es negativa en {5}'],
   ['It is increasing on {1}; it is decreasing on {2}; it is positive on {3}; it is negative on {4} ∪ {5}', 'Es creciente en {1}; es decreciente en {2}; es positiva en {3}; es negativa en {4} ∪ {5}'],
   ['The domain is {1}; the range is {2}; the vertex is {3}; the local minimum is {4}', 'El dominio es {1}; el rango es {2}; el vértice es {3}; el mínimo local es {4}'],
+  ['The domain is {1}; the range is {2}; the vertex is {3}', 'El dominio es {1}; el rango es {2}; el vértice es {3}'],
   ['The domain is {1}; the range is {2}; the x-intercepts are {3}; the y-intercept is {4}', 'El dominio es {1}; el rango es {2}; las intersecciones con el eje x son {3}; la intersección con el eje y es {4}'],
   ['The domain is {1}; the range is {2}; it is increasing on {3}', 'El dominio es {1}; el rango es {2}; es creciente en {3}'],
   ['The domain is {1}; the range is {2}; it is increasing on {3}; the y-intercept is {4}', 'El dominio es {1}; el rango es {2}; es creciente en {3}; la intersección con el eje y es {4}'],
@@ -2293,6 +2320,8 @@ const supportFamilyWorkedSolutions = [
   ['On the number line, draw a closed dot at {1} and shade to the right with an arrow.', 'En la recta numérica, dibuja un punto cerrado en {1} y sombrea hacia la derecha con una flecha.'],
   ['So the answer is: on the number line, draw an open dot at {1} and shade to the right with an arrow; in interval notation, {2}.', 'Así que la respuesta es: en la recta numérica, dibuja un punto abierto en {1} y sombrea hacia la derecha con una flecha; en notación de intervalo, {2}.'],
   ['On the number line, draw an open dot at {1} and shade to the right with an arrow; in interval notation, {2}.', 'En la recta numérica, dibuja un punto abierto en {1} y sombrea hacia la derecha con una flecha; en notación de intervalo, {2}.'],
+  ['So the answer is: on the number line, draw a closed dot at {1} and shade to the right with an arrow; in interval notation, {2}.', 'Así que la respuesta es: en la recta numérica, dibuja un punto cerrado en {1} y sombrea hacia la derecha con una flecha; en notación de intervalo, {2}.'],
+  ['On the number line, draw a closed dot at {1} and shade to the right with an arrow; in interval notation, {2}.', 'En la recta numérica, dibuja un punto cerrado en {1} y sombrea hacia la derecha con una flecha; en notación de intervalo, {2}.'],
   ['So the answer is: on the number line, draw a closed dot at {1} and an open dot at {2}, and shade the segment between them; in interval notation, {3}.', 'Así que la respuesta es: en la recta numérica, dibuja un punto cerrado en {1} y un punto abierto en {2}, y sombrea el segmento entre ellos; en notación de intervalo, {3}.'],
   ['On the number line, draw a closed dot at {1} and an open dot at {2}, and shade the segment between them; in interval notation, {3}.', 'En la recta numérica, dibuja un punto cerrado en {1} y un punto abierto en {2}, y sombrea el segmento entre ellos; en notación de intervalo, {3}.'],
   ['So the answer is: on the number line, draw an open dot at {1} and a closed dot at {2}, and shade the segment between them; in interval notation, {3}.', 'Así que la respuesta es: en la recta numérica, dibuja un punto abierto en {1} y un punto cerrado en {2}, y sombrea el segmento entre ellos; en notación de intervalo, {3}.'],
@@ -2322,6 +2351,7 @@ const supportFamilyWorkedSolutions = [
   // systems.js: a system solved by graphing, by elimination or by substitution, or with no solution or infinitely many.
   ['Solve the system {1} and {2}: graph both lines and find where they cross.', 'Resuelve el sistema {1} y {2}: grafica las dos rectas y halla dónde se cruzan.'],
   ['Solve the system {1} and {2}: eliminate a variable and see what is left.', 'Resuelve el sistema {1} y {2}: elimina una variable y mira qué queda.'],
+  ['Solve the system {1} and {2}: eliminate one variable.', 'Resuelve el sistema {1} y {2}: elimina una variable.'],
   ['Solve the system {1} and {2}: substitute one equation into the other.', 'Resuelve el sistema {1} y {2}: sustituye una ecuación en la otra.'],
   ['Solve the system {1} and {2}: set the two expressions equal.', 'Resuelve el sistema {1} y {2}: iguala las dos expresiones.'],
   ['So the solution of the system is {1}.', 'Así que la solución del sistema es {1}.'],

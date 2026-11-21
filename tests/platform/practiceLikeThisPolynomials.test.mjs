@@ -222,7 +222,17 @@ const inTurn = (question, count = 3) => {
 
 /* ------------------------------------------------------------------- tests */
 
-test('Operations on Polynomials: exactly its arithmetic items get a polynomial variant, in no other lesson, and none of Dividing Polynomials', () => {
+/*
+ * The Algebra II Honors Thanksgiving packet's Unit 6 reviews Operations on
+ * Polynomials with new numbers, in the same Workshop shapes (add, subtract,
+ * the area model), so each of its five items is varied the same way. No other
+ * lesson's item is: the packet's function sums and products (Unit 3) state
+ * their polynomials as f(x) and g(x), which the variant does not rewrite.
+ */
+const PACKET = 'teacher-import-jsons/thanksgiving-packet/Algebra2_Honors_Thanksgiving_Packet.json';
+const PACKET_VARIED = Object.freeze(['tgp-u6-1', 'tgp-u6-2', 'tgp-u6-3', 'tgp-u6-4', 'tgp-u6-5']);
+
+test('Operations on Polynomials, and the packet unit that reviews it: exactly their arithmetic items get a polynomial variant, in no other lesson, and none of Dividing Polynomials', () => {
   const varied = [];
   let read = 0;
   lessonFiles().forEach((file) => itemsOf(file).forEach(({ role, question }) => {
@@ -232,7 +242,18 @@ test('Operations on Polynomials: exactly its arithmetic items get a polynomial v
     if (variant?.kind === NUMERIC_VARIANT_KIND.POLYNOMIAL) varied.push(`${file}::${question.questionId}`);
   }));
   assert.ok(read >= 859, `the real lessons are read (${read})`);
-  assert.deepEqual(varied.sort(), Object.keys(WORK).map((id) => `${OPERATIONS}::${id}`).sort());
+  assert.deepEqual(varied.sort(), [
+    ...Object.keys(WORK).map((id) => `${OPERATIONS}::${id}`),
+    ...PACKET_VARIED.map((id) => `${PACKET}::${id}`),
+  ].sort());
+  // A packet item's variant is a different problem in the same Workshop view.
+  PACKET_VARIED.forEach((id) => {
+    const question = itemById(PACKET, id);
+    const practice = buildPracticeLikeThis(question, { seed: 0 });
+    assert.equal(practice?.source, PRACTICE_SOURCE.NUMERIC_VARIANT, `${id}: a variant of the item`);
+    assert.equal(practice.kind, NUMERIC_VARIANT_KIND.POLYNOMIAL);
+    assert.notEqual(practice.prompt, question.prompt, `${id}: new numbers`);
+  });
   // The practice a closed item offers is that variant (no family sibling comes first).
   Object.keys(WORK).forEach((id) => {
     const practice = buildPracticeLikeThis(operationsItem(id), { seed: 0 });
