@@ -154,6 +154,14 @@ test('#558: an answer over 240 characters is refused by the comparison, at once'
     const grading = pathGrading(key, { equivalence: equivalenceName });
     assert.equal((await mathPath.gradeResponse(grading, { responses: { answer: `${key}${' '.repeat(241)}` } })).isCorrect, false, equivalenceName);
   }
+  // …and an unfinished entry is refused before them too: a field's own
+  // comparison is not asked (modelEquation read `1/5+1/8=1/t+` as its key).
+  for (const [equivalenceName, key, typed] of [['modelEquation', '1/5+1/8=1/t', '1/5+1/8=1/t+'], ['polynomialRelation', 'x+y=449', 'x+y=449+'], ['rationalExpression', '\\frac{x+1}{x-2}', '\\frac{x+1}{x-2}\\cdot'], ['interval', '[-3, 5)', '[-3, 5)+']]) {
+    const grading = pathGrading(key, { equivalence: equivalenceName });
+    assert.equal((await mathPath.gradeResponse(grading, { responses: { answer: key } })).isCorrect, true, `${equivalenceName}: the key`);
+    assert.equal((await mathPath.gradeResponse(grading, { responses: { answer: typed } })).isCorrect, false, `${equivalenceName}: ${typed}`);
+    assert.equal((await secureItems.gradeItem(grading, { responses: { answer: typed } })).isCorrect, false, `${equivalenceName} at the secure close: ${typed}`);
+  }
   // Exactly at the limit is an answer like any other.
   const atLimit = `${' '.repeat(239)}5`;
   assert.equal(atLimit.length, 240);

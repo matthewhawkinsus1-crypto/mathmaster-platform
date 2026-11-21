@@ -28,7 +28,9 @@ import assert from 'node:assert/strict';
 import { buildPrivateToolGrading, gradePathResponse } from '../../functions/shared/pathToolContracts.mjs';
 import { formatFinding, readKnownFindings, summarizeFindings } from '../../scripts/lib/graderFuzz/findings.mjs';
 import { TARGET_IDS, loadTarget, replayCase, runGraderFuzz } from '../../scripts/lib/graderFuzz/index.mjs';
-import { FREE_CLASSES, INPUT_CLASSES, breakOf, isUnfinished, typedInput } from '../../scripts/lib/graderFuzz/inputs.mjs';
+import * as fuzzInputs from '../../scripts/lib/graderFuzz/inputs.mjs';
+
+const { FREE_CLASSES, INPUT_CLASSES, breakOf, isUnfinished, typedInput } = fuzzInputs;
 import { createRng } from '../../scripts/lib/graderFuzz/prng.mjs';
 import { PATH_TOOL_QUESTIONS } from './fixtures/pathToolQuestions.mjs';
 
@@ -108,6 +110,42 @@ test('found and fixed: malformed work never throws out of the My Math Path tool 
   // And the harness's own case for it is clean.
   const found = await replayCase({ target: 'structuredWork', source: 'captured:path:intervalNumberLine', question, work: { intervals: [null], notation: '[-3, 5)', inequality: '' }, change: 'shape', at: 'intervals.#.min', given: null });
   assert.deepEqual(found.filter((finding) => finding.severity === 'fail').map((finding) => finding.signature), []);
+});
+
+test('found and fixed: an unfinished entry and one over 240 characters (#557, #558)', async () => {
+  // The nine known findings these were, each from its own repro: every
+  // typed-field grader marked `16 +`, `4*` and `*38` right, the screen graded
+  // a 261-character answer the server saw cut to 240, and a 2,000-character
+  // value took 2 s to compare. The entry is refused now, on the screen and by
+  // the comparison (functions/shared/typedEntryGuard.mjs).
+  const number = (expected) => ({ id: 'answer', label: 'Answer', inputProfile: 'number', expected });
+  const question = { questionId: 'known-finding', type: 'multiAnswer', prompt: 'Write the value.', answerFields: [{ id: 'value', label: 'Value', answer: '5', inputProfile: 'number' }] };
+  const padded = `${'+'.repeat(255)}5`;
+  const fixed = [
+    { target: 'typedFields', source: 'fixed', field: number(16), input: { text: '16 +', inputClass: 'brokenKey', detail: null } },
+    { target: 'typedFields', source: 'fixed', field: number(4), input: { text: '4*', inputClass: 'brokenKey', detail: null } },
+    { target: 'typedFields', source: 'fixed', field: number(38), input: { text: '*38', inputClass: 'brokenKey', detail: null } },
+    { target: 'typedFields', source: 'fixed', field: number(-5), input: { text: `${'+'.repeat(255)}-5`, inputClass: 'paddedKey', detail: null } },
+    { target: 'typedFields', source: 'fixed', field: { id: 'answer', label: 'Answer', inputProfile: 'expression', expected: '(x+ 8)^2' }, input: { text: '(\\frac{1}{2}+'.repeat(153), inputClass: 'long', detail: null } },
+    ...['5 -', '5\\cdot', '*5', padded].map((value) => ({ target: 'questionResponses', source: 'fixed', question, answers: { value }, fuzzed: 'value', key: '5', input: { inputClass: value === padded ? 'paddedKey' : 'brokenKey', detail: null } })),
+  ];
+  for (const fuzzCase of fixed) {
+    const found = await replayCase(fuzzCase, { slowMs: 500 });
+    assert.deepEqual(found.filter((finding) => finding.severity === 'fail').map((finding) => finding.signature), [], JSON.stringify(fuzzCase.input.text ?? fuzzCase.answers).slice(0, 60));
+  }
+  assert.deepEqual(Object.keys(KNOWN).filter((signature) => /unfinished-not-right|over-240-characters|answers-in-time\/long/.test(signature)), [], 'their entries are deleted');
+
+  // The harness types what bounds the work, not only the length: many short
+  // terms inside the 240 characters a box may hold, each a finished answer.
+  assert.ok(INPUT_CLASSES.includes('manyTerms') && FREE_CLASSES.includes('manyTerms'));
+  const rng = createRng('many-terms');
+  const built = Array.from({ length: 400 }, () => fuzzInputs.manyTermsInput(rng));
+  for (const text of built) {
+    assert.ok(text.length > 0 && text.length <= 240, `${text.length} characters`);
+    assert.equal(isUnfinished(text), false, text);
+  }
+  assert.ok(built.some((text) => (text.match(/\dx(?![\^\d])/g) || []).length >= 45), '48 like terms with varied coefficients fit');
+  assert.ok(built.some((text) => (text.match(/\//g) || []).length >= 60), 'a long chain of divisions');
 });
 
 test('the generators build every class, and know an unfinished answer from a finished one', () => {

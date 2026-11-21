@@ -7,6 +7,7 @@
 
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { hasDanglingOperator, isOverLongAnswer, refusesTypedEntry } from '../../functions/shared/typedEntryGuard.mjs';
 import { create, all } from 'mathjs';
 
 import { TYPED_SPELLING_CLASSES, typedNearMissesOf, typedSpellingsOf } from '../../scripts/lib/typedAnswerSpellings.mjs';
@@ -83,8 +84,18 @@ test('every right spelling the sweep builds has the key\'s value, relation for r
 
 test('every near miss the sweep builds is another answer', () => {
   let checked = 0;
+  let notAnswers = 0;
   for (const key of KEYS) {
     for (const { miss, spellingClass } of typedNearMissesOf(key, FREE)) {
+      // Not another answer but no answer at all: the key left unfinished, or
+      // made longer than an answer may be (#557, #558). Each is refused by
+      // the entry rule, whatever its value would be.
+      if (spellingClass === 'unfinished' || spellingClass === 'over the length') {
+        notAnswers += 1;
+        assert.equal(refusesTypedEntry(miss, key), true, `${spellingClass}: ${miss.slice(0, 40)} is refused for ${key}`);
+        assert.equal(spellingClass === 'unfinished' ? hasDanglingOperator(miss) : isOverLongAnswer(miss), true, `${spellingClass}: ${miss.slice(0, 40)}`);
+        continue;
+      }
       if (forMathjs(miss) === null || forMathjs(key) === null) continue;
       checked += 1;
       const sameRelation = relationOf(miss) === relationOf(key);
@@ -92,6 +103,7 @@ test('every near miss the sweep builds is another answer', () => {
     }
   }
   assert.ok(checked > 20, `the near misses were exercised (${checked})`);
+  assert.ok(notAnswers >= KEYS.length, `every key has its unfinished and over-long forms (${notAnswers})`);
 });
 
 test('each class spells what a student types', () => {
