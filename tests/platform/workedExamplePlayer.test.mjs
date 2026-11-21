@@ -339,7 +339,8 @@ test('an example that opens by itself is announced: a polite region, empty on mo
   assert.match(engine, /const \[exampleAnnouncement, setExampleAnnouncement\] = useState\(''\);/);
   assert.match(region(engine, 'if (!exampleOpensNow) return;', '}, [exampleOpensNow]);', 'the opening effect'), /setExampleAnnouncement\(EXAMPLE_OPENED_ANNOUNCEMENT\);/);
   // Drawn whether or not the example is open yet, and only where one can open by itself (never a DOL, quiz or test).
-  assert.match(engine, /\{exampleRule\.opensByItself \? \(\s*<div role="status" aria-live="polite" data-example-announcement="" style=\{SR_ONLY_STYLE\}>\{exampleAnnouncement\}<\/div>\s*\) : null\}/);
+  // Nor on a closed question: its result is its one live region.
+  assert.match(engine, /\{exampleRule\.opensByItself && !locked \? \(\s*<div role="status" aria-live="polite" data-example-announcement="" style=\{SR_ONLY_STYLE\}>\{exampleAnnouncement\}<\/div>\s*\) : null\}/);
   assert.match(EXAMPLE_OPENED_ANNOUNCEMENT, /worked example opened/);
   // Opening it moves no focus: nothing in the effect asks for any.
   assert.doesNotMatch(region(engine, 'if (!exampleOpensNow) return;', '}, [exampleOpensNow]);', 'the opening effect'), /focus/i);

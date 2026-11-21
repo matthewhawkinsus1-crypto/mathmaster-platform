@@ -534,7 +534,12 @@ test('5. help had on a question survives leaving it and coming back (PR #462 rev
   assert.match(engine, /const \[workedExampleUsed, setWorkedExampleUsed\] = useState\(restoredSupport\.workedExampleUsed\);/);
   assert.match(engine, /const \[scaffoldComplete, setScaffoldComplete\] = useState\(restoredSupport\.backUpStepUsed\);/);
   assert.match(engine, /const \[feedbackAssisted, setFeedbackAssisted\] = useState\(restoredSupport\.feedbackAssisted\);/);
-  assert.match(engine, /rememberSupportUse\(draftKey, \{ hintUsed, hintsRevealed, workedExampleUsed, backUpStepUsed: scaffoldComplete, scaffoldUsed: backUpSpecific, feedbackAssisted \}\);/);
+  // Every kind of help had is written to the memory, whatever else is remembered beside it (an example
+  // Classwork opened by itself is remembered too, so it opens once: workedExampleShown).
+  const remembered = engine.match(/rememberSupportUse\(draftKey, \{([^}]*)\}\);/)?.[1] || '';
+  for (const kept of [/\bhintUsed\b/, /\bhintsRevealed\b/, /\bworkedExampleUsed\b/, /backUpStepUsed: scaffoldComplete/, /scaffoldUsed: backUpSpecific/, /\bfeedbackAssisted\b/]) {
+    assert.match(remembered, kept, `the memory is written ${kept}`);
+  }
   assert.match(engine, /import \{ attemptSupportUsageFrom, rememberSupportUse, restoredSupportUse \} from '\.\/platform\/supports\/supportUseMemory\.js';/);
 });
 

@@ -3231,8 +3231,9 @@ function QuestionEngineBody({
           The same panel, drawn in one place at a time (see hintPanelPlace). */}
       {/* Said to a screen reader when Classwork opens an example by itself:
           empty when the question mounts, filled as it opens. Only where an
-          example can open by itself, so never on a DOL, quiz or test. */}
-      {exampleRule.opensByItself ? (
+          example can open by itself, so never on a DOL, quiz or test, and
+          not on a closed question, whose one live region is its result. */}
+      {exampleRule.opensByItself && !locked ? (
         <div role="status" aria-live="polite" data-example-announcement="" style={SR_ONLY_STYLE}>{exampleAnnouncement}</div>
       ) : null}
       {hintPanelOpen && hintPanelPlace === 'results' && hintPanel ? (
