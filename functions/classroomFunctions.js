@@ -2831,7 +2831,11 @@ exports.listClassroomGradeSyncs = onCall(async (request) => {
     }));
   // What the caller's last "Reconcile section grades" did on each assignment
   // (lib/classroomReconcileRuns.js): one read a run.
-  const reconcile = await classroomReconcileRuns.readTeacherReconcileRuns(db, teacherUid);
+  // The line is an extra: a failed read of it must not take the monitor down.
+  const reconcile = await classroomReconcileRuns.readTeacherReconcileRuns(db, teacherUid).catch((error) => {
+    logger.warn("The grade passback monitor could not read the teacher's reconcile runs", { teacherUid, message: String(error?.message || error) });
+    return { runs: [], complete: true };
+  });
   if (!reconcile.complete) {
     logger.warn("The grade passback monitor read a teacher's reconcile runs up to its limit", { teacherUid, runs: reconcile.runs.length });
   }

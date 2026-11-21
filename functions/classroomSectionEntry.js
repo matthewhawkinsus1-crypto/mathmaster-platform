@@ -98,6 +98,8 @@ const SECTION_PASSBACK_LINK_FIELDS = Object.freeze([
   "courseId",
   "maxPoints",
   "teacherUid",
+  // Which class's course the column is in, for a reconcile run's counts.
+  "classId",
 ]);
 
 function requireTeacher(request) {
@@ -375,14 +377,11 @@ async function queueGradeSignalForAssignmentAudience({
   assignment,
   reason,
   requireSavedTracker = false,
-  // A reconcile run: only these classes (the caller's own posts'), with the
-  // run's id and the caller carried on every entry.
-  onlyClassIds = null,
+  // A reconcile run: its id and the caller, carried on every entry.
   run = null,
   beforeEnqueue = null,
 }) {
-  const classIds = assignmentClassIds(assignment)
-    .filter((classId) => !onlyClassIds || onlyClassIds.includes(String(classId)));
+  const classIds = assignmentClassIds(assignment);
   if (!classIds.length) {
     if (beforeEnqueue) await beforeEnqueue(0);
     return 0;
@@ -445,13 +444,11 @@ const reconcileClassroomSectionGrades = onCall(async (request) => {
 
   // The caller's own posts only (the owner, 2026-11-19): the run carries the
   // caller on every queue entry and release signal, and both grade triggers
-  // leave every other teacher's column alone for it. It is queued for the
-  // classes those posts were made for; a post that records no class falls
-  // back to the assignment's classes, and the triggers still keep to the
-  // caller's posts.
+  // leave every other teacher's column alone for it. Every assigned class is
+  // still queued, as before: the class a post records is the course's mapping
+  // when it was published, and a student who has since changed class, or a
+  // course mapped again, must not drop out of the repair.
   const assignment = assignmentSnapshot.data() || {};
-  const ownedClassIds = ownedSections.map((doc) => String(doc.data()?.classId || "").trim());
-  const onlyClassIds = ownedClassIds.every(Boolean) ? [...new Set(ownedClassIds)] : null;
   // R1: the run's id rides with each student through the queue, so the
   // monitor can say what the run did (lib/classroomReconcileRuns.js).
   const run = { runId: classroomReconcileRuns.newReconcileRunId(), teacherUid };
@@ -466,7 +463,6 @@ const reconcileClassroomSectionGrades = onCall(async (request) => {
     assignment,
     reason: "section-grade-reconcile",
     requireSavedTracker: true,
-    onlyClassIds,
     run,
     beforeEnqueue: (students) => classroomReconcileRuns.startReconcileRun(db, {
       assignmentId,
@@ -1071,7 +1067,9 @@ const syncSectionGradeToClassroom = onDocumentWritten(
             returnedToStudent: false,
             message: "Student is not linked to this Classroom course.",
           });
-          runTally?.count("notSent");
+          // Counted for the run only when this is the student's own class's
+          // column: a column of another class's course was never theirs.
+          if (!publication.classId || String(publication.classId) === String(afterData.classId || "")) runTally?.count("notSent");
           continue;
         }
 

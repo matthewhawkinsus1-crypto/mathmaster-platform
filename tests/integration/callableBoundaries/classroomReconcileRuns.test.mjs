@@ -11,7 +11,8 @@
  *   * Scope. A reconcile acts on the caller's own posts only. A co-teacher's
  *     section column and whole-assignment column, in a course the student is
  *     also rostered in, are not found, patched or returned, and the
- *     co-teacher's Google account is never used.
+ *     co-teacher's Google account is never used. A student of another class
+ *     adds nothing to the run's counts.
  *   * Option A. A reconcile no longer sends a column Classroom already holds:
  *     a second run costs no Classroom call. A teacher's Retry still sends it.
  *   * R1. The run's id rides through the queue, its drain and the requeue
@@ -257,29 +258,30 @@ const counts = (run) => run && {
 
 let firstRunId = null;
 
-test('a reconcile queues the students of the caller\'s own classes, each entry carrying the run and the caller', async () => {
+test('a reconcile queues the assignment\'s students, each entry carrying the run and the caller', async () => {
   const result = await accounts.a.call('reconcileClassroomSectionGrades', { assignmentId: ASSIGNMENT });
   assert.equal(result.publications, 1, 'one section column is this teacher\'s');
-  assert.equal(result.queuedStudents, 2, 'the two students of the caller\'s class, not the co-teacher\'s');
+  // Every assigned class, as before: the scope is which posts are acted on, below.
+  assert.equal(result.queuedStudents, 3);
   assert.match(result.runId, /^[0-9a-f-]{36}$/);
   firstRunId = result.runId;
 
   const entries = await waiting();
-  assert.deepEqual(entries.map((entry) => entry.studentId).sort(), [STUDENT.noWork, STUDENT.worked].sort());
+  assert.deepEqual(entries.map((entry) => entry.studentId).sort(), Object.values(STUDENT).sort());
   for (const entry of entries) {
     assert.equal(entry.reason, 'section-grade-reconcile');
     assert.equal(entry.runId, firstRunId);
     assert.equal(entry.scopeTeacherUid, accounts.a.uid);
   }
   assert.deepEqual(counts(await lastRun(accounts.a)), {
-    repaired: 0, upToDate: 0, notSent: 0, failed: 0, waiting: 0, queuedStudents: 2, pendingStudents: 2,
+    repaired: 0, upToDate: 0, notSent: 0, failed: 0, waiting: 0, queuedStudents: 3, pendingStudents: 3,
   }, 'before the queue is released the run is all still to come');
 });
 
 test('the pushes reach only the caller\'s columns, with the caller\'s Google account', async () => {
   google.length = 0;
   const events = await drainAndPush();
-  assert.equal(events.length, 2);
+  assert.equal(events.length, 3);
   const signal = (await gradeRef(STUDENT.worked).get()).data().classroomReleaseSignals[ASSIGNMENT];
   assert.equal(signal.runId, firstRunId, 'the drain carries the run to the release signal');
   assert.equal(signal.scopeTeacherUid, accounts.a.uid);
@@ -293,7 +295,12 @@ test('the pushes reach only the caller\'s columns, with the caller\'s Google acc
   // The student is rostered in the co-teacher's course too: nothing was sent there, and no row written.
   assert.equal(await auditRow(POST.sectionB, STUDENT.worked), null);
   assert.equal(await auditRow(POST.wholeB, STUDENT.worked), null);
-  assert.deepEqual(callsFor(STUDENT.coTaught), [], 'the co-teacher\'s student was not queued, signalled or sent');
+  // The co-teacher's student is in none of the caller's courses: nothing is
+  // sent for them, their own teacher's columns are untouched, and they add
+  // nothing to the run's counts.
+  assert.deepEqual(callsFor(STUDENT.coTaught), []);
+  assert.equal(await auditRow(POST.sectionB, STUDENT.coTaught), null);
+  assert.equal(await auditRow(POST.wholeB, STUDENT.coTaught), null);
 });
 
 /* ==========================================================================
@@ -303,7 +310,7 @@ test('the pushes reach only the caller\'s columns, with the caller\'s Google acc
 test('the monitor says what the run did, to the teacher who ran it', async () => {
   assert.deepEqual(counts(await lastRun(accounts.a)), {
     // The worked student's section column; the student with no work has nothing to send before the due date.
-    repaired: 1, upToDate: 0, notSent: 1, failed: 0, waiting: 0, queuedStudents: 2, pendingStudents: 0,
+    repaired: 1, upToDate: 0, notSent: 1, failed: 0, waiting: 0, queuedStudents: 3, pendingStudents: 0,
   });
   assert.equal(await lastRun(accounts.b), null, 'the co-teacher has no run on this assignment');
   // The run document names no student.
@@ -323,7 +330,7 @@ test('a second reconcile finds every column up to date and costs no Classroom ca
   await drainAndPush();
   assert.deepEqual(google, [], 'nothing differs from what Classroom holds, so Google is not asked');
   assert.deepEqual(counts(await lastRun(accounts.a)), {
-    repaired: 0, upToDate: 1, notSent: 1, failed: 0, waiting: 0, queuedStudents: 2, pendingStudents: 0,
+    repaired: 0, upToDate: 1, notSent: 1, failed: 0, waiting: 0, queuedStudents: 3, pendingStudents: 0,
   });
 });
 
@@ -361,7 +368,7 @@ test('a column Google refuses for its limit is queued again inside the same run,
   assert.equal(requeued[0].scopeTeacherUid, accounts.a.uid, 'and the caller it acts for');
   assert.ok(requeued[0].notBefore.toMillis() - startedAt >= 55_000, 'about a minute later');
   assert.deepEqual(counts(await lastRun(accounts.a)), {
-    repaired: 0, upToDate: 0, notSent: 1, failed: 0, waiting: 1, queuedStudents: 2, pendingStudents: 0,
+    repaired: 0, upToDate: 0, notSent: 1, failed: 0, waiting: 1, queuedStudents: 3, pendingStudents: 0,
   });
 
   google.length = 0;
@@ -374,7 +381,7 @@ test('a column Google refuses for its limit is queued again inside the same run,
   const row = await auditRow(POST.sectionA, STUDENT.worked);
   assert.equal(row.status, 'synced');
   assert.equal(row.grade, 100);
-  const afterRetry = { repaired: 1, upToDate: 0, notSent: 1, failed: 0, waiting: 0, queuedStudents: 2, pendingStudents: 0 };
+  const afterRetry = { repaired: 1, upToDate: 0, notSent: 1, failed: 0, waiting: 0, queuedStudents: 3, pendingStudents: 0 };
   assert.deepEqual(counts(await lastRun(accounts.a)), afterRetry);
 
   // Firestore delivers a trigger's event at least once. Delivered again, the
