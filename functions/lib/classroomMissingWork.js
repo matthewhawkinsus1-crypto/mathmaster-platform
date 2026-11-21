@@ -32,15 +32,20 @@ function noWorkIsMissingNotZero({ stage, progress } = {}) {
  * that the Retry was answered. When a Retry reaches such a row it becomes
  * "skipped-no-work", with the reason. Only an existing row, and never one
  * that says Classroom holds a grade ("synced", "graded-not-returned"): that
- * is still true, and stays.
+ * is still true, and stays. Nor one that names something the teacher still
+ * has to fix ("skipped-unlinked": link the roster; "auth-error": reconnect
+ * Google Classroom): the final cutoff's grade will fail on it too, and the
+ * row must go on saying so.
  */
 const CLASSROOM_SKIPPED_NO_WORK = "skipped-no-work";
 const CLASSROOM_NO_WORK_MESSAGE = "No work yet, so nothing was sent. Google Classroom shows this as Missing until the final cutoff, when the grade is sent.";
 
+const NO_WORK_ROW_KEEPS = Object.freeze(["synced", "graded-not-returned", "skipped-unlinked", "auth-error"]);
+
 function noWorkRetryRowIsDue({ signalReason, priorExists, prior = {} } = {}) {
   return signalReason === "manual-retry"
     && priorExists === true
-    && !["synced", "graded-not-returned"].includes(String(prior.status || ""));
+    && !NO_WORK_ROW_KEEPS.includes(String(prior.status || ""));
 }
 
 /** The row's fields; `clearedErrors` is clearedClassroomErrorFields(). */

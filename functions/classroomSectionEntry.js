@@ -959,6 +959,8 @@ const syncSectionGradeToClassroom = onDocumentWritten(
             if (noWorkRetryRowIsDue({ signalReason, priorExists: noWorkPrior.exists, prior: noWorkPrior.data() || {} })) {
               // eslint-disable-next-line no-await-in-loop
               await writeGradeSyncAudit(db, publicationDoc.id, event.params.studentId, {
+                // A correction sync's event, as every row of this trigger carries it.
+                ...(afterData.profile?.workloadCorrections?.[assignmentId] ? { correctionEventId: afterData.profile.workloadCorrections[assignmentId].eventId } : {}),
                 assignmentId,
                 courseId: publication.courseId || null,
                 courseworkId: publication.courseworkId || null,
@@ -1033,6 +1035,7 @@ const syncSectionGradeToClassroom = onDocumentWritten(
               studentVisible: releasePolicy.studentVisible,
               returnedToStudent: priorReturned,
               shouldReturn: releasePolicy.shouldReturn,
+              courseworkId: publication.courseworkId,
             })))
         ) {
           // Current because this run sent it (an earlier pass, or the same

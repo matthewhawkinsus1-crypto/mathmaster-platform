@@ -144,9 +144,9 @@ test('no work between the due date and the final cutoff is Missing, not a 0 to s
 test('for a reconcile a column is current when Classroom holds the same grade, whatever the last push was called', () => {
   const prior = {
     status: 'synced', stage: 'progress-50', reconciliationVersion: reconciliation.CLASSROOM_SECTION_GRADE_RECONCILIATION_VERSION,
-    grade: 50, classroomGrade: 25, maxPoints: 50, studentVisible: false, returnedToStudent: false,
+    grade: 50, classroomGrade: 25, maxPoints: 50, studentVisible: false, returnedToStudent: false, courseworkId: 'cw-1',
   };
-  const now = { grade: 50, classroomGrade: 25, maxPoints: 50, studentVisible: false, returnedToStudent: false, shouldReturn: false };
+  const now = { grade: 50, classroomGrade: 25, maxPoints: 50, studentVisible: false, returnedToStudent: false, shouldReturn: false, courseworkId: 'cw-1' };
   const held = (priorPatch = {}, nowPatch = {}) => reconciliation.sectionGradeHeldByClassroom({ prior: { ...prior, ...priorPatch }, ...now, ...nowPatch });
   assert.equal(held(), true);
   assert.equal(held({ stage: 'late-progress-50' }), true, 'the stage label is not part of it');
@@ -163,8 +163,43 @@ test('for a reconcile a column is current when Classroom holds the same grade, w
     assert.equal(held({ status }), false, String(status));
   }
   assert.equal(held({ grade: null }), false, 'no number was sent');
+  // A row about an older post (the assignment was reposted) says nothing about this one.
+  assert.equal(held({}, { courseworkId: 'cw-2' }), false, 'another post');
+  assert.equal(held({ courseworkId: undefined }), false, 'a row that names no post');
+  assert.equal(held({}, { courseworkId: null }), false);
   assert.equal(held({ reconciliationVersion: 0 }), false, 'a row from before the audit contract');
   assert.equal(reconciliation.sectionGradeHeldByClassroom(), false);
+});
+
+test('a grade already assigned and returned is held when a reconcile would only send it as a draft (a student on extended time)', () => {
+  // The column went out at the due-date checkpoint: visible to the student, returned.
+  const HOUR = 3_600_000;
+  const due = Date.parse('2026-11-10T15:00:00.000Z');
+  const assignment = { dueAt: new Date(due).toISOString(), lateDueAt: new Date(due + 24 * HOUR).toISOString() };
+  const gradeRuntime = requireFromFunctions('./lib/classroomGradeRuntime.js');
+  const ownCutoff = due + 72 * HOUR;
+  const now = due + 30 * HOUR; // past the class's final cutoff, inside the student's own
+  const atCheckpoint = gradeRuntime.classroomGradeReleasePolicy({ stage: 'due-checkpoint', assignment, nowValue: due + HOUR, studentFinalCutoff: ownCutoff });
+  assert.deepEqual([atCheckpoint.studentVisible, atCheckpoint.shouldReturn], [true, true]);
+  // A reconcile's stage after the due date: held as a draft for this student.
+  const atReconcile = gradeRuntime.classroomGradeReleasePolicy({ stage: 'manual-retry', assignment, nowValue: now, studentFinalCutoff: ownCutoff });
+  assert.deepEqual([atReconcile.studentVisible, atReconcile.shouldReturn, atReconcile.heldUntilMs], [false, false, ownCutoff]);
+
+  const prior = {
+    status: 'synced', stage: 'due-checkpoint', reconciliationVersion: reconciliation.CLASSROOM_SECTION_GRADE_RECONCILIATION_VERSION,
+    grade: 50, classroomGrade: 25, maxPoints: 50, studentVisible: true, returnedToStudent: true, courseworkId: 'cw-1',
+  };
+  const push = {
+    grade: 50, classroomGrade: 25, maxPoints: 50, courseworkId: 'cw-1', returnedToStudent: true,
+    studentVisible: atReconcile.studentVisible, shouldReturn: atReconcile.shouldReturn,
+  };
+  assert.equal(reconciliation.sectionGradeHeldByClassroom({ prior, ...push }), true, 'the draft would change nothing in Classroom');
+  // The same grade, assigned but never returned: still nothing a draft would change.
+  assert.equal(reconciliation.sectionGradeHeldByClassroom({ prior: { ...prior, status: 'graded-not-returned', returnedToStudent: false }, ...push, returnedToStudent: false }), true);
+  // A different grade is still sent.
+  assert.equal(reconciliation.sectionGradeHeldByClassroom({ prior, ...push, grade: 75, classroomGrade: 37.5 }), false);
+  // The other direction is a repair: Classroom holds a draft, and the grade is now due back.
+  assert.equal(reconciliation.sectionGradeHeldByClassroom({ prior: { ...prior, studentVisible: false, returnedToStudent: false }, ...push, studentVisible: true, shouldReturn: true, returnedToStudent: false }), false);
 });
 
 test('a student\'s counts are written again after contention, a deadline or a blip, and given up only after that', async () => {
@@ -229,7 +264,10 @@ test('a student who never reports is waited for only so long, then said to be un
 test('a Retry on a student with no work answers on the row, and only on a row that does not say Classroom holds a grade', () => {
   const due = (prior, extra = {}) => runtime.noWorkRetryRowIsDue({ signalReason: 'manual-retry', priorExists: true, prior, ...extra });
   assert.equal(due({ status: 'failed' }), true);
-  assert.equal(due({ status: 'skipped-unlinked' }), true);
+  assert.equal(due({ status: 'rate-limited' }), true);
+  // Something the teacher still has to fix, which the final cutoff's grade will fail on too.
+  assert.equal(due({ status: 'skipped-unlinked' }), false, 'still "Link roster first"');
+  assert.equal(due({ status: 'auth-error' }), false, 'still "reconnect Google Classroom"');
   // Classroom holds that grade (a 0 returned before this shipped, say): still true.
   assert.equal(due({ status: 'synced' }), false);
   assert.equal(due({ status: 'graded-not-returned' }), false);

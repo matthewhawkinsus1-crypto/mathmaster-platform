@@ -3239,6 +3239,7 @@ exports.syncGradeToClassroom = onDocumentWritten(
             if (!noWorkRetryRowIsDue({ signalReason: "manual-retry", priorExists: noWorkPrior.exists, prior: noWorkPrior.data() || {} })) continue;
             // eslint-disable-next-line no-await-in-loop
             await writeGradeSyncAudit(db, linkDoc.id, event.params.studentId, {
+              ...(afterData.profile?.workloadCorrections?.[assignmentId] ? { correctionEventId: afterData.profile.workloadCorrections[assignmentId].eventId } : {}),
               assignmentId,
               courseId: String(link.courseId || ""),
               courseworkId: link.courseworkId || null,
