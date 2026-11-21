@@ -285,7 +285,11 @@ test('3. no feedback, diagnosis or review while an assessment item can still be 
   assert.match(engine, /const hintControlAllowed = toolHintsAllowed && !serverGrading && ladderRoleKnown;/);
   assert.match(engine, /const toolHintsAllowed = resolvedActivityPolicy\?\.hintsAllowed !== false;/);
   assert.match(engine, /const ladderRoleKnown = Boolean\(activityPolicy\) \|\| isActivityRole\(String\(activityRole \?\? ''\)\.trim\(\)\.toLowerCase\(\)\);/);
-  assert.match(engine, /import \{ getEffectiveActivityPolicy, isActivityRole \} from '\.\/platform\/policies\/activityPolicies';/);
+  // Both names the lines above call come from the activity policies, whatever else that import brings
+  // (the worked example's section rule reads resolveQuestionActivityRole from it too).
+  for (const name of ['getEffectiveActivityPolicy', 'isActivityRole']) {
+    assert.match(engine, new RegExp(`import \\{[^}]*\\b${name}\\b[^}]*\\} from '\\./platform/policies/activityPolicies';`), `${name} is imported from the activity policies`);
+  }
 });
 
 test('3. a DOL\'s per-item right/wrong release never opens the worked solution (PR #462 review B1)', () => {
