@@ -15,14 +15,26 @@
  *   "Submit — uses 1 of 2 tries left"   after a miss
  *   "Submit — last try"                 one left of several (a distinct state)
  *   "Submit — your only try"            a one-try item, said before it is spent
- *   "Submit"                            tries that never run out (Live Challenge)
+ *   "Submit"                            tries that never run out (Live Challenge,
+ *                                       and an assignment that declares
+ *                                       unlimited attempts)
  *
  * A host that names the action itself (a secure Test's "Record answer" /
  * "Save answer") keeps its own words: there the host decides what the action
  * is, and a navigation-mode save costs nothing.
  */
 
+import { attemptsAreUnlimited } from '../../../functions/shared/activityPolicies.mjs';
+
 export const SUBMIT_VERB = 'Submit';
+
+/*
+ * AN ASSIGNMENT WITH UNLIMITED ATTEMPTS (activityPolicies.mjs). Its maximum is
+ * a very large number, never shown: every sentence below that would count
+ * tries says they are unlimited instead.
+ */
+export const UNLIMITED_TRIES_STRIP = 'Unlimited tries on this question';
+export const UNLIMITED_TRIES_MISS = 'Not quite. You can try again — tries are unlimited on this question.';
 
 const whole = (value, fallback = 0) => {
   const number = Math.floor(Number(value));
@@ -46,7 +58,7 @@ export const submitTryCost = ({
   attemptsDoNotExpire = false,
 } = {}) => {
   const maximum = Math.max(1, whole(maximumAttempts, 1));
-  if (attemptsDoNotExpire) return { kind: 'unlimited', remaining: null, maximum, phrase: '', short: '' };
+  if (attemptsDoNotExpire || attemptsAreUnlimited(maximumAttempts)) return { kind: 'unlimited', remaining: null, maximum, phrase: '', short: '' };
   const remaining = remainingAttempts === null || remainingAttempts === undefined
     ? Math.max(0, maximum - Math.max(0, whole(attemptCount)))
     : Math.max(0, whole(remainingAttempts));
@@ -77,6 +89,7 @@ export const submitActionLabel = ({ hostLabel = null, submitting = false, cost =
  * that says "tries", and a version number the student never sees.
  */
 export const missOutcomeText = (remainingAttempts) => {
+  if (attemptsAreUnlimited(remainingAttempts)) return UNLIMITED_TRIES_MISS;
   const left = Math.max(0, whole(remainingAttempts));
   if (left === 1) return 'Not quite. You have 1 try left — your last one.';
   return `Not quite. You have ${left} tries left.`;
@@ -108,6 +121,7 @@ export const focusOnText = (labels = []) => {
  * last try and a one-try item named as such.
  */
 export const triesLeftText = ({ maximumAttempts = 1, remainingAttempts = 0 } = {}) => {
+  if (attemptsAreUnlimited(maximumAttempts)) return UNLIMITED_TRIES_STRIP;
   const maximum = Math.max(1, whole(maximumAttempts, 1));
   const left = Math.max(0, whole(remainingAttempts));
   if (maximum === 1 && left === 1) return 'One try on this question';
