@@ -67,6 +67,7 @@ const STUDENT = {
   noWork: `${P}-student-no-work`,
   // The co-teacher's class.
   coTaught: `${P}-student-co-taught`,
+  coTaughtNoWork: `${P}-student-co-taught-no-work`,
 };
 const WORK = {
   0: { status: 'correct', attemptCount: 1, totalAttempts: 1 },
@@ -183,8 +184,10 @@ before(async () => {
   await gradeRef(STUDENT.worked).set({ displayName: 'Worked', classId: CLASS.a, status: 'active', gradesByAssignment: { [ASSIGNMENT]: WORK } });
   await gradeRef(STUDENT.noWork).set({ displayName: 'No work', classId: CLASS.a, status: 'active', gradesByAssignment: { [ASSIGNMENT]: {} } });
   await gradeRef(STUDENT.coTaught).set({ displayName: 'Co-taught', classId: CLASS.b, status: 'active', gradesByAssignment: { [ASSIGNMENT]: WORK } });
+  // The co-teacher's class also has a student who opened the lesson and answered nothing.
+  await gradeRef(STUDENT.coTaughtNoWork).set({ displayName: 'Co-taught, no work', classId: CLASS.b, status: 'active', gradesByAssignment: { [ASSIGNMENT]: {} } });
   for (const [studentId, courses] of [
-    [STUDENT.worked, [COURSE.a, COURSE.b]], [STUDENT.noWork, [COURSE.a, COURSE.b]], [STUDENT.coTaught, [COURSE.b]],
+    [STUDENT.worked, [COURSE.a, COURSE.b]], [STUDENT.noWork, [COURSE.a, COURSE.b]], [STUDENT.coTaught, [COURSE.b]], [STUDENT.coTaughtNoWork, [COURSE.b]],
   ]) {
     for (const courseId of courses) {
       // eslint-disable-next-line no-await-in-loop
@@ -262,7 +265,7 @@ test('a reconcile queues the assignment\'s students, each entry carrying the run
   const result = await accounts.a.call('reconcileClassroomSectionGrades', { assignmentId: ASSIGNMENT });
   assert.equal(result.publications, 1, 'one section column is this teacher\'s');
   // Every assigned class, as before: the scope is which posts are acted on, below.
-  assert.equal(result.queuedStudents, 3);
+  assert.equal(result.queuedStudents, 4);
   assert.match(result.runId, /^[0-9a-f-]{36}$/);
   firstRunId = result.runId;
 
@@ -274,14 +277,14 @@ test('a reconcile queues the assignment\'s students, each entry carrying the run
     assert.equal(entry.scopeTeacherUid, accounts.a.uid);
   }
   assert.deepEqual(counts(await lastRun(accounts.a)), {
-    repaired: 0, upToDate: 0, notSent: 0, failed: 0, waiting: 0, queuedStudents: 3, pendingStudents: 3,
+    repaired: 0, upToDate: 0, notSent: 0, failed: 0, waiting: 0, queuedStudents: 4, pendingStudents: 4,
   }, 'before the queue is released the run is all still to come');
 });
 
 test('the pushes reach only the caller\'s columns, with the caller\'s Google account', async () => {
   google.length = 0;
   const events = await drainAndPush();
-  assert.equal(events.length, 3);
+  assert.equal(events.length, 4);
   const signal = (await gradeRef(STUDENT.worked).get()).data().classroomReleaseSignals[ASSIGNMENT];
   assert.equal(signal.runId, firstRunId, 'the drain carries the run to the release signal');
   assert.equal(signal.scopeTeacherUid, accounts.a.uid);
@@ -310,8 +313,10 @@ test('the pushes reach only the caller\'s columns, with the caller\'s Google acc
 test('the monitor says what the run did, to the teacher who ran it', async () => {
   assert.deepEqual(counts(await lastRun(accounts.a)), {
     // The worked student's section column; the student with no work has nothing to send before the due date.
-    repaired: 1, upToDate: 0, notSent: 1, failed: 0, waiting: 0, queuedStudents: 3, pendingStudents: 0,
+    repaired: 1, upToDate: 0, notSent: 1, failed: 0, waiting: 0, queuedStudents: 4, pendingStudents: 0,
   });
+  // The co-teacher's student has no column in the caller's course: with or
+  // without work, they add nothing, not even a "not sent".
   assert.equal(await lastRun(accounts.b), null, 'the co-teacher has no run on this assignment');
   // The run document names no student.
   const stored = (await db.collection(runs.CLASSROOM_RECONCILE_RUNS).doc(runs.reconcileRunDocumentId(ASSIGNMENT, accounts.a.uid)).get()).data();
@@ -330,7 +335,7 @@ test('a second reconcile finds every column up to date and costs no Classroom ca
   await drainAndPush();
   assert.deepEqual(google, [], 'nothing differs from what Classroom holds, so Google is not asked');
   assert.deepEqual(counts(await lastRun(accounts.a)), {
-    repaired: 0, upToDate: 1, notSent: 1, failed: 0, waiting: 0, queuedStudents: 3, pendingStudents: 0,
+    repaired: 0, upToDate: 1, notSent: 1, failed: 0, waiting: 0, queuedStudents: 4, pendingStudents: 0,
   });
 });
 
@@ -368,7 +373,7 @@ test('a column Google refuses for its limit is queued again inside the same run,
   assert.equal(requeued[0].scopeTeacherUid, accounts.a.uid, 'and the caller it acts for');
   assert.ok(requeued[0].notBefore.toMillis() - startedAt >= 55_000, 'about a minute later');
   assert.deepEqual(counts(await lastRun(accounts.a)), {
-    repaired: 0, upToDate: 0, notSent: 1, failed: 0, waiting: 1, queuedStudents: 3, pendingStudents: 0,
+    repaired: 0, upToDate: 0, notSent: 1, failed: 0, waiting: 1, queuedStudents: 4, pendingStudents: 0,
   });
 
   google.length = 0;
@@ -381,7 +386,7 @@ test('a column Google refuses for its limit is queued again inside the same run,
   const row = await auditRow(POST.sectionA, STUDENT.worked);
   assert.equal(row.status, 'synced');
   assert.equal(row.grade, 100);
-  const afterRetry = { repaired: 1, upToDate: 0, notSent: 1, failed: 0, waiting: 0, queuedStudents: 3, pendingStudents: 0 };
+  const afterRetry = { repaired: 1, upToDate: 0, notSent: 1, failed: 0, waiting: 0, queuedStudents: 4, pendingStudents: 0 };
   assert.deepEqual(counts(await lastRun(accounts.a)), afterRetry);
 
   // Firestore delivers a trigger's event at least once. Delivered again, the
@@ -412,7 +417,7 @@ test('at the due date a student with no work is sent nothing, and a student with
   await setDates(-HOUR, DAY);
   await fns.queueClassroomSectionGradeCheckpoints.run({});
   const entries = await waiting();
-  assert.deepEqual(entries.map((entry) => entry.reason), ['due-checkpoint', 'due-checkpoint', 'due-checkpoint'], 'the real scheduler queued the due-date wake-up for every student');
+  assert.deepEqual(entries.map((entry) => entry.reason), ['due-checkpoint', 'due-checkpoint', 'due-checkpoint', 'due-checkpoint'], 'the real scheduler queued the due-date wake-up for every student');
   assert.equal(entries.some((entry) => entry.runId || entry.scopeTeacherUid), false, 'a checkpoint is not a run');
 
   google.length = 0;

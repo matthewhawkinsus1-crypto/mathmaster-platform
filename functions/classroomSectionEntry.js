@@ -843,8 +843,14 @@ const syncSectionGradeToClassroom = onDocumentWritten(
       const stageNow = Date.now();
       for (const publicationDoc of publications) {
         const publication = publicationDoc.data() || {};
-        if (!sectionPublicationReleased(publication, Date.now())) { runTally?.count("notSent"); continue; }
-        if (publication.sectionKey === 'practice' && correctionPracticeWaived.length) { runTally?.count("notSent"); continue; }
+        // "Not sent" is counted for the run only on the student's own class's
+        // column: a column in another class's course was never theirs. (A
+        // post that records no class counts; a column that is sent, or
+        // fails, always counts, whatever class the student is in now.)
+        const ownClassColumn = !publication.classId || String(publication.classId) === String(afterData.classId || "");
+        const countNotSent = () => { if (ownClassColumn) runTally?.count("notSent"); };
+        if (!sectionPublicationReleased(publication, Date.now())) { countNotSent(); continue; }
+        if (publication.sectionKey === 'practice' && correctionPracticeWaived.length) { countNotSent(); continue; }
 
         let gradeResult;
         try {
@@ -904,7 +910,7 @@ const syncSectionGradeToClassroom = onDocumentWritten(
             returnedToStudent: false,
             message: sectionRecoveryGrades.RECOVERY_HELD_SYNC_MESSAGE,
           });
-          runTally?.count("notSent");
+          countNotSent();
           continue;
         }
 
@@ -940,10 +946,10 @@ const syncSectionGradeToClassroom = onDocumentWritten(
           studentFinalCutoff: ownDeadlines.studentFinalCutoff,
           studentDueAt: ownDeadlines.studentDueAt,
         });
-        if (!stage) { runTally?.count("notSent"); continue; }
+        if (!stage) { countNotSent(); continue; }
         // No work at the due date: nothing is sent, and Classroom shows the
         // work as Missing (lib/classroomMissingWork.js).
-        if (noWorkIsMissingNotZero({ stage, progress: gradeResult })) { runTally?.count("notSent"); continue; }
+        if (noWorkIsMissingNotZero({ stage, progress: gradeResult })) { countNotSent(); continue; }
         const releasePolicy = classroomGradeReleasePolicy({
           stage, assignment, nowValue: stageNow, studentDueAt: ownDeadlines.studentDueAt, studentFinalCutoff: ownDeadlines.studentFinalCutoff,
         });
@@ -960,7 +966,7 @@ const syncSectionGradeToClassroom = onDocumentWritten(
           });
         }
         const courseId = String(publication.courseId || "");
-        if (!courseId) { runTally?.count("notSent"); continue; }
+        if (!courseId) { countNotSent(); continue; }
         const maxPoints = classroomMaxPoints(publication.maxPoints);
         const classroomGrade = Math.round((gradeResult.grade / 100) * maxPoints * 100) / 100;
         const isFinal = ["final-complete", "final-deadline"].includes(stage);
@@ -1005,7 +1011,7 @@ const syncSectionGradeToClassroom = onDocumentWritten(
         const runStamp = reconcileScope?.runId ? { reconcileRunId: reconcileScope.runId } : {};
 
         const teacherUid = String(publication.teacherUid || "").trim();
-        if (!teacherUid) { runTally?.count("notSent"); continue; }
+        if (!teacherUid) { countNotSent(); continue; }
         let classroom = classroomByTeacher.get(teacherUid);
         if (!classroom) {
           try {
@@ -1067,9 +1073,7 @@ const syncSectionGradeToClassroom = onDocumentWritten(
             returnedToStudent: false,
             message: "Student is not linked to this Classroom course.",
           });
-          // Counted for the run only when this is the student's own class's
-          // column: a column of another class's course was never theirs.
-          if (!publication.classId || String(publication.classId) === String(afterData.classId || "")) runTally?.count("notSent");
+          countNotSent();
           continue;
         }
 
@@ -1132,7 +1136,7 @@ const syncSectionGradeToClassroom = onDocumentWritten(
           }
 
           // eslint-disable-next-line no-await-in-loop
-          if (!await require("./lib/retroactiveAccommodation").correctionSyncAllowed({ db, studentId: event.params.studentId, gradeData: afterData, assignment: { ...assignment, id: assignmentId } })) { runTally?.count("notSent"); continue; }
+          if (!await require("./lib/retroactiveAccommodation").correctionSyncAllowed({ db, studentId: event.params.studentId, gradeData: afterData, assignment: { ...assignment, id: assignmentId } })) { countNotSent(); continue; }
           const patched = await classroomLib.patchGrade(classroom, {
             courseId,
             courseWorkId: publication.courseworkId,
