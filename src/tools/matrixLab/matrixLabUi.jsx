@@ -13,6 +13,9 @@ import { ChoiceMark, useChoiceGroup } from '../../platform/interaction/choiceGro
  * button, and the verdict with the parts to reconsider.
  */
 
+// A cell the latest verdict marked wrong: the same border, in the error colour.
+const CELL_INVALID_BORDER = '1.5px solid var(--mm-error-border)';
+
 export const cellInputStyle = {
   // 64px, narrower on a phone under 360px wide (MatrixGrid.css): a 3×3 matrix
   // with its name was 7px wider than a 344px phone's box and scrolled inside it
@@ -77,7 +80,10 @@ export function CellInput({ value, onChange, label, onFocus, style = null, inval
       onFocus={onFocus}
       aria-label={label}
       aria-invalid={invalid || undefined}
-      style={{ ...cellInputStyle, ...(invalid ? { borderColor: 'var(--mm-error-border)' } : null), ...style }}
+      // The whole `border`, never `borderColor` beside the shorthand: when a
+      // wrong cell was fixed React removed the colour alone, which also wiped
+      // the colour the shorthand had set (and warned about it in the console).
+      style={{ ...cellInputStyle, ...(invalid ? { border: CELL_INVALID_BORDER } : null), ...style }}
     />
   );
 }

@@ -348,3 +348,22 @@ test('P2-6: the hint lint flags hints that state a row, a value or a place — a
   const sort = { ...byId('l3m-cw-4'), hints: ['(4 × 1) · (1 × 4): the inner 1s match, so the product is 4 × 4.'] };
   assert.equal(auditAssignmentHintAnswers([sort]).warnings.length, 1, 'a hint that sorts a figure');
 });
+
+/*
+ * A WRONG CELL THAT IS FIXED KEEPS ITS BORDER (browser check of the
+ * Thanksgiving packets, 2026-11-21, Matrix Lab product).
+ *
+ * The cell's style set the `border` shorthand and, on a wrong cell,
+ * `borderColor` beside it. When the cell was fixed React removed
+ * `borderColor`, which clears the colour the shorthand set as well: the cell
+ * was left with a border of the text colour, and the console got React's
+ * "Removing borderColor border" warning. A cell's border is one property.
+ */
+test('a Matrix Lab cell marks itself wrong with the whole border, never a colour beside the shorthand', () => {
+  const ui = executableSource(read('src/tools/matrixLab/matrixLabUi.jsx'));
+  const cell = region(ui, 'export function CellInput', '\n}\n');
+  assert.match(region(ui, 'export const cellInputStyle = {', '};'), /\bborder: '1\.5px solid var\(--mm-tint-border\)'/, 'the resting border is the shorthand');
+  assert.match(cell, /invalid \? \{ border: CELL_INVALID_BORDER \} : null/, 'a wrong cell replaces the whole border');
+  assert.match(ui, /const CELL_INVALID_BORDER = '1\.5px solid var\(--mm-error-border\)';/, 'the same width and style, in the error colour');
+  assert.doesNotMatch(cell, /border(Color|Width|Style)\s*:/, 'no longhand beside the shorthand');
+});
