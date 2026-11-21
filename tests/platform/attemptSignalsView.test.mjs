@@ -242,8 +242,13 @@ test("no student's first load carries the teacher's side of the signals", () => 
     const absolute = path.join(repo, file);
     assert.ok(!graph.has(absolute), `${file} is in a student's first load: ${graph.has(absolute) ? chainTo(graph, absolute) : ''}`);
   }
-  // The student's side is there: the engine's hook and the one writer.
-  assert.ok(graph.has(path.join(repo, 'src/platform/signals/attemptSignalWriter.js')));
+  // Of the student's side, only the few lines App needs at once are there;
+  // the recorder arrives with the question engine.
+  assert.ok(graph.has(path.join(repo, 'src/platform/signals/signalPageNotes.js')));
+  for (const file of ['src/platform/signals/attemptSignalWriter.js', 'src/platform/signals/attemptSignalFacts.js', 'src/platform/signals/useAttemptSignals.js']) {
+    const absolute = path.join(repo, file);
+    assert.ok(!graph.has(absolute), `${file} is in a student's first load: ${graph.has(absolute) ? chainTo(graph, absolute) : ''}`);
+  }
 });
 
 test('the page holds one answer to "are the tiles projected?", and tells whoever is listening when it changes', async () => {

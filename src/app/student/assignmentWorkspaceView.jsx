@@ -46,8 +46,7 @@ import {
 } from '../../platform/liveChallenge/warmupChallengeLink.js';
 import { NO_RECORDS } from './noRecords.js';
 import { db } from '../../firebase.js';
-import { recordAttemptSignal } from '../../platform/signals/attemptSignalWriter.js';
-import { attemptSignalPlace, notePlatformLinkOpened, supportsInEffect } from '../../platform/signals/attemptSignalFacts.js';
+import { notePlatformLinkOpened } from '../../platform/signals/signalPageNotes.js';
 import { studentClassInSession } from '../../platform/supports/askTeacher.js';
 
 export function createAssignmentWorkspaceView(
@@ -1281,7 +1280,18 @@ export function createAssignmentWorkspaceView(
                 // grade path, never in it (attemptSignalWriter.js).
                 onAttemptSignal: preview || lifecycle.isPracticeOnly || user?.role !== 'student' || !user?.id
                   ? null
-                  : (fact, at) => { void recordAttemptSignal({ db, studentId: user.id, assignmentId: activeAssignmentId, ...attemptSignalPlace(at, { questionIndex: currentQuestionIndex, activityRole: runtimeActivityRole }), fact, duringClass: classSchedule && user.classPeriod ? studentClassInSession({ schedule: classSchedule, classPeriod: user.classPeriod, nowValue: Date.now() }) : null, supports: supportsInEffect(user.profile) }); },
+                  // The recorder's code came with the question engine; what it
+                  // is told is fixed here, as of the fact, before it is fetched.
+                  : (fact, at) => {
+                    const signal = {
+                      db, studentId: user.id, assignmentId: activeAssignmentId, fact,
+                      questionIndex: Number.isInteger(at?.questionIndex) ? at.questionIndex : currentQuestionIndex,
+                      activityRole: at?.activityRole ?? runtimeActivityRole,
+                      duringClass: classSchedule && user.classPeriod ? studentClassInSession({ schedule: classSchedule, classPeriod: user.classPeriod, nowValue: Date.now() }) : null,
+                      profile: user.profile || null,
+                    };
+                    void import('../../platform/signals/attemptSignalWriter.js').then((writer) => writer.recordAttemptSignal(signal), () => {});
+                  },
                 onAskTeacher: preview || lifecycle.isPracticeOnly || user?.role !== 'student'
                   ? null
                   : (requested) => setHelpRequest(nextHelpRequest({ requested, assignmentId: activeAssignmentId, questionIndex: currentQuestionIndex })),

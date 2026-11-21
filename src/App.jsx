@@ -288,7 +288,7 @@ import { classIdsForTeacher } from '../functions/shared/classModel.mjs';
 // Only the event kinds and the live rapid-correct summary: the rest of
 // teacher/studentSupportSignals.js is the teacher's (first-load budget).
 import { summarizeRapidCorrectness } from './platform/teacher/rapidCorrectness.js';
-import { attemptSignalCount } from './platform/signals/attemptSignalWriter.js';
+import { attemptSignalCount } from './platform/signals/signalPageNotes.js';
 import { SCHOOL_NON_INSTRUCTIONAL_KEYS } from './app/shell/schoolCalendarKeys.js';
 // buildAttendanceCorrectionReviewEvent was called by "Keep current extension"
 // and "Apply shorter extension" without being imported — a ReferenceError that

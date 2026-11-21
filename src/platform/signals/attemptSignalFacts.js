@@ -25,6 +25,7 @@
 import { normalizeStudentProfile } from '../../studentSupport.js';
 import { translationLanguageOf } from '../../../functions/shared/supportProfileModel.mjs';
 import { SUPPORT_CATALOG } from '../../../functions/shared/supportCatalog.mjs';
+import { lastPlatformLinkAt } from './signalPageNotes.js';
 
 export const ATTEMPT_SIGNAL_KIND = Object.freeze({
   LEFT_THEN_RIGHT: 'leftThenRight',
@@ -155,7 +156,7 @@ const partValuesFrom = (responseKey) => {
  * student who leaves on one question and answers the next on returning is the
  * same pattern.
  */
-export const createPageAwayClock = ({ now = () => Date.now() } = {}) => {
+export const createPageAwayClock = ({ now = () => Date.now(), linkAt = () => 0 } = {}) => {
   let hiddenAt = 0;
   let hiddenByPlatformLink = false;
   let platformLinkAt = 0;
@@ -169,7 +170,10 @@ export const createPageAwayClock = ({ now = () => Date.now() } = {}) => {
     pageHidden() {
       if (hiddenAt) return;
       hiddenAt = now();
-      hiddenByPlatformLink = platformLinkAt > 0 && hiddenAt - platformLinkAt <= PLATFORM_LINK_GRACE_MS;
+      // The link's time: told to this clock, or noted for the page before this
+      // module had loaded (signalPageNotes.js).
+      const opened = Math.max(platformLinkAt, Number(linkAt()) || 0);
+      hiddenByPlatformLink = opened > 0 && hiddenAt >= opened && hiddenAt - opened <= PLATFORM_LINK_GRACE_MS;
       platformLinkAt = 0;
       // What is on the clipboard after time elsewhere is not known to be ours.
       copiedInPage = false;
@@ -211,7 +215,7 @@ let sharedClock = null;
 /** The page's own clock, listening to `visibilitychange` from first use. */
 export const sharedPageAwayClock = () => {
   if (sharedClock) return sharedClock;
-  sharedClock = createPageAwayClock();
+  sharedClock = createPageAwayClock({ linkAt: lastPlatformLinkAt });
   if (typeof document !== 'undefined' && typeof document.addEventListener === 'function') {
     document.addEventListener('visibilitychange', () => {
       if (document.hidden) sharedClock.pageHidden();
@@ -226,13 +230,6 @@ export const sharedPageAwayClock = () => {
   }
   return sharedClock;
 };
-
-/**
- * The platform opened one of its own links in a new tab (a teacher's study
- * sheet or reteach resource): the absence that follows is not the student
- * leaving the page.
- */
-export const notePlatformLinkOpened = () => sharedPageAwayClock().platformLinkOpened();
 
 /**
  * One question's tracker. It is told when the answer changes, when a paste
@@ -334,16 +331,6 @@ export const createAttemptSignalTracker = ({ clock = sharedPageAwayClock(), now 
     },
   };
 };
-
-/**
- * Which question and section a fact belongs to: where the engine that raised
- * it was (`at`, the host's own note handed back with the fact), else where
- * the host is now.
- */
-export const attemptSignalPlace = (at, now = {}) => ({
-  questionIndex: Number.isInteger(at?.questionIndex) ? at.questionIndex : now.questionIndex,
-  activityRole: at?.activityRole ?? now.activityRole ?? null,
-});
 
 /**
  * One document per fact: a question raises each kind once (a paste once per

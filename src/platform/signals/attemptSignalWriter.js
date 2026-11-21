@@ -8,7 +8,12 @@
 // and one that is missing costs a conversation, not a grade.
 
 import { doc, serverTimestamp, setDoc } from 'firebase/firestore';
-import { attemptSignalDocumentId, buildAttemptSignalRecord } from './attemptSignalFacts.js';
+import { attemptSignalDocumentId, buildAttemptSignalRecord, supportsInEffect } from './attemptSignalFacts.js';
+import { attemptSignalCount, countAttemptSignal, resetSignalPageNotes } from './signalPageNotes.js';
+
+// The count for the Live heartbeat lives in signalPageNotes.js, which App
+// reads before this module has loaded.
+export { attemptSignalCount };
 
 export const ATTEMPT_SIGNALS_SUBCOLLECTION = 'attemptSignals';
 const FIRESTORE = { doc, setDoc, serverTimestamp };
@@ -16,36 +21,6 @@ const FIRESTORE = { doc, setDoc, serverTimestamp };
 // What this page has already sent: one fact is one document, and a second
 // write of it would be refused by the rules (the first one stands).
 const sent = new Set();
-// How many facts this page has recorded per student and assignment: the Live
-// view's heartbeat carries the count, so the teacher's tile reads the facts
-// only for a student who has some (src/livePresence.js attemptSignalCount).
-const counts = new Map();
-const countKey = (studentId, assignmentId) => `${studentId}|${assignmentId}`;
-const STORAGE_PREFIX = 'mm.attemptSignalCount.';
-
-const storedCount = (key) => {
-  try {
-    return Math.max(0, Math.floor(Number(globalThis.sessionStorage?.getItem(`${STORAGE_PREFIX}${key}`)) || 0));
-  } catch {
-    return 0;
-  }
-};
-const storeCount = (key, value) => {
-  try {
-    globalThis.sessionStorage?.setItem(`${STORAGE_PREFIX}${key}`, String(value));
-  } catch {
-    // A tab without storage keeps the count until it is reloaded.
-  }
-};
-
-/** Facts recorded for this student on this assignment, in this tab. */
-export const attemptSignalCount = (studentId, assignmentId) => {
-  if (!studentId || !assignmentId) return 0;
-  const key = countKey(studentId, assignmentId);
-  if (!counts.has(key)) counts.set(key, storedCount(key));
-  return counts.get(key);
-};
-
 /**
  * Record one fact. Resolves true when it was written; false when it was a
  * repeat, could not be built, or the write failed.
@@ -56,8 +31,10 @@ export const attemptSignalCount = (studentId, assignmentId) => {
  * time it is raised.
  */
 // `store` is Firestore's own doc, setDoc and serverTimestamp; a test passes its own.
-export const recordAttemptSignal = async ({ db, studentId, assignmentId, questionIndex, activityRole = null, fact, duringClass = null, supports = null, store = FIRESTORE } = {}) => {
-  const record = buildAttemptSignalRecord({ studentId, assignmentId, questionIndex, activityRole, fact, duringClass, supports });
+// `profile` (the student's support profile) gives the supports in effect when
+// `supports` is not given outright.
+export const recordAttemptSignal = async ({ db, studentId, assignmentId, questionIndex, activityRole = null, fact, duringClass = null, supports = null, profile = undefined, store = FIRESTORE } = {}) => {
+  const record = buildAttemptSignalRecord({ studentId, assignmentId, questionIndex, activityRole, fact, duringClass, supports: supports ?? (profile === undefined ? null : supportsInEffect(profile)) });
   if (!db || !record) return false;
   const id = attemptSignalDocumentId(record);
   const sentKey = `${record.studentId}|${id}`;
@@ -69,15 +46,12 @@ export const recordAttemptSignal = async ({ db, studentId, assignmentId, questio
     if (error?.code !== 'permission-denied') sent.delete(sentKey);
     return false;
   }
-  const key = countKey(record.studentId, record.assignmentId);
-  const next = attemptSignalCount(record.studentId, record.assignmentId) + 1;
-  counts.set(key, next);
-  storeCount(key, next);
+  countAttemptSignal(record.studentId, record.assignmentId);
   return true;
 };
 
 /** For tests: forget what this page has sent and counted. */
 export const resetAttemptSignalWriter = () => {
   sent.clear();
-  counts.clear();
+  resetSignalPageNotes();
 };

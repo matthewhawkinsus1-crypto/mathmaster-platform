@@ -21,7 +21,6 @@ import {
   RETURN_WINDOW_MS,
   attemptHasToolWork,
   attemptSignalDocumentId,
-  attemptSignalPlace,
   supportsInEffect,
   buildAttemptSignalRecord,
   createAttemptSignalTracker,
@@ -31,6 +30,7 @@ import {
 } from '../../src/platform/signals/attemptSignalFacts.js';
 import { factsAfterSavedWork, pastedPartIndex } from '../../src/platform/signals/useAttemptSignals.js';
 import { attemptSignalCount, recordAttemptSignal, resetAttemptSignalWriter } from '../../src/platform/signals/attemptSignalWriter.js';
+import { lastPlatformLinkAt, notePlatformLinkOpened, resetSignalPageNotes } from '../../src/platform/signals/signalPageNotes.js';
 import { executableSource, region } from './helpers/sourceContract.mjs';
 import { readFileSync } from 'node:fs';
 
@@ -296,7 +296,21 @@ test("the platform's own new-tab link (a study sheet, a reteach resource) is not
   const answered = state({ slope: '-2', intercept: '3' }, ['slope', 'intercept']);
   w.tracker.noteAnswerState(answered);
   assert.deepEqual(kinds(w.tracker.attemptSubmitted({ question: QUESTION, answerState: answered, attemptNumber: 1 })), [ATTEMPT_SIGNAL_KIND.LEFT_THEN_RIGHT]);
-  // The assignment screen tells the clock when a resource link is pressed.
+  // The page notes a link pressed before the recorder's code has loaded, and
+  // the page's clock reads that note (createPageAwayClock's `linkAt`).
+  resetSignalPageNotes();
+  assert.equal(lastPlatformLinkAt(), 0);
+  let time = 5_000_000;
+  const noted = createPageAwayClock({ now: () => time, linkAt: lastPlatformLinkAt });
+  const quiet = createAttemptSignalTracker({ clock: noted, now: () => time });
+  quiet.noteAnswerState(state({}, []));
+  notePlatformLinkOpened(time);
+  time += 200; noted.pageHidden(); time += 30_000; noted.pageVisible(); time += 2000;
+  quiet.noteAnswerState(state({ slope: '-2', intercept: '3' }, ['slope', 'intercept']));
+  assert.deepEqual(kinds(quiet.attemptSubmitted({ question: QUESTION, answerState: state({ slope: '-2', intercept: '3' }, ['slope', 'intercept']), attemptNumber: 1 })), []);
+  assert.match(executableSource(readFileSync(new URL('../../src/platform/signals/attemptSignalFacts.js', import.meta.url), 'utf8')), /sharedClock = createPageAwayClock\(\{ linkAt: lastPlatformLinkAt \}\);/);
+  resetSignalPageNotes();
+  // The assignment screen notes it when a resource link is pressed.
   const view = executableSource(readFileSync(new URL('../../src/app/student/assignmentWorkspaceView.jsx', import.meta.url), 'utf8'));
   const count = (needle) => view.split(needle).length - 1;
   assert.equal(count('onResourceOpened='), 2, 'both places the support tools are drawn');
@@ -431,22 +445,33 @@ test('the rules list the same support ids as the catalog', () => {
 });
 
 test('a fact belongs to the question its engine was showing, not the one the student has since opened', () => {
-  // The host's note of where the engine was, handed back with the fact.
-  assert.deepEqual(attemptSignalPlace({ questionIndex: 2, activityRole: 'classwork' }, { questionIndex: 3, activityRole: 'practice' }), { questionIndex: 2, activityRole: 'classwork' });
-  assert.deepEqual(attemptSignalPlace({ questionIndex: 0, activityRole: 'warmup' }, { questionIndex: 5, activityRole: 'dol' }), { questionIndex: 0, activityRole: 'warmup' }, 'question 1 is a place, not a missing one');
-  // No note (an older engine): where the host is now.
-  assert.deepEqual(attemptSignalPlace(null, { questionIndex: 3, activityRole: 'practice' }), { questionIndex: 3, activityRole: 'practice' });
-  // The hook takes the note when the fact happens, before any wait.
+  // The hook takes the host's note of where it is when the fact happens, before any wait.
   const hook = executableSource(readFileSync(new URL('../../src/platform/signals/useAttemptSignals.js', import.meta.url), 'utf8'));
   const submitted = region(hook, 'const attemptSubmitted = useCallback(', '}, [raise]);', 'attemptSubmitted');
   assert.ok(submitted.indexOf('const at = contextRef.current;') !== -1 && submitted.indexOf('const at = contextRef.current;') < submitted.indexOf('factsAfterSavedWork('), 'the place is read before the scratchpad is asked');
   assert.match(submitted, /\.then\(\(facts\) => raise\(facts, at\)\)/);
   assert.match(hook, /hostRef\.current\?\.\(fact, at\);/);
-  // And the assignment screen records the place, the class time and the supports as of the fact.
+  // The assignment screen fixes the place, the class time and the profile as
+  // of the fact, and only then fetches the recorder's code.
   const view = executableSource(readFileSync(new URL('../../src/app/student/assignmentWorkspaceView.jsx', import.meta.url), 'utf8'));
-  const record = region(view, ': (fact, at) => { void recordAttemptSignal({', '}); },', 'the recorder');
-  assert.match(record, /\.\.\.attemptSignalPlace\(at, \{ questionIndex: currentQuestionIndex, activityRole: runtimeActivityRole \}\)/);
-  assert.match(record, /duringClass: classSchedule && user\.classPeriod \? studentClassInSession\(\{ schedule: classSchedule, classPeriod: user\.classPeriod, nowValue: Date\.now\(\) \}\) : null/);
-  assert.match(record, /supports: supportsInEffect\(user\.profile\)/);
+  const record = region(view, ': (fact, at) => {', "void import('../../platform/signals/attemptSignalWriter.js')", 'the recorder');
+  assert.match(record, /questionIndex: Number\.isInteger\(at\?\.questionIndex\) \? at\.questionIndex : currentQuestionIndex,/, 'question 1 (index 0) is a place, not a missing one');
+  assert.match(record, /activityRole: at\?\.activityRole \?\? runtimeActivityRole,/);
+  assert.match(record, /duringClass: classSchedule && user\.classPeriod \? studentClassInSession\(\{ schedule: classSchedule, classPeriod: user\.classPeriod, nowValue: Date\.now\(\) \}\) : null,/);
+  assert.match(record, /profile: user\.profile \|\| null,/);
   assert.match(view, /attemptSignalContext=\{renderMemo\('attemptSignalContext', \[currentQuestionIndex, runtimeActivityRole\], \(\) => \(\{ questionIndex: currentQuestionIndex, activityRole: runtimeActivityRole \}\)\)\}/);
+});
+
+test('the writer records the supports in effect from the profile it is handed', async () => {
+  const writes = [];
+  const store = { doc: (_db, ...segments) => segments.join('/'), serverTimestamp: () => 'T', setDoc: async (path, data) => { writes.push(data); } };
+  resetAttemptSignalWriter();
+  const fact = { kind: ATTEMPT_SIGNAL_KIND.PASTED, partIndex: 0, attemptNumber: 1 };
+  await recordAttemptSignal({ db: {}, studentId: 'S_P', assignmentId: 'a-p', questionIndex: 0, fact, duringClass: false, profile: { accommodations: ['extra-time', 'large-text'] }, store });
+  assert.deepEqual([writes[0].supports, writes[0].duringClass], [['extra-time', 'large-text'], false]);
+  await recordAttemptSignal({ db: {}, studentId: 'S_P', assignmentId: 'a-p', questionIndex: 1, fact, profile: null, store });
+  assert.deepEqual(writes[1].supports, [], 'a student with no profile has none in effect');
+  await recordAttemptSignal({ db: {}, studentId: 'S_P', assignmentId: 'a-p', questionIndex: 2, fact, store });
+  assert.ok(!('supports' in writes[2]) && !('duringClass' in writes[2]), 'not handed either: neither is recorded');
+  resetAttemptSignalWriter();
 });
