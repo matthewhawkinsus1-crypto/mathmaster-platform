@@ -10,6 +10,8 @@
  *   ?surface=corrections   RichQuestionRuntime as Test Cycle Corrections (3 tries)
  *   ?surface=secure        RichQuestionRuntime as a secure test in navigation
  *                          mode: no per-question Submit, drafts autosave
+ *   ?surface=challenge     LiveChallengeFieldQuestion, one number box: a
+ *                          lock-in cannot be taken back
  *   ?run=…                 a fresh local draft
  *
  * What a surface submits lands in window.__mmSubmits, and a secure draft in
@@ -23,6 +25,7 @@ import '../../src/App.css';
 import QuestionEngine from '../../src/QuestionEngine.jsx';
 import PathSessionPlayer from '../../src/components/student/PathSessionPlayer.jsx';
 import RichQuestionRuntime from '../../src/components/question/RichQuestionRuntime.jsx';
+import LiveChallengeFieldQuestion from '../../src/components/liveChallenge/LiveChallengeFieldQuestion.jsx';
 
 MathfieldElement.fontsDirectory = '/node_modules/mathlive/fonts';
 
@@ -90,6 +93,14 @@ function Rich() {
   );
 }
 
-const SURFACES = { engine: Engine, literal: Engine, path: Path, corrections: Rich, secure: Rich };
+function Challenge() {
+  const question = {
+    questionInstanceId: `typed-entry-challenge-${run}`, prompt: 'Evaluate $3 \\cdot 4$.', teksCode: 'A.5A',
+    responseFields: [{ id: 'answer', label: 'Value', inputProfile: 'number' }],
+  };
+  return <LiveChallengeFieldQuestion question={question} disabled={false} onSubmit={async (payload) => { window.__mmSubmits.push(payload); }} />;
+}
+
+const SURFACES = { engine: Engine, literal: Engine, path: Path, corrections: Rich, secure: Rich, challenge: Challenge };
 const Surface = SURFACES[SURFACE] || Engine;
 createRoot(document.getElementById('root')).render(<div data-typed-entry-surface={SURFACE} style={{ padding: 16 }}><Surface /></div>);

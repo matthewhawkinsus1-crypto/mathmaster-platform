@@ -37,7 +37,8 @@
  *   a + or −   with nothing after it before such an end: `12 +`, `x=5-`,
  *              `(x+2+)(x+3)`. A sign that opens a term is not one (`-5`,
  *              `+3`, `3*-x`), nor a sign written as a power or a subscript
- *              (`2^+`, `x\to 0^{-}`, `a_{+}`).
+ *              (`2^+`, `x\to 0^{-}`, `a_{+}`), a charge (`Ca^{2+}`), or the
+ *              side of a one-sided limit (`x→0+`, `f(2+)`).
  *   a product  with no factor before it (`*38`, `x=*5`, `2x+*1`) or none
  *   sign       after it (`4*`, `1\cdot`, `3**x`).
  *
@@ -52,6 +53,16 @@
 /** What the attempt record keeps of one typed box, and what a comparison reads. */
 export const MAX_TYPED_ANSWER_LENGTH = 240;
 
+/*
+ * What a typed box keeps on its way to a grader: one character past the
+ * limit. Cut to the limit itself, an over-long entry arrived looking like an
+ * answer of exactly 240 characters, and the comparison could not refuse it:
+ * `5`, 239 spaces and `+2` was wrong on the screen and right on the server.
+ * One more character is enough for isOverLongAnswer to see it. The attempt
+ * record still keeps 240 (attemptPolicy.mjs).
+ */
+export const TYPED_ANSWER_WIRE_LENGTH = MAX_TYPED_ANSWER_LENGTH + 1;
+
 /** Longer than a typed answer may be. Counted as the record counts: every character sent. */
 export const isOverLongAnswer = (value) => (typeof value === 'string' || typeof value === 'number')
   && String(value).length > MAX_TYPED_ANSWER_LENGTH;
@@ -59,7 +70,9 @@ export const isOverLongAnswer = (value) => (typeof value === 'string' || typeof 
 const EDITOR_BOOKKEEPING = /\\(?:left|right|displaystyle|dfrac(?=\{)|tfrac(?=\{))(?![A-Za-z])|\\placeholder(?:\[[^\]]*\])?\{[^{}]*\}|\\[,;:! ]|\\(?:quad|qquad)(?![A-Za-z])/g;
 const PRODUCT_SIGNS = /\\(?:cdot|times)(?![A-Za-z])|[×·⋅∙]/g;
 const MINUS_SIGNS = /[−–—]/g;
-const RELATIONS = /\\(?:leq?|geq?|neq?|lt|gt|approx)(?![A-Za-z])|[<>=≤≥≠≈!]/g;
+// `!=` is a relation; a `!` alone is a factorial, part of its operand (`3!*2`).
+const RELATIONS = /\\(?:leq?|geq?|neq?|lt|gt|approx)(?![A-Za-z])|!=|[<>=≤≥≠≈]/g;
+const ARROWS = /\\(?:to|rightarrow|longrightarrow)(?![A-Za-z])|→|->/g;
 const CONNECTIVES = /\\(?:text|mathrm|operatorname)\{\s*(?:or|and)\s*\}|\\(?:lor|land|vee|wedge)(?![A-Za-z])|[∨∧]|(?<![A-Za-z])(?:or|and)(?![A-Za-z])/gi;
 
 /*
@@ -72,13 +85,21 @@ const marksOf = (value) => String(value ?? '')
   .replace(EDITOR_BOOKKEEPING, '')
   .replace(PRODUCT_SIGNS, '*')
   .replace(MINUS_SIGNS, '-')
-  // A sign written as a power or a subscript is a mark of its own, not an operator.
-  .replace(/([\^_])\{\s*[+-]\s*\}/g, '$1{a}')
-  .replace(/([\^_])\s*[+-](?!\s*[0-9A-Za-z.\\({π∞])/g, '$1a')
+  // A one-sided limit written without a caret: `x→0+`, `\\lim_{x\\to 0+}`,
+  // and the value there, `f(2+)`. The sign is part of the number.
+  .replace(ARROWS, '→')
+  .replace(/→\s*(-?\d+(?:\.\d+)?)\s*[+-](?=\s*(?:$|[)\]},;]))/g, '→$1')
+  .replace(/([A-Za-z])\(\s*(-?\d+(?:\.\d+)?)\s*[+-]\s*\)/g, '$1($2)')
+  // Where an expression can end. Before the power rule below, which asks
+  // what follows the sign: `x^+ or x^-`, `\\mathbb{R}^+\\text{ or }(0,\\infty)`.
   .replace(/;/g, ',')
   .replace(CONNECTIVES, ';')
   .replace(RELATIONS, ';')
   .replace(/,/g, ';')
+  // A sign written as a power or a subscript is a mark of its own, not an
+  // operator: `2^+`, `x^{-}`, `a_{+}`, and a charge, `Ca^{2+}`, `SO_4^{2-}`.
+  .replace(/([\^_])\{\s*\d*\s*[+-]\s*\}/g, '$1{a}')
+  .replace(/([\^_])\s*[+-](?!\s*[0-9A-Za-z.\\({π∞])/g, '$1a')
   .replace(/\s+/g, '')
   .replace(/[[{]/g, '(')
   .replace(/[\]}]/g, ')')
@@ -100,6 +121,9 @@ export const hasDanglingOperator = (value) => {
   return /(?:^|[;(+\-*])\*/.test(marks) || /\*(?:$|[;)*])/.test(marks);
 };
 
+/** Is what makes it unfinished a product sign written twice (`3**x`, `x**2`)? */
+const hasDoubledProductSign = (value) => /\*\*/.test(marksOf(value));
+
 export const TYPED_ENTRY_PROBLEMS = Object.freeze({ TOO_LONG: 'tooLong', UNFINISHED: 'unfinished' });
 
 /** Why a typed entry is not graded: 'tooLong', 'unfinished', or null. */
@@ -116,6 +140,8 @@ export const typedEntryProblem = (value) => {
 export const TYPED_ENTRY_MESSAGES = Object.freeze({
   [TYPED_ENTRY_PROBLEMS.TOO_LONG]: `This answer is longer than the ${MAX_TYPED_ANSWER_LENGTH} characters an answer box can keep. Shorten it, then submit it.`,
   [TYPED_ENTRY_PROBLEMS.UNFINISHED]: 'This answer is not finished: a +, − or × has nothing after it, or a × has nothing before it. Finish it or remove the sign.',
+  // `x**2`: nothing is missing after the sign, so the sentence above would mislead.
+  doubledProductSign: 'This answer is not finished: a × is written twice in a row. Remove one of them (for a power, use ^).',
 });
 
 /**
@@ -131,7 +157,8 @@ export const typedEntryNotice = (value, { words = false, keys = [], tries = true
   const problem = typedEntryProblem(value);
   if (!problem) return '';
   if (problem === TYPED_ENTRY_PROBLEMS.UNFINISHED && (words || (Array.isArray(keys) ? keys : [keys]).some((key) => hasDanglingOperator(key)))) return '';
-  return `${TYPED_ENTRY_MESSAGES[problem]}${tries ? ' It is not submitted, and no try is used.' : ''}`;
+  const sentence = problem === TYPED_ENTRY_PROBLEMS.UNFINISHED && hasDoubledProductSign(value) ? TYPED_ENTRY_MESSAGES.doubledProductSign : TYPED_ENTRY_MESSAGES[problem];
+  return `${sentence}${tries ? ' It is not submitted, and no try is used.' : ''}`;
 };
 
 /**

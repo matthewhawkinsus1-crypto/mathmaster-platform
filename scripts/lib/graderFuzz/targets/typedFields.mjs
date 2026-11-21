@@ -127,10 +127,9 @@ export const check = async (fuzzCase, { slowMs = 2000 } = {}) => {
   if (device === REFUSED) {
     // Never sent, so there is no verdict to agree on. A tab on an older build
     // still sends it: no grader a student's credit comes from may mark it right.
-    // (Such a tab sends an over-long box cut to the record's length, and what
-    // is left may be a finished right answer: `server` is asked only about an
-    // entry it receives whole.)
-    const right = ['value', 'assignment', 'path', 'secure', ...(typed.length > MAX_TYPED_ANSWER_LENGTH ? [] : ['server'])].filter((name) => verdicts[name] === true);
+    // (An over-long box travels one character past the limit, so the server
+    // sees that it is over-long: typedEntryGuard.mjs TYPED_ANSWER_WIRE_LENGTH.)
+    const right = ['value', 'assignment', 'path', 'secure', 'server'].filter((name) => verdicts[name] === true);
     if (right.length) {
       report('device-server-parity', `refused-on-screen/${input.inputClass}/${right.join('+')}`,
         `the box refuses ${JSON.stringify(typed.slice(0, 120))}${typed.length > 120 ? `… (${typed.length} characters)` : ''} and ${right.join(', ')} mark it right for key ${JSON.stringify(field.expected)}`);

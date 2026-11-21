@@ -7,7 +7,8 @@
 // A student, on a Chromebook and by touch on a phone, types into the real
 // math editor on every typed-field surface (tests/browser/typedEntryRefusalMain.jsx):
 // the assignment engine (a multi-answer box and a literal equation), My Math
-// Path's own renderer, Test Cycle Corrections, and a secure test.
+// Path's own renderer, Test Cycle Corrections, a secure test, and a Live
+// Challenge round (where a lock-in cannot be taken back).
 //
 //   `12 +`, `12·` (the × key)   the box says the answer is not finished, Submit
 //                               (or Check) is held, Enter does nothing, and
@@ -47,6 +48,8 @@ const SURFACES = [
   { id: 'path', name: 'My Math Path', action: /^Check my answer$/, tries: true, right: '12' },
   { id: 'corrections', name: 'Corrections', action: /^Submit — /, tries: true, right: '12' },
   { id: 'secure', name: 'secure test', action: null, tries: false, right: '12' },
+  // A lock-in is the round's one answer, not a try: the box says it cannot be locked in.
+  { id: 'challenge', name: 'Live Challenge', action: /^Lock In Answer$/, tries: true, cost: /It cannot be locked in as it is\./, right: '12' },
 ];
 
 const NOT_FINISHED = /This answer is not finished/;
@@ -119,7 +122,7 @@ for (const device of DEVICES) {
     check(unfinished.early.length === 0, `${label}: nothing is said while the entry is still being typed`, JSON.stringify(unfinished.early));
     check(unfinished.notices.length === 1 && NOT_FINISHED.test(unfinished.notices[0]), `${label}: the box says the answer is not finished`, JSON.stringify(unfinished.notices));
     if (surface.tries) {
-      check(NO_TRY.test(unfinished.notices[0] || ''), `${label}: …and that no try is used`, JSON.stringify(unfinished.notices));
+      check((surface.cost || NO_TRY).test(unfinished.notices[0] || ''), `${label}: …and what that means here (${surface.cost ? 'it cannot be locked in' : 'no try is used'})`, JSON.stringify(unfinished.notices));
       check(unfinished.held === true, `${label}: the action that records an answer is held`, `disabled ${unfinished.held}`);
       check(unfinished.submits === 0, `${label}: nothing was submitted, by the button or by Enter`, `${unfinished.submits} submit(s)`);
     } else {
@@ -159,7 +162,7 @@ for (const device of DEVICES) {
     const long = await typeAndRead(context, device, surface, null, { value: `${'1+'.repeat(120)}1` });
     check(long.typed.length > 240, `${label}: the box holds ${long.typed.length} characters`);
     check(long.notices.length === 1 && TOO_LONG.test(long.notices[0]), `${label}: the box says an answer keeps 240 characters`, JSON.stringify(long.notices));
-    if (surface.tries) check(long.held === true && long.submits === 0 && NO_TRY.test(long.notices[0] || ''), `${label}: …and it is not submitted; no try is used`, `disabled ${long.held}, ${long.submits} submit(s)`);
+    if (surface.tries) check(long.held === true && long.submits === 0 && (surface.cost || NO_TRY).test(long.notices[0] || ''), `${label}: …and it is not submitted; no try is used`, `disabled ${long.held}, ${long.submits} submit(s)`);
     if (device.touch) check(long.overflow <= 1, `${label}: a long entry's sentence causes no sideways scroll`, `${long.overflow}px`);
     await long.page.close();
 

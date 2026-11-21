@@ -114,3 +114,33 @@ test('the notice waits for the entry to stand, and is a status a screen reader h
   assert.match(notice, /if \(!message \|\| shown !== message\) return null;/, 'gone as soon as the entry is fine');
   assert.match(notice, /<p role="status"[^>]*data-typed-entry-notice/);
 });
+
+test('review: Live Challenge cannot lock in an unfinished or over-long entry, and its box says why', async () => {
+  // The round is graded by My Math Path's comparison, which refuses such an
+  // entry. A lock-in cannot be taken back: locked in unseen, `12 +` for a
+  // field keyed 12 lost the round with nothing on the screen to say why.
+  const { liveChallengeEntryProblem, liveChallengeResponseComplete } = await import('../../src/platform/liveChallenge/liveChallengeEntry.js').catch(() => ({}));
+  const fields = [{ id: 'a', kind: 'math' }, { id: 'b', kind: 'choice' }, { id: 'c', kind: 'text' }];
+  assert.equal(liveChallengeResponseComplete(fields, { a: '12', b: 'B+', c: 'increasing' }), true);
+  assert.equal(liveChallengeResponseComplete(fields, { a: '12 +', b: 'B+', c: 'increasing' }), false);
+  assert.equal(liveChallengeResponseComplete(fields, { a: '12\\cdot', b: 'B+', c: 'increasing' }), false);
+  assert.equal(liveChallengeResponseComplete(fields, { a: 'x'.repeat(241), b: 'B+', c: 'increasing' }), false);
+  assert.equal(liveChallengeResponseComplete(fields, { a: '12', b: 'B+', c: 'x'.repeat(241) }), false, 'a box of words is read for its length');
+  assert.equal(liveChallengeResponseComplete(fields, { a: '12', b: 'B+', c: 'A+' }), true);
+  assert.equal(liveChallengeResponseComplete(fields, { a: '', b: 'B+', c: 'increasing' }), false, 'a blank box, as before');
+  assert.equal(liveChallengeResponseComplete([], {}), false, 'no fields, as before');
+  assert.match(liveChallengeEntryProblem('math', '12 +'), /not finished.*cannot be locked in/);
+  assert.doesNotMatch(liveChallengeEntryProblem('math', '12 +'), /try/, 'a lock-in is not a try');
+  assert.match(liveChallengeEntryProblem('math', 'x'.repeat(241)), /240 characters.*cannot be locked in/);
+  assert.equal(liveChallengeEntryProblem('math', '-12'), '');
+  assert.equal(liveChallengeEntryProblem('choice', 'B+'), '');
+
+  const source = read('src/components/liveChallenge/LiveChallengeFieldQuestion.jsx');
+  assert.match(source, /const complete = readiness\.eligible\s+&& liveChallengeResponseComplete\(fields\.map\(\(field\) => \(\{ id: field\.id, kind: fieldKind\(field\) \}\)\), responses\);/);
+  // Lock In and Enter both go through `complete`.
+  assert.match(region(source, 'const submit = async () => {', 'setLockPressed(true)', 'the lock-in'), /if \(!complete \|\| disabled \|\| busy\) return;/);
+  assert.match(source, /disabled=\{!complete \|\| disabled \|\| busy\} onClick=\{submit\}/);
+  for (const [box, kind] of [['function MathField(', 'math'], ['function TextField(', 'text']]) {
+    assert.ok(region(source, box, '\n}\n', box).includes(`<TypedEntryNotice message={disabled ? '' : liveChallengeEntryProblem('${kind}', value)}`), `${box} draws the notice`);
+  }
+});

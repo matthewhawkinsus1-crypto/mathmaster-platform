@@ -40,6 +40,7 @@ import {
 } from './fractionAnswer.mjs';
 import { numericSetCredit } from './numericSetCredit.mjs';
 import { withLineFormPolicy } from './lineFormPolicy.mjs';
+import { TYPED_ANSWER_WIRE_LENGTH, refusesTypedEntry } from './typedEntryGuard.mjs';
 
 const text = (value) => String(value ?? '');
 const filled = (value) => text(value).trim() !== '';
@@ -131,7 +132,11 @@ export const gradeLiteralResponse = (question = {}, rawAnswer) => {
   // A literal answer is one value, so `8,050` for a key of 8050 (or the
   // reverse) is the same number. matchesAnyAnswer itself stays comma-literal
   // because multiAnswer list fields reach it too.
-  const isCorrect = isComplete && (matchesAnyAnswer(answer, accepted)
+  // (An unfinished or over-long entry is never right: typedEntryGuard.mjs.
+  // Each grader here asks, because not every reader below goes through
+  // matchesFieldAnswer or sameValue: a grouped number and a pair are read
+  // by their own parsers.)
+  const isCorrect = isComplete && !refusesTypedEntry(answer, accepted) && (matchesAnyAnswer(answer, accepted)
     || matchesAnyNumberWithThousandsSeparators(answer, accepted));
   return {
     isComplete,
@@ -181,7 +186,7 @@ export const gradeFractionResponse = (question = {}, rawAnswer) => {
   // filled in its key, so the key is derived from its operands when missing.
   const key = shape === FRACTION_QUESTION_SHAPES.OPERANDS ? fractionSumAnswerKey(question) : question;
   const isComplete = answer !== '';
-  const isCorrect = isComplete && (shape === FRACTION_QUESTION_SHAPES.AUTHORED_ANSWER
+  const isCorrect = isComplete && !refusesTypedEntry(answer, fractionAnswerCandidates(question)) && (shape === FRACTION_QUESTION_SHAPES.AUTHORED_ANSWER
     ? matchesAuthoredFractionAnswer(question, answer)
     : compareMathAnswer(answer, `\\frac{${key?.ansNum}}{${key?.ansDen}}`));
   return {
@@ -202,9 +207,10 @@ export const gradeOrderedPairResponse = (question = {}, rawAnswer) => {
   // complete answer to a key that has one.
   const exactKey = Array.isArray(expectedPair) && expectedPair.some((coordinate) => typeof coordinate === 'string');
   const isComplete = Boolean(parsed) || (exactKey && looksLikeOrderedPair(rawAnswer));
-  const xCorrect = isComplete && sameOrderedPairCoordinate(rawAnswer, expectedPair, 0);
-  const yCorrect = isComplete && sameOrderedPairCoordinate(rawAnswer, expectedPair, 1);
-  const isCorrect = compareOrderedPair(rawAnswer, expectedPair);
+  const refused = refusesTypedEntry(rawAnswer);
+  const xCorrect = isComplete && !refused && sameOrderedPairCoordinate(rawAnswer, expectedPair, 0);
+  const yCorrect = isComplete && !refused && sameOrderedPairCoordinate(rawAnswer, expectedPair, 1);
+  const isCorrect = !refused && compareOrderedPair(rawAnswer, expectedPair);
   return {
     isComplete,
     isCorrect,
@@ -239,9 +245,10 @@ export const gradeSystemResponse = (question = {}, rawAnswer) => {
   const solution = systemSolutionKey(question);
   const parsed = parseOrderedPair(rawAnswer);
   const isComplete = Boolean(parsed);
-  const xCorrect = Boolean(parsed) && Math.abs(parsed[0] - Number(solution?.[0])) <= 1e-9;
-  const yCorrect = Boolean(parsed) && Math.abs(parsed[1] - Number(solution?.[1])) <= 1e-9;
-  const isCorrect = compareOrderedPair(rawAnswer, solution);
+  const refused = refusesTypedEntry(rawAnswer);
+  const xCorrect = Boolean(parsed) && !refused && Math.abs(parsed[0] - Number(solution?.[0])) <= 1e-9;
+  const yCorrect = Boolean(parsed) && !refused && Math.abs(parsed[1] - Number(solution?.[1])) <= 1e-9;
+  const isCorrect = !refused && compareOrderedPair(rawAnswer, solution);
   return {
     isComplete,
     isCorrect,
@@ -326,7 +333,7 @@ export const gradeTableResponse = (question = {}, responsesByKey = {}) => {
       label: `Table blank ${key}`,
       graded,
       isComplete: response.trim() !== '',
-      isCorrect: graded && response.trim() !== '' && (compareMathAnswer(response, answers[key])
+      isCorrect: graded && response.trim() !== '' && !refusesTypedEntry(response, answers[key]) && (compareMathAnswer(response, answers[key])
         || matchesAnyNumberWithThousandsSeparators(response, [answers[key]])),
       response,
     };
@@ -366,7 +373,9 @@ export const normalizeOrdinaryResponse = ({ question, answerState } = {}) => {
       value: '',
       fields: parts.map((part, index) => ({
         id: text(part?.id ?? `part-${index + 1}`),
-        value: text(part?.response).slice(0, 240),
+        // One past the limit, so that the server can refuse an over-long box
+        // (typedEntryGuard.mjs TYPED_ANSWER_WIRE_LENGTH).
+        value: text(part?.response).slice(0, TYPED_ANSWER_WIRE_LENGTH),
         isComplete: part?.isComplete === true,
       })),
     };

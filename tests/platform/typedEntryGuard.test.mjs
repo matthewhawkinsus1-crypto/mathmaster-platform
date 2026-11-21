@@ -132,9 +132,10 @@ test('a key that is itself written with a dangling sign is the author\'s: the co
 test('#558: an answer over 240 characters is refused by the comparison, at once', async () => {
   const { MAX_TYPED_ANSWER_LENGTH, isOverLongAnswer } = guard;
   assert.equal(MAX_TYPED_ANSWER_LENGTH, 240);
-  // The record's own number: what the wire and the attempt record keep of a box.
+  // The record's own number. A box travels one character past it, so that an
+  // over-long one is still seen to be over-long (the review tests below).
   const wire = normalizeOrdinaryResponse({ question: multiAnswer('5'), answerState: { parts: [{ id: 'value', response: 'x'.repeat(400), isComplete: true }] } });
-  assert.equal(wire.fields[0].value.length, MAX_TYPED_ANSWER_LENGTH);
+  assert.equal(wire.fields[0].value.length, MAX_TYPED_ANSWER_LENGTH + 1);
 
   const padded = (key) => [`${'+'.repeat(241 - key.length)}${key}`, `${'('.repeat(120)}${key}${')'.repeat(120)}`, `${key}${'+0'.repeat(120)}`, `${key}${' '.repeat(240)}`];
   for (const key of ['5', '-5', 'x^2+3x+2', 'y=2x+1']) {
@@ -311,4 +312,116 @@ test('what the box says: fixed sentences, with what the refusal cost', () => {
   assert.match(typedEntryNotice('x'.repeat(241), { words: true }), /240 characters/);
   assert.equal(typedEntryNotice('x+', { keys: ['x+'] }), '');
   assert.equal(Object.isFrozen(TYPED_ENTRY_MESSAGES), true);
+});
+
+/* ---------------------------------------------------------------------------
+ * The review of pull request #593: what the first pass left open.
+ * ------------------------------------------------------------------------- */
+
+const review = {
+  credit: await import('../../functions/shared/numericSetCredit.mjs'),
+  stored: await import('../../functions/shared/responseCheckpointSchema.mjs'),
+  ordinary: await import('../../functions/shared/ordinaryResponseGrading.mjs'),
+};
+
+test('review: a refused entry earns no partial credit, and the credit step does not read it', async () => {
+  // A numeric set with partial credit scored the entry after the verdict
+  // refused it: `{1, 2, 3}` with 240 spaces was isCorrect false, score 1, and
+  // the pairing is quadratic in what was typed (2,692 characters took 15 s).
+  const key = '\\{1, 2, 3\\}';
+  const field = { equivalence: 'numericSet', partialCredit: 'matchedElements' };
+  const grading = pathGrading(key, field);
+  const question = multiAnswer(key, field);
+  const whole = async (typed) => [
+    await mathPath.gradeResponse(grading, { responses: { answer: typed } }),
+    await secureItems.gradeItem(grading, { responses: { answer: typed } }),
+  ];
+  for (const result of await whole(key)) assert.deepEqual([result.isCorrect, result.score], [true, 1], 'the key');
+  for (const result of await whole('\\{1, 2\\}')) assert.deepEqual([result.isCorrect, Math.round(result.score * 100)], [false, 67], 'two of three, as before');
+  assert.equal(Math.round(gradeMultiAnswerResponse(question, { value: '\\{1, 2\\}' }).parts[0].credit * 100), 67);
+  for (const typed of [`${key}${' '.repeat(240)}`, `${key}+`, `\\{${Array.from({ length: 120 }, (_, index) => index).join(', ')}\\}`]) {
+    assert.equal(review.credit.numericSetCredit(typed, key), 0, `${typed.length} characters`);
+    for (const result of await whole(typed)) assert.deepEqual([result.isCorrect, result.score], [false, 0], `${typed.length} characters`);
+    assert.equal(gradeMultiAnswerResponse(question, { value: typed }).parts[0].credit, 0);
+  }
+  // Bounded work: a long roster is refused, not paired element by element.
+  const long = `\\{${Array.from({ length: 700 }, (_, index) => index).join(', ')}\\}`;
+  const started = performance.now();
+  for (const result of await whole(long)) assert.equal(result.score, 0);
+  assert.equal(gradeMultiAnswerResponse(question, { value: long }).parts[0].credit, 0);
+  const took = performance.now() - started;
+  assert.ok(took < 100, `a ${long.length}-character roster took ${Math.round(took)} ms`);
+});
+
+test('review: an over-long box still reads as over-long when it reaches the server', () => {
+  const { MAX_TYPED_ANSWER_LENGTH, TYPED_ANSWER_WIRE_LENGTH, isOverLongAnswer } = guard;
+  assert.equal(TYPED_ANSWER_WIRE_LENGTH, MAX_TYPED_ANSWER_LENGTH + 1);
+  // Cut to exactly 240, `5`, 239 spaces and `+2` arrived as a finished `5`:
+  // wrong on the screen, right on the server. One more character is kept.
+  const typed = `5${' '.repeat(239)}+2`;
+  const question = multiAnswer('5', { inputProfile: 'number' });
+  assert.equal(gradeMultiAnswerResponse(question, { value: typed }).isCorrect, false, 'the screen');
+  const wire = normalizeOrdinaryResponse({ question, answerState: { parts: gradeMultiAnswerResponse(question, { value: typed }).parts } });
+  assert.equal(wire.fields[0].value.length, TYPED_ANSWER_WIRE_LENGTH);
+  assert.equal(isOverLongAnswer(wire.fields[0].value), true);
+  const server = onServer(question, typed);
+  assert.equal(server.graded && server.isCorrect === true, false, 'the server, on the response as sent');
+  // The same for a table cell.
+  const table = { questionId: 't', type: 'table', prompt: 'Complete the table.', table: { headers: ['x', 'y'], rows: [['1', '']], answers: { 'r0c1': '5' } } };
+  const device = gradeTableResponse(table, { 'r0c1': typed });
+  assert.equal(device.isCorrect, false);
+  const sent = JSON.parse(JSON.stringify(normalizeOrdinaryResponse({ question: table, answerState: { parts: device.parts } })));
+  const marked = gradeServerResponse({ question: table, response: sent });
+  assert.equal(marked.graded && marked.isCorrect === true, false, 'a table cell on the server');
+  // …and when the response is stored first (a checkpoint the deadline grades).
+  const stored = review.stored.normalizeStoredResponse(sent);
+  assert.equal(isOverLongAnswer(stored.fields[0].value), true, 'the stored response keeps the character that says so');
+  const fromStore = gradeServerResponse({ question: table, response: stored });
+  assert.equal(fromStore.graded && fromStore.isCorrect === true, false);
+  // An answer of exactly 240 characters is still an answer, sent whole.
+  const atLimit = `${' '.repeat(239)}5`;
+  assert.equal(onServer(question, atLimit).isCorrect, true);
+});
+
+test('review: every ordinary grader refuses an unfinished or over-long entry, whichever reader its type uses', () => {
+  // A grouped number, a pair and a system are read by their own parsers, not
+  // by sameValue: the key with 240 spaces after it was still right.
+  const pad = ' '.repeat(241);
+  const { gradeSystemResponse, gradeFractionResponse } = review.ordinary;
+  assert.equal(gradeOrderedPairResponse({ answer: [2, -3] }, '(2, -3)').isCorrect, true);
+  assert.equal(gradeOrderedPairResponse({ answer: [2, -3] }, `(2, -3)${pad}`).isCorrect, false);
+  assert.deepEqual(gradeOrderedPairResponse({ answer: [2, -3] }, `(2, -3)${pad}`).parts.map((part) => part.isCorrect), [false, false]);
+  assert.equal(gradeSystemResponse({ solution: [1, 3] }, '(1, 3)').isCorrect, true);
+  assert.equal(gradeSystemResponse({ solution: [1, 3] }, `(1, 3)${pad}`).isCorrect, false);
+  assert.deepEqual(gradeSystemResponse({ solution: [1, 3] }, `(1, 3)${pad}`).parts.map((part) => part.isCorrect), [false, false]);
+  const table = { table: { answers: { 'r0c1': '1,000' }, blanks: [] } };
+  assert.equal(gradeTableResponse(table, { 'r0c1': '1,000' }).isCorrect, true);
+  assert.equal(gradeTableResponse(table, { 'r0c1': `1,000${pad}` }).isCorrect, false);
+  assert.equal(gradeLiteralResponse({ acceptedAnswers: ['1,250'] }, '1,250').isCorrect, true);
+  assert.equal(gradeLiteralResponse({ acceptedAnswers: ['1,250'] }, `1,250${pad}`).isCorrect, false);
+  assert.equal(gradeFractionResponse({ answer: '3/4' }, '3/4').isCorrect, true);
+  assert.equal(gradeFractionResponse({ answer: '3/4' }, `3/4${pad}`).isCorrect, false);
+  assert.equal(gradeFractionResponse({ answer: '3/4' }, '3/4+').isCorrect, false);
+});
+
+test('review: a factorial, a one-sided limit, a charge and a signed power beside "or" are finished', () => {
+  const { hasDanglingOperator, typedEntryNotice } = guard;
+  for (const typed of [
+    '3!*2', '\\frac{10!}{3!\\cdot 7!}', '6!/(2!*4!)', '5!', 'n!',
+    '\\mathbb{R}^+\\text{ or }(0,\\infty)', 'x^+ or x^-', 'x^{+} or x^{-}',
+    'x→0+', 'x\\to 0-', '\\lim_{x\\to 0+}', '\\lim_{x\\to 0+}f(x)', 'f(2+)', 'f(2-)',
+    'Ca^{2+}', 'SO_4^{2-}', 'Fe^{3+}',
+  ]) {
+    assert.equal(hasDanglingOperator(typed), false, typed);
+    assert.equal(typedEntryNotice(typed), '', typed);
+  }
+  // `!=` is still a relation, and what was unfinished still is.
+  for (const typed of ['x!=5+', 'x != *5', '12 +', 'x→y+', '(x+2+)(x+3)', '2^{x+}', '12+ or 3', 'x**2', '3!*']) assert.equal(hasDanglingOperator(typed), true, typed);
+  // None of the new readings is the key without its sign.
+  for (const [typed, key] of [['f(2+)', 'f(2)'], ['x→0+', 'x→0'], ['Ca^{2+}', 'Ca^2'], ['5!', '5'], ['x^+', 'x'], ['x^{2-}', 'x^2']]) assert.equal(sameValue(typed, key), false, `${typed} is not ${key}`);
+  // A product sign written twice is said as that, not as something missing after it.
+  assert.match(typedEntryNotice('x**2'), /written twice in a row/);
+  assert.doesNotMatch(typedEntryNotice('x**2'), /nothing after it/);
+  assert.match(typedEntryNotice('3\\cdot\\cdot x'), /written twice in a row/);
+  assert.match(typedEntryNotice('12*'), /nothing after it/);
 });

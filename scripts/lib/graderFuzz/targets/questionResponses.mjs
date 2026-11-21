@@ -39,7 +39,7 @@ import { gradeServerResponse } from '../../../../functions/shared/serverGrading/
 import { familyQuestionCorpus } from '../corpus.mjs';
 import { errorLine, finding } from '../findings.mjs';
 import { INPUT_CLASSES, breakOf, isUnfinished, typedInput } from '../inputs.mjs';
-import { MAX_TYPED_ANSWER_LENGTH, typedEntryNotice } from '../../../../functions/shared/typedEntryGuard.mjs';
+import { typedEntryNotice } from '../../../../functions/shared/typedEntryGuard.mjs';
 
 export const id = 'questionResponses';
 
@@ -159,13 +159,13 @@ export const check = async (fuzzCase, { slowMs = 2000 } = {}) => {
   // An entry the box refuses (unfinished, or over the length an answer may
   // be: typedEntryGuard.mjs) is never sent, so there is no verdict to agree
   // on. A tab on an older build still sends it: the server must not mark it
-  // right. (Such a tab sends an over-long box cut to the record's length, and
-  // what is left may be a finished right answer: only an entry the server
-  // receives whole is held to this.)
+  // right. (A box of a multi-answer or table question travels one character
+  // past the limit, so the server sees an over-long one: typedEntryGuard.mjs
+  // TYPED_ANSWER_WIRE_LENGTH. A scalar answer travels whole.)
   const refusedOnScreen = fuzzCase.fuzzed !== undefined && question.type !== 'numberLine' && typedEntryNotice(typed) !== '';
   const server = timed('server', () => onServer(question, answers, device.result));
   if (!server.thrown && refusedOnScreen) {
-    if (typed.length <= MAX_TYPED_ANSWER_LENGTH && server.result.graded && server.result.isCorrect === true) {
+    if (server.result.graded && server.result.isCorrect === true) {
       report('device-server-parity', `refused-on-screen/${question.type}/${input.inputClass}/server=true`,
         `${question.type}: the box refuses ${JSON.stringify(typed.slice(0, 120))}${typed.length > 120 ? `… (${typed.length} characters)` : ''} in ${fuzzCase.fuzzed}, and the server marks the question right when it is sent anyway`);
     }
