@@ -23,13 +23,15 @@
 //       queued attempt says a word about it, and the question is marked as it
 //       is for a classmate who raised nothing (S4)
 //   S4  the classmate, answering the same question the same way without
-//       leaving or pasting, raises only "right first time"
+//       leaving, and pasting only what they copied on the page, raises only
+//       "right first time"
 //   S5  a student with See every part at once who leaves and returns raises
 //       no "left the page"; one whose response is word-processed raises no
 //       "pasted"
 //   T1  the teacher's Live tile shows "Worth a conversation" with the facts;
 //       Dismiss records who dismissed it, and the fact leaves the tile
-//   T2  the projector's Large room tiles show none of it
+//   T2  the projector's Large room tiles show none of it, and neither does
+//       a student's drawer opened over them
 //   T3  the student's results (the drawer) list the facts still open, beside
 //       the same note, and a second Dismiss works there too
 //
@@ -247,10 +249,16 @@ for (const viewport of VIEWPORTS) {
   page = await openPage(context, `questions=real&server=1&as=student&studentId=${CLASSMATE}`, viewport);
   await openLesson(page);
   await goToTwoPartQuestion(page);
+  // The classmate copies something on the page, then pastes it into part 1:
+  // the page's own text, so no "pasted".
+  await partBox(page, 0, { root: ROOT }).click();
+  await page.evaluate(() => document.querySelector('.mathmaster-question-stage').dispatchEvent(new ClipboardEvent('copy', { bubbles: true, cancelable: true, composed: true })));
+  await pasteIntoFocusedBox(page, PASTED_TEXT);
+  await page.waitForTimeout(800);
   await answerBothParts(page);
   await submit(page);
   const classmateSignals = await waitForSignals(page, CLASSMATE, ['hardFirstTry']);
-  expect(`S4 ${tag} no paste and no absence: only "right first time"`, kindsOf(classmateSignals) === 'hardFirstTry', kindsOf(classmateSignals));
+  expect(`S4 ${tag} a paste of the page's own text and no absence: only "right first time"`, kindsOf(classmateSignals) === 'hardFirstTry', kindsOf(classmateSignals));
   await recorded(CLASSMATE);
   const classmateMarked = await questionRecord(page, CLASSMATE);
   const grade = (record) => JSON.stringify({ status: record?.status, attemptCount: record?.attemptCount, totalAttempts: record?.totalAttempts, isCorrect: record?.isCorrect, score: record?.score ?? null, partialCredit: record?.partialCredit ?? null });
@@ -318,7 +326,7 @@ for (const viewport of VIEWPORTS) {
   const resultsText = (await results.count()) ? await results.innerText() : '';
   expect(`T3 ${tag} the student's results list what is still open`, /Worth a conversation \(2\)/.test(resultsText) && /Left the page, then a burst of right parts/.test(resultsText) && /Right first time on a hard question/.test(resultsText) && !/Pasted into a math box/.test(resultsText), resultsText || 'no "Worth a conversation" in the drawer');
   expect(`T3 ${tag} each names its assignment and question`, (resultsText.match(new RegExp(`${LESSON} · Classwork · Question 3`, 'g')) || []).length === 2, resultsText);
-  expect(`T3 ${tag} only the teacher sees them, and they are not a grade`, /Only you see them/.test(resultsText) && /never change a score, an attempt or mastery/.test(resultsText), resultsText);
+  expect(`T3 ${tag} only the teacher sees them, and they are not a grade`, /Students never see them/.test(resultsText) && /never change a score, an attempt or mastery/.test(resultsText), resultsText);
   if (await results.count()) {
     await results.scrollIntoViewIfNeeded();
     await shot(page, 't3-student-results', viewport);
@@ -334,6 +342,12 @@ for (const viewport of VIEWPORTS) {
     await roomTiles.first().click();
     await page.waitForTimeout(600);
     expect(`T2 ${tag} not on the projector`, (await page.locator('[data-worth-a-conversation]').count()) === 0 && !/Worth a conversation/.test(await page.locator('body').innerText()), '"Worth a conversation" is shown on Large room tiles');
+    // A student opened over the projected tiles: the drawer withholds it too.
+    await page.locator(`[data-live-tile="${STUDENT}"]`).first().getByRole('button').first().click();
+    const projectedDrawer = page.locator(`[data-student-profile-drawer="${STUDENT}"]`);
+    await projectedDrawer.waitFor({ timeout: 10000 }).catch(() => {});
+    await projectedDrawer.locator('[data-worth-a-conversation-withheld]').waitFor({ timeout: 10000 }).catch(() => {});
+    expect(`T2 ${tag} nor in a drawer opened over the projected tiles`, (await projectedDrawer.count()) === 1 && (await projectedDrawer.locator('[data-worth-a-conversation-withheld]').count()) === 1 && (await page.locator('[data-worth-a-conversation], [data-attempt-signal]').count()) === 0, (await projectedDrawer.count()) ? 'the drawer shows the signals while the tiles are projected' : 'the drawer did not open');
   } else findings.push(`T2 ${tag}: no "Large room tiles" control to check the projector`);
   await page.close();
   await studentTab.close();

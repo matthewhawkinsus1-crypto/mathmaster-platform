@@ -7,7 +7,7 @@
 // goes only to `onAttemptSignal`.
 
 import { useCallback, useEffect, useMemo, useRef } from 'react';
-import { createAttemptSignalTracker, exemptAttemptSignalKinds } from './attemptSignalFacts.js';
+import { ATTEMPT_SIGNAL_KIND, createAttemptSignalTracker, exemptAttemptSignalKinds } from './attemptSignalFacts.js';
 
 // A math answer field: the math box itself, or a plain box inside a part.
 const MATH_FIELD_SELECTOR = 'math-field';
@@ -24,6 +24,25 @@ export const pastedPartIndex = (target) => {
   if (!mathField && !(part && target.closest(PLAIN_FIELD_SELECTOR))) return null;
   const index = Number(part?.getAttribute?.('data-answer-box-index'));
   return Number.isInteger(index) && index >= 0 ? index : 0;
+};
+
+/**
+ * The facts to raise once saved work is known. `savedWork` (optional) answers
+ * "is there saved work on this question the engine was not told of?": a
+ * scratchpad saved before a reload, or on another visit. It is asked only
+ * when "no tool work" is about to be said, and a read that fails counts as
+ * work: that fact is never raised on a guess.
+ */
+export const factsAfterSavedWork = async (facts, savedWork = null) => {
+  const claimsNoWork = facts.some((fact) => fact.kind === ATTEMPT_SIGNAL_KIND.HARD_FIRST_TRY);
+  if (!claimsNoWork || typeof savedWork !== 'function') return facts;
+  let found = true;
+  try {
+    found = Boolean(await savedWork());
+  } catch {
+    found = true;
+  }
+  return found ? facts.filter((fact) => fact.kind !== ATTEMPT_SIGNAL_KIND.HARD_FIRST_TRY) : facts;
 };
 
 /**
@@ -68,11 +87,13 @@ export function useAttemptSignals({ onAttemptSignal = null, studentProfile = nul
     const partIndex = pastedPartIndex(event?.target);
     if (partIndex === null) return;
     // Where it landed, and nothing of what it was: the clipboard is not read.
-    raise([trackerRef.current.pasteFact({ partIndex, attemptNumber: attemptRef.current })]);
+    const fact = trackerRef.current.pasteFact({ partIndex, attemptNumber: attemptRef.current });
+    if (fact) raise([fact]);
   }, [raise]);
 
-  const attemptSubmitted = useCallback((attempt) => {
-    if (trackerRef.current) raise(trackerRef.current.attemptSubmitted(attempt));
+  const attemptSubmitted = useCallback((attempt, { savedWork = null } = {}) => {
+    if (!trackerRef.current) return;
+    factsAfterSavedWork(trackerRef.current.attemptSubmitted(attempt), savedWork).then(raise);
   }, [raise]);
 
   const noteToolWork = useCallback(() => { trackerRef.current?.noteToolWork(); }, []);

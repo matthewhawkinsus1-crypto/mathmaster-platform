@@ -23,6 +23,7 @@
 // teacher reads is src/platform/teacher/attemptSignalsView.js.
 
 import { normalizeStudentProfile } from '../../studentSupport.js';
+import { translationLanguageOf } from '../../../functions/shared/supportProfileModel.mjs';
 
 export const ATTEMPT_SIGNAL_KIND = Object.freeze({
   LEFT_THEN_RIGHT: 'leftThenRight',
@@ -35,8 +36,14 @@ export const ATTEMPT_SIGNAL_SCHEMA_VERSION = 1;
 // A hidden page shorter than this is a notification, an accidental tap or a
 // support tool: the same floor as the Live view's focus-loss count (App.jsx).
 export const MIN_AWAY_MS = 8000;
+// A long absence is a locked screen while working on paper, or a tab left
+// open overnight: not the pattern, and never raised.
+export const MAX_AWAY_MS = 5 * 60000;
 // "Soon after returning".
 export const RETURN_WINDOW_MS = 60000;
+// A link the platform itself opened in a new tab (a teacher's study sheet)
+// hides the page: an absence that starts this soon after it is the link's.
+export const PLATFORM_LINK_GRACE_MS = 5000;
 export const MIN_BURST_PARTS = 2;
 export const HARD_DIFFICULTY_BAND = 3;
 
@@ -45,7 +52,7 @@ export const HARD_DIFFICULTY_BAND = 3;
 export const MAX_QUESTION_INDEX = 999;
 export const MAX_PART_INDEX = 49;
 export const MAX_PART_COUNT = 50;
-export const MAX_AWAY_SECONDS = 86400;
+export const MAX_AWAY_SECONDS = 300;
 export const MAX_ATTEMPT_NUMBER = 99;
 export const ATTEMPT_SIGNAL_ROLES = Object.freeze(['warmup', 'classwork', 'dol', 'practice', 'quiz', 'test', 'review', 'corrections']);
 
@@ -84,9 +91,7 @@ export const exemptAttemptSignalKinds = (profile, { nowValue = Date.now() } = {}
   });
   // A translation language on the profile is a translation tool in use, with
   // or without the catalog entry beside it.
-  if (clean(normalized.translationLanguage) && clean(normalized.translationLanguage).toLowerCase() !== 'en') {
-    exempt.add(ATTEMPT_SIGNAL_KIND.LEFT_THEN_RIGHT);
-  }
+  if (translationLanguageOf(normalized.translationLanguage)) exempt.add(ATTEMPT_SIGNAL_KIND.LEFT_THEN_RIGHT);
   return exempt;
 };
 
@@ -96,17 +101,12 @@ export const questionDifficultyBand = (question = {}) => {
   return Number.isFinite(band) ? Math.max(0, Math.floor(band)) : 0;
 };
 
-// Question types whose answer is built in a tool: the tool's moves are the
-// work, so "no tool work" can never be said of them.
-const TOOL_BUILT_TYPES = [
-  'functiongraph', 'modelinglab', 'relationshipmodel', 'stepalgebra', 'stepbystep', 'systemsworkspace',
-  'sequenceexplorer', 'transformationslab', 'interactivegraph', 'composed', 'workflow', 'numberline', 'graph',
-];
-
 /**
  * Did this attempt carry work a teacher can look at? A checkpoint on any
- * part, a tool's structured response, a composed question's stages, or a
- * question whose answer is built in a tool.
+ * part, a tool's structured response, a composed question's stages, or work
+ * the host noted (a scratchpad, a step). Whether the question is answered in
+ * boxes at all is the engine's to say, from the module it drew
+ * (`drawnInAnswerBoxes`): a type's name does not decide it.
  */
 export const attemptHasToolWork = ({ question = {}, answerState = {}, toolWorkNoted = false } = {}) => {
   if (toolWorkNoted) return true;
@@ -114,9 +114,7 @@ export const attemptHasToolWork = ({ question = {}, answerState = {}, toolWorkNo
   if (question?.checkpoint) return true;
   const fields = [...list(question?.answerFields), ...list(question?.responses), ...list(question?.responseFields)];
   if (fields.some((field) => field?.checkpoint)) return true;
-  if (list(question?.workflow?.stages).length || list(question?.stages).length) return true;
-  const type = clean(question?.type || question?.toolId).toLowerCase();
-  return TOOL_BUILT_TYPES.some((token) => type.includes(token));
+  return Boolean(list(question?.workflow?.stages).length || list(question?.stages).length);
 };
 
 const partKey = (part, index) => clean(part?.id) || `#${index}`;
@@ -141,24 +139,52 @@ const partValuesFrom = (responseKey) => {
  */
 export const createPageAwayClock = ({ now = () => Date.now() } = {}) => {
   let hiddenAt = 0;
+  let hiddenByPlatformLink = false;
+  let platformLinkAt = 0;
   let lastReturn = null;
+  let copiedInPage = false;
   return {
+    /** The platform opened one of its own links in a new tab. */
+    platformLinkOpened() {
+      platformLinkAt = now();
+    },
     pageHidden() {
-      if (!hiddenAt) hiddenAt = now();
+      if (hiddenAt) return;
+      hiddenAt = now();
+      hiddenByPlatformLink = platformLinkAt > 0 && hiddenAt - platformLinkAt <= PLATFORM_LINK_GRACE_MS;
+      platformLinkAt = 0;
+      // What is on the clipboard after time elsewhere is not known to be ours.
+      copiedInPage = false;
     },
     pageVisible() {
       if (!hiddenAt) return;
       const at = now();
       const awayMs = Math.max(0, at - hiddenAt);
+      const excused = hiddenByPlatformLink;
       hiddenAt = 0;
-      // A short absence leaves an earlier, longer one standing.
-      if (awayMs >= MIN_AWAY_MS) lastReturn = { at, awayMs };
+      hiddenByPlatformLink = false;
+      // Too short (a notification), too long (a locked screen, a tab left
+      // open) or the platform's own link: none is a return to count from, and
+      // an earlier one still stands.
+      if (!excused && awayMs >= MIN_AWAY_MS && awayMs <= MAX_AWAY_MS) lastReturn = { at, awayMs };
     },
     /** The return a moment at `time` falls soon after, or null. */
     returnBefore(time) {
       if (!lastReturn) return null;
       const since = time - lastReturn.at;
       return since >= 0 && since <= RETURN_WINDOW_MS ? lastReturn : null;
+    },
+    /** A copy or cut inside the page: the clipboard holds the page's own text. */
+    pageCopied() {
+      copiedInPage = true;
+    },
+    /** The window lost focus: something else may have filled the clipboard. */
+    pageBlurred() {
+      copiedInPage = false;
+    },
+    /** Is the clipboard known to hold what was copied from this page? */
+    clipboardIsFromPage() {
+      return copiedInPage;
     },
   };
 };
@@ -173,9 +199,22 @@ export const sharedPageAwayClock = () => {
       if (document.hidden) sharedClock.pageHidden();
       else sharedClock.pageVisible();
     });
+    // Copying the prompt's expression, or part (a)'s answer into part (b), is
+    // the page's own text: a paste that follows it is not a signal. Only the
+    // fact of the copy is noted, never what was copied.
+    document.addEventListener('copy', () => sharedClock.pageCopied(), true);
+    document.addEventListener('cut', () => sharedClock.pageCopied(), true);
+    if (typeof window !== 'undefined') window.addEventListener?.('blur', () => sharedClock.pageBlurred());
   }
   return sharedClock;
 };
+
+/**
+ * The platform opened one of its own links in a new tab (a teacher's study
+ * sheet or reteach resource): the absence that follows is not the student
+ * leaving the page.
+ */
+export const notePlatformLinkOpened = () => sharedPageAwayClock().platformLinkOpened();
 
 /**
  * One question's tracker. It is told when the answer changes, when a paste
@@ -216,8 +255,12 @@ export const createAttemptSignalTracker = ({ clock = sharedPageAwayClock(), now 
       toolWorkNoted = true;
     },
 
-    /** A paste into a math answer field, by the part it landed in. */
+    /**
+     * A paste into a math answer field, by the part it landed in. Null when
+     * the clipboard holds what was just copied from this page.
+     */
     pasteFact({ partIndex = 0, attemptNumber = 1 } = {}) {
+      if (clock.clipboardIsFromPage?.()) return null;
       return {
         kind: ATTEMPT_SIGNAL_KIND.PASTED,
         partIndex: clampInt(partIndex, 0, MAX_PART_INDEX),
@@ -228,9 +271,11 @@ export const createAttemptSignalTracker = ({ clock = sharedPageAwayClock(), now 
     /**
      * The facts one submitted attempt raised. `attemptNumber` counts this
      * attempt (1 for the first); `gradedParts` are the parts as marked
-     * ({ id, isCorrect, graded }).
+     * ({ id, isCorrect, graded }); `drawnInAnswerBoxes` is the engine saying
+     * the question was answered in boxes and nothing else (no tool on screen
+     * whose moves are the work). Without it "no tool work" is never said.
      */
-    attemptSubmitted({ question = {}, answerState = {}, gradedParts = null, isCorrect = false, attemptNumber = 1 } = {}) {
+    attemptSubmitted({ question = {}, answerState = {}, gradedParts = null, isCorrect = false, attemptNumber = 1, drawnInAnswerBoxes = false } = {}) {
       const facts = [];
       const marked = list(gradedParts ?? answerState?.parts);
       const attempt = clampInt(attemptNumber, 1, MAX_ATTEMPT_NUMBER);
@@ -254,6 +299,7 @@ export const createAttemptSignalTracker = ({ clock = sharedPageAwayClock(), now 
         attempt === 1
         && everyPartRight
         && band >= HARD_DIFFICULTY_BAND
+        && drawnInAnswerBoxes === true
         && !attemptHasToolWork({ question, answerState, toolWorkNoted })
       ) {
         facts.push({

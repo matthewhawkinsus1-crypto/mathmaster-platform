@@ -31,7 +31,7 @@ test('each signal reads as a title, its place and the facts recorded', () => {
   const [left, pasted, hard] = SIGNALS.map((signal) => describeAttemptSignal(signal, { assignmentsById: ASSIGNMENTS }));
   assert.equal(left.title, 'Left the page, then a burst of right parts');
   assert.equal(left.where, 'Slope and intercept · Classwork · Question 4');
-  assert.match(left.facts, /hidden for about 45 seconds/);
+  assert.match(left.facts, /hidden \(another tab or app, or the screen turned off\) for about 45 seconds/);
   assert.match(left.facts, /3 parts were answered and marked right/);
   assert.equal(pasted.title, 'Pasted into a math box');
   assert.equal(pasted.where, 'Slope and intercept · Classwork · Question 4 · try 2');
@@ -41,7 +41,7 @@ test('each signal reads as a title, its place and the facts recorded', () => {
   assert.equal(hard.where, 'DOL · Question 1', 'an assignment the caller does not have is left out, not guessed');
   assert.match(hard.facts, /All 4 parts were right on the first try/);
   assert.match(hard.facts, /difficulty band 4/);
-  assert.match(describeAttemptSignal({ ...SIGNALS[0], awaySeconds: 600 }).facts, /about 10 minutes/);
+  assert.match(describeAttemptSignal({ ...SIGNALS[0], awaySeconds: 240 }).facts, /about 4 minutes/);
   assert.match(describeAttemptSignal({ ...SIGNALS[2], partCount: 1 }).facts, /^The answer was right on the first try/);
 });
 
@@ -82,13 +82,25 @@ const drawer = executableSource(read('src/components/teacher/StudentProfileDrawe
 const monitor = executableSource(read('src/components/teacher/LiveClassMonitor.jsx'));
 
 test('the panel lists the open signals, each with a Dismiss that records who dismissed it', () => {
-  assert.match(panel, /watchAttemptSignals\(\{ db, studentId, assignmentId, onChange: setSignals \}\)/);
+  assert.match(panel, /watchAttemptSignals\(\{ db, studentId, assignmentId, onChange: setSignals, onError: \(\) => setReadFailed\(true\) \}\)/);
+  // A read that was refused says so: it is never shown as "nothing is waiting".
+  assert.match(panel, /\{readFailed \? \(\s*<p role="alert" data-attempt-signals-unavailable=""/);
+  // The root administrator reads them too: the panel does not say "only you".
+  assert.doesNotMatch(panel, /Only you see/);
+  assert.match(panel, /Students never see them\./);
   assert.match(panel, /openAttemptSignals\(signals, \{ assignmentId, assignmentsById \}\)/);
   const dismiss = region(panel, 'const dismiss = async (signal) => {', '};', 'the dismiss handler');
   assert.match(dismiss, /dismissAttemptSignal\(\{ db, studentId, signalId: signal\.id, teacherEmail \}\)/);
   const store = executableSource(read('src/platform/teacher/attemptSignalsStore.js'));
   const write = region(store, 'export const dismissAttemptSignal', '};', 'dismissAttemptSignal');
   assert.match(write, /updateDoc\(doc\(db, 'grades', student, ATTEMPT_SIGNALS_SUBCOLLECTION, id\), \{\s*dismissedAt: serverTimestamp\(\),\s*dismissedByEmail: email,\s*\}\)/);
+  // The email goes as signed in: the rules compare it with the token's own.
+  assert.doesNotMatch(write, /toLowerCase/);
+  // Both reads are bounded.
+  const watch = region(store, 'export const watchAttemptSignals', 'return onSnapshot(', 'watchAttemptSignals');
+  assert.match(watch, /query\(signals, where\('assignmentId', '==', clean\(assignmentId\)\), limit\(ASSIGNMENT_SIGNAL_LIMIT\)\)/);
+  assert.match(watch, /query\(signals, orderBy\('recordedAt', 'desc'\), limit\(STUDENT_SIGNAL_LIMIT\)\)/);
+  assert.doesNotMatch(watch, /onSnapshot\(\s*signals\b/, 'the whole collection is never watched');
   // A dismiss is the only write a teacher's screen makes to a signal.
   assert.doesNotMatch(store, /\b(?:setDoc|addDoc|deleteDoc|writeBatch)\b/);
 });
@@ -99,7 +111,18 @@ test("in the student's results: the drawer shows the panel to a signed-in teache
   assert.match(use, /teacherEmail=\{teacherEmail\}/);
   assert.match(use, /fastAndRight=\{fastAndRight\}/);
   // Guarded by the teacher's email, as every teacher-only section here is.
-  assert.match(drawer, /\{teacherEmail && studentId && \(\s*<WorthAConversation/);
+  assert.match(drawer, /\{teacherEmail && studentId && !roomProjected && \(\s*<WorthAConversation/);
+  // Opened over projected tiles, the drawer withholds it and says so.
+  assert.match(drawer, /\{teacherEmail && studentId && roomProjected && \(\s*<p data-worth-a-conversation-withheld=""/);
+  assert.match(drawer, /roomProjected = false,/);
+  const workspace = executableSource(read('src/app/teacher/TeacherWorkspace.jsx'));
+  assert.match(region(workspace, '<StudentProfileDrawer', '/>', "the workspace's drawer"), /roomProjected=\{roomProjected\}/);
+  assert.match(workspace, /onRoomProjectedChange=\{setRoomProjected\}/);
+  const home = executableSource(read('src/TeacherHome.jsx'));
+  assert.match(region(home, '<LiveClassMonitor', '/>', "Home's monitor"), /onProjectingChange=\{reportRoomProjected\}/);
+  assert.match(region(home, 'const reportRoomProjected = useCallback(', '}, []);', 'reportRoomProjected'), /onRoomProjectedChangeRef\.current\?\.\(Boolean\(projected\)\)/);
+  // Home leaving the screen ends the projection for the drawer.
+  assert.match(home, /useEffect\(\(\) => \(\) => onRoomProjectedChangeRef\.current\?\.\(false\), \[\]\);/);
   // Fast-and-right is today's rule, not a second one.
   assert.match(drawer, /const signal = buildArchivedIntegrityReviewSignal\(summary\);/);
 });

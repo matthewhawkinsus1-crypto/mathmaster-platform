@@ -47,6 +47,7 @@ import {
 import { NO_RECORDS } from './noRecords.js';
 import { db } from '../../firebase.js';
 import { recordAttemptSignal } from '../../platform/signals/attemptSignalWriter.js';
+import { notePlatformLinkOpened } from '../../platform/signals/attemptSignalFacts.js';
 
 export function createAssignmentWorkspaceView(
   user, studentClassPoints, hasPracticePassFor, studentRequiredFor, assignmentResultRoute, activeClassroomSectionKey,
@@ -915,7 +916,7 @@ export function createAssignmentWorkspaceView(
               {!preview && user?.role === 'student' && (
                 <StudentSupportTools
                   profile={user.profile}
-                  onResourceOpened={(supportId) => recordStudentSupportEvidence({ supportId, eventType: 'used', activityRole: runtimeActivityRole })}
+                  onResourceOpened={(supportId) => { notePlatformLinkOpened(); recordStudentSupportEvidence({ supportId, eventType: 'used', activityRole: runtimeActivityRole }); }}
                 />
               )}
             </div>
@@ -1135,7 +1136,7 @@ export function createAssignmentWorkspaceView(
                   <StudentSupportTools
                     className="mathmaster-narrow-support-tools"
                     profile={user.profile}
-                    onResourceOpened={(supportId) => recordStudentSupportEvidence({ supportId, eventType: 'used', activityRole: runtimeActivityRole })}
+                    onResourceOpened={(supportId) => { notePlatformLinkOpened(); recordStudentSupportEvidence({ supportId, eventType: 'used', activityRole: runtimeActivityRole }); }}
                   />
                 )}
               </div>

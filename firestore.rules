@@ -152,6 +152,12 @@ service cloud.firestore {
         && d.schemaVersion == 1
         && d.studentId == studentId
         && d.assignmentId is string && d.assignmentId.size() > 0 && d.assignmentId.size() <= 200
+        // The document id below names one assignment and one question only if
+        // the assignment id has no "_" at either end and no "__" (as for Ask
+        // my teacher, SI04), and the assignment is a real one: a made-up id
+        // cannot be used to fill a student's record with facts.
+        && !d.assignmentId.matches('_.*|.*_|.*__.*')
+        && exists(/databases/$(database)/documents/assignments/$(d.assignmentId))
         && attemptSignalInt(d, 'questionIndex', 0, 999)
         && attemptSignalInt(d, 'attemptNumber', 1, 99)
         && d.recordedAt == request.time
@@ -166,7 +172,7 @@ service cloud.firestore {
           || (d.kind == 'leftThenRight'
             && d.keys().hasOnly(common.concat(['activityRole', 'partCount', 'awaySeconds']))
             && attemptSignalInt(d, 'partCount', 2, 50)
-            && attemptSignalInt(d, 'awaySeconds', 0, 86400)
+            && attemptSignalInt(d, 'awaySeconds', 0, 300)
             && signalId == d.assignmentId + '__' + string(d.questionIndex) + '__leftThenRight')
           || (d.kind == 'hardFirstTry'
             && d.keys().hasOnly(common.concat(['activityRole', 'partCount', 'difficultyBand']))
@@ -178,9 +184,11 @@ service cloud.firestore {
     }
 
     // A teacher's dismissal: who and when, and nothing else about the fact.
+    // Once: a later teacher cannot put their own name and time over it.
     function attemptSignalDismissalValid() {
       let d = request.resource.data;
-      return d.diff(resource.data).affectedKeys().hasOnly(['dismissedAt', 'dismissedByEmail'])
+      return !resource.data.keys().hasAny(['dismissedAt', 'dismissedByEmail'])
+        && d.diff(resource.data).affectedKeys().hasOnly(['dismissedAt', 'dismissedByEmail'])
         && d.dismissedAt == request.time
         && d.dismissedByEmail == request.auth.token.email;
     }
@@ -903,13 +911,14 @@ service cloud.firestore {
        * written once by the student's own client (attemptSignalValid above),
        * read only by the teacher who teaches the student. The student cannot
        * read them back, nobody can edit a fact, and the only later write is
-       * that teacher's dismissal. No grade, attempt or mastery path reads this
+       * one dismissal, by that teacher or the root administrator (who can
+       * read it too). No grade, attempt or mastery path reads this
        * collection (tests/platform/attemptSignalsNeverGrade.test.mjs).
        */
       match /attemptSignals/{signalId} {
         allow read: if rootAdmin() || teachesPresenceStudent(studentId);
         allow create: if ownsStudent(studentId) && studentRowExists(studentId) && attemptSignalValid(studentId, signalId);
-        allow update: if teachesPresenceStudent(studentId) && attemptSignalDismissalValid();
+        allow update: if (rootAdmin() || teachesPresenceStudent(studentId)) && attemptSignalDismissalValid();
         allow delete: if false;
       }
 

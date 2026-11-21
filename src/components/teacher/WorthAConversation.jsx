@@ -42,11 +42,14 @@ export default function WorthAConversation({
   const [signals, setSignals] = useState([]);
   const [error, setError] = useState('');
   const [busyId, setBusyId] = useState('');
+  // The read was refused or failed: said so, never shown as "nothing waiting".
+  const [readFailed, setReadFailed] = useState(false);
 
   useEffect(() => {
     setSignals([]);
     if (!studentId) return undefined;
-    return watchAttemptSignals({ db, studentId, assignmentId, onChange: setSignals });
+    setReadFailed(false);
+    return watchAttemptSignals({ db, studentId, assignmentId, onChange: setSignals, onError: () => setReadFailed(true) });
   }, [studentId, assignmentId]);
 
   const assignmentsById = useMemo(
@@ -128,9 +131,11 @@ export default function WorthAConversation({
         {WORTH_A_CONVERSATION}{count ? ` (${count})` : ''}
       </h3>
       <p style={{ margin: '3px 0 9px', fontSize: 'calc(12.5 * var(--mm-px))', lineHeight: 1.45, color: 'var(--mm-text-muted)' }}>
-        {WORTH_A_CONVERSATION_NOTE} Only you see them.
+        {WORTH_A_CONVERSATION_NOTE} Students never see them.
       </p>
-      {count ? list : (
+      {readFailed ? (
+        <p role="alert" data-attempt-signals-unavailable="" style={{ margin: 0, color: 'var(--mm-error-text)', fontSize: 'calc(12.5 * var(--mm-px))', fontWeight: 700 }}>These could not be loaded. Close this student and open them again to retry.</p>
+      ) : count ? list : (
         <p style={{ margin: 0, color: 'var(--mm-text-subtle)', fontSize: 'calc(12.5 * var(--mm-px))' }}>Nothing from {who}&apos;s attempts is waiting.</p>
       )}
       {error && <p role="alert" style={{ margin: '8px 0 0', color: 'var(--mm-error-text)', fontSize: 'calc(12.5 * var(--mm-px))', fontWeight: 700 }}>{error}</p>}

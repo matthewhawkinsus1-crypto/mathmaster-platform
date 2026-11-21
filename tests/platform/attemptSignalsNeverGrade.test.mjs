@@ -54,6 +54,7 @@ const MAY_MENTION = new Map([
   ['src/components/teacher/WorthAConversation.jsx', "the teacher's panel"],
   ['src/components/teacher/StudentProfileDrawer.jsx', "the panel in a student's results"],
   ['src/components/teacher/LiveClassMonitor.jsx', 'the panel on a Live tile'],
+  ['src/app/teacher/TeacherWorkspace.jsx', 'tells the drawer the tiles are projected (a comment names the panel)'],
   ['src/app/teacher/teacherPanels.js', "fetches the tile's panel on demand"],
   ['src/app/teacher/teacherPanelPrefetch.js', 'fetches it while the browser is idle'],
   ['src/QuestionEngine.jsx', 'raises the facts beside the attempt'],
@@ -160,7 +161,7 @@ test('the tracker is told what was marked; it is never asked what to mark', () =
   const writer = executableSource(read('src/platform/signals/attemptSignalWriter.js'));
   // The signal modules import no grader, no attempt policy and no mastery.
   const imports = (source) => [...source.matchAll(/from '([^']+)'/g)].map((match) => match[1]);
-  assert.deepEqual(imports(facts), ['../../studentSupport.js']);
+  assert.deepEqual(imports(facts), ['../../studentSupport.js', '../../../functions/shared/supportProfileModel.mjs']);
   assert.deepEqual(imports(hook), ['react', './attemptSignalFacts.js']);
   assert.deepEqual(imports(writer), ['firebase/firestore', './attemptSignalFacts.js']);
   // The student's device writes a signal and never reads one back.
@@ -171,10 +172,13 @@ test('the tracker is told what was marked; it is never asked what to mark', () =
 test('the assignment screen and App: one hand-off each, to the writer and to the heartbeat', () => {
   const view = executableSource(read('src/app/student/assignmentWorkspaceView.jsx'));
   const viewUses = view.split('\n').filter((line) => SIGNAL_WORDS.test(line)).map((line) => line.trim());
-  assert.equal(viewUses.length, 3, `the assignment screen mentions the signals on ${viewUses.length} lines`);
+  assert.equal(viewUses.length, 4, `the assignment screen mentions the signals on ${viewUses.length} lines`);
   assert.match(viewUses[0], /^import \{ recordAttemptSignal \} from '..\/..\/platform\/signals\/attemptSignalWriter\.js';$/);
-  assert.match(viewUses[1], /^onAttemptSignal: preview \|\| lifecycle\.isPracticeOnly \|\| user\?\.role !== 'student' \|\| !user\?\.id$/, 'no signal in a preview, on post-deadline practice, or for anyone but the student');
-  assert.match(viewUses[2], /^: \(fact\) => \{ void recordAttemptSignal\(\{/, 'the write is fired and forgotten: nothing waits on it or reads its result');
+  // Telling the page clock that the platform opened a link: nothing read back.
+  assert.match(viewUses[1], /^import \{ notePlatformLinkOpened \} from '..\/..\/platform\/signals\/attemptSignalFacts\.js';$/);
+  assert.match(viewUses[2], /^onAttemptSignal: preview \|\| lifecycle\.isPracticeOnly \|\| user\?\.role !== 'student' \|\| !user\?\.id$/, 'no signal in a preview, on post-deadline practice, or for anyone but the student');
+  assert.match(viewUses[3], /^: \(fact\) => \{ void recordAttemptSignal\(\{/, 'the write is fired and forgotten: nothing waits on it or reads its result');
+  assert.doesNotMatch(view, /(?:=|return|await|\?|&&|\|\|)\s*notePlatformLinkOpened\(/, 'what the clock is told returns nothing anyone uses');
 
   const app = executableSource(read('src/App.jsx'));
   const appUses = app.split('\n').filter((line) => SIGNAL_WORDS.test(line)).map((line) => line.trim());

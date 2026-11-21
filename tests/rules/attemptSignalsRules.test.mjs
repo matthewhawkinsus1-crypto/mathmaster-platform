@@ -1,7 +1,7 @@
 import test, { after, before } from 'node:test';
 import { readFile } from 'node:fs/promises';
 import { assertFails, assertSucceeds, initializeTestEnvironment } from '@firebase/rules-unit-testing';
-import { collection, deleteDoc, doc, getDoc, getDocs, query, serverTimestamp, setDoc, updateDoc, where } from 'firebase/firestore';
+import { collection, deleteDoc, doc, getDoc, getDocs, limit, orderBy, query, serverTimestamp, setDoc, updateDoc, where } from 'firebase/firestore';
 
 import {
   ATTEMPT_SIGNAL_KIND, attemptSignalDocumentId, buildAttemptSignalRecord,
@@ -58,6 +58,8 @@ before(async () => {
     const db = context.firestore();
     await setDoc(doc(db, 'grades/S_A'), { classId: 'class-a', status: 'active', assignedTeacherEmail: TEACHER_A });
     await setDoc(doc(db, 'grades/S_B'), { classId: 'class-a', status: 'active', assignedTeacherEmail: TEACHER_A });
+    // The assignment the signals name: a signal needs a real one.
+    await setDoc(doc(db, 'assignments/a-1'), { title: 'Slope and intercept', assignedClassIds: ['class-a'] });
     // A signal already on file, for the read, edit and dismissal cases.
     const seeded = recordFor('pasted', { questionIndex: 7 });
     await setDoc(signalRef(db, 'S_A', seeded.id), { ...seeded.data, recordedAt: new Date() });
@@ -116,7 +118,7 @@ test('every value is a bounded whole number or a known word, and the time is the
   await assertFails(write('pasted', { recordedAt: new Date(Date.now() - 86400000) }));
   await assertFails(write('pasted', { assignmentId: 'x'.repeat(201) }));
   await assertFails(write('leftThenRight', { partCount: 1 }));
-  await assertFails(write('leftThenRight', { awaySeconds: 86401 }));
+  await assertFails(write('leftThenRight', { awaySeconds: 301 }));
   await assertFails(write('leftThenRight', { awaySeconds: 'a long time' }));
   await assertFails(write('hardFirstTry', { difficultyBand: 2 }));
   await assertFails(write('hardFirstTry', { attemptNumber: 2 }));
@@ -135,6 +137,20 @@ test('the document id is the fact\'s own position: one per question and kind, a 
   await assertSucceeds(setDoc(signalRef(studentA(), 'S_A', 'a-1__40__pasted__2'), data));
 });
 
+test('a signal names a real assignment, by an id that cannot be mistaken for another position', async () => {
+  // An assignment that does not exist: a made-up id cannot fill the record.
+  const made = recordFor('pasted', { assignmentId: 'no-such-assignment', questionIndex: 1 });
+  await assertFails(setDoc(signalRef(studentA(), 'S_A', made.id), made.data));
+  for (const assignmentId of ['a__1', '_a-1', 'a-1_']) {
+    // Even if such an assignment existed, its id could spell another fact's position.
+    await env.withSecurityRulesDisabled((context) => setDoc(doc(context.firestore(), 'assignments', assignmentId), { title: 'x' }));
+    const odd = recordFor('pasted', { assignmentId, questionIndex: 1 });
+    await assertFails(setDoc(signalRef(studentA(), 'S_A', odd.id), odd.data));
+  }
+  const real = recordFor('pasted', { questionIndex: 60 });
+  await assertSucceeds(setDoc(signalRef(studentA(), 'S_A', real.id), real.data));
+});
+
 test('only the student whose attempt it was writes it, and only while they are on a roster', async () => {
   const { id, data } = recordFor('pasted', { questionIndex: 50 });
   await assertFails(setDoc(signalRef(studentB(), 'S_A', id), data));
@@ -150,6 +166,9 @@ test('teachers only: the student\'s own teacher reads the signals; the student, 
   await assertSucceeds(getDoc(signalRef(teacherA(), 'S_A', seeded.id)));
   await assertSucceeds(getDocs(collection(teacherA(), 'grades', 'S_A', 'attemptSignals')));
   await assertSucceeds(getDocs(query(collection(teacherA(), 'grades', 'S_A', 'attemptSignals'), where('assignmentId', '==', 'a-1'))));
+  // The two bounded reads the teacher's screens make (attemptSignalsStore.js).
+  await assertSucceeds(getDocs(query(collection(teacherA(), 'grades', 'S_A', 'attemptSignals'), where('assignmentId', '==', 'a-1'), limit(60))));
+  await assertSucceeds(getDocs(query(collection(teacherA(), 'grades', 'S_A', 'attemptSignals'), orderBy('recordedAt', 'desc'), limit(200))));
   await assertSucceeds(getDoc(signalRef(root(), 'S_A', seeded.id)));
   await assertFails(getDoc(signalRef(studentA(), 'S_A', seeded.id)));
   await assertFails(getDocs(collection(studentA(), 'grades', 'S_A', 'attemptSignals')));
@@ -172,6 +191,21 @@ test('the teacher dismisses a signal as themselves, at the server\'s time, and c
   await assertFails(updateDoc(ref(teacherA()), { dismissedAt: serverTimestamp(), dismissedByEmail: TEACHER_A, partIndex: 0 }));
   await assertFails(updateDoc(ref(teacherA()), { kind: 'hardFirstTry' }));
   await assertSucceeds(updateDoc(ref(teacherA()), { dismissedAt: serverTimestamp(), dismissedByEmail: TEACHER_A }));
+  // Once dismissed it stays as dismissed: nobody re-stamps it with their own name or a later time.
+  await assertFails(updateDoc(ref(teacherA()), { dismissedAt: serverTimestamp(), dismissedByEmail: TEACHER_A }));
+  await assertFails(updateDoc(ref(root()), { dismissedAt: serverTimestamp(), dismissedByEmail: 'root.admin@example.test' }));
+  // The root administrator, who can read a signal, can dismiss one that is still open.
+  const open = recordFor('pasted', { questionIndex: 8 });
+  await env.withSecurityRulesDisabled((context) => setDoc(signalRef(context.firestore(), 'S_A', open.id), { ...open.data, recordedAt: new Date() }));
+  await assertFails(updateDoc(signalRef(root(), 'S_A', open.id), { dismissedAt: serverTimestamp(), dismissedByEmail: TEACHER_A }));
+  await assertSucceeds(updateDoc(signalRef(root(), 'S_A', open.id), { dismissedAt: serverTimestamp(), dismissedByEmail: 'root.admin@example.test' }));
+  // The email is compared as signed in: a teacher whose address has capitals dismisses under it, unchanged.
+  const mixed = env.authenticatedContext('uid-tm', { role: 'teacher', email: 'Teacher.Mixed@Example.test' }).firestore();
+  await env.withSecurityRulesDisabled((context) => setDoc(doc(context.firestore(), 'grades/S_M'), { classId: 'class-m', status: 'active', assignedTeacherEmail: 'Teacher.Mixed@Example.test' }));
+  const theirs = recordFor('pasted', { studentId: 'S_M', questionIndex: 1 });
+  await env.withSecurityRulesDisabled((context) => setDoc(signalRef(context.firestore(), 'S_M', theirs.id), { ...theirs.data, recordedAt: new Date() }));
+  await assertFails(updateDoc(signalRef(mixed, 'S_M', theirs.id), { dismissedAt: serverTimestamp(), dismissedByEmail: 'teacher.mixed@example.test' }));
+  await assertSucceeds(updateDoc(signalRef(mixed, 'S_M', theirs.id), { dismissedAt: serverTimestamp(), dismissedByEmail: 'Teacher.Mixed@Example.test' }));
   // And nobody deletes one, the teacher and the root administrator included.
   await assertFails(deleteDoc(ref(teacherA())));
   await assertFails(deleteDoc(ref(root())));

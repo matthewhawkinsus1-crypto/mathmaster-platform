@@ -45,7 +45,7 @@ export const ATTEMPT_SIGNAL_TITLE = Object.freeze({
 
 const factsSentence = (signal) => {
   if (signal.kind === ATTEMPT_SIGNAL_KIND.LEFT_THEN_RIGHT) {
-    return `The page was hidden for ${awayWords(signal.awaySeconds)}. Within a minute of coming back, ${plural(Math.max(2, num(signal.partCount, 2)), 'part')} were answered and marked right.`;
+    return `The page was hidden (another tab or app, or the screen turned off) for ${awayWords(signal.awaySeconds)}. Within a minute of coming back, ${plural(Math.max(2, num(signal.partCount, 2)), 'part')} were answered and marked right.`;
   }
   if (signal.kind === ATTEMPT_SIGNAL_KIND.PASTED) {
     return `Something was pasted into the answer box of part ${num(signal.partIndex) + 1}. What was pasted is not recorded.`;

@@ -14,7 +14,9 @@ import assert from 'node:assert/strict';
 
 import {
   ATTEMPT_SIGNAL_KIND,
+  MAX_AWAY_MS,
   MIN_AWAY_MS,
+  PLATFORM_LINK_GRACE_MS,
   RETURN_WINDOW_MS,
   attemptHasToolWork,
   attemptSignalDocumentId,
@@ -24,7 +26,10 @@ import {
   exemptAttemptSignalKinds,
   questionDifficultyBand,
 } from '../../src/platform/signals/attemptSignalFacts.js';
-import { pastedPartIndex } from '../../src/platform/signals/useAttemptSignals.js';
+import { factsAfterSavedWork, pastedPartIndex } from '../../src/platform/signals/useAttemptSignals.js';
+import { attemptSignalCount, recordAttemptSignal, resetAttemptSignalWriter } from '../../src/platform/signals/attemptSignalWriter.js';
+import { executableSource, region } from './helpers/sourceContract.mjs';
+import { readFileSync } from 'node:fs';
 
 // A clock the test moves by hand.
 const world = () => {
@@ -130,7 +135,7 @@ test('every part right on the first try, band 3 or higher, no tool work: one fac
   const all = state({ slope: '-2', intercept: '3', equation: SECRET, check: 'yes' }, ['slope', 'intercept', 'equation', 'check']);
   tracker.noteAnswerState(all);
   assert.deepEqual(
-    tracker.attemptSubmitted({ question: hard, answerState: all, isCorrect: true, attemptNumber: 1 }),
+    tracker.attemptSubmitted({ question: hard, answerState: all, isCorrect: true, attemptNumber: 1, drawnInAnswerBoxes: true }),
     [{ kind: ATTEMPT_SIGNAL_KIND.HARD_FIRST_TRY, difficultyBand: 3, partCount: 4, attemptNumber: 1 }],
   );
 });
@@ -141,7 +146,7 @@ test('no "right first time" fact below band 3, on a later try, with a part wrong
   const submit = (overrides, prepare = () => {}) => {
     const { tracker } = world();
     prepare(tracker);
-    return kinds(tracker.attemptSubmitted({ question: hard, answerState: all, isCorrect: true, attemptNumber: 1, ...overrides }));
+    return kinds(tracker.attemptSubmitted({ question: hard, answerState: all, isCorrect: true, attemptNumber: 1, drawnInAnswerBoxes: true, ...overrides }));
   };
   assert.deepEqual(submit({}), [ATTEMPT_SIGNAL_KIND.HARD_FIRST_TRY], 'the control case raises it');
   assert.deepEqual(submit({ question: { ...QUESTION, difficultyBand: 2 } }), []);
@@ -149,12 +154,16 @@ test('no "right first time" fact below band 3, on a later try, with a part wrong
   assert.deepEqual(submit({ attemptNumber: 2 }), []);
   assert.deepEqual(submit({ isCorrect: false }), []);
   assert.deepEqual(submit({ answerState: state({}, ['slope', 'intercept', 'equation']) }), []);
-  // A checkpoint on a part, a tool's structured response, a tool-built
-  // question, a composed question, a saved scratchpad: all work to look at.
+  // A checkpoint on a part, a tool's structured response, a composed
+  // question, a saved scratchpad: all work to look at.
   assert.deepEqual(submit({ question: { ...hard, answerFields: [{ id: 'slope', checkpoint: { kind: 'pickPoints', count: 2 } }] } }), []);
   assert.deepEqual(submit({ answerState: { ...all, toolResponse: { value: '{}' } } }), []);
-  assert.deepEqual(submit({ question: { ...hard, type: 'stepAlgebra2' } }), []);
   assert.deepEqual(submit({ question: { ...hard, workflow: { stages: [{ id: 'a' }] } } }), []);
+  // And a question the engine did not draw as answer boxes: the legacy
+  // `algebra` type and a `literal` on the balance workspace are Step Algebra,
+  // whatever their type says. Unless the engine vouches, nothing is raised.
+  assert.deepEqual(submit({ drawnInAnswerBoxes: false }), []);
+  assert.deepEqual(submit({ drawnInAnswerBoxes: undefined, question: { ...hard, type: 'algebra' } }), []);
   assert.deepEqual(submit({}, (tracker) => tracker.noteToolWork()), []);
 });
 
@@ -163,7 +172,7 @@ test('difficulty band and tool work are read from the question as authored', () 
   assert.equal(questionDifficultyBand({ cognitiveDemand: { difficultyBand: 3 } }), 3);
   assert.equal(questionDifficultyBand({}), 0);
   assert.equal(attemptHasToolWork({ question: { type: 'multiAnswer' }, answerState: {} }), false);
-  assert.equal(attemptHasToolWork({ question: { type: 'functionGraph' }, answerState: {} }), true);
+  assert.equal(attemptHasToolWork({ question: { type: 'multiAnswer' }, answerState: {}, toolWorkNoted: true }), true);
 });
 
 test('a paste records the part it landed in and the attempt, and nothing else', () => {
@@ -192,7 +201,7 @@ test('the stored record is positions and counts: no response, no pasted text, no
   const all = state({ slope: '-2', intercept: '3', equation: SECRET, check: 'yes' }, ['slope', 'intercept', 'equation', 'check']);
   tracker.noteAnswerState(all);
   const facts = [
-    ...tracker.attemptSubmitted({ question: { ...QUESTION, difficultyBand: 5 }, answerState: all, isCorrect: true, attemptNumber: 1 }),
+    ...tracker.attemptSubmitted({ question: { ...QUESTION, difficultyBand: 5 }, answerState: all, isCorrect: true, attemptNumber: 1, drawnInAnswerBoxes: true }),
     // A fact that tries to carry content in is stripped to its known fields.
     { ...tracker.pasteFact({ partIndex: 1, attemptNumber: 1 }), text: SECRET, clipboard: SECRET, response: SECRET },
   ];
@@ -232,10 +241,139 @@ test('a support profile that explains the pattern raises no signal', () => {
   assert.deepEqual(exempt(['text-to-speech']), [ATTEMPT_SIGNAL_KIND.LEFT_THEN_RIGHT]);
   assert.deepEqual(exempt(['translation']), [ATTEMPT_SIGNAL_KIND.LEFT_THEN_RIGHT]);
   assert.deepEqual(exempt([], { translationLanguage: 'es' }), [ATTEMPT_SIGNAL_KIND.LEFT_THEN_RIGHT]);
+  // English is not a translation, however it is written (translationLanguageOf).
+  for (const english of ['en', 'en-US', 'English', 'EN']) assert.deepEqual(exempt([], { translationLanguage: english }), [], `${english} is not a translation`);
   // See every part at once: several parts are answered together.
   assert.deepEqual(exempt(['every-part-at-once']), [ATTEMPT_SIGNAL_KIND.LEFT_THEN_RIGHT]);
   // A response written in a word processor is pasted in.
   assert.deepEqual(exempt(['word-processor-response']), [ATTEMPT_SIGNAL_KIND.PASTED]);
   // Nothing explains a first-try right answer.
   assert.ok(!exempt(['text-to-speech', 'translation', 'every-part-at-once', 'word-processor-response']).includes(ATTEMPT_SIGNAL_KIND.HARD_FIRST_TRY));
+});
+
+// ---- the lead's review of #591 --------------------------------------------
+
+const burstAfter = (prepare, awayMs) => {
+  const w = world();
+  w.tracker.noteAnswerState(state({}, []));
+  prepare(w);
+  w.clock.pageHidden(); w.advance(awayMs); w.clock.pageVisible(); w.advance(2000);
+  const answered = state({ slope: '-2', intercept: '3' }, ['slope', 'intercept']);
+  w.tracker.noteAnswerState(answered);
+  return kinds(w.tracker.attemptSubmitted({ question: QUESTION, answerState: answered, attemptNumber: 1 }));
+};
+
+test("the platform's own new-tab link (a study sheet, a reteach resource) is not the student leaving the page", () => {
+  assert.deepEqual(burstAfter(() => {}, 30_000), [ATTEMPT_SIGNAL_KIND.LEFT_THEN_RIGHT], 'the control case raises it');
+  // The link is pressed, the new tab hides the page at once.
+  assert.deepEqual(burstAfter((w) => { w.clock.platformLinkOpened(); w.advance(300); }, 30_000), []);
+  // A link pressed long before the page was hidden does not excuse it.
+  assert.deepEqual(burstAfter((w) => { w.clock.platformLinkOpened(); w.advance(PLATFORM_LINK_GRACE_MS + 1); }, 30_000), [ATTEMPT_SIGNAL_KIND.LEFT_THEN_RIGHT]);
+  // And it excuses one absence, not the next.
+  const w = world();
+  w.tracker.noteAnswerState(state({}, []));
+  w.clock.platformLinkOpened(); w.clock.pageHidden(); w.advance(20_000); w.clock.pageVisible(); w.advance(90_000);
+  w.clock.pageHidden(); w.advance(20_000); w.clock.pageVisible(); w.advance(2000);
+  const answered = state({ slope: '-2', intercept: '3' }, ['slope', 'intercept']);
+  w.tracker.noteAnswerState(answered);
+  assert.deepEqual(kinds(w.tracker.attemptSubmitted({ question: QUESTION, answerState: answered, attemptNumber: 1 })), [ATTEMPT_SIGNAL_KIND.LEFT_THEN_RIGHT]);
+  // The assignment screen tells the clock when a resource link is pressed.
+  const view = executableSource(readFileSync(new URL('../../src/app/student/assignmentWorkspaceView.jsx', import.meta.url), 'utf8'));
+  const count = (needle) => view.split(needle).length - 1;
+  assert.equal(count('onResourceOpened='), 2, 'both places the support tools are drawn');
+  assert.equal(count('onResourceOpened={(supportId) => { notePlatformLinkOpened(); recordStudentSupportEvidence('), 2);
+});
+
+test('a locked screen or a tab left open is not the pattern: an absence over five minutes raises nothing', () => {
+  assert.deepEqual(burstAfter(() => {}, MAX_AWAY_MS), [ATTEMPT_SIGNAL_KIND.LEFT_THEN_RIGHT], 'five minutes still counts');
+  assert.deepEqual(burstAfter(() => {}, MAX_AWAY_MS + 1), []);
+  assert.deepEqual(burstAfter(() => {}, 15 * 3600_000), [], 'overnight');
+  // No record can say more than five minutes.
+  const record = buildAttemptSignalRecord({ studentId: 'S1', assignmentId: 'a-1', questionIndex: 0, fact: { kind: ATTEMPT_SIGNAL_KIND.LEFT_THEN_RIGHT, partCount: 2, awaySeconds: 54_000, attemptNumber: 1 } });
+  assert.equal(record.awaySeconds, 300);
+});
+
+test("a paste of the page's own text (the prompt's expression, part (a)'s answer) is not \"pasted\"", () => {
+  const w = world();
+  assert.ok(w.tracker.pasteFact({ partIndex: 1 }), 'the control case: a paste with no copy on this page');
+  w.clock.pageCopied();
+  assert.equal(w.tracker.pasteFact({ partIndex: 1 }), null, 'copied here, pasted here');
+  assert.equal(w.tracker.pasteFact({ partIndex: 0 }), null, 'and pasted again');
+  // After time in another tab or app, the clipboard is no longer known to be the page's.
+  w.clock.pageHidden(); w.advance(1000); w.clock.pageVisible();
+  assert.ok(w.tracker.pasteFact({ partIndex: 1 }));
+  w.clock.pageCopied(); w.clock.pageBlurred();
+  assert.ok(w.tracker.pasteFact({ partIndex: 1 }), 'the window lost focus after the copy');
+  // The page listens for copy and cut, and reads nothing from either.
+  const facts = executableSource(readFileSync(new URL('../../src/platform/signals/attemptSignalFacts.js', import.meta.url), 'utf8'));
+  const listeners = region(facts, 'export const sharedPageAwayClock', 'return sharedClock;\n};', 'the page clock');
+  assert.match(listeners, /addEventListener\('copy', \(\) => sharedClock\.pageCopied\(\), true\)/);
+  assert.match(listeners, /addEventListener\('cut', \(\) => sharedClock\.pageCopied\(\), true\)/);
+  assert.doesNotMatch(facts, /clipboardData|getData\(|navigator\.clipboard/);
+});
+
+test('saved work the engine was not told of (a scratchpad from before a reload) withholds "no tool work"', async () => {
+  const hard = { kind: ATTEMPT_SIGNAL_KIND.HARD_FIRST_TRY, difficultyBand: 3, partCount: 2, attemptNumber: 1 };
+  const left = { kind: ATTEMPT_SIGNAL_KIND.LEFT_THEN_RIGHT, partCount: 2, awaySeconds: 20, attemptNumber: 1 };
+  assert.deepEqual(await factsAfterSavedWork([left, hard], async () => false), [left, hard], 'no saved work: both stand');
+  assert.deepEqual(await factsAfterSavedWork([left, hard], async () => true), [left], 'a saved scratchpad is work to look at');
+  assert.deepEqual(await factsAfterSavedWork([left, hard], async () => { throw new Error('offline'); }), [left], 'not known is not "none"');
+  assert.deepEqual(await factsAfterSavedWork([left, hard], null), [left, hard], 'a host with no scratchpad');
+  // It is asked only when the claim is about to be made.
+  let asked = 0;
+  await factsAfterSavedWork([left], async () => { asked += 1; return true; });
+  assert.equal(asked, 0);
+  // The engine asks its host's scratchpad at submit, and says which module it drew.
+  const engine = executableSource(readFileSync(new URL('../../src/QuestionEngine.jsx', import.meta.url), 'utf8'));
+  const call = region(engine, 'attemptSignals.attemptSubmitted({', 'const nextFeedback = result ||', 'the submit');
+  assert.match(call, /\{ savedWork: onLoadScratchpad \? async \(\) => Boolean\(await onLoadScratchpad\(\)\) : null \}/);
+  assert.match(call, /drawnInAnswerBoxes: drawnKind\?\.route === DRAWN_QUESTION_ROUTE\.QUESTION_TYPE\s+&& ANSWER_BOX_TYPES\.includes\(drawnKind\.type\)\s+&& !\(drawnKind\.type === 'literal' && literalWorkspace\?\.question\)/);
+  const boxes = engine.match(/const ANSWER_BOX_TYPES = \[([^\]]*)\]/)[1];
+  assert.doesNotMatch(boxes, /'algebra'|stepAlgebra|graph|numberLine|modelingLab|relationshipModel/i, 'no tool-built type is called answer boxes');
+});
+
+test('the writer counts a fact when its write lands, sends it once, and tries again after a failure that was not a refusal', async () => {
+  const FACT = { kind: ATTEMPT_SIGNAL_KIND.PASTED, partIndex: 0, attemptNumber: 1 };
+  const args = (questionIndex, store) => ({ db: {}, studentId: 'S_W', assignmentId: 'a-w', questionIndex, activityRole: 'classwork', fact: FACT, store });
+  const writes = [];
+  const storeThat = (outcome) => ({
+    doc: (_db, ...segments) => segments.join('/'),
+    serverTimestamp: () => 'SERVER_TIME',
+    setDoc: async (path, data) => { writes.push({ path, data }); await outcome(); },
+  });
+  const ok = storeThat(async () => {});
+  resetAttemptSignalWriter();
+  try { globalThis.sessionStorage?.clear?.(); } catch { /* no storage in node */ }
+  assert.equal(attemptSignalCount('S_W', 'a-w'), 0);
+
+  // Lands: written once, at the fact's own path, counted after the write.
+  let resolveWrite;
+  const slow = storeThat(() => new Promise((resolve) => { resolveWrite = resolve; }));
+  const pending = recordAttemptSignal(args(0, slow));
+  await Promise.resolve();
+  assert.equal(attemptSignalCount('S_W', 'a-w'), 0, 'not counted before the write lands');
+  resolveWrite();
+  assert.equal(await pending, true);
+  assert.equal(attemptSignalCount('S_W', 'a-w'), 1);
+  assert.equal(writes[0].path, 'grades/S_W/attemptSignals/a-w__0__pasted__0');
+  assert.deepEqual(writes[0].data, { schemaVersion: 1, studentId: 'S_W', assignmentId: 'a-w', questionIndex: 0, kind: 'pasted', attemptNumber: 1, activityRole: 'classwork', partIndex: 0, recordedAt: 'SERVER_TIME' });
+  // The same fact again: not sent, not counted.
+  assert.equal(await recordAttemptSignal(args(0, ok)), false);
+  assert.equal(writes.length, 1);
+
+  // A failure that is not a refusal (offline, a timeout): not counted, and sent again next time.
+  const failing = storeThat(async () => { throw Object.assign(new Error('unavailable'), { code: 'unavailable' }); });
+  assert.equal(await recordAttemptSignal(args(1, failing)), false);
+  assert.equal(attemptSignalCount('S_W', 'a-w'), 1);
+  assert.equal(await recordAttemptSignal(args(1, ok)), true, 'retried');
+  assert.equal(attemptSignalCount('S_W', 'a-w'), 2);
+
+  // A refusal is the fact already on file (the first stands): not counted, not sent again.
+  const refused = storeThat(async () => { throw Object.assign(new Error('denied'), { code: 'permission-denied' }); });
+  const before = writes.length;
+  assert.equal(await recordAttemptSignal(args(2, refused)), false);
+  assert.equal(await recordAttemptSignal(args(2, ok)), false);
+  assert.equal(writes.length, before + 1);
+  assert.equal(attemptSignalCount('S_W', 'a-w'), 2);
+  resetAttemptSignalWriter();
 });

@@ -11,6 +11,7 @@ import { doc, serverTimestamp, setDoc } from 'firebase/firestore';
 import { attemptSignalDocumentId, buildAttemptSignalRecord } from './attemptSignalFacts.js';
 
 export const ATTEMPT_SIGNALS_SUBCOLLECTION = 'attemptSignals';
+const FIRESTORE = { doc, setDoc, serverTimestamp };
 
 // What this page has already sent: one fact is one document, and a second
 // write of it would be refused by the rules (the first one stands).
@@ -46,28 +47,33 @@ export const attemptSignalCount = (studentId, assignmentId) => {
 };
 
 /**
- * Record one fact. Resolves true when it was written, false when it was a
+ * Record one fact. Resolves true when it was written; false when it was a
  * repeat, could not be built, or the write failed.
+ *
+ * The count moves only when the write lands. A write the rules refuse is the
+ * fact already on file from an earlier visit (the first one stands): it is
+ * not sent again. Any other failure leaves the fact free to be sent the next
+ * time it is raised.
  */
-export const recordAttemptSignal = async ({ db, studentId, assignmentId, questionIndex, activityRole = null, fact } = {}) => {
+// `store` is Firestore's own doc, setDoc and serverTimestamp; a test passes its own.
+export const recordAttemptSignal = async ({ db, studentId, assignmentId, questionIndex, activityRole = null, fact, store = FIRESTORE } = {}) => {
   const record = buildAttemptSignalRecord({ studentId, assignmentId, questionIndex, activityRole, fact });
   if (!db || !record) return false;
   const id = attemptSignalDocumentId(record);
   const sentKey = `${record.studentId}|${id}`;
   if (sent.has(sentKey)) return false;
   sent.add(sentKey);
+  try {
+    await store.setDoc(store.doc(db, 'grades', record.studentId, ATTEMPT_SIGNALS_SUBCOLLECTION, id), { ...record, recordedAt: store.serverTimestamp() });
+  } catch (error) {
+    if (error?.code !== 'permission-denied') sent.delete(sentKey);
+    return false;
+  }
   const key = countKey(record.studentId, record.assignmentId);
   const next = attemptSignalCount(record.studentId, record.assignmentId) + 1;
   counts.set(key, next);
   storeCount(key, next);
-  try {
-    await setDoc(doc(db, 'grades', record.studentId, ATTEMPT_SIGNALS_SUBCOLLECTION, id), { ...record, recordedAt: serverTimestamp() });
-    return true;
-  } catch {
-    // Already recorded on an earlier visit (the rules keep the first), or
-    // offline: either way there is nothing for the student to see or redo.
-    return false;
-  }
+  return true;
 };
 
 /** For tests: forget what this page has sent and counted. */

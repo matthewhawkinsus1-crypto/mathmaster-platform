@@ -246,6 +246,10 @@ const barActionLabel = (label) => {
   return parts ? <>{parts[1]}<span className="mathmaster-action-label-long">{parts[2]}</span>{parts[3]}</> : label;
 };
 
+// The engine's types that are answer boxes and nothing else: for these alone
+// can "no tool work" be said of an attempt (teacher signals).
+const ANSWER_BOX_TYPES = ['multiAnswer', 'fraction', 'orderedPair', 'system', 'table', 'literal'];
+
 function QuestionEngineBody({
   question,
   onGrade,
@@ -1452,6 +1456,11 @@ function QuestionEngineBody({
         // A composed question's stages are its work.
         if (isComposed) attemptSignals.noteToolWork();
         attemptSignals.attemptSubmitted({
+          // Answered in boxes and nothing else, by the module drawn (a literal
+          // question on the balance workspace is not).
+          drawnInAnswerBoxes: drawnKind?.route === DRAWN_QUESTION_ROUTE.QUESTION_TYPE
+            && ANSWER_BOX_TYPES.includes(drawnKind.type)
+            && !(drawnKind.type === 'literal' && literalWorkspace?.question),
           question: processedQuestion,
           answerState,
           // The marks the host's grading returned, where it returns them.
@@ -1459,7 +1468,7 @@ function QuestionEngineBody({
           // The host's verdict where it gives one, else this device's own.
           isCorrect: typeof result?.isCorrect === 'boolean' ? result.isCorrect : answerState.isCorrect === true,
           attemptNumber: (Number(record.totalAttempts) || 0) + 1,
-        });
+        }, { savedWork: onLoadScratchpad ? async () => Boolean(await onLoadScratchpad()) : null });
       }
       const nextFeedback = result || {
         isCorrect: answerState.isCorrect,
