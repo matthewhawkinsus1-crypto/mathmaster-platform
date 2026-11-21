@@ -18,6 +18,10 @@
  *   - Submission recovery's panel, drawn inside Home's fold of that name once
  *     the teacher has chosen a class and an assignment there.
  *
+ * And, since the teacher signals (SP-2), the Live tile's "Worth a
+ * conversation", drawn only on the tile of a student whose attempts raised a
+ * fact.
+ *
  * Each now arrives when it is first needed (./onDemandCode.js), and the
  * workspace fetches them all while the browser is idle once it has drawn
  * (./teacherPanelPrefetch.js).
@@ -48,5 +52,7 @@ export const SupportEvidenceReportView = closedPanel(() => import('../../compone
 export const promptMath = onDemandCode(() => import('../../components/common/MathText.jsx'));
 // The Spotlight's projector view (components/teacher/LiveClassMonitor.jsx).
 export const StudentSpotlightView = drawnPanel(() => import('../../components/teacher/StudentSpotlightView.jsx'), "This device is offline. The Spotlight shows when it is back online.");
+// "Worth a conversation" on a Live tile (components/teacher/LiveClassMonitor.jsx), drawn only for a student whose attempts raised a fact.
+export const WorthAConversationTile = drawnPanel(() => import('../../components/teacher/WorthAConversation.jsx'), "This device is offline. Worth a conversation shows when it is back online.");
 // Submission recovery's panel (src/TeacherHome.jsx), mounted again for each class and assignment chosen.
 export const StudentPersistenceRecoveryPanel = drawnPanel(() => import('../../components/teacher/StudentPersistenceRecoveryPanel.jsx'), "This device is offline. Submission recovery shows when it is back online.");

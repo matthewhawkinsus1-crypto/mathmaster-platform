@@ -15,7 +15,7 @@ import {
 } from '../../src/platform/teacher/attemptSignalsView.js';
 import { ATTEMPT_SIGNAL_KINDS } from '../../src/platform/signals/attemptSignalFacts.js';
 import { buildLiveStatus } from '../../src/livePresence.js';
-import { chainTo, firstLoadGraph, repo } from './helpers/firstLoadGraph.mjs';
+import { chainTo, firstLoadGraph, repo, teacherFirstLoadGraph } from './helpers/firstLoadGraph.mjs';
 import { executableSource, region } from './helpers/sourceContract.mjs';
 
 const read = (file) => readFileSync(path.join(repo, file), 'utf8');
@@ -108,13 +108,26 @@ test('in Live Classroom: on the tile of a student who has signals, and never on 
   const tile = region(monitor, 'function StudentTile({', 'function withClassworkStates', 'StudentTile');
   assert.match(
     tile,
-    /\{showAttemptSignals && !roomMode && teacherEmail && live\?\.assignmentId && Number\(live\?\.attemptSignalCount\) > 0 && \(\s*<WorthAConversation\s+compact/,
+    /\{showAttemptSignals && !roomMode && teacherEmail && live\?\.assignmentId && Number\(live\?\.attemptSignalCount\) > 0 && \(\s*<WorthAConversationTile\s+compact/,
     'the tile reads signals only for a student whose heartbeat says there are some, and not in the room view',
   );
-  assert.match(region(tile, '<WorthAConversation', '/>', "the tile's panel"), /assignmentId=\{live\.assignmentId\}/);
+  assert.match(region(tile, '<WorthAConversationTile', '/>', "the tile's panel"), /assignmentId=\{live\.assignmentId\}/);
+  // The tile's panel is the same component, fetched when a tile first draws it.
+  const panels = executableSource(read('src/app/teacher/teacherPanels.js'));
+  assert.match(panels, /^export const WorthAConversationTile = drawnPanel\(\(\) => import\('\.\.\/\.\.\/components\/teacher\/WorthAConversation\.jsx'\), "This device is offline\. Worth a conversation shows when it is back online\."\);$/m);
   assert.match(tile, /showAttemptSignals = false,/, 'off unless the monitor turns it on');
   const tiles = region(monitor, '{visibleRows.map((row) => (', '))}', 'the tiles');
   assert.match(tiles, /showAttemptSignals=\{!projecting\}/);
+});
+
+test("the panel is not in a teacher's first load either: Home draws before any tile needs it", () => {
+  const graph = teacherFirstLoadGraph();
+  assert.ok(graph.size > 200, `only ${graph.size} modules reached`);
+  const absolute = path.join(repo, 'src/components/teacher/WorthAConversation.jsx');
+  assert.ok(!graph.has(absolute), `WorthAConversation.jsx is in a teacher's first load: ${graph.has(absolute) ? chainTo(graph, absolute) : ''}`);
+  // And it is fetched while the browser is idle, so the first tile draws at once.
+  const prefetch = executableSource(read('src/app/teacher/teacherPanelPrefetch.js'));
+  assert.match(region(prefetch, 'export const TEACHER_PANEL_PREFETCH = Object.freeze([', ']);', 'the prefetch list'), /\bWorthAConversationTile\b/);
 });
 
 test("no student's first load carries the teacher's side of the signals", () => {

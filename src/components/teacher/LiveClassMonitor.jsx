@@ -10,11 +10,10 @@ import StudentPerformanceBadge from '../common/StudentPerformanceBadge.jsx';
 // Drawn only while a student presents (a Spotlight they accepted), with MathText and
 // so MathLive: its code arrives then, or before it with the workspace's idle
 // prefetch (app/teacher/teacherPanels.js, teacher's first load).
-import { StudentSpotlightView } from '../../app/teacher/teacherPanels.js';
+import { StudentSpotlightView, WorthAConversationTile } from '../../app/teacher/teacherPanels.js';
 import ClassPointsAwardDialog from './ClassPointsAwardDialog.jsx';
 import ClassPointsHistoryPanel from './ClassPointsHistoryPanel.jsx';
 import HelpAcknowledgeControls from './HelpAcknowledgeControls.jsx';
-import WorthAConversation from './WorthAConversation.jsx';
 import { classPointsBalanceFor, watchClassPointAccounts } from '../../platform/classPointsClient.js';
 import DOLCountdown from '../student/DOLCountdown.jsx';
 import { dolExtraTimeForClass } from '../../platform/teacher/dolExtraTimeRoster.js';
@@ -329,7 +328,7 @@ function StudentTile({
       {/* Teacher signals: read only for a student whose heartbeat says there
           are some, and never on the projector (it names a student's attempt). */}
       {showAttemptSignals && !roomMode && teacherEmail && live?.assignmentId && Number(live?.attemptSignalCount) > 0 && (
-        <WorthAConversation
+        <WorthAConversationTile
           compact
           studentId={row.id}
           studentName={row.nameMissing ? '' : row.name}
