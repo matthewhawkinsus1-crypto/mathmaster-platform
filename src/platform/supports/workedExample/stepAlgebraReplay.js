@@ -89,6 +89,19 @@ const simplifiedSide = (side, variable) => {
  * the simplified equation the next move starts from.
  */
 const applyReplayMove = (equation, operation, operand) => {
+  // The engine's answer for a move depends only on the equation and the move,
+  // and writing the built-in moves plays each one before the replay does:
+  // the last few are kept, so each is worked out once.
+  const key = [equation.left, equation.right, equation.variable, equation.objective?.kind, operation, String(operand)].join('\u0001');
+  if (playedMoves.has(key)) return playedMoves.get(key);
+  const played = playReplayMove(equation, operation, operand);
+  if (playedMoves.size >= PLAYED_MOVES_KEPT) playedMoves.delete(playedMoves.keys().next().value);
+  playedMoves.set(key, played);
+  return played;
+};
+const PLAYED_MOVES_KEPT = 128;
+const playedMoves = new Map();
+const playReplayMove = (equation, operation, operand) => {
   const move = applyBalancedOperation({ equationState: equation, operation, operand: String(operand) });
   if (move.preservesSolution === false) throw new Error('that move would change the solutions');
   const cancels = list(move.requiredCancellationSides);

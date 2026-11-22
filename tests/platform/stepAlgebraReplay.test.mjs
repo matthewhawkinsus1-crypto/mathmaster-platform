@@ -343,6 +343,17 @@ test('the second Classwork question on a skill is shown the first moves only; on
   assert.equal(opens({ rule: exampleSectionRule({ sectionRole: 'dol', activityRole: 'dol', hintsAllowed: false }) }), false);
   // A third question on the skill is neither new nor the faded turn.
   assert.equal(exampleOpensByItself({ rule, newSkill: false, fadeTurn: false, example }), false);
+  // A long run on one skill: the first is new, the second fades, every later one is neither. The
+  // questions before this one are only asked whether they have an example (`asReplay: false` gives
+  // the sibling's text, with nothing played on the engine), and the count stops at two.
+  const stored = lessonQuestions(assignment);
+  const equationQuestion = stored[indexOfQuestion(stored, 'ls-cw-3')];
+  const run = Array.from({ length: 12 }, (_, index) => ({ ...equationQuestion, questionId: `run-${index}`, activityRole: 'classwork' }));
+  const turns = run.map((_, index) => lessonExampleContext({ questions: run, index, sectionRole: 'classwork' }));
+  assert.deepEqual(turns.map((turn) => `${turn.newSkill}/${turn.fadeTurn}`), ['true/false', 'false/true', ...Array(10).fill('false/false')]);
+  const asked = workedExampleFor(asQuestionEngineReceivesIt(equationQuestion), { sectionRole: 'classwork', asReplay: false });
+  assert.equal(asked.format, 'steps');
+  assert.ok(asked.steps.every((step) => !step.board));
   // Faded: the first moves, no answer, and the last slide leaves the rest to the student.
   const faded = fadedExample(example);
   assert.equal(faded.faded, true);

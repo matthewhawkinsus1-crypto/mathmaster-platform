@@ -223,7 +223,7 @@ const safeFor = (question, example) => similarExampleIsSafe(question, {
  * item on the same assignment. `coveringExample` is the id of the example an
  * earlier question on the same skill named, for a question that names none.
  */
-export const workedExampleFor = (question, { seed = 0, lessonSupports = null, sectionRole = null, assignmentProblems = null, coveringExample = null } = {}) => {
+export const workedExampleFor = (question, { seed = 0, lessonSupports = null, sectionRole = null, assignmentProblems = null, coveringExample = null, asReplay = true } = {}) => {
   try {
     const authoredOptions = { sectionRole, exampleId: coveringExample };
     const authored = authoredReplay(question, lessonSupports, authoredOptions) || authoredStepCard(question, lessonSupports, authoredOptions);
@@ -233,7 +233,10 @@ export const workedExampleFor = (question, { seed = 0, lessonSupports = null, se
       const sibling = buildSimilarWorkedExample(question, { seed: (Number(seed) || 0) + pass * 6 });
       if (!sibling) return null;
       if (!isAssignmentItem(sibling.prompt, assignmentProblems)) {
-        const replay = familyReplay(question, sibling);
+        // `asReplay: false` asks only whether the question has an example at
+        // all (lessonExampleContext, for the questions before this one): the
+        // sibling's text answers that without playing it on the engine.
+        const replay = asReplay ? familyReplay(question, sibling) : null;
         if (replay && !isAssignmentItem(replay.prompt, assignmentProblems) && safeFor(question, replay)) return replay;
         return { source: 'family', format: 'steps', prompt: sibling.prompt, steps: sibling.steps.map(stepOf), answer: sibling.answer, handOverAfter: 0 };
       }
@@ -296,13 +299,19 @@ export const lessonExampleContext = ({ questions = [], index = -1, sectionRole =
   // No skill to name: nothing says this is a new one, so nothing opens by itself.
   if (!skill) return context;
   const role = (candidate) => lower(typeof roleOf === 'function' ? roleOf(candidate) : candidate?.activityRole);
-  const taughtEarlier = all.slice(0, index).filter((earlier) => (
-    isObject(earlier)
+  // Only "none", "one" and "more than one" matter, so the count stops at two:
+  // a long run of questions on one skill costs no more than its first two.
+  const taughtEarlier = [];
+  for (const earlier of all.slice(0, index)) {
+    if (taughtEarlier.length >= 2) break;
+    if (isObject(earlier)
       && role(earlier) === 'classwork'
       && !questionExampleExemption(earlier)
       && lessonSkillOf(earlier) === skill
-      && (claimedFamilySlot(earlier) || Boolean(workedExampleFor(earlier, { lessonSupports: supports, sectionRole: 'classwork', assignmentProblems })))
-  ));
+      && (claimedFamilySlot(earlier) || Boolean(workedExampleFor(earlier, { lessonSupports: supports, sectionRole: 'classwork', assignmentProblems, asReplay: false })))) {
+      taughtEarlier.push(earlier);
+    }
+  }
   // One example can cover several questions on a skill: a question that names
   // none takes the one the first question on its skill named.
   const named = taughtEarlier.map((earlier) => (typeof earlier.example === 'string' ? text(earlier.example) : '')).find(Boolean) || null;
