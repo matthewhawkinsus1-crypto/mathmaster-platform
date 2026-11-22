@@ -212,9 +212,26 @@ Where slice F lives, and what it does:
     the first `: `, ` — `, `; `, `, which`, `, so`, `, because` or `. `
     outside `$…$`). A common error that says only what was done is not used:
     the step and its reason would be the same words.
-  - The two wrong choices are fixed (`SPOT_THE_MISTAKE_GENERIC`): both say the
-    step is correct, which a step holding a known mistake never is. The
-    question's other fields were measured as a source (below) and are not used.
+  - The two wrong choices are the "what is wrong" parts of OTHER questions'
+    common errors on the same assignment (the questions QuestionEngine already
+    hands the example context, `lessonQuestions`): the same skill first
+    (`exampleSkillOf`), then any question, in the assignment's order. One is
+    used only when it is another question's (by id and by words), splits
+    cleanly, makes a different mistake from this step, is not this reason and
+    does not contain it or sit inside it, is not on a DOL, quiz or test
+    question, and passes `similarExampleIsSafe` against this question and
+    against its own (so it never hands over another item's answer). Only a slot
+    left empty takes a fixed choice (`SPOT_THE_MISTAKE_GENERIC`: both say the
+    step is correct, which a step holding a known mistake never is). The right
+    one's place is fixed by the common error and the seed, so a redraw does
+    not reshuffle it. Over the 450 shown below, 448 get two borrowed wrong
+    choices, 2 get one, none get none.
+  - A borrowed reason is wrong for this step's mistake, not false in general:
+    on a lesson where several questions turn on one idea it can still read as
+    true beside this step (correlation and cause, a perpendicular slope).
+    Nothing in the words tells those apart.
+  - This question's other fields were measured as a source (below) and are not
+    used.
   - Nothing else is written: no mathematics of its own. Every word it would
     show (the step, the choices, the whole common error shown after a choice)
     goes through `similarExampleIsSafe`; one that states an answer of the
@@ -230,7 +247,7 @@ Where slice F lives, and what it does:
     right is never recorded. It changes no score, uses no attempt and leaves
     independence to the example's own flags. The teacher's attempt analysis
     names it "Spot the mistake answered".
-- **Why the wrong choices are not the question's own text.** The only fields
+- **Why the wrong choices are not this question's own text.** The only fields
   that read like a reason are the wrong-answer messages
   (`misconceptions[].message`). Most state a true fact ("Exactly 800 pounds is
   allowed."), which is no wrong answer; the rest name a mistake on the same

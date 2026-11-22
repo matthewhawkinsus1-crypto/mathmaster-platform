@@ -38,8 +38,8 @@ import { hintRevealsAnswer } from '../../functions/shared/pathSolutionSupport.mj
 import { questionAnswerValues } from '../../src/platform/supports/hints/questionHints.js';
 import { SPOT_THE_MISTAKE_LABEL, analyzeAssignmentQuestions } from '../../src/platform/caseReview/attemptAnalysis.js';
 import { attemptSupportUsageFrom, emptySupportUse, rememberSupportUse, restoredSupportUse, supportUseFromRecord } from '../../src/platform/supports/supportUseMemory.js';
-import { SPOT_THE_MISTAKE_GENERIC, splitCommonError, spotTheMistakeFor } from '../../src/platform/supports/workedExample/spotTheMistake.js';
-import { exampleSectionRule, lessonExampleContext, workedExampleFor } from '../../src/platform/supports/workedExample/examplePlayer.js';
+import { NO_DISTRACTOR_SECTION_ROLES, SPOT_THE_MISTAKE_GENERIC, splitCommonError, spotTheMistakeFor } from '../../src/platform/supports/workedExample/spotTheMistake.js';
+import { NO_EXAMPLE_SECTION_ROLES, exampleSectionRule, lessonExampleContext, workedExampleFor } from '../../src/platform/supports/workedExample/examplePlayer.js';
 import {
   SPOT_THE_MISTAKE_INTRO,
   SPOT_THE_MISTAKE_OTHER,
@@ -120,7 +120,7 @@ test('the step and its reason are the two parts of the question\'s own common er
   assert.equal(splitCommonError('Writing x = {{m}}y: angle B is the larger angle, so y = {{m}}x.'), null);
 });
 
-test('three choices: the reason, and two fixed ones that are never what went wrong; nothing else is written', () => {
+test('with no other question to lend a wrong choice: the reason, and the two fixed ones; nothing else is written', () => {
   const spot = spotTheMistakeFor(SLOPE);
   assert.ok(spot, 'a common error with both parts is shown');
   assert.equal(spot.line, 'Dividing the change in x by the change in y.');
@@ -166,11 +166,19 @@ test('over the real lessons, every Spot the mistake shown reads its question and
   ];
   let shown = 0;
   let refused = 0;
+  let borrowed = 0;
   for (const path of lessons) {
     for (const question of getStoredAssignmentQuestions(stored(path))) {
       if (!['classwork', 'practice'].includes(String(question.activityRole)) || !question.solutionReview?.commonError) continue;
-      const spot = spotTheMistakeFor(question);
+      const assignmentQuestions = getStoredAssignmentQuestions(stored(path));
+      const spot = spotTheMistakeFor(question, { assignmentQuestions });
       if (!spot) { refused += 1; continue; }
+      // Each wrong choice is another question's reason, or a fixed one.
+      const lent = assignmentQuestions.filter((other) => other.questionId !== question.questionId).map((other) => splitCommonError(other.solutionReview?.commonError)?.reason).filter(Boolean);
+      for (const choice of spot.choices.filter((entry) => !entry.right)) {
+        assert.ok(SPOT_THE_MISTAKE_GENERIC.includes(choice.text) || lent.includes(choice.text), `${question.questionId}: "${choice.text}"`);
+      }
+      borrowed += spot.borrowed;
       shown += 1;
       const answers = questionAnswerValues(question);
       for (const piece of [spot.line, ...spot.choices.map((choice) => choice.text), spot.explanation]) {
@@ -183,6 +191,73 @@ test('over the real lessons, every Spot the mistake shown reads its question and
   }
   assert.ok(shown >= 10, `${shown} shown`);
   assert.ok(refused >= 1, 'some are held back: the guard is doing work');
+  assert.ok(borrowed >= shown, `${borrowed} wrong choices borrowed for ${shown} shown: most come from the assignment`);
+});
+
+// Another question on the same assignment, with a common error of its own.
+const other = (id, commonError, extra = {}) => ({
+  questionId: id,
+  type: 'multiAnswer',
+  studentActions: ['multipleResponses'],
+  standard: 'A.3A',
+  activityRole: 'classwork',
+  prompt: `Question ${id}.`,
+  answerFields: [{ id: 'a', label: 'a', answer: '7', inputProfile: 'text' }],
+  solutionReview: { commonError },
+  ...extra,
+});
+const THIS = { ...SLOPE, studentActions: ['multipleResponses'], standard: 'A.3A', activityRole: 'classwork' };
+
+test('the wrong choices are other questions\' reasons on the assignment, never this one\'s', () => {
+  const assignmentQuestions = [
+    THIS,
+    // This question again, by id (another version of it, other words): never its own.
+    { ...THIS, prompt: 'A copy.', solutionReview: { commonError: 'Reading it twice: this version is the same question again.' } },
+    other('dol', 'Adding the two rates: the times add, not the speeds.', { activityRole: 'dol' }),
+    other('leaks', 'Leaving out the last term: so the answer is 7, not 6.'),
+    other('same', 'Reading the graph backwards: slope is the change in y over the change in x.'),
+    other('contains', 'Mixing up the axes: slope is the change in y over the change in x, as always.'),
+    other('one-part', 'Writing 6(x − 1) as 6x − 1.'),
+    other('far', 'Subtracting before dividing: the order of operations divides first.', { standard: 'A.5A' }),
+    other('near', 'Counting grid squares from the wrong point: the run starts at the first point.'),
+    other('near-again', 'Counting grid squares from the wrong point: the run starts at the first point.'),
+  ];
+  const spot = spotTheMistakeFor(THIS, { assignmentQuestions });
+  const wrong = spot.choices.filter((choice) => !choice.right).map((choice) => choice.text);
+  // The same skill first, in the assignment's order; a duplicate is taken once.
+  assert.deepEqual(wrong, ['The run starts at the first point.', 'The order of operations divides first.']);
+  assert.equal(spot.borrowed, 2);
+  // Never: this question's own (by id or by words), a DOL's, one that states its own
+  // item's answer, one that is or contains this reason, one that does not split.
+  for (const never of ['This version is the same question again.', 'The times add, not the speeds.', 'So the answer is 7, not 6.', 'Slope is the change in y over the change in x, as always.']) {
+    assert.equal(wrong.includes(never), false, never);
+  }
+  assert.deepEqual(spot.choices.filter((choice) => choice.right).map((choice) => choice.text), ['Slope is the change in y over the change in x.']);
+  // A lent reason that would state THIS question's answer is not lent.
+  const naming = spotTheMistakeFor(THIS, { assignmentQuestions: [THIS, other('names', 'Rounding early: the exact slope is 3/4.'), other('fine', 'Counting grid squares from the wrong point: the run starts at the first point.')] });
+  assert.deepEqual(naming.choices.filter((choice) => !choice.right).map((choice) => choice.text), ['The run starts at the first point.', SPOT_THE_MISTAKE_GENERIC[0]]);
+  // The sections that lend nothing are the ones that never show an example.
+  assert.deepEqual([...NO_DISTRACTOR_SECTION_ROLES], [...NO_EXAMPLE_SECTION_ROLES]);
+});
+
+test('the fixed choices fill only the slots the assignment cannot', () => {
+  const fixed = (assignmentQuestions) => spotTheMistakeFor(THIS, { assignmentQuestions }).choices.filter((choice) => !choice.right).map((choice) => choice.text);
+  for (const none of [null, [], [THIS], [THIS, other('one-part', 'Writing 6(x − 1) as 6x − 1.')]]) {
+    assert.deepEqual(fixed(none), [...SPOT_THE_MISTAKE_GENERIC], JSON.stringify(none)?.slice(0, 40));
+  }
+  assert.deepEqual(fixed([THIS, other('near', 'Counting grid squares from the wrong point: the run starts at the first point.')]), ['The run starts at the first point.', SPOT_THE_MISTAKE_GENERIC[0]]);
+});
+
+test('the order is the same for a seed, and the right one is not always in the same place', () => {
+  const assignmentQuestions = [THIS, other('near', 'Counting grid squares from the wrong point: the run starts at the first point.'), other('far', 'Subtracting before dividing: the order of operations divides first.')];
+  const order = (seed) => spotTheMistakeFor(THIS, { seed, assignmentQuestions }).choices.map((choice) => choice.text);
+  for (const seed of [0, 1, 2, 7]) assert.deepEqual(order(seed), order(seed), `seed ${seed}`);
+  const places = new Set([0, 1, 2, 3, 4, 5].map((seed) => order(seed).indexOf('Slope is the change in y over the change in x.')));
+  assert.equal(places.size, 3, 'over a few seeds the right one stands in each place');
+  // The two wrong ones keep their order around it.
+  for (const seed of [0, 1, 2]) {
+    assert.deepEqual(order(seed).filter((choice) => !choice.startsWith('Slope')), ['The run starts at the first point.', 'The order of operations divides first.']);
+  }
 });
 
 // --------------------------------------------- 3. why this step? reads the example
@@ -381,7 +456,8 @@ test('the words Read aloud and Translate are given', () => {
 test('QuestionEngine builds Spot the mistake only where the rule offers it, and records the fact', () => {
   const engine = executableSource(read('src/QuestionEngine.jsx'));
   const built = region(engine, 'const spotTheMistake = useMemo(', ');', 'Spot the mistake');
-  assert.match(built, /\(\) => \(exampleRule\.spotTheMistake && similarExample \? spotTheMistakeFor\(processedQuestion, \{ seed: Number\(record\.variantIndex\) \|\| 0 \}\) : null\)/);
+  assert.match(built, /\(\) => \(exampleRule\.spotTheMistake && similarExample \? spotTheMistakeFor\(processedQuestion, \{ seed: Number\(record\.variantIndex\) \|\| 0, assignmentQuestions: lessonQuestions \}\) : null\)/);
+  assert.match(built, /\[exampleRule\.spotTheMistake, similarExample, processedQuestion, record\.variantIndex, lessonQuestions\]/);
   const panel = region(engine, 'const hintPanel = helpControlAvailable ? (', ') : null;', 'the hint panel');
   assert.match(panel, /whyThisStep=\{exampleRule\.whyThisStep\}/);
   assert.match(panel, /spotTheMistake=\{shownExample\?\.faded === true \? null : spotTheMistake\}/, 'a faded example hands over without one');

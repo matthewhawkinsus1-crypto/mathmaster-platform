@@ -2079,10 +2079,12 @@ function QuestionEngineBody({
   );
   // SPOT THE MISTAKE (WE-F): after an example, wherever the section shows one
   // (so never on a DOL, quiz or test), built from this question's own common
-  // error and held to the same guard as the example (spotTheMistake.js).
+  // error and held to the same guard as the example (spotTheMistake.js). Its
+  // wrong choices come from the other questions' common errors on the same
+  // assignment: the questions the example context reads too.
   const spotTheMistake = useMemo(
-    () => (exampleRule.spotTheMistake && similarExample ? spotTheMistakeFor(processedQuestion, { seed: Number(record.variantIndex) || 0 }) : null),
-    [exampleRule.spotTheMistake, similarExample, processedQuestion, record.variantIndex],
+    () => (exampleRule.spotTheMistake && similarExample ? spotTheMistakeFor(processedQuestion, { seed: Number(record.variantIndex) || 0, assignmentQuestions: lessonQuestions }) : null),
+    [exampleRule.spotTheMistake, similarExample, processedQuestion, record.variantIndex, lessonQuestions],
   );
   const askTeacher = typeof onAskTeacher === 'function' && !locked && !serverGrading
     ? { ...askTeacherContext, requested: Boolean(helpRequested), onToggle: () => onAskTeacher(!helpRequested) }
