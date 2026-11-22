@@ -214,22 +214,36 @@ Where slice F lives, and what it does:
     the step and its reason would be the same words.
   - The two wrong choices are the "what is wrong" parts of OTHER questions'
     common errors on the same assignment (the questions QuestionEngine already
-    hands the example context, `lessonQuestions`): the same skill first
-    (`exampleSkillOf`), then any question, in the assignment's order. One is
-    used only when it is another question's (by id and by words), splits
-    cleanly, makes a different mistake from this step, is not this reason and
-    does not contain it or sit inside it, is not on a DOL, quiz or test
-    question, and passes `similarExampleIsSafe` against this question and
-    against its own (so it never hands over another item's answer). Only a slot
-    left empty takes a fixed choice (`SPOT_THE_MISTAKE_GENERIC`: both say the
-    step is correct, which a step holding a known mistake never is). The right
-    one's place is fixed by the common error and the seed, so a redraw does
-    not reshuffle it. Over the 450 shown below, 448 get two borrowed wrong
-    choices, 2 get one, none get none.
-  - A borrowed reason is wrong for this step's mistake, not false in general:
-    on a lesson where several questions turn on one idea it can still read as
-    true beside this step (correlation and cause, a perpendicular slope).
-    Nothing in the words tells those apart, so the wording never calls it
+    hands the example context, `lessonQuestions`), in the assignment's order.
+    One is used only when it is another question's (by id and by words),
+    splits cleanly, makes a different mistake from this step, is not this
+    reason and does not contain it or sit inside it, is not on a DOL, quiz or
+    test question, and passes `similarExampleIsSafe` against this question and
+    against its own (so it never hands over another item's answer). And, so
+    that it cannot be a reason for this step's mistake too:
+    - its question is on a **different skill** (`exampleSkillOf`): questions on
+      one skill share their misconceptions. Where either skill is unknown it
+      may still lend, under the next rule;
+    - it shares **no word stem** with this question's whole common error
+      (`contentStems`: the first four letters of each word of five letters or
+      more, without a short stoplist: because, which, there, where, these,
+      those, should, would, could, value, answer, number). Four letters, not
+      five, so that "shading" and "shades" meet ("shad"), as "slope" and
+      "slopes" do. Five would leave the case below to the skill rule alone.
+    Only a slot left empty takes a fixed choice (`SPOT_THE_MISTAKE_GENERIC`:
+    both say the step is correct, which a step holding a known mistake never
+    is). The right one's place is fixed by the common error and the seed, so
+    a redraw does not reshuffle it. Over the 450 shown below, 350 get two
+    borrowed wrong choices, 61 get one and 39 get none (five-letter stems: 355,
+    56 and 39).
+  - The case that set these two rules: in Graphing Inequalities in Two
+    Variables, cw-6 ("Shading below because the slope is positive") had
+    borrowed "That shades the wrong half-plane." from cw-11, which explains
+    cw-6's mistake too. cw-11 is on the same skill, and "shades" shares a stem
+    with "Shading". Either rule now refuses it.
+  - A borrowed reason is wrong for this step's mistake, not false in general.
+    The two rules make it unlikely to explain this step's mistake as well, but
+    nothing in the words can prove it does not, so the wording never calls it
     false. Chosen, it says "That describes a different mistake, one made on
     another question. Here is the mistake in this step." and this step's own
     reason, and the button reads "Your choice: not this step's mistake",
@@ -237,6 +251,9 @@ Where slice F lives, and what it does:
     holding a mistake, keeps "Not this one. This is what went wrong." with the
     whole common error. Both new sentences are in the Spanish pack and in the
     leak gate's words.
+  - A reason keeps the case its common error wrote it in where it starts
+    with a letter of the mathematics ("x² · x⁵ is x⁷", not "X² · x⁵"); a word,
+    the article "a" included, takes a capital.
   - This question's other fields were measured as a source (below) and are not
     used.
   - Nothing else is written: no mathematics of its own. Every word it would

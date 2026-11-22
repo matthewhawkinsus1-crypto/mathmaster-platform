@@ -14,8 +14,8 @@
  *                 does not say both is not used: the step and the reason
  *                 would be the same words;
  *   two others    the "what is wrong" parts of OTHER questions' common errors
- *                 on the same assignment, the same skill first
- *                 (exampleSkillOf), then any question (distractorsFrom
+ *                 on the same assignment, from questions on another skill
+ *                 and with no word stem in common (distractorsFrom
  *                 below); SPOT_THE_MISTAKE_GENERIC, two fixed choices that are
  *                 never true of a step that holds a known mistake, fill only
  *                 the slots left empty. A fixed choice on every item would
@@ -76,7 +76,9 @@ const insideMath = (value, index) => (value.slice(0, index).match(/\$/g) || []).
 const sentence = (value) => {
   const body = text(value).replace(/[\s.;:,—–]+$/u, '');
   if (!body) return '';
-  return `${body.charAt(0).toUpperCase()}${body.slice(1)}.`;
+  // A word takes a capital; a letter of the mathematics does not (x² is not X², f(x) is not F(x)).
+  const capital = /^(?:[a-z]{2,}|a\s+[a-z]{2,})/.test(body) ? `${body.charAt(0).toUpperCase()}${body.slice(1)}` : body;
+  return `${capital}.`;
 };
 
 /** The common error as { line, reason }, or null where it does not say both. */
@@ -97,10 +99,10 @@ export const splitCommonError = (commonError) => {
   return { line, reason };
 };
 
-// Two reasons are the same reason when they read the same: case, spacing and
-// the closing stop do not count.
 /** Sections whose questions lend no wrong choice (examplePlayer.js NO_EXAMPLE_SECTION_ROLES). */
 export const NO_DISTRACTOR_SECTION_ROLES = Object.freeze(['dol', 'quiz', 'test']);
+// Two reasons are the same reason when they read the same: case, spacing and
+// the closing stop do not count.
 const normal = (value) => text(value).toLowerCase().replace(/[\s.;:,!?]+$/u, '');
 
 /*
@@ -115,24 +117,44 @@ const normal = (value) => text(value).toLowerCase().replace(/[\s.;:,!?]+$/u, '')
  *     its answers;
  *   - its own question is not on a DOL, quiz or test section, and it passes
  *     similarExampleIsSafe against its own question too: a borrowed reason
- *     never hands over another item's answer ("…so the domain is {0, …, 5}").
- * The same skill first, then the rest, each in the assignment's own order.
+ *     never hands over another item's answer ("…so the domain is {0, …, 5}");
+ *   - its question is on a DIFFERENT skill (exampleSkillOf). Questions on one
+ *     skill share their misconceptions, so another one's reason can explain
+ *     this step's mistake too ("Shading below because the slope is positive"
+ *     beside "That shades the wrong half-plane."), and no check of the words
+ *     can prove it does not. Where either skill is unknown it may still lend,
+ *     under the next rule;
+ *   - it shares no word stem with THIS question's whole common error
+ *     (contentStems): the same idea in other words is not lent.
+ * In the assignment's own order.
  */
+/*
+ * The stems a sentence's meaning rests on: the first STEM_LENGTH letters of
+ * each word of five letters or more, without a short stoplist. "slope" and
+ * "slopes" share one, and so do "shading" and "shades" ("shad"): five letters
+ * would keep those two apart ("shadi", "shade").
+ */
+export const STEM_LENGTH = 4;
+const STEM_STOPLIST = new Set(['because', 'which', 'there', 'where', 'these', 'those', 'should', 'would', 'could', 'value', 'answer', 'number']);
+export const contentStems = (value) => new Set((text(value).toLowerCase().match(/[a-z]+/g) || [])
+  .filter((word) => word.length >= 5 && !STEM_STOPLIST.has(word) && !STEM_STOPLIST.has(word.replace(/s$/, '')))
+  .map((word) => word.slice(0, STEM_LENGTH)));
+
 const distractorsFrom = (question, parts, assignmentQuestions) => {
   const others = (Array.isArray(assignmentQuestions) ? assignmentQuestions : []).filter((other) => other && typeof other === 'object');
   const id = text(question?.questionId);
   const self = id ? others.find((other) => text(other.questionId) === id) : null;
   const skill = exampleSkillOf(self || question);
   const own = normal(question?.solutionReview?.commonError);
-  const ordered = skill
-    ? [...others.filter((other) => exampleSkillOf(other) === skill), ...others.filter((other) => exampleSkillOf(other) !== skill)]
-    : others;
+  const ownStems = contentStems(question?.solutionReview?.commonError);
   const reason = normal(parts.reason);
   const line = normal(parts.line);
   const found = [];
-  for (const other of ordered) {
+  for (const other of others) {
     if (found.length === 2) break;
     if (other === question || other === self || (id && text(other.questionId) === id)) continue;
+    const otherSkill = exampleSkillOf(other);
+    if (skill && otherSkill && otherSkill === skill) continue;
     const commonError = normal(other?.solutionReview?.commonError);
     if (!commonError || commonError === own) continue;
     if (NO_DISTRACTOR_SECTION_ROLES.includes(text(other.activityRole).toLowerCase())) continue;
@@ -143,6 +165,7 @@ const distractorsFrom = (question, parts, assignmentQuestions) => {
     if (normal(split.line) === line) continue;
     if (candidate === reason || candidate.includes(reason) || reason.includes(candidate)) continue;
     if (found.some((chosen) => normal(chosen) === candidate)) continue;
+    if ([...contentStems(split.reason)].some((stem) => ownStems.has(stem))) continue;
     if (!similarExampleIsSafe(question, { prompt: split.reason, steps: [split.reason], answer: split.reason })) continue;
     found.push(split.reason);
   }

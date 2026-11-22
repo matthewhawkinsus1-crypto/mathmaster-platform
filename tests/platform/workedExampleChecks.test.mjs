@@ -36,9 +36,10 @@ import { ACTIVITY_POLICIES } from '../../src/platform/policies/activityPolicies.
 import { getQuestionCredit, normalizeQuestionRecord, recordQuestionAttempt } from '../../functions/shared/attemptPolicy.mjs';
 import { hintRevealsAnswer } from '../../functions/shared/pathSolutionSupport.mjs';
 import { questionAnswerValues } from '../../src/platform/supports/hints/questionHints.js';
+import { exampleSkillOf } from '../../src/platform/supports/workedExample/exampleSkill.js';
 import { SPOT_THE_MISTAKE_LABEL, analyzeAssignmentQuestions } from '../../src/platform/caseReview/attemptAnalysis.js';
 import { attemptSupportUsageFrom, emptySupportUse, rememberSupportUse, restoredSupportUse, supportUseFromRecord } from '../../src/platform/supports/supportUseMemory.js';
-import { NO_DISTRACTOR_SECTION_ROLES, SPOT_THE_MISTAKE_GENERIC, splitCommonError, spotTheMistakeFor } from '../../src/platform/supports/workedExample/spotTheMistake.js';
+import { NO_DISTRACTOR_SECTION_ROLES, SPOT_THE_MISTAKE_GENERIC, contentStems, splitCommonError, spotTheMistakeFor } from '../../src/platform/supports/workedExample/spotTheMistake.js';
 import { NO_EXAMPLE_SECTION_ROLES, exampleSectionRule, lessonExampleContext, workedExampleFor } from '../../src/platform/supports/workedExample/examplePlayer.js';
 import {
   SPOT_THE_MISTAKE_DIFFERENT,
@@ -110,7 +111,11 @@ test('the step and its reason are the two parts of the question\'s own common er
     ['Keeping < after dividing by −1, which shades the wrong half-plane.', 'Keeping < after dividing by −1.', 'That shades the wrong half-plane.'],
     ['Writing x = 0 after the x-terms cancel. When the variable disappears, the statement left decides.', 'Writing x = 0 after the x-terms cancel.', 'When the variable disappears, the statement left decides.'],
     // The earliest turn wins, and a colon inside $…$ is mathematics, not a turn.
-    ['Reading $f: x \\mapsto 2x$ as a product: f names the rule, it does not multiply.', 'Reading $f: x \\mapsto 2x$ as a product.', 'F names the rule, it does not multiply.'],
+    ['Reading $f: x \\mapsto 2x$ as a product: f names the rule, it does not multiply.', 'Reading $f: x \\mapsto 2x$ as a product.', 'f names the rule, it does not multiply.'],
+    // A letter of the mathematics keeps its case: x² is not X².
+    ['Multiplying the exponents: x² · x⁵ is x⁷, not x¹⁰.', 'Multiplying the exponents.', 'x² · x⁵ is x⁷, not x¹⁰.'],
+    // The article "a" is a word: it takes one.
+    ['Halving the exponents: a cube root takes a third of each exponent.', 'Halving the exponents.', 'A cube root takes a third of each exponent.'],
   ];
   for (const [commonError, line, reason] of shapes) {
     assert.deepEqual(splitCommonError(commonError), { line, reason }, commonError);
@@ -197,12 +202,13 @@ test('over the real lessons, every Spot the mistake shown reads its question and
   assert.ok(borrowed >= shown, `${borrowed} wrong choices borrowed for ${shown} shown: most come from the assignment`);
 });
 
-// Another question on the same assignment, with a common error of its own.
+// Another question on the same assignment, with a common error of its own: on
+// another skill (A.5A) unless it says otherwise.
 const other = (id, commonError, extra = {}) => ({
   questionId: id,
   type: 'multiAnswer',
   studentActions: ['multipleResponses'],
-  standard: 'A.3A',
+  standard: 'A.5A',
   activityRole: 'classwork',
   prompt: `Question ${id}.`,
   answerFields: [{ id: 'a', label: 'a', answer: '7', inputProfile: 'text' }],
@@ -215,20 +221,20 @@ test('the wrong choices are other questions\' reasons on the assignment, never t
   const assignmentQuestions = [
     THIS,
     // This question again, by id (another version of it, other words): never its own.
-    { ...THIS, prompt: 'A copy.', solutionReview: { commonError: 'Reading it twice: this version is the same question again.' } },
+    { ...THIS, standard: 'A.5A', prompt: 'A copy.', solutionReview: { commonError: 'Reading it twice: this version is the same question again.' } },
     other('dol', 'Adding the two rates: the times add, not the speeds.', { activityRole: 'dol' }),
     other('leaks', 'Leaving out the last term: so the answer is 7, not 6.'),
     other('same', 'Reading the graph backwards: slope is the change in y over the change in x.'),
     other('contains', 'Mixing up the axes: slope is the change in y over the change in x, as always.'),
     other('one-part', 'Writing 6(x − 1) as 6x − 1.'),
-    other('far', 'Subtracting before dividing: the order of operations divides first.', { standard: 'A.5A' }),
+    other('far', 'Subtracting before multiplying: the parentheses come first.'),
     other('near', 'Counting grid squares from the wrong point: the run starts at the first point.'),
     other('near-again', 'Counting grid squares from the wrong point: the run starts at the first point.'),
   ];
   const spot = spotTheMistakeFor(THIS, { assignmentQuestions });
   const wrong = spot.choices.filter((choice) => !choice.right).map((choice) => choice.text);
-  // The same skill first, in the assignment's order; a duplicate is taken once.
-  assert.deepEqual(wrong, ['The run starts at the first point.', 'The order of operations divides first.']);
+  // In the assignment's order; a duplicate is taken once.
+  assert.deepEqual(wrong, ['The parentheses come first.', 'The run starts at the first point.']);
   assert.equal(spot.borrowed, 2);
   // Never: this question's own (by id or by words), a DOL's, one that states its own
   // item's answer, one that is or contains this reason, one that does not split.
@@ -237,7 +243,7 @@ test('the wrong choices are other questions\' reasons on the assignment, never t
   }
   assert.deepEqual(spot.choices.filter((choice) => choice.right).map((choice) => choice.text), ['Slope is the change in y over the change in x.']);
   // A lent reason that would state THIS question's answer is not lent.
-  const naming = spotTheMistakeFor(THIS, { assignmentQuestions: [THIS, other('names', 'Rounding early: the exact slope is 3/4.'), other('fine', 'Counting grid squares from the wrong point: the run starts at the first point.')] });
+  const naming = spotTheMistakeFor(THIS, { assignmentQuestions: [THIS, other('names', 'Rounding early: the exact value is 3/4.'), other('fine', 'Counting grid squares from the wrong point: the run starts at the first point.')] });
   assert.deepEqual(naming.choices.filter((choice) => !choice.right).map((choice) => choice.text), ['The run starts at the first point.', SPOT_THE_MISTAKE_GENERIC[0]]);
   // The sections that lend nothing are the ones that never show an example.
   assert.deepEqual([...NO_DISTRACTOR_SECTION_ROLES], [...NO_EXAMPLE_SECTION_ROLES]);
@@ -251,7 +257,7 @@ test('the fixed choices fill only the slots the assignment cannot', () => {
   assert.deepEqual(fixed([THIS, other('near', 'Counting grid squares from the wrong point: the run starts at the first point.')]), ['The run starts at the first point.', SPOT_THE_MISTAKE_GENERIC[0]]);
 });
 
-const BORROWING = () => [THIS, other('near', 'Counting grid squares from the wrong point: the run starts at the first point.'), other('far', 'Subtracting before dividing: the order of operations divides first.')];
+const BORROWING = () => [THIS, other('near', 'Counting grid squares from the wrong point: the run starts at the first point.'), other('far', 'Subtracting before multiplying: the parentheses come first.')];
 
 test('a borrowed choice is never called wrong: it is a different mistake, made on another question', () => {
   const spot = spotTheMistakeFor(THIS, { assignmentQuestions: [BORROWING()[0], BORROWING()[1]] });
@@ -290,14 +296,63 @@ test('the right choice and a fixed choice keep their feedback', () => {
 });
 
 test('the order is the same for a seed, and the right one is not always in the same place', () => {
-  const assignmentQuestions = [THIS, other('near', 'Counting grid squares from the wrong point: the run starts at the first point.'), other('far', 'Subtracting before dividing: the order of operations divides first.')];
+  const assignmentQuestions = [THIS, other('near', 'Counting grid squares from the wrong point: the run starts at the first point.'), other('far', 'Subtracting before multiplying: the parentheses come first.')];
   const order = (seed) => spotTheMistakeFor(THIS, { seed, assignmentQuestions }).choices.map((choice) => choice.text);
   for (const seed of [0, 1, 2, 7]) assert.deepEqual(order(seed), order(seed), `seed ${seed}`);
   const places = new Set([0, 1, 2, 3, 4, 5].map((seed) => order(seed).indexOf('Slope is the change in y over the change in x.')));
   assert.equal(places.size, 3, 'over a few seeds the right one stands in each place');
   // The two wrong ones keep their order around it.
   for (const seed of [0, 1, 2]) {
-    assert.deepEqual(order(seed).filter((choice) => !choice.startsWith('Slope')), ['The run starts at the first point.', 'The order of operations divides first.']);
+    assert.deepEqual(order(seed).filter((choice) => !choice.startsWith('Slope')), ['The run starts at the first point.', 'The parentheses come first.']);
+  }
+});
+
+const borrowedOf = (question, assignmentQuestions) => spotTheMistakeFor(question, { assignmentQuestions }).choices.filter((choice) => choice.kind === 'borrowed').map((choice) => choice.text);
+
+test('rule 1: a question on the same skill lends nothing; an unknown skill lends only past the stem rule', () => {
+  // The same skill (multipleResponses A.3A), with no word stem in common: still not lent.
+  assert.deepEqual(borrowedOf(THIS, [THIS, other('same-skill', 'Counting grid squares from the wrong point: the run starts at the first point.', { standard: 'A.3A' })]), []);
+  // The same skill by family: not lent either.
+  const family = { ...THIS, familyId: 'linear.slope' };
+  assert.deepEqual(borrowedOf(family, [family, other('same-family', 'Counting grid squares from the wrong point: the run starts at the first point.', { familyId: 'linear.slope' })]), []);
+  // An unknown skill (no family, no student action): lent when no stem is shared, not when one is.
+  const unknown = (id, commonError) => ({ ...other(id, commonError), studentActions: undefined, standard: undefined });
+  assert.deepEqual(borrowedOf(THIS, [THIS, unknown('unknown', 'Counting grid squares from the wrong point: the run starts at the first point.')]), ['The run starts at the first point.']);
+  assert.deepEqual(borrowedOf(THIS, [THIS, unknown('unknown-near', 'Reading the axis labels backwards: both slopes must use the same order.')]), []);
+});
+
+test('rule 2: a reason that shares a word stem with this whole common error is not lent', () => {
+  // On another skill, and still not lent: "slopes" is "slope", "changes" is "change", "dividing" is "divides".
+  for (const commonError of [
+    'Reading the axis labels backwards: both slopes must use the same order.',
+    'Counting squares by hand: the changes have to be measured from one point.',
+    'Rounding too early: whoever divides first loses the exact form.',
+  ]) {
+    assert.deepEqual(borrowedOf(THIS, [THIS, other('stem', commonError)]), [], commonError);
+  }
+  // "shading" and "shades" share a stem, as "shade" and "shades" do.
+  const shading = { ...other('shading', 'Shading below because the slope is positive: the symbol decides the side, not the slope.'), standard: 'A.3D' };
+  assert.deepEqual(borrowedOf(shading, [shading, other('shades', 'Keeping < after dividing by −1, which shades the wrong half-plane.')]), []);
+  // The stoplist does not count: "because", "value" and "number" are in every lesson.
+  assert.deepEqual(borrowedOf(THIS, [THIS, other('stoplist', 'Counting grid squares from the wrong point: the number is wrong because the value moved.')]), ['The number is wrong because the value moved.']);
+});
+
+test("Codex's case: Shading below because the slope is positive borrows no reason on its skill or with its words", () => {
+  const assignment = stored('teacher-import-jsons/algebra1-module3/T2_L4_Graphing_Inequalities_in_Two_Variables.json');
+  const questions = getStoredAssignmentQuestions(assignment);
+  const question = questions.find((entry) => entry.questionId === 'm3t2l4-cw-6');
+  assert.match(question.solutionReview.commonError, /^Shading below because the slope is positive/);
+  const spot = spotTheMistakeFor(question, { assignmentQuestions: questions });
+  assert.ok(spot);
+  const borrowed = spot.choices.filter((choice) => choice.kind === 'borrowed').map((choice) => choice.text);
+  assert.equal(borrowed.includes('That shades the wrong half-plane.'), false, 'the cw-11 reason that also explains this mistake');
+  const ownStems = contentStems(question.solutionReview.commonError);
+  const lenders = questions.filter((entry) => entry.questionId !== question.questionId);
+  for (const text of borrowed) {
+    assert.equal([...contentStems(text)].some((stem) => ownStems.has(stem)), false, `"${text}" shares a stem`);
+    const lender = lenders.find((entry) => entry.solutionReview?.commonError && splitCommonError(entry.solutionReview.commonError)?.reason === text);
+    assert.ok(lender, text);
+    assert.notEqual(exampleSkillOf(lender), exampleSkillOf(question), `"${text}" is from the same skill`);
   }
 });
 
