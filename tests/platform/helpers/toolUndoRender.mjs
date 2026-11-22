@@ -194,6 +194,10 @@ export async function openToolUndoRenderer({ cacheName = 'tool-undo' } = {}) {
     node.executeCommand = () => true;
   });
   const interactions = (container, step) => ({
+    /** A part-by-part question's answered lines, in order: { id, value } (SP-1b). */
+    answeredParts: () => elementsIn(container)
+      .filter((node) => node.getAttribute?.('data-part-state') === 'answered')
+      .map((node) => ({ id: node.getAttribute('data-part-id'), value: node.getAttribute('data-part-value') })),
     /** The boxes a student can type into, in order. */
     boxes: () => elementsIn(container).filter((node) => { const props = propsOf(node); return props && !props.disabled && !props.readOnly && TEXT_BOX(node, props); }),
     /** The buttons a student can press, in order (`skip`: labels left alone). */

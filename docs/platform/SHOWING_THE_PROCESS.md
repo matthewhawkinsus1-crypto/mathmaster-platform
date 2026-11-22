@@ -10,7 +10,10 @@ Recovery (`SectionRecoveryRunner.jsx`) and a secure Test's tool item (`RichQuest
 teacher's Test preview); every other host draws every part at once. The support
 is `every-part-at-once` (`functions/shared/supportCatalog.mjs`). A secure Test's
 *field* item (several `responseFields`, drawn by `RichQuestionRuntime`'s
-`FieldItem`, not `MultiAnswerGrader`) still shows every field at once. Drivers
+`FieldItem`, not `MultiAnswerGrader`) goes part by part the same way for the
+student, inside the item, with "Review all parts, then submit" before its
+Record answer (or, in a test the student moves around in, before the test's
+Next; SP-1b). Drivers
 answer part by part through `tests/browser/support/partByPart.mjs`. Read aloud
 (the work bar's Read and the tray's "Read a part") reads the prompt, the open
 part and the answered lines, never a part not yet shown: `MultiAnswerGrader`
