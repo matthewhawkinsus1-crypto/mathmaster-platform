@@ -85,6 +85,8 @@ function PlaneFigure({ plane }) {
       aria-label={planeSummary(plane)}
       viewBox={`0 0 ${SIZE} ${SIZE}`}
       style={{ width: 'min(100%, 20rem)', aspectRatio: '1 / 1', display: 'block', border: '1px solid var(--mm-tint-border)', borderRadius: 8, color: 'var(--mm-text)' }}
+      // A drawing of its own (index.css, forced colours): the page's Canvas behind it, its strokes the text colour.
+      data-mm-drawing=""
     >
       {ticks(xMin, xMax).map((x) => <line key={`x${x}`} x1={px(x)} y1={0} x2={px(x)} y2={SIZE} stroke="currentColor" strokeOpacity={x === 0 ? 0.9 : 0.14} strokeWidth={x === 0 ? 1.5 : 1} />)}
       {ticks(yMin, yMax).map((y) => <line key={`y${y}`} x1={0} y1={py(y)} x2={SIZE} y2={py(y)} stroke="currentColor" strokeOpacity={y === 0 ? 0.9 : 0.14} strokeWidth={y === 0 ? 1.5 : 1} />)}
