@@ -279,4 +279,7 @@ test('in the teacher\'s results: the class view per skill, and the student\'s vi
   assert.match(panel, /<p style=\{\{ \.\.\.small, margin: '4px 0 0' \}\}>\{view\.note\}<\/p>/);
   assert.match(panel, /data-worked-examples-not-loaded=""/);
   assert.match(panel, /\{view\.limitations\.map\(/);
+  // Its one disclosure is a pointer target of at least 24 CSS px (WCAG 2.5.8; the
+  // large-text certification measures it), and the student's name is a button.
+  assert.match(panel, /<summary style=\{\{ \.\.\.small, cursor: 'pointer', minHeight: 24, padding: '4px 0', boxSizing: 'border-box' \}\}>What this can and cannot say<\/summary>/);
 });

@@ -82,7 +82,8 @@ export default function WorkedExamplesBySkill({ assignment = null, students = []
         </>
       )}
       <details style={{ marginTop: 8 }}>
-        <summary style={{ ...small, cursor: 'pointer' }}>What this can and cannot say</summary>
+        {/* A pointer target: at least 24 CSS px tall at any text size (WCAG 2.5.8), as the coverage panel's summary is. */}
+        <summary style={{ ...small, cursor: 'pointer', minHeight: 24, padding: '4px 0', boxSizing: 'border-box' }}>What this can and cannot say</summary>
         <ul style={{ ...small, margin: '4px 0 0', paddingLeft: 18 }}>{view.limitations.map((line) => <li key={line}>{line}</li>)}</ul>
       </details>
     </section>
