@@ -40,6 +40,7 @@ import {
 } from './fractionAnswer.mjs';
 import { numericSetCredit } from './numericSetCredit.mjs';
 import { withLineFormPolicy } from './lineFormPolicy.mjs';
+import { followThroughKeys, followThroughLabel, withFollowThroughKey } from './followThrough.mjs';
 import { TYPED_ANSWER_WIRE_LENGTH, refusesTypedEntry } from './typedEntryGuard.mjs';
 
 const text = (value) => String(value ?? '');
@@ -276,22 +277,33 @@ export const multiAnswerFields = (question = {}) => list(question.answerFields).
 
 export const gradeMultiAnswerResponse = (question = {}, responsesById = {}) => {
   const fields = multiAnswerFields(question);
+  // SP-3: a part that builds on an earlier one (followThrough) is also keyed
+  // to the student's own earlier value, so a slip is marked wrong once, not
+  // twice (followThrough.mjs). Empty for a question with no followThrough.
+  const keys = followThroughKeys(fields, responsesById);
   const parts = fields.map((field) => {
     const response = text(responsesById?.[field.id]);
     // GR03: a line field whose question asks for no form takes any equation
     // of its line, read from the question's own words (lineFormPolicy.mjs).
     // The screen hands this the whole question too, so both agree.
-    const isCorrect = response.trim() !== '' && matchesFieldAnswer(response, withLineFormPolicy(question, field));
+    const graded = withLineFormPolicy(question, field);
+    // The follow-through key under the part's own comparison: its form rules
+    // and its line-form decision, read from the authored key as always.
+    const keyed = keys.has(field.id) ? withFollowThroughKey(graded, keys.get(field.id)) : null;
+    const isCorrect = response.trim() !== '' && (matchesFieldAnswer(response, graded) || (keyed !== null && matchesFieldAnswer(response, keyed)));
+    const partialSet = field.equivalence === 'numericSet' && field.partialCredit === 'matchedElements';
     return {
       id: field.id,
-      label: field.label || field.id,
+      // The label the student read: their own earlier value written in.
+      label: field.followThrough ? followThroughLabel(field, fields, responsesById) || field.id : field.label || field.id,
       isComplete: response.trim() !== '',
       // Expression equivalence is deliberately opt-in at the field level.
       // That fixes MathLive serialization differences without making
       // form-sensitive tasks (factoring, vertex form, etc.) overly permissive.
       isCorrect,
-      credit: field.equivalence === 'numericSet' && field.partialCredit === 'matchedElements'
-        ? numericSetCredit(response, field.answer, field.numericTolerance) : isCorrect ? 1 : 0,
+      credit: partialSet
+        ? Math.max(numericSetCredit(response, field.answer, field.numericTolerance), keyed ? numericSetCredit(response, keyed.answer, field.numericTolerance) : 0)
+        : isCorrect ? 1 : 0,
       weight: Number.isFinite(Number(field.scoreWeight)) && Number(field.scoreWeight) > 0
         ? Math.min(20, Number(field.scoreWeight))
         : 1,

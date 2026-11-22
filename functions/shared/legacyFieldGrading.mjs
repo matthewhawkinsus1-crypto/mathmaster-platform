@@ -27,6 +27,19 @@
 
 const list = (value) => (Array.isArray(value) ? value : []);
 
+// SP-3: a field that builds on an earlier one, as functions/lib/mathPath.js
+// stores it with the private grading: the parts it names and its answer
+// (read at grading by functions/shared/followThrough.mjs). Written out here,
+// not imported: this module is on the first load (the Test cycle's
+// Pre-Flight), and the follow-through rules are not.
+const privateFollowThrough = (field) => {
+  const value = field?.followThrough;
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return {};
+  const from = list(value.from).map((id) => String(id ?? '').trim()).filter(Boolean).slice(0, 12);
+  const answer = typeof value.answer === 'string' ? value.answer : '';
+  return from.length && answer.trim() ? { followThrough: { from, answer } } : {};
+};
+
 /** Which Path tool this question declares, if any. Never `questionType`. */
 export const declaredToolId = (question = {}) => (
   String(question?.pathToolId || question?.toolId || question?.type || '').trim()
@@ -63,6 +76,7 @@ export const buildFieldGradingDefinition = (question = {}) => {
     ...Object.fromEntries(['inputProfile', 'answerFormat', 'notation', 'toolProfile']
       .filter((key) => typeof field?.[key] === 'string' && field[key].trim())
       .map((key) => [key, field[key].trim()])),
+    ...privateFollowThrough(field),
   }));
   return { ...explicit, fields };
 };

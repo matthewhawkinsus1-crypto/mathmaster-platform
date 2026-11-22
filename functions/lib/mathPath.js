@@ -86,6 +86,15 @@ async function answerEquivalence() {
   return answerEquivalenceModule;
 }
 
+// SP-3: a field that builds on an earlier one (followThrough) is keyed to the
+// student's own earlier value as well (functions/shared/followThrough.mjs, the
+// rule the assignment grader uses too).
+let followThroughModule = null;
+async function followThrough() {
+  if (!followThroughModule) followThroughModule = await import('../shared/followThrough.mjs');
+  return followThroughModule;
+}
+
 // GR03: whether a line field takes any equation of its line is read from the
 // question's words at issue and stored in the private grading, which keeps no
 // prompt or label (lineFormPolicy.mjs).
@@ -316,8 +325,28 @@ function normalizeResponseFields(fields = [], question = {}, { keepIssued = fals
       responseHint: field?.responseHint ? String(field.responseHint).slice(0, 160) : null,
       placeholder: field?.placeholder ? String(field.placeholder).slice(0, 60) : null,
       ...(Array.isArray(field?.choices) ? { choices: normalizeChoices(field.choices, question, `field:${String(field?.id || `response-${index + 1}`)}`, { keepIssued }) } : {}),
+      // SP-3: the parts this field's label builds on, so the screen writes the
+      // student's own values into it. Never the follow-through answer: a key.
+      ...(publicFollowThrough(field) ? { followThrough: publicFollowThrough(field) } : {}),
     };
   });
+}
+
+// A field's follow-through parts, as a public copy may carry them (the same
+// shape as functions/shared/followThrough.mjs publicFollowThrough, which this
+// synchronous sanitizer cannot load).
+function publicFollowThrough(field) {
+  const value = field?.followThrough;
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return null;
+  const from = (Array.isArray(value.from) ? value.from : []).map((id) => String(id ?? '').trim()).filter(Boolean).slice(0, 12);
+  return from.length ? { from } : null;
+}
+
+// The whole follow-through, kept with the private grading.
+function privateFollowThrough(field) {
+  const from = publicFollowThrough(field);
+  const answer = typeof field?.followThrough?.answer === 'string' ? field.followThrough.answer : '';
+  return from && answer.trim() ? { from: from.from, answer } : null;
 }
 
 // Question material a student must SEE to answer: the table they are reading,
@@ -616,6 +645,9 @@ function privateGradingDefinition(question) {
       // (answerEquivalence fieldAcceptsThousandsSeparators). Stored on new
       // issues only; a stored item keeps what it was issued with.
       ...fieldFormatOf(field),
+      // SP-3: a field that builds on an earlier one, keyed at grading to the
+      // student's own earlier value (gradeResponse).
+      ...(privateFollowThrough(field) ? { followThrough: privateFollowThrough(field) } : {}),
     };
   });
   return { ...explicit, fields };
@@ -759,12 +791,23 @@ async function gradeResponse(grading, responsePayload = {}) {
     : {};
   const fields = Array.isArray(grading?.fields) ? grading.fields : [];
   if (!fields.length) return { isCorrect: false, score: 0, fieldResults: [] };
+  // SP-3: each follow-through field's key for this student, from the values
+  // they gave the fields it builds on. Empty with no followThrough, so the
+  // module is loaded only for an item that has one.
+  const keys = fields.some((field) => field?.followThrough)
+    ? (await followThrough()).followThroughKeys(fields, responses)
+    : new Map();
   const fieldResults = await Promise.all(fields.map(async (field) => {
-    const isCorrect = await valuesEquivalent(responses[field.id], field);
+    const keyed = keys.has(field.id) ? { ...field, expected: keys.get(field.id), accepted: [] } : null;
+    const isCorrect = await valuesEquivalent(responses[field.id], field)
+      || (keyed !== null && await valuesEquivalent(responses[field.id], keyed));
     let credit = isCorrect ? 1 : 0;
     if (field.equivalence === 'numericSet' && field.partialCredit === 'matchedElements') {
       const { numericSetCredit } = await import('../shared/numericSetCredit.mjs');
-      credit = numericSetCredit(responses[field.id], field.expected, field.numericTolerance);
+      credit = Math.max(
+        numericSetCredit(responses[field.id], field.expected, field.numericTolerance),
+        keyed ? numericSetCredit(responses[field.id], keyed.expected, field.numericTolerance) : 0,
+      );
     }
     return { id: field.id, isCorrect, credit, weight: Number(field.weight) > 0 ? Number(field.weight) : 1 };
   }));

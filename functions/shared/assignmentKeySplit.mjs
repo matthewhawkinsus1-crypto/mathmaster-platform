@@ -69,7 +69,9 @@ export const ASSIGNMENT_KEYS_COLLECTION = 'assignmentKeys';
 /** The shape of an assignmentKeys document. */
 export const ASSIGNMENT_KEYS_SCHEMA_VERSION = 1;
 /** The declared field list below. A change to the list is a new version, and every key document is recomputed. */
-export const SPLIT_VERSION = 1;
+// 2: a follow-through part's answer moves (SP-3). No assignment in the
+// repository carries one, so every key document it recomputes comes out as it was.
+export const SPLIT_VERSION = 2;
 
 /*
  * The keys a released secure-Test review never shows (functions/lib/secureExam.js,
@@ -132,6 +134,10 @@ export const KEY_FIELDS = Object.freeze({
     'answerFields[].answer', 'answerFields[].value',
     'responseFields[].answer', 'responseFields[].value',
     'responses[].answer', 'responses[].value',
+    // A follow-through part's answer (SP-3, followThrough.mjs) is its key
+    // written with the earlier parts' {names}. Which parts it names (`from`)
+    // stays: the screen writes the student's own values into the label.
+    'answerFields[].followThrough.answer', 'responseFields[].followThrough.answer', 'responses[].followThrough.answer',
     'analysisRequests[].answer', 'analysisRequests[].value',
     'fields[].answer',
     'scaffold.correct',
