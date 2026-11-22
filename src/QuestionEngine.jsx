@@ -2049,8 +2049,9 @@ function QuestionEngineBody({
       sectionRole: workedExampleContext?.sectionRole,
       assignmentProblems: workedExampleContext?.assignmentProblems,
       coveringExample: workedExampleContext?.coveringExample,
+      subSkills: exampleRule.subSkills,
     }) : null),
-    [exampleRule.offered, processedQuestion, record.variantIndex, workedExampleContext],
+    [exampleRule.offered, exampleRule.subSkills, processedQuestion, record.variantIndex, workedExampleContext],
   );
   const askTeacher = typeof onAskTeacher === 'function' && !locked && !serverGrading
     ? { ...askTeacherContext, requested: Boolean(helpRequested), onToggle: () => onAskTeacher(!helpRequested) }

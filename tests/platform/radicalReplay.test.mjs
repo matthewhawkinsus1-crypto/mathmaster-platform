@@ -27,6 +27,7 @@ import { renderToStaticMarkup } from 'react-dom/server';
 import { createServer } from 'vite';
 
 import { honestPath } from './helpers/radicalHonestPath.mjs';
+import { executableSource, region } from './helpers/sourceContract.mjs';
 import { parseAssignmentBlueprintText } from '../../src/assignmentBlueprint.js';
 import { asQuestionEngineReceivesIt } from '../../scripts/lib/classworkExampleCoverageReport.mjs';
 import {
@@ -336,6 +337,51 @@ test('the section decides: a Classwork radical question gets the slides in seque
   assert.doesNotMatch(JSON.stringify(most), /OR|Check:/);
   // A DOL never offers it (WE-A's section rule, unchanged).
   assert.equal(exampleSectionRule({ sectionRole: 'dol', activityRole: 'dol', hintsAllowed: false }).offered, false);
+});
+
+test('Classwork revisited as practice after its due date gets Show how: the section rule\'s own mode is handed over', () => {
+  const questions = lessonQuestions();
+  const question = questions.find((entry) => entry.questionId === 'srh-cw-2');
+  // The section is Classwork; after its due date the question runs under the practice policy.
+  const revisited = exampleSectionRule({ sectionRole: 'classwork', activityRole: 'practice', hintsAllowed: true });
+  assert.deepEqual([revisited.offered, revisited.opensByItself, revisited.subSkills], [true, false, 'onRequest']);
+  const example = workedExampleFor(question, { sectionRole: 'classwork', subSkills: revisited.subSkills });
+  assert.equal(example.subSkills, 'onRequest');
+  const slides = exampleSlides(example);
+  assert.equal(slides.filter((slide) => slide.showHow).length, 1, 'the factor step has Show how');
+  assert.ok(slides.every((slide) => !/factoring, \d+ of/.test(slide.label)), 'the factoring slides are not in the sequence');
+  assert.ok(slides.every((slide) => slide.subSkill?.optional !== true));
+  // Running as Classwork, the same question plays them in the sequence.
+  const running = exampleSectionRule({ sectionRole: 'classwork', activityRole: 'classwork', hintsAllowed: true });
+  const inSequence = workedExampleFor(question, { sectionRole: 'classwork', subSkills: running.subSkills });
+  assert.equal(inSequence.subSkills, 'inSequence');
+  assert.equal(exampleSlides(inSequence).filter((slide) => slide.showHow).length, 0);
+  // With no rule handed over, the section's role decides, as before.
+  assert.equal(workedExampleFor(question, { sectionRole: 'practice' }).subSkills, 'onRequest');
+  // QuestionEngine hands the rule's mode over; it does not work the mode out again.
+  const engine = executableSource(read('src/QuestionEngine.jsx'));
+  const call = region(engine, 'const similarExample = useMemo(', 'const shownExample');
+  assert.match(call, /subSkills: exampleRule\.subSkills,/);
+  assert.match(call, /\[exampleRule\.offered, exampleRule\.subSkills, processedQuestion/);
+});
+
+test('a lesson\'s own steps are played as written, whatever tool the entry names', () => {
+  const steps = [
+    { show: 'Square both sides: x + 6 = (2x - 3)^2.', why: 'The teacher\'s own reason for squaring.' },
+    { show: 'Solve 4x^2 - 13x + 3 = 0: x = 3 or x = 1/4.', why: 'The teacher\'s own reason for factoring.' },
+    { show: 'Only x = 3 checks.', why: 'The teacher\'s own reason for checking.' },
+  ];
+  const supports = { examples: [{ id: 'ex-own', tool: 'radicalEquation', source: 'authored', sibling: { equation: AC }, steps }] };
+  const question = { type: 'stepAlgebra', relationWorkspace: true, equationLatex: 'sqrt(5x - 1) = 2x - 1', solveFor: 'x', prompt: 'Solve $\\sqrt{5x - 1} = 2x - 1$.', studentActions: ['solveStepByStep'], example: 'ex-own' };
+  const example = workedExampleFor(question, { lessonSupports: supports, sectionRole: 'classwork' });
+  assert.deepEqual([example.source, example.format, example.id], ['authored', 'steps', 'ex-own']);
+  assert.deepEqual(example.steps.map((step) => [step.show, step.why]), steps.map((step) => [step.show, step.why]));
+  assert.ok(example.steps.every((step) => !step.board), 'no built-in replay stands in for the teacher\'s steps');
+  // With moves, the entry is the replay; with neither, the tool's own path plays.
+  const withMoves = workedExampleFor(question, { lessonSupports: { examples: [{ ...supports.examples[0], steps: undefined, moves: SPEC_SCRIPT }] }, sectionRole: 'classwork' });
+  assert.deepEqual([withMoves.source, withMoves.format, withMoves.tool], ['authored', 'replay', 'radicalEquation']);
+  const bare = workedExampleFor(question, { lessonSupports: { examples: [{ id: 'ex-own', tool: 'radicalEquation', source: 'builtIn', sibling: { equation: AC } }] }, sectionRole: 'classwork' });
+  assert.deepEqual([bare.source, bare.format, bare.tool], ['authored', 'replay', 'radicalEquation']);
 });
 
 // ------------------------------------------------ 5. a script that is refused

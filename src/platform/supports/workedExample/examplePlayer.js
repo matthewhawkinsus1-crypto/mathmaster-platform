@@ -170,7 +170,9 @@ export const authoredReplay = (question, lessonSupports = null, { sectionRole = 
   const id = typeof question?.example === 'string' ? text(question.example) : text(exampleId);
   if (!id) return null;
   const entry = lessonExampleEntry(id, lessonSupports, sectionRole);
-  if (isRadicalReplayEntry(entry)) {
+  // A lesson's own steps are a step card, whatever tool the entry names: the
+  // replay is taken only for an entry with moves, or with nothing of its own to play.
+  if (isRadicalReplayEntry(entry) && (Array.isArray(entry.moves) || !list(entry.steps).length)) {
     const radical = replayRadicalEquation({ sibling: entry.sibling, moves: Array.isArray(entry.moves) ? entry.moves : null });
     if (!radical.ok) return null;
     return {
@@ -271,10 +273,15 @@ function safeFor(question, example) {
 }
 
 // A step that uses another skill: Classwork plays that skill's slides in the
-// sequence; any other section keeps the step one line, with "Show how".
-const withSubSkillMode = (example, sectionRole) => (list(example.steps).some((step) => isObject(step?.subSkill))
-  ? { ...example, subSkills: !lower(sectionRole) || lower(sectionRole) === 'classwork' ? EXAMPLE_SUB_SKILLS.IN_SEQUENCE : EXAMPLE_SUB_SKILLS.ON_REQUEST }
-  : example);
+// sequence; anywhere else the step is one line, with "Show how". The mode is
+// the section rule's own (exampleSectionRule: Classwork revisited as practice
+// after its due date is on request). With no rule handed over, the section's
+// role decides.
+const withSubSkillMode = (example, mode, sectionRole) => {
+  if (!list(example.steps).some((step) => isObject(step?.subSkill))) return example;
+  const known = Object.values(EXAMPLE_SUB_SKILLS).includes(mode) ? mode : null;
+  return { ...example, subSkills: known || (!lower(sectionRole) || lower(sectionRole) === 'classwork' ? EXAMPLE_SUB_SKILLS.IN_SEQUENCE : EXAMPLE_SUB_SKILLS.ON_REQUEST) };
+};
 
 /**
  * The example this question plays, or null:
@@ -283,14 +290,15 @@ const withSubSkillMode = (example, sectionRole) => (list(example.steps).some((st
  * `assignmentProblems` (assignmentProblemKeys) keeps out an example that is an
  * item on the same assignment. `coveringExample` is the id of the example an
  * earlier question on the same skill named, for a question that names none.
+ * `subSkills` is the section rule's sub-skill mode (exampleSectionRule).
  */
-export const workedExampleFor = (question, { seed = 0, lessonSupports = null, sectionRole = null, assignmentProblems = null, coveringExample = null, asReplay = true } = {}) => {
+export const workedExampleFor = (question, { seed = 0, lessonSupports = null, sectionRole = null, assignmentProblems = null, coveringExample = null, asReplay = true, subSkills = null } = {}) => {
   try {
     const authoredOptions = { sectionRole, exampleId: coveringExample };
     const authored = authoredReplay(question, lessonSupports, authoredOptions) || authoredStepCard(question, lessonSupports, authoredOptions);
-    if (authored && !isAssignmentItem(authored.prompt, assignmentProblems) && safeFor(question, authored)) return withSubSkillMode(authored, sectionRole);
+    if (authored && !isAssignmentItem(authored.prompt, assignmentProblems) && safeFor(question, authored)) return withSubSkillMode(authored, subSkills, sectionRole);
     const radical = radicalFamilyReplay(question, { seed, assignmentProblems, asReplay });
-    if (radical) return withSubSkillMode(radical, sectionRole);
+    if (radical) return withSubSkillMode(radical, subSkills, sectionRole);
     // The family tries six seeds from the one it is given, so each pass here is six new ones.
     for (let pass = 0; pass < 3; pass += 1) {
       const sibling = buildSimilarWorkedExample(question, { seed: (Number(seed) || 0) + pass * 6 });

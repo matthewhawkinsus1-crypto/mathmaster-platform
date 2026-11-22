@@ -269,6 +269,25 @@ for (const [query, device, count, added] of [['radicalpr', DESKTOP, 4, 2], ['rad
   await context.close();
 }
 
+/* ------------- a Classwork section revisited as practice (after its due date) */
+{
+  const { page, context } = await open(DESKTOP, 'q=radical2&role=practice');
+  const where = 'desktop Classwork revisited as practice';
+  check(await player(page).count() === 0 && await page.locator('[data-similar-example]').count() === 0, where + ': nothing opens by itself');
+  await page.locator('[data-hint-control]').first().click();
+  await page.waitForTimeout(300);
+  const offer = page.locator('.mathmaster-hint-panel button', { hasText: 'Try a similar one' });
+  check(await offer.count() >= 1, where + ': the example is there on request');
+  if (await offer.count()) {
+    await offer.first().click();
+    await player(page).first().waitFor();
+    const seen = await walk(page, where);
+    check(factoringLabels(seen).length === 0, where + ': the factoring slides are not in the sequence', factoringLabels(seen).join(' '));
+    check(seen.filter((state) => state.showHow).length === 1, where + ': the factor step has Show how', String(seen.filter((state) => state.showHow).length));
+  }
+  await context.close();
+}
+
 /* ---------------------------------------------------------- the DOL: never */
 for (const device of DEVICES) {
   const { page, context } = await open(device, 'q=radicaldol&role=dol');
