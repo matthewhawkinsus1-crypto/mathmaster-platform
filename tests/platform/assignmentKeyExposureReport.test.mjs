@@ -9,6 +9,7 @@ import {
   parseReportArgs, reportFilePath, runAssignmentKeyExposureReport, sectionVariantMode,
 } from '../../scripts/report-assignment-key-exposure.mjs';
 import { executableSource } from './helpers/sourceContract.mjs';
+import { splitAssignment } from '../../functions/shared/assignmentKeySplit.mjs';
 
 /*
  * D10 Phase 0, P0-4: the read-only exposure report
@@ -53,6 +54,21 @@ test('a choice label marks the answer only when the stored answer is one of its 
   const context = classifyQuestionExposure({ context: { shape: { value: 'linear', choices: ['linear', 'quadratic'] } } });
   assert.equal(context.choiceLabelKey, true);
   assert.deepEqual(context.storedKeyFields, ['context.*.value']);
+});
+
+test("a follow-through part's answer is a stored key, and the split leaves only the parts it names", () => {
+  const part = { id: 'inequality', label: 'Using your slope of {slope}, write the inequality', followThrough: { from: ['slope'], answer: 'y > {slope}x + 3' } };
+  assert.deepEqual(classifyQuestionExposure({ type: 'multiAnswer', answerFields: [{ id: 'slope' }, part] }).storedKeyFields,
+    ['answerFields[].followThrough.answer']);
+  assert.deepEqual(classifyQuestionExposure({ type: 'x', responseFields: [part] }).storedKeyFields, ['responseFields[].followThrough.answer']);
+  assert.deepEqual(classifyQuestionExposure({ type: 'x', responses: [part] }).storedKeyFields, ['responses[].followThrough.answer']);
+  assert.deepEqual(classifyQuestionExposure({ type: 'x', answerFields: [{ id: 'b', followThrough: { from: ['slope'] } }] }).storedKeyFields, [],
+    'the names of the earlier parts alone are not a key');
+  const question = { questionId: 'q1', type: 'multiAnswer', prompt: 'Graph it', answerFields: [{ id: 'slope', answer: '2' }, { ...part, answer: 'y > 2x + 3' }] };
+  const { publicSections } = splitAssignment([{ id: 's1', activityRole: 'classwork', questions: [question] }]);
+  const publicQuestion = publicSections[0].questions[0];
+  assert.deepEqual(classifyQuestionExposure(publicQuestion).storedKeyFields, []);
+  assert.deepEqual(publicQuestion.answerFields[1].followThrough, { from: ['slope'] });
 });
 
 test('worked solutions, hints and other answer-bearing help are their own columns', () => {
