@@ -57,6 +57,7 @@ import { buildSimilarWorkedExample, similarExampleIsSafe } from './similarProble
 import { exampleSkillOf } from './exampleSkill.js';
 import { familyFor } from '../families/index.js';
 import { isStepAlgebraReplayEntry, replayHandOver, replayStepAlgebra, stepAlgebraMovesFor } from './stepAlgebraReplay.js';
+import { RADICAL_REPLAY_TOOL, isRadicalReplayEntry, radicalItemIsVerified, radicalSiblingEquation, replayRadicalEquation } from './radicalReplay.js';
 
 // A step as { show, why } (the same reading exampleSlides.js gives it; that
 // module is the player's own, and is not imported here: see its header).
@@ -169,6 +170,23 @@ export const authoredReplay = (question, lessonSupports = null, { sectionRole = 
   const id = typeof question?.example === 'string' ? text(question.example) : text(exampleId);
   if (!id) return null;
   const entry = lessonExampleEntry(id, lessonSupports, sectionRole);
+  // A lesson's own steps are a step card, whatever tool the entry names: the
+  // replay is taken only for an entry with moves, or with nothing of its own to play.
+  if (isRadicalReplayEntry(entry) && (Array.isArray(entry.moves) || !list(entry.steps).length)) {
+    const radical = replayRadicalEquation({ sibling: entry.sibling, moves: Array.isArray(entry.moves) ? entry.moves : null });
+    if (!radical.ok) return null;
+    return {
+      id,
+      source: 'authored',
+      format: 'replay',
+      tool: RADICAL_REPLAY_TOOL,
+      prompt: radical.prompt,
+      steps: radical.steps,
+      answer: radical.answer,
+      handOverAfter: Math.min(handOverOf(entry.fade, radical.steps.length), radical.fadeLimit),
+      fadeLimit: radical.fadeLimit,
+    };
+  }
   if (!isStepAlgebraReplayEntry(entry)) return null;
   const replay = replayStepAlgebra({ sibling: entry.sibling, moves: entry.moves });
   if (!replay.ok) return null;
@@ -211,11 +229,59 @@ const familyReplay = (question, sibling) => {
   };
 };
 
-const safeFor = (question, example) => similarExampleIsSafe(question, {
+// A radical equation solved on the relation workspace has no family sibling:
+// its example is a sibling equation of the same kind (radicalReplay.js),
+// played on the workspace's own engine with the factoring slides. Null where
+// the item is not such an equation, or no sibling of it can be played.
+const radicalItemEquation = (question) => (lower(question?.type) === 'stepalgebra' && question?.relationWorkspace === true
+  ? text(question.equationLatex) || text(question.equation)
+  : '');
+const radicalFamilyReplay = (question, { seed = 0, assignmentProblems = null, asReplay = true } = {}) => {
+  const equation = radicalItemEquation(question);
+  const variable = text(question?.solveFor) || null;
+  if (!equation || !radicalItemIsVerified(equation, variable)) return null;
+  // Asked only whether the question has an example: it has, and nothing is played.
+  if (!asReplay) return { source: 'family', format: 'steps', tool: RADICAL_REPLAY_TOOL, prompt: 'A radical equation like this one.', steps: [{ show: 'Played on request.', why: '' }], answer: '', handOverAfter: 0 };
+  for (let turn = 0; turn < 6; turn += 1) {
+    const sibling = radicalSiblingEquation(equation, { seed: (Number(seed) || 0) + turn, variable });
+    if (!sibling) return null;
+    if (assignmentProblems && typeof assignmentProblems.has === 'function' && assignmentProblems.has(problemKey(sibling.equation))) continue;
+    const replay = replayRadicalEquation({ sibling });
+    if (!replay.ok) continue;
+    const example = {
+      source: 'family',
+      format: 'replay',
+      tool: RADICAL_REPLAY_TOOL,
+      prompt: replay.prompt,
+      steps: replay.steps,
+      answer: replay.answer,
+      // A built-in replay fades after its first move, and never shows a candidate.
+      handOverAfter: Math.min(1, replay.fadeLimit),
+      fadeLimit: replay.fadeLimit,
+    };
+    if (!isAssignmentItem(example.prompt, assignmentProblems) && safeFor(question, example)) return example;
+  }
+  return null;
+};
+
+function safeFor(question, example) {
+  return similarExampleIsSafe(question, {
   prompt: example.prompt,
-  steps: example.steps.map((step) => [step.show, step.why].filter(Boolean).join(' ')),
-  answer: example.answer,
-});
+    steps: example.steps.map((step) => [step.show, step.why].filter(Boolean).join(' ')),
+    answer: example.answer,
+  });
+}
+
+// A step that uses another skill: Classwork plays that skill's slides in the
+// sequence; anywhere else the step is one line, with "Show how". The mode is
+// the section rule's own (exampleSectionRule: Classwork revisited as practice
+// after its due date is on request). With no rule handed over, the section's
+// role decides.
+const withSubSkillMode = (example, mode, sectionRole) => {
+  if (!list(example.steps).some((step) => isObject(step?.subSkill))) return example;
+  const known = Object.values(EXAMPLE_SUB_SKILLS).includes(mode) ? mode : null;
+  return { ...example, subSkills: known || (!lower(sectionRole) || lower(sectionRole) === 'classwork' ? EXAMPLE_SUB_SKILLS.IN_SEQUENCE : EXAMPLE_SUB_SKILLS.ON_REQUEST) };
+};
 
 /**
  * The example this question plays, or null:
@@ -224,12 +290,15 @@ const safeFor = (question, example) => similarExampleIsSafe(question, {
  * `assignmentProblems` (assignmentProblemKeys) keeps out an example that is an
  * item on the same assignment. `coveringExample` is the id of the example an
  * earlier question on the same skill named, for a question that names none.
+ * `subSkills` is the section rule's sub-skill mode (exampleSectionRule).
  */
-export const workedExampleFor = (question, { seed = 0, lessonSupports = null, sectionRole = null, assignmentProblems = null, coveringExample = null, asReplay = true } = {}) => {
+export const workedExampleFor = (question, { seed = 0, lessonSupports = null, sectionRole = null, assignmentProblems = null, coveringExample = null, asReplay = true, subSkills = null } = {}) => {
   try {
     const authoredOptions = { sectionRole, exampleId: coveringExample };
     const authored = authoredReplay(question, lessonSupports, authoredOptions) || authoredStepCard(question, lessonSupports, authoredOptions);
-    if (authored && !isAssignmentItem(authored.prompt, assignmentProblems) && safeFor(question, authored)) return authored;
+    if (authored && !isAssignmentItem(authored.prompt, assignmentProblems) && safeFor(question, authored)) return withSubSkillMode(authored, subSkills, sectionRole);
+    const radical = radicalFamilyReplay(question, { seed, assignmentProblems, asReplay });
+    if (radical) return withSubSkillMode(radical, subSkills, sectionRole);
     // The family tries six seeds from the one it is given, so each pass here is six new ones.
     for (let pass = 0; pass < 3; pass += 1) {
       const sibling = buildSimilarWorkedExample(question, { seed: (Number(seed) || 0) + pass * 6 });

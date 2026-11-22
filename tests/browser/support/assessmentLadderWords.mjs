@@ -44,7 +44,11 @@ export const LADDER_WORDS = Object.freeze(['LEAKCHECK', 'A hint is ready', 'Show
   EXAMPLE_OPENED_ANNOUNCEMENT, EXAMPLE_COULD_NOT_LOAD_TEXT,
   // The tool replay and the faded example (WE-C): what a faded example opens
   // and ends with, and the name of the line every replayed move has.
-  EXAMPLE_FADED_OPENED_TEXT, EXAMPLE_FADED_TURN_TEXT, 'The same move on both sides']);
+  EXAMPLE_FADED_OPENED_TEXT, EXAMPLE_FADED_TURN_TEXT, 'The same move on both sides',
+  // The radical replay (WE-D): the names of its rejected candidate and its zero
+  // product line. "Show how" is a phrase real prompts use, so the gate looks
+  // for the button itself (EXAMPLE_CONTROL_SELECTORS).
+  'Extraneous: rejected', 'Each factor equal to 0']);
 
 /**
  * Every control of the worked example: the open example, the player inside
@@ -55,7 +59,7 @@ export const EXAMPLE_CONTROL_SELECTORS = Object.freeze([
   '[data-similar-example]', '[data-worked-example-player]', '[data-similar-offer]', '[data-example-opened-by-itself]', '[data-example-next]', '[data-example-your-turn]',
   '[data-example-announcement]', '[data-example-whole]',
   // WE-C: a replayed move's board, and a faded example.
-  '[data-example-board]', '[data-example-board-line]', '[data-example-faded]',
+  '[data-example-board]', '[data-example-board-line]', '[data-example-faded]', '[data-example-show-how]',
 ]);
 
 // Every misconception and generic miss message.

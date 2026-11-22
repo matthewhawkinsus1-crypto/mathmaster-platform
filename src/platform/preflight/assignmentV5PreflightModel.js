@@ -1,6 +1,7 @@
 import { normalizeAssignmentV5, validateAssignmentV5, flattenV5Sections } from '../contract/assignmentSchemaV5.js';
 import { validateLessonSupportsV5 } from '../contract/lessonSupportsV5.js';
 import { stepAlgebraReplayErrors } from '../supports/workedExample/stepAlgebraReplay.js';
+import { radicalReplayErrors } from '../supports/workedExample/radicalReplay.js';
 import { validateAssignmentQuestions } from '../../assignmentBlueprint.js';
 import { validateQuestionsSemantics } from '../contract/semanticValidation.js';
 import { validateAlignments, auditAlignmentSpecificity } from '../contract/alignments.js';
@@ -126,7 +127,7 @@ export const buildAssignmentV5PreflightModel = (input = {}, { titleOverride = nu
   structural.errors.push(...supports.errors);
   // A Step Algebra replay is played by the tool's own engine: a script that
   // does not reach its answer is an error (WE-C; stepAlgebraReplay.js).
-  if (!supports.errors.length) structural.errors.push(...stepAlgebraReplayErrors(source));
+  if (!supports.errors.length) structural.errors.push(...stepAlgebraReplayErrors(source), ...radicalReplayErrors(source));
   structural.warnings.push(...supports.warnings);
   const sections = (runtimeSource.sections || []).map(withRuntimeSectionMetadata);
   const persistenceSections = (source.sections || []).map(withRuntimeSectionMetadata);

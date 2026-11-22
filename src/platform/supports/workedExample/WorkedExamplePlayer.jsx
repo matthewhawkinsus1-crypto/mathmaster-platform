@@ -2,10 +2,12 @@ import { useMemo, useState } from 'react';
 import {
   EXAMPLE_FADED_OPENED_TEXT,
   EXAMPLE_OPENED_BY_ITSELF_TEXT,
+  EXAMPLE_SHOW_HOW_LABEL,
   EXAMPLE_SLIDE,
   EXAMPLE_YOUR_TURN_LABEL,
   exampleSlideAt,
   exampleSlides,
+  shownHowSlideIndex,
   slideReadingText,
   slideTranslationText,
   slideTurnText,
@@ -67,7 +69,8 @@ const asMath = (latex) => ['$', latex, '$'].join('');
 // the names beside them say what each one is, so nothing rests on position.
 function ReplayBoard({ MathText, board }) {
   const check = board.kind === 'check';
-  const lines = [
+  // A board that names its own lines (the radical replay) is drawn as given.
+  const lines = Array.isArray(board.lines) ? board.lines : [
     { id: 'before', name: check ? 'The first equation' : 'Start with', latex: board.before },
     { id: 'applied', name: check ? 'With the value put in' : 'The same move on both sides', latex: board.applied },
     board.cancelled ? { id: 'cancelled', name: `Cancel on ${sidesNamed(board.cancels)}`, latex: board.cancelled } : null,
@@ -81,7 +84,7 @@ function ReplayBoard({ MathText, board }) {
           <li
             key={line.id}
             data-example-board-line={line.id}
-            style={{ ...boardLine, padding: '6px 10px', borderLeft: line.id === 'after' ? '3px solid var(--mm-primary-border)' : '3px dashed var(--mm-primary-border)' }}
+            style={{ ...boardLine, padding: '6px 10px', borderLeft: (Array.isArray(board.lines) ? line.result === true : line.id === 'after') ? '3px solid var(--mm-primary-border)' : '3px dashed var(--mm-primary-border)' }}
           >
             <p style={boardName}>{line.name}</p>
             <p style={boardMath}><MathText>{asMath(line.latex)}</MathText></p>
@@ -105,13 +108,19 @@ export default function WorkedExamplePlayer({
   onYourTurn = null,
   openedByItself = false,
 }) {
-  const slides = useMemo(() => exampleSlides(example), [example]);
+  // "Show how" (Practice): the slides of the skill inside a step join the sequence.
+  const [shownHow, setShownHow] = useState(false);
+  const slides = useMemo(() => exampleSlides(example, { shownHow }), [example, shownHow]);
   const [position, setPosition] = useState(0);
   if (!slides.length) return null;
   const at = exampleSlideAt(slides, position);
   const slide = slides[at];
   const first = at === 0;
   const back = () => { if (!first) setPosition(at - 1); };
+  const showHow = () => {
+    setPosition(shownHowSlideIndex(example, slide.subSkill?.skill));
+    setShownHow(true);
+  };
   const next = () => {
     if (slide.last) onYourTurn?.();
     else setPosition(at + 1);
@@ -152,6 +161,11 @@ export default function WorkedExamplePlayer({
         )}
         {slide.why ? (
           <p data-example-why="" style={{ margin: 0, lineHeight: 1.55 }}><strong>Why: </strong><MathText>{slide.why}</MathText></p>
+        ) : null}
+        {slide.showHow ? (
+          <div>
+            <button type="button" data-example-show-how="" onClick={showHow} style={button}>{EXAMPLE_SHOW_HOW_LABEL}</button>
+          </div>
         ) : null}
         {slide.note ? <p data-example-note="" style={muted}>{slide.note}</p> : null}
         {slide.last ? <p data-example-your-turn-note="" style={muted}>{slideTurnText(slide)}</p> : null}

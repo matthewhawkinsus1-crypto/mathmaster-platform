@@ -2,7 +2,8 @@
 
 Status: **decided by the owner on 2026-11-20. Slice A (the player and the
 section rules), slice B (the coverage report), slice C (the Step Algebra
-replay) and slice G (the teacher's view) are built; D to F and H are not.**
+replay), slice D (the radical replay with its factoring slides) and slice G
+(the teacher's view) are built; E, F and H are not.**
 This page is the spec. The build is split into slices that can ship in any
 order (section 9). Its companion, `docs/platform/SHOWING_THE_PROCESS.md`,
 covers answer boxes that one screenshot cannot answer.
@@ -60,11 +61,10 @@ Where slice G lives:
   of `tests/browser/teacherWorkflow/teacherSignalsJourneys.mjs`.
 
 What slice A plays: the question family's sibling, or the step card a lesson
-wrote (`steps`), when it passes `similarExampleIsSafe`. Not yet: a replay for
-a tool other than Step Algebra (slices D and E; such a question gets its
-family's sibling meanwhile), sub-skill slides (slice D), and a sibling for a
-question no family claims (an authored step card, or the generators of WE-I
-in the build plan).
+wrote (`steps`), when it passes `similarExampleIsSafe`. Not yet: a replay on
+the plane or the inequality builder (slice E; such a question gets its
+family's sibling meanwhile), and a sibling for a question no family claims
+(an authored step card, or the generators of WE-I in the build plan).
 
 Where slice C lives, and what it plays:
 - **The replay:** `src/platform/supports/workedExample/stepAlgebraReplay.js`.
@@ -102,6 +102,55 @@ Where slice C lives, and what it plays:
   live board shows it; a slide cannot yet, so such a move is refused.
 - **Tests:** `tests/platform/stepAlgebraReplay.test.mjs` and
   `tests/browser/stepAlgebraReplay.mjs`.
+
+Where slice D lives, and what it plays:
+- **The replay:** `src/platform/supports/workedExample/radicalReplay.js`. A
+  radical equation solved on the relation workspace (a `solveStepByStep`
+  item that opens there) had no example at all. It now gets a sibling
+  equation, played as the workspace's own path: isolate the radical, raise
+  both sides, multiply out, collect to zero, factor, the zero product
+  property, each branch, then every candidate checked in the first equation.
+- **Every line is one the workspace's commit accepts**
+  (`validateRelationTransition`, which the board and the server's step
+  replay both run). The line with an operation on both sides is
+  `applyBalancedOperationToRelation`'s, the raised line is
+  `raiseRadicalRelation`'s, and a check's two values are `radicalSidesAt`'s.
+  A path with a line the engine refuses is not played.
+- **Extraneous roots:** each candidate has a check slide of its own. One that
+  does not make the first equation true is rejected there (its two sides are
+  shown unequal) and is not in the answer.
+- **The factoring slides** (decision 3), with the numbers the lesson's own
+  factoring method finds (`factorQuadraticByMethod`, `factoringVariant.js`):
+  four for x² + bx + c, six for ax² + bx + c. A quadratic with no number
+  term (ax² + bx) is factored by its common factor instead, in three slides:
+  what to look for, the common factor taken out and multiplied back, the
+  zero product property. The split and group lines are
+  rewrites the workspace accepts, and the factored line is one its Factor
+  tool accepts. Classwork plays them in the sequence. On Practice the factor
+  step is one line with **Show how**, which opens them
+  (`exampleSlides(example, { shownHow })`); the zero product slide always plays.
+- **The sibling** (`radicalSiblingEquation`): the same kind of equation with
+  other numbers. It keeps the root's index, whether a number stands outside
+  the radical, whether the leading coefficient is 1 or more, and how many
+  candidates are rejected. It is the same **method** as the item (the
+  authoring guide's rule 7): an item whose quadratic factors by a common
+  factor (√(x + 4) + 2 = x gives x² − 5x) gets a sibling that does too, and an
+  item whose quadratic is a trinomial gets a trinomial with two different
+  non-zero roots. A root equal to a number has no quadratic and no factoring
+  slides.
+- **A lesson's own** (`tool: "radicalEquation"`, `sibling.equation`,
+  `moves`): the moves must be the tool's own path for that equation, in
+  order; each supplies its `why`, and a factor move's `detail` must be the
+  quadratic's own factoring. Anything else is an error in the compiler and
+  Pre-Flight (`radicalReplayErrors`).
+- **Faded:** a faded radical example stops before the zero product property,
+  so no candidate is shown.
+- **Not played:** an equation the tool does not verify, one with the radical
+  on the right, and one whose quadratic the slides do not factor (a perfect
+  square, or a number as a common factor: 4x² + 4x). Such an authored example
+  is refused; a built-in sibling is never one.
+- **Tests:** `tests/platform/radicalReplay.test.mjs` and
+  `tests/browser/radicalReplay.mjs`.
 
 A built-in step is a full sentence that carries its own reason; only a
 lesson's step card has a separate "why" line.
