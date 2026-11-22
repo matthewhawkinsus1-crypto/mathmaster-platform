@@ -78,6 +78,14 @@ const step = (page) => page.locator('[data-show-the-step]').first();
 const status = async (page) => (await step(page).locator('[data-step-status]').innerText()).replace(/\s+/g, ' ').trim();
 const isOpen = async (page) => (await step(page).getAttribute('data-step-open')) === 'true';
 const answerBoxes = (page) => page.locator('.mathmaster-question-stage [data-answer-box-index] :is(math-field, input[type="text"]):not([data-show-the-step] *)').count();
+// The step says it is open in its own render; the answer boxes draw the box
+// in the next one (the step reports upward from an effect). So "the box
+// opens" is waited for, as a student's eye does, never read in between.
+const boxesOpen = async (page, count = 1) => {
+  await page.waitForFunction((wanted) => document.querySelector('[data-show-the-step]')?.getAttribute('data-step-open') === 'true'
+    && document.querySelectorAll('.mathmaster-question-stage [data-answer-box-index] :is(math-field, input[type="text"]):not([data-show-the-step] *)').length === wanted, count, { timeout: 5000 }).catch(() => {});
+  return await isOpen(page) && await answerBoxes(page) === count;
+};
 const grades = (page) => page.evaluate(() => window.__mmGrades);
 const submit = async (page) => {
   const button = page.getByRole('button', { name: /^Submit/ }).last();
@@ -153,7 +161,7 @@ for (const device of [DESKTOP, PHONE]) {
   await step(page).locator('[data-step-entry="run"]').fill('1');
   await step(page).locator('[data-step-check]').click();
   check(/^Your points \(0, -2\) and \(1, 1\) are on the line, and your rise and run match them\./.test(await status(page)), `${where}: the engine accepts the step`, await status(page));
-  check(await isOpen(page) && await answerBoxes(page) === 1, `${where}: and the answer box opens`);
+  check(await boxesOpen(page), `${where}: and the answer box opens`);
   check((await step(page).locator('[data-step-skip]').count()) === 0, `${where}: no "Answer without this step" once it is done`);
   await screenshotKeepingTouch(page, { path: path.join(ARTIFACTS, `${device.name}-points-accepted.png`) });
 
@@ -183,7 +191,7 @@ for (const device of [DESKTOP, PHONE]) {
   check((await skip.count()) === 1 && (await skip.innerText()) === 'Answer without this step', `${where}: after two refusals the student may answer without the step`);
   await skip.focus();
   await press(page, 'Enter');
-  check(await isOpen(page) && await answerBoxes(page) === 1, `${where}: taking it opens the answer box`);
+  check(await boxesOpen(page), `${where}: taking it opens the answer box`);
   check(/^You chose to answer without this step\. It does not change your score\./.test(await status(page)), `${where}: and says it costs nothing`, await status(page));
   await answerParts(page, ['3', '-2']);
   await submit(page);
@@ -206,7 +214,7 @@ for (const device of [DESKTOP, PHONE]) {
   await step(page).locator('[data-step-entry="rise"]').fill('9');
   await step(page).locator('[data-step-entry="run"]').fill('9');
   check((await status(page)) === 'Step recorded. Now answer the part below.', `${where}: a finished step is recorded, and nothing says it is wrong`, await status(page));
-  check(await isOpen(page) && await answerBoxes(page) === 1, `${where}: the answer box opens`);
+  check(await boxesOpen(page), `${where}: the answer box opens`);
   const said = await page.locator('.mathmaster-question-stage').innerText();
   check(!VERDICT_WORDS.test(said), `${where}: no word on the screen judges the step`, (said.match(VERDICT_WORDS) || [''])[0]);
   check((await step(page).locator('[data-step-skip]').count()) === 0, `${where}: and no "Answer without this step" is needed or shown`);
@@ -233,7 +241,7 @@ for (const role of ['practice', 'dol']) {
   await page.waitForTimeout(400);
   const said = await status(page);
   check(role === 'dol' ? said === 'Step recorded. Now answer the part below.' : /^Your \d+ moves solve the equation\./.test(said), `${where}: ${role === 'dol' ? 'the moves are recorded with no verdict' : 'the engine accepts the moves'}`, said);
-  check(await isOpen(page), `${where}: the answer box opens`);
+  check(await boxesOpen(page), `${where}: the answer box opens`);
   if (role === 'dol') {
     const leaks = await leaksOn(page);
     check(leaks.length === 0, `${where}: the workspace brings no hint, example or feedback word onto the DOL`, leaks.join(' | '));
@@ -285,7 +293,7 @@ for (const role of ['practice', 'dol']) {
   check(/^A row does not fit the rule\./.test(await status(page)), `${where}: a row off the rule is refused without its value`, await status(page));
   await step(page).locator('[data-step-entry="row-1-1"]').fill('5');
   await step(page).locator('[data-step-check]').click();
-  check(await isOpen(page), `${where}: rows on the rule open the box`);
+  check(await boxesOpen(page), `${where}: rows on the rule open the box`);
 
   // A reload brings the step back, with the box still open.
   await page.goto(address, { waitUntil: 'networkidle' });
@@ -293,7 +301,7 @@ for (const role of ['practice', 'dol']) {
   await page.waitForTimeout(600);
   const restored = await step(page).locator('input').evaluateAll((inputs) => inputs.map((input) => input.value).join(' '));
   check(restored === '1 3 2 5', `${where}: after a reload the rows are still there`, restored);
-  check(await isOpen(page) && await answerBoxes(page) === 1, `${where}: and the answer box is still open, with no second Check`);
+  check(await boxesOpen(page), `${where}: and the answer box is still open, with no second Check`);
   await context.close();
 }
 
@@ -301,7 +309,7 @@ for (const role of ['practice', 'dol']) {
 {
   const { page, context } = await open(DESKTOP, 'q=stepPoints&role=practice&parts=1&support=everypart');
   const where = 'desktop, See every part at once';
-  check(await answerBoxes(page) === 2, `${where}: every part's answer box is open from the start`, String(await answerBoxes(page)));
+  check(await boxesOpen(page, 2), `${where}: every part's answer box is open from the start`, String(await answerBoxes(page)));
   check(await isOpen(page) && /^This step is optional for you\./.test(await status(page)), `${where}: the step says it is optional`, await status(page));
   await step(page).locator('svg[data-mm-plane]').focus();
   await pickFromOrigin(page, [0, -2]);
