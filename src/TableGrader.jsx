@@ -87,6 +87,9 @@ export default function TableGrader({ question, onStateChange, onUndoStateChange
 
   const updateAnswer = (key, value) => history.setValue((current) => ({ ...current, [key]: value }));
   const gradeFor = (key) => feedback?.partGrades?.find((part) => part.id === key);
+  // The boxes the student fills, in reading order: a box's place in this list is its part number.
+  const blankOrder = rows.flatMap((row, rowIndex) => columns.map((column) => `${rowIndex}:${column.key}`))
+    .filter((answerKey) => Object.prototype.hasOwnProperty.call(answers, answerKey) || blanks.includes(answerKey));
 
   return (
     <div>
@@ -106,18 +109,21 @@ export default function TableGrader({ question, onStateChange, onUndoStateChange
           student wrote or "blank": never its answer, never a ✓ or ✗ (displayTable.js). */}
       <PublishFigureReading entry={{ kind: 'table', label: '', table: displayTableFor(question, { editable: true, entries: studentAnswers }) }} />
       <div style={{ overflowX: 'auto', marginTop: '22px' }}>
+        {/* Each box the student fills is numbered among the boxes, in reading
+            order: the third blank is part 3, however many given cells lie
+            between (a paste is recorded by that number alone). */}
         <table style={{ margin: '0 auto', borderCollapse: 'collapse', minWidth: '320px', background: 'var(--mm-surface)' }}>
           <thead><tr>{columns.map((column) => <th key={column.key} style={{ padding: '12px 24px', border: '1px solid var(--mm-border)', background: 'var(--mm-primary-soft)', fontSize: 'calc(20 * var(--mm-px))' }}>{(() => { const text = column.label || column.key; const format = resolveLabelFormat(text); return format ? <MathDisplay value={text} format={format} inline /> : text; })()}</th>)}</tr></thead>
           <tbody>
             {rows.map((row, rowIndex) => (
               <tr key={`row-${rowIndex}`}>
-                {columns.map((column, columnIndex) => {
+                {columns.map((column) => {
                   const answerKey = `${rowIndex}:${column.key}`;
                   const isBlank = Object.prototype.hasOwnProperty.call(answers, answerKey)
                     || blanks.includes(answerKey);
                   const grade = gradeFor(answerKey);
                   return (
-                    <td key={answerKey} data-answer-box-index={isBlank ? rowIndex * columns.length + columnIndex : undefined} style={{ padding: '12px 20px', border: '1px solid var(--mm-border)', textAlign: 'center', fontSize: 'calc(19 * var(--mm-px))' }}>
+                    <td key={answerKey} data-answer-box-index={isBlank ? blankOrder.indexOf(answerKey) : undefined} style={{ padding: '12px 20px', border: '1px solid var(--mm-border)', textAlign: 'center', fontSize: 'calc(19 * var(--mm-px))' }}>
                       {isBlank ? (
                         <>
                         <input {...FRACTION_ENTRY_PROPS} {...gradedEntryInputProps(grade, `${markIdBase}-${answerKey}`)} value={studentAnswers[answerKey] || ''} onChange={(event) => updateAnswer(answerKey, event.target.value)} aria-label={`Row ${rowIndex + 1}, ${column.label || column.key}`} style={{ width: '82px', padding: '8px', textAlign: 'center', fontSize: 'calc(18 * var(--mm-px))', border: `2px solid ${grade ? (grade.isCorrect ? '#188038' : '#d93025') : '#1a73e8'}`, borderRadius: '6px', background: grade && !grade.isCorrect ? 'var(--mm-error-subtle)' : 'var(--mm-surface)' }} />

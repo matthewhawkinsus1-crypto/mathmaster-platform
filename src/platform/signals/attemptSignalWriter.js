@@ -10,6 +10,7 @@
 import { doc, serverTimestamp, setDoc } from 'firebase/firestore';
 import { attemptSignalDocumentId, buildAttemptSignalRecord, supportsInEffect } from './attemptSignalFacts.js';
 import { attemptSignalCount, countAttemptSignal, resetSignalPageNotes } from './signalPageNotes.js';
+import { classTimeFact } from './classTimeFact.js';
 
 // The count for the Live heartbeat lives in signalPageNotes.js, which App
 // reads before this module has loaded.
@@ -32,9 +33,14 @@ const sent = new Set();
  */
 // `store` is Firestore's own doc, setDoc and serverTimestamp; a test passes its own.
 // `profile` (the student's support profile) gives the supports in effect when
-// `supports` is not given outright.
-export const recordAttemptSignal = async ({ db, studentId, assignmentId, questionIndex, activityRole = null, fact, duringClass = null, supports = null, profile = undefined, store = FIRESTORE } = {}) => {
-  const record = buildAttemptSignalRecord({ studentId, assignmentId, questionIndex, activityRole, fact, duringClass, supports: supports ?? (profile === undefined ? null : supportsInEffect(profile)) });
+// `supports` is not given outright. `classTime` is `{ schedule, classPeriod, at }`
+// as of the fact: the bell schedule answers true or false, or nothing is
+// stored when it cannot say (classTimeFact.js).
+export const recordAttemptSignal = async ({ db, studentId, assignmentId, questionIndex, activityRole = null, fact, duringClass = null, classTime = null, supports = null, profile = undefined, store = FIRESTORE } = {}) => {
+  const inClass = typeof duringClass === 'boolean' || !classTime
+    ? duringClass
+    : classTimeFact({ schedule: classTime.schedule, classPeriod: classTime.classPeriod, nowValue: classTime.at }).duringClass;
+  const record = buildAttemptSignalRecord({ studentId, assignmentId, questionIndex, activityRole, fact, duringClass: inClass, supports: supports ?? (profile === undefined ? null : supportsInEffect(profile, { activityRole })) });
   if (!db || !record) return false;
   const id = attemptSignalDocumentId(record);
   const sentKey = `${record.studentId}|${id}`;

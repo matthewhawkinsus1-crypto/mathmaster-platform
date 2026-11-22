@@ -101,12 +101,12 @@ export const caseQuestionsCsv = (model) => {
 export const caseSignalsCsv = (model) => csv(
   [
     'Not conclusive', 'Signal', 'Recorded at', 'Assignment', 'Assignment ID', 'Section', 'Question', 'Part', 'Attempt', 'What was recorded',
-    'During class time', 'Supports in effect', 'Question outcome', 'Reviewed', 'Reviewed by', 'Reviewed at', 'Teacher note',
+    'During class time', 'Supports in effect', 'Question outcome', 'Reviewed', 'Reviewed by', 'Reviewed at', 'Teacher note (teacher-authored: the teacher\'s own words, not a recorded fact)',
   ],
   list(model?.workPatterns?.entries).map((entry) => [
     model.workPatterns.notConclusive, entry.title, iso(entry.recordedAtMs), entry.assignmentTitle, entry.assignmentId, entry.sectionLabel, entry.questionLabel,
     entry.partIndex === null ? '' : entry.partIndex + 1, /try (\d+)/.exec(entry.where)?.[1] || 1, entry.facts,
-    entry.duringClass === null ? 'not recorded' : (entry.duringClass ? 'yes' : 'no'),
+    entry.duringClass === null ? 'not known' : (entry.duringClass ? 'yes' : 'no'),
     entry.supportIds === null ? 'not recorded' : entry.supportIds.join('; '),
     entry.outcomeLabel, entry.reviewed ? 'yes' : 'no', entry.reviewedBy, entry.reviewed ? iso(entry.reviewedAtMs) : '', entry.reviewNote,
   ]),

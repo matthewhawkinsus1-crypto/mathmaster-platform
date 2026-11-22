@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { db } from '../../firebase.js';
 import { reviewAttemptSignal, watchAttemptSignals } from '../../platform/teacher/attemptSignalsStore.js';
 import {
-  NOT_CONCLUSIVE, REVIEW_NOTE_MAX, WORTH_A_CONVERSATION, WORTH_A_CONVERSATION_NOTE, describeAttemptSignals,
+  NOT_CONCLUSIVE, REVIEW_NOTE_MAX, TEACHER_NOTE_HEADING, WORTH_A_CONVERSATION, WORTH_A_CONVERSATION_NOTE, describeAttemptSignals,
 } from '../../platform/teacher/attemptSignalsView.js';
 
 /*
@@ -53,7 +53,7 @@ export function SignalFacts({ signal }) {
       {signal.reviewed && (
         <div data-signal-reviewed="" style={small}>
           Reviewed{signal.reviewedBy ? ` by ${signal.reviewedBy}` : ''}{signal.reviewedAtMs ? ` · ${signalWhen(signal.reviewedAtMs)}` : ''}
-          {signal.reviewNote ? <><br /><strong>Teacher note:</strong> {signal.reviewNote}</> : null}
+          {signal.reviewNote ? <><br /><span data-teacher-note="" title={signal.reviewNoteLabel}><strong>{TEACHER_NOTE_HEADING}:</strong> {signal.reviewNote}</span></> : null}
         </div>
       )}
     </>

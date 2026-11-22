@@ -406,10 +406,15 @@ for (const viewport of VIEWPORTS) {
   await patterns.waitFor({ timeout: 20000 }).catch(() => {});
   const patternsText = (await patterns.count()) ? await patterns.innerText() : '';
   expect(`T5 ${tag} the case review has a Work-pattern signals section, labelled not conclusive`, /Work-pattern signals \(3\)/.test(patternsText) && /Not conclusive/.test(patternsText) && /no narrative fact is written from them/.test(patternsText), patternsText || 'no Work-pattern signals section');
-  expect(`T5 ${tag} patterns over the window: how often, and how many are reviewed`, /Pasted into a math box on 1 of \d+ answered questions\./.test(patternsText) && /2 of 3 reviewed by a teacher; 1 not yet reviewed\./.test(patternsText) && /3 recorded during the class's scheduled time, 0 outside it\./.test(patternsText), patternsText);
+  expect(`T5 ${tag} patterns over the window: how often, and how many are reviewed`, /Pasted into a math box on 1 of \d+ answered questions?\./.test(patternsText) && /2 of 3 reviewed by a teacher; 1 not yet reviewed\./.test(patternsText) && /Class time: 3 during the class's scheduled time, 0 outside it, 0 not known\./.test(patternsText), patternsText);
+  // What the counts are out of is said, with the date they are counted from.
+  const denominatorText = (await review.locator('[data-case-signal-denominator]').innerText().catch(() => '')) || '';
+  const monthsText = (await review.locator('[data-case-signal-months]').innerText().catch(() => '')) || '';
+  expect(`T5 ${tag} the denominator is stated: classroom answers since the first signal on record`, /^Counted out of \d+ answered Warm-Up, Classwork, Practice and DOL questions?, last answered on or after .+ \(the first signal on record for this student\)/.test(denominatorText) && patternsText.includes(denominatorText), denominatorText || 'no denominator line');
+  expect(`T5 ${tag} month by month: answers counted and answers with a signal`, /Answers counted/i.test(monthsText) && /\b\d+ of \d+\b/.test(monthsText) && /\b(January|February|March|April|May|June|July|August|September|October|November|December) \d{4}\b/.test(monthsText), monthsText || 'no month table');
   const rows = review.locator('[data-case-signal-rows] tbody tr');
   const rowsText = (await rows.count()) ? await review.locator('[data-case-signal-rows]').innerText() : '';
-  expect(`T5 ${tag} each signal is listed with its review and the teacher's note`, (await rows.count()) === 3 && rowsText.includes(REVIEW_NOTE) && /Not yet reviewed/.test(rowsText) && rowsText.includes(`Reviewed by ${HARNESS_TEACHER}`), rowsText || 'no signal rows');
+  expect(`T5 ${tag} each signal is listed with its review and the teacher's note`, (await rows.count()) === 3 && rowsText.includes(`Teacher's note (the teacher's own words): ${REVIEW_NOTE}`) && (await review.locator('[data-case-signal-rows] [data-teacher-note]').getAttribute('title').catch(() => '')) === 'Teacher-authored: written by the teacher, not a recorded fact or generated evidence.' && /Not yet reviewed/.test(rowsText) && rowsText.includes(`Reviewed by ${HARNESS_TEACHER}`), rowsText || 'no signal rows');
   await shot(page, 't5-case-review-signals', viewport);
   await review.getByRole('tab', { name: 'Timeline' }).click();
   await review.getByRole('button', { name: 'Work-pattern signals' }).click();

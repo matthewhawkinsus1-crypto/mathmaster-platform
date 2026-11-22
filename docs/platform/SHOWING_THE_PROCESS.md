@@ -239,15 +239,31 @@ As built (SP-2 and SP-2b):
   the student, the assignment, the question's position, the kind, the
   section, the attempt number, and for its kind a part position, a part
   count, seconds away or the difficulty band. The assignment must be one given
-  to the student (their class, or to them individually) and the question one
-  of its own, so made-up places cannot fill a record. The server stamps the
-  time. The first record of a fact stands.
+  to the student and the question one of its own, so made-up places cannot
+  fill a record. "Given to the student" is the server-owned proof an
+  assignment read uses: the roster class is one the assignment is assigned to,
+  or the assignment is in the student's `gradesByAssignment` (work already
+  held, as after a move to another class) or `testCycleGrades` (a Test they
+  were added to on their own). The server stamps the time. The first record of
+  a fact stands. A paste in a part past the fiftieth is not recorded, rather
+  than filed under another part; a table's boxes are numbered among the boxes
+  the student fills.
 - **Context stored with it.**
-  - `duringClass`: whether the fact happened in the class's scheduled time,
-    from the bell schedule on the student's device. Left out when the schedule
-    could not say. Nothing else about where the student was is recorded.
-  - `supports`: the catalog ids of the accommodations, modifications and
-    services in effect that day.
+  - `duringClass`: whether the fact happened in the class's scheduled time
+    (`classTimeFact.js`). It has three answers. True or false is stored only
+    when the bell schedule answers, read on the school's clock
+    (America/Chicago), never the device's. A weekend with no bell schedule of
+    its own and a day the calendar marks closed are "outside". The field is
+    left out, and every screen and export reads "Class time not known", when
+    no schedule has been saved or loaded, when the day's A/B type has not been
+    chosen (a Friday not yet set), or when the student's period is missing or
+    not switched on that day. Nothing else about where the student was is
+    recorded.
+  - `supports`: the catalog ids of the supports in effect that day for that
+    kind of activity, by the support plan's own rules: a support limited to
+    some activities is named only on those, and the supports inclusion brings
+    are named for a student whose plan says inclusion. The list is never cut
+    short (it may hold every id in the catalog).
   - The question is the one the engine was showing when the fact happened,
     even if the student has opened the next one before it is written.
 - **Who reads it.** The teacher who teaches the student, and the root

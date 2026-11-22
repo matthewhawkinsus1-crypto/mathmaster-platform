@@ -48,6 +48,7 @@ const sourceFiles = SOURCE_ROOTS.flatMap((root) => walk(root));
 const MAY_MENTION = new Map([
   ['src/platform/signals/attemptSignalFacts.js', 'the facts and the stored record'],
   ['src/platform/signals/attemptSignalWriter.js', "the student's one write"],
+  ['src/platform/signals/classTimeFact.js', 'in or outside the class\'s scheduled time, or not known: read by the writer alone'],
   ['src/platform/signals/signalPageNotes.js', "the heartbeat's count and the platform's own links, before the recorder loads"],
   ['src/platform/signals/useAttemptSignals.js', "the engine's tracker hook"],
   ['src/platform/teacher/attemptSignalsView.js', 'what a teacher reads'],
@@ -178,8 +179,10 @@ test('the tracker is told what was marked; it is never asked what to mark', () =
   // The signal modules import no grader, no attempt policy and no mastery.
   const imports = (source) => [...source.matchAll(/from '([^']+)'/g)].map((match) => match[1]);
   assert.deepEqual(imports(facts), ['../../studentSupport.js', '../../../functions/shared/supportProfileModel.mjs', '../../../functions/shared/supportCatalog.mjs', './signalPageNotes.js']);
+  // Class time is the bell schedule and the district calendar, and nothing of the student's work.
+  assert.deepEqual(imports(executableSource(read('src/platform/signals/classTimeFact.js'))), ['../../../functions/shared/classSchedule.mjs', '../../../functions/shared/instructionalCalendar.mjs', '../path/curriculumCalendar.js', '../../curriculum/calendars/schoolYear2026-2027.js']);
   assert.deepEqual(imports(hook), ['react', './attemptSignalFacts.js']);
-  assert.deepEqual(imports(writer), ['firebase/firestore', './attemptSignalFacts.js', './signalPageNotes.js']);
+  assert.deepEqual(imports(writer), ['firebase/firestore', './attemptSignalFacts.js', './signalPageNotes.js', './classTimeFact.js']);
   // What the app holds before the recorder loads imports nothing at all.
   assert.deepEqual(imports(executableSource(read('src/platform/signals/signalPageNotes.js'))), []);
   // The student's device writes a signal and never reads one back.
@@ -205,12 +208,14 @@ test('the assignment screen and App: one hand-off each, to the writer and to the
   const appUses = app.split('\n').filter((line) => SIGNAL_WORDS.test(line)).map((line) => line.trim());
   assert.deepEqual(appUses, [
     "import { attemptSignalCount } from './platform/signals/signalPageNotes.js';",
-    'attemptSignalCount: attemptSignalCount(payload.studentId, payload.assignmentId),',
+    // Capped where it is written, as the rules cap it (0..999): a count past
+    // the cap must not make the whole heartbeat refused.
+    'attemptSignalCount: Math.min(999, attemptSignalCount(payload.studentId, payload.assignmentId)),',
   ]);
   // That one line is in the heartbeat's own write, read as it goes out: a fact
   // is written a moment after the answer that raised it.
   const heartbeat = region(app, 'const publishLatest = () => {', '}).catch(() => {', 'the heartbeat write');
-  assert.match(heartbeat, /setDoc\(presenceRef, \{\s*\.\.\.payload,\s*attemptSignalCount: attemptSignalCount\(payload\.studentId, payload\.assignmentId\),/);
+  assert.match(heartbeat, /setDoc\(presenceRef, \{\s*\.\.\.payload,\s*attemptSignalCount: Math\.min\(999, attemptSignalCount\(payload\.studentId, payload\.assignmentId\)\),/);
 });
 
 test('the grade document is not a place a signal is stored, and its rules do not read one', () => {

@@ -15,6 +15,8 @@ import { buildStudentCaseReview } from '../../src/platform/caseReview/studentCas
 import { buildWorkPatternSignals, workPatternTimelineEntries } from '../../src/platform/caseReview/workPatternSignals.js';
 import { PRINT_SECTIONS, caseReviewJson, caseSignalsCsv } from '../../src/platform/caseReview/caseReviewExport.js';
 import { FORBIDDEN_CONCLUSIONS, narrativeViolations, renderNarrativeTemplate } from '../../src/platform/caseReview/narrativeGuard.js';
+import { fetchAttemptSignals } from '../../src/platform/caseReview/caseReviewStore.js';
+import { TEACHER_NOTE_LABEL } from '../../src/platform/teacher/attemptSignalsView.js';
 import { caseInputs } from './helpers/caseReviewFixture.mjs';
 import { executableSource, region } from './helpers/sourceContract.mjs';
 
@@ -39,7 +41,10 @@ const SIGNALS = [
   signal('L3', 3, 'keystrokes', {}),
 ];
 
-const model = buildStudentCaseReview({ ...caseInputs(), attemptSignals: SIGNALS });
+// Signals have been recorded for this student since before the window (an
+// earlier signal is on record), so every dated answer in it is counted.
+const RECORDED_SINCE = Date.UTC(2026, 8, 1, 14);
+const model = buildStudentCaseReview({ ...caseInputs(), attemptSignals: SIGNALS, attemptSignalsMeta: { firstRecordedAtMs: RECORDED_SINCE, capped: false, max: 500 } });
 const section = model.workPatterns;
 
 test('the section counts recorded signals over the questions answered in the window', () => {
@@ -74,9 +79,15 @@ test('where they occur: by section, beside the DOL and instructional sections, a
   assert.deepEqual([by.practice.questionsWithSignal, by.practice.byKind.hardFirstTry], [1, 1]);
   assert.equal(by.warmup.questionsWithSignal, 0);
   assert.deepEqual(section.bySection.map((row) => row.key), ['warmup', 'classwork', 'practice', 'dol']);
-  // Class time is what each record says, and "not recorded" is its own count.
-  assert.deepEqual(section.classTime, { during: 3, outside: 1, notRecorded: 2 });
-  assert.ok(section.lines.includes("3 recorded during the class's scheduled time, 1 outside it, 2 with no class time recorded."));
+  // Class time is what each record says. A record the bell schedule could
+  // not answer for is its own count, "not known": never added to "outside".
+  assert.deepEqual(section.classTime, { during: 3, outside: 1, notKnown: 2 });
+  assert.ok(section.lines.includes("Class time: 3 during the class's scheduled time, 1 outside it, 2 not known."), section.lines.join('\n'));
+  assert.equal(section.entries.find((entry) => entry.id === 'L5__1__pasted__0').classTime, 'Class time not known');
+  assert.ok(section.limitations.some((line) => /reads "Class time not known", never "outside"/.test(line)));
+  const tab = executableSource(read('src/components/teacher/caseReview/CaseSignalsTab.jsx'));
+  assert.match(tab, /\{section\.classTime\.outside\} outside it, \{section\.classTime\.notKnown\} not known/);
+  assert.doesNotMatch(tab, /notRecorded|Class time not recorded/);
 });
 
 test('a reviewed signal stays in the record, with who reviewed it and their note', () => {
@@ -112,7 +123,11 @@ test('on the case timeline, as its own kind and group, labelled not conclusive',
     assert.ok(entry.dateKey, 'placed on a school day');
   }
   const reviewed = onTimeline.find((entry) => /Right first time/.test(entry.label));
-  assert.deepEqual(reviewed.details.at(-1), { label: 'Review', value: 'Reviewed by teacher.a@example.test: Asked her to show the steps; she did.' });
+  // Who reviewed it is a recorded fact; the note is the teacher's own words,
+  // under its own heading and labelled.
+  assert.deepEqual(reviewed.details.at(-2), { label: 'Review', value: 'Reviewed by teacher.a@example.test' });
+  assert.deepEqual(reviewed.details.at(-1), { label: "Teacher's note (the teacher's own words)", value: 'Asked her to show the steps; she did.', note: TEACHER_NOTE_LABEL });
+  assert.doesNotMatch(`${reviewed.label} ${reviewed.detail}`, /Asked her/);
   assert.equal(model.timeline.total, buildStudentCaseReview(caseInputs()).timeline.total + 6);
   // The timeline tab can show only these.
   assert.match(executableSource(read('src/components/teacher/caseReview/CaseTimelineTab.jsx')), /\{ key: 'signals', label: 'Work-pattern signals' \}/);
@@ -122,16 +137,25 @@ test('on the case timeline, as its own kind and group, labelled not conclusive',
 test('in the export: a CSV row per signal, the print section, and the JSON, each saying not conclusive', () => {
   const lines = caseSignalsCsv(model).trim().split('\r\n');
   assert.equal(lines.length, 1 + 6);
-  assert.match(lines[0], /^Not conclusive,Signal,Recorded at,Assignment,Assignment ID,Section,Question,Part,Attempt,What was recorded,During class time,Supports in effect,Question outcome,Reviewed,Reviewed by,Reviewed at,Teacher note$/);
+  assert.match(lines[0], /^Not conclusive,Signal,Recorded at,Assignment,Assignment ID,Section,Question,Part,Attempt,What was recorded,During class time,Supports in effect,Question outcome,Reviewed,Reviewed by,Reviewed at,"Teacher note \(teacher-authored: the teacher's own words, not a recorded fact\)"$/);
   for (const line of lines.slice(1)) assert.match(line, /^Not conclusive,/);
   const reviewedRow = lines.find((line) => /Right first time/.test(line));
   assert.match(reviewedRow, /,yes,teacher\.a@example\.test,2026-09-30T14:00:00\.000Z,Asked her to show the steps; she did\.$/);
   const noContext = lines.find((line) => /,L5,/.test(line));
-  assert.match(noContext, /,not recorded,not recorded,/);
+  assert.match(noContext, /,not known,not recorded,/, 'class time the schedule could not answer for is "not known"; supports not handed over are "not recorded"');
   assert.equal(PRINT_SECTIONS.find((entry) => entry.key === 'signals').title, '13. Work-pattern signals (not conclusive)');
   const printed = executableSource(read('src/components/teacher/caseReview/CasePrintView.jsx'));
   assert.match(region(printed, '<section data-print-work-patterns>', '</section>', 'the printed section'), /model\.workPatterns\.note/);
+  // The print keeps the teacher's note apart from the facts, under the label.
+  const printedSection = region(printed, '<section data-print-work-patterns>', '</section>', 'the printed section');
+  assert.match(printedSection, /\{entry\.reviewNote \? <><br \/><em>\{entry\.reviewNoteLabel\}<\/em><br \/>\{entry\.reviewNote\}<\/> : null\}/);
+  assert.doesNotMatch(printedSection, /\$\{entry\.reviewNote/, 'never run into the generated sentence');
   const json = JSON.parse(caseReviewJson(model));
+  const jsonReviewed = json.workPatterns.entries.find((entry) => entry.kind === 'hardFirstTry');
+  assert.deepEqual([jsonReviewed.reviewNote, jsonReviewed.reviewNoteLabel], ['Asked her to show the steps; she did.', TEACHER_NOTE_LABEL]);
+  assert.ok(json.workPatterns.entries.filter((entry) => !entry.reviewNote).every((entry) => entry.reviewNoteLabel === ''));
+  // No count or line the section builds is written from the note.
+  assert.doesNotMatch(JSON.stringify({ ...json.workPatterns, entries: [] }), /Asked her/);
   assert.equal(json.workPatterns.total, 6);
   assert.equal(json.workPatterns.notConclusive, 'Not conclusive');
   // The view offers the tab and the download.
@@ -175,7 +199,10 @@ test('not loaded is said as not loaded, and no signals as none: neither is a fin
   assert.equal(buildStudentCaseReview(caseInputs()).dataSources.attemptSignals.loaded, false);
   assert.equal(buildStudentCaseReview(caseInputs()).attention.signalsToReview.loaded, false);
   const none = buildStudentCaseReview({ ...caseInputs(), attemptSignals: [] }).workPatterns;
-  assert.deepEqual([none.loaded, none.total, none.answeredQuestions], [true, 0, 33]);
+  // With no signal on record at all there is no date to count answers from:
+  // nothing is counted, and the section says why.
+  assert.deepEqual([none.loaded, none.total, none.answeredQuestions, none.denominator.allAnswered], [true, 0, 0, 33]);
+  assert.match(none.denominator.words, /^No signal is on record for this student/);
   assert.deepEqual(model.dataSources.attemptSignals.count, SIGNALS.length);
   assert.ok(none.limitations.some((line) => /a question with no signal is not a question where nothing happened/.test(line)));
   // Outside the case's window: left out.
@@ -183,11 +210,109 @@ test('not loaded is said as not loaded, and no signals as none: neither is a fin
   assert.deepEqual(windowed.entries.map((entry) => entry.id), ['L3__2__leftThenRight', 'L3__2__pasted__0']);
 });
 
+test('the denominator is only the answers where a signal could have been recorded, and it says so', () => {
+  // With an earlier signal on record, all 33 dated classroom answers count.
+  assert.deepEqual([section.denominator.answered, section.denominator.allAnswered, section.denominator.recordedSinceMs], [33, 33, RECORDED_SINCE]);
+  assert.deepEqual(section.denominator.leftOut, { otherSections: 0, beforeRecording: 0, noTime: 0 });
+  assert.equal(section.denominator.words, 'Counted out of 33 answered Warm-Up, Classwork, Practice and DOL questions, last answered on or after Sep 1, 2026 (the first signal on record for this student).');
+  assert.ok(section.lines.includes(section.denominator.words), 'the lines say what the counts are out of');
+
+  // Without one, the first signal on record is the earliest loaded: 22 Sep,
+  // 15:05 UTC (it is on another assignment, outside the case, and still shows
+  // signals were being recorded by then). The fixture's answers before it (all of L1, and L2 but for the
+  // Practice question answered on the 23rd) are left out, not read as "no signal".
+  const fromFirst = buildStudentCaseReview({ ...caseInputs(), attemptSignals: SIGNALS }).workPatterns;
+  const firstSignal = AT;
+  const expected = model.questions.filter((row) => row.totalAttempts > 0 && row.lastAttemptAtMs >= firstSignal);
+  assert.equal(expected.length, 18);
+  assert.deepEqual([fromFirst.denominator.answered, fromFirst.denominator.recordedSinceMs, fromFirst.denominator.leftOut.beforeRecording], [18, firstSignal, 15]);
+  assert.match(fromFirst.denominator.words, /^Counted out of 18 answered .+ on or after Sep 22, 2026 \(the first signal on record for this student\)\. Left out: 15 answered before then\.$/);
+  assert.equal(fromFirst.frequency.find((row) => row.kind === 'pasted').line, 'Pasted into a math box on 4 of 18 answered questions.');
+  assert.deepEqual([fromFirst.comparison.withSignal.answered, fromFirst.comparison.withoutSignal.answered], [5, 13]);
+
+  // A Test, a Review, Recovery, and an answer with no recorded time are never in it.
+  const rows = [
+    ...model.questions,
+    { ...expected[0], assignmentId: 'L4', storageIndex: 90, section: 'test' },
+    { ...expected[0], assignmentId: 'L4', storageIndex: 91, section: 'corrections' },
+    { ...expected[0], assignmentId: 'L4', storageIndex: 92, recoveredLate: true },
+    { ...expected[0], assignmentId: 'L4', storageIndex: 93, lastAttemptAtMs: null },
+  ];
+  const mixed = buildWorkPatternSignals({ signals: SIGNALS, questions: rows, assignments: model.assignments, signalsMeta: { firstRecordedAtMs: RECORDED_SINCE } });
+  assert.deepEqual([mixed.denominator.answered, mixed.denominator.allAnswered], [33, 37]);
+  assert.deepEqual(mixed.denominator.leftOut, { otherSections: 3, beforeRecording: 0, noTime: 1 });
+  assert.match(mixed.denominator.words, /Left out: 3 in Tests, Review, Corrections or Recovery; 1 with no recorded time\.$/);
+  assert.ok(section.limitations.some((line) => /Counts are out of the answered questions where a signal could have been recorded/.test(line)));
+});
+
+test('month by month: the answers counted, and how many carry a signal', () => {
+  // September: L1, L2 and L3 (24 answers); October: L4 and L5 (9).
+  assert.deepEqual(section.byMonth.map((row) => [row.key, row.label, row.answered, row.questionsWithSignal, row.signals]), [
+    ['2026-09', 'September 2026', 24, 2, 3],
+    ['2026-10', 'October 2026', 9, 3, 3],
+  ]);
+  assert.deepEqual(section.byMonth[0].byKind, { leftThenRight: 1, pasted: 2, hardFirstTry: 0 });
+  assert.deepEqual(section.byMonth[1].byKind, { leftThenRight: 0, pasted: 2, hardFirstTry: 1 });
+  assert.equal(section.byMonth[0].line, 'September 2026: a signal on 2 of 24 answers (left the page, then a burst of right parts on 1; pasted into a math box on 2).');
+  assert.ok(section.lines.includes(section.byMonth[1].line));
+  // The months add up to the denominator.
+  assert.equal(section.byMonth.reduce((sum, row) => sum + row.answered, 0), section.denominator.answered);
+  // The school's calendar decides the month: 04:30 UTC on 1 Oct is still 30 Sep at school.
+  const lateEvening = buildWorkPatternSignals({
+    signals: [signal('L3', 1, 'pasted', { partIndex: 0, recordedAt: Date.UTC(2026, 8, 30, 20) })],
+    questions: [{ ...model.questions.find((row) => row.assignmentId === 'L3' && row.storageIndex === 1), lastAttemptAtMs: Date.UTC(2026, 9, 1, 4, 30) }],
+    assignments: model.assignments,
+  });
+  assert.deepEqual(lateEvening.byMonth.map((row) => [row.key, row.answered, row.questionsWithSignal]), [['2026-09', 1, 1]]);
+  const tab = executableSource(read('src/components/teacher/caseReview/CaseSignalsTab.jsx'));
+  assert.match(tab, /<table className="cr-table" aria-label="Signals by month" data-case-signal-months>/);
+  assert.match(tab, /<p className="cr-note" data-case-signal-denominator>\{section\.denominator\.words\}<\/p>/);
+});
+
+test('when the window held more signals than were loaded, the section says so', () => {
+  const capped = buildStudentCaseReview({ ...caseInputs(), attemptSignals: SIGNALS, attemptSignalsMeta: { firstRecordedAtMs: RECORDED_SINCE, capped: true, max: 500 } }).workPatterns;
+  assert.equal(capped.capped, true);
+  assert.equal(capped.cappedNote, 'Only the newest 500 signals in this window were loaded; older ones in the window are not counted here.');
+  assert.equal(capped.lines[0], capped.cappedNote);
+  assert.deepEqual([section.capped, section.cappedNote], [false, '']);
+  assert.match(executableSource(read('src/components/teacher/caseReview/CaseSignalsTab.jsx')), /\{section\.capped && <p className="cr-note" role="status" data-case-signals-capped>\{section\.cappedNote\}<\/p>\}/);
+});
+
+test('the loader asks for the case\'s own window, one past the cap, and the earliest signal on record', async () => {
+  const calls = [];
+  const stamp = (ms) => ({ toMillis: () => ms });
+  const docs = (rows) => ({ docs: rows.map((row) => ({ id: row.id, data: () => row })) });
+  const store = {
+    collection: (db, ...segments) => segments.join('/'),
+    where: (field, op, value) => ['where', field, op, value.getTime()],
+    orderBy: (field, direction) => ['orderBy', field, direction],
+    limit: (count) => ['limit', count],
+    query: (path, ...parts) => ({ path, parts }),
+    getDocs: async (asked) => {
+      calls.push(asked);
+      const ascending = asked.parts.some((part) => part[0] === 'orderBy' && part[2] === 'asc');
+      if (ascending) return docs([{ id: 'first', recordedAt: stamp(1000) }]);
+      const max = asked.parts.find((part) => part[0] === 'limit')[1];
+      return docs(Array.from({ length: Math.min(max, 4) }, (unused, index) => ({ id: `s${index}`, recordedAt: stamp(9000 - index) })));
+    },
+  };
+  const within = await fetchAttemptSignals({ db: {}, studentId: 'S1', fromMs: 5000, toMs: 9000, max: 10, store });
+  assert.deepEqual([within.signals.length, within.capped, within.firstRecordedAtMs, within.max], [4, false, 1000, 10]);
+  assert.deepEqual(calls[0], { path: 'grades/S1/attemptSignals', parts: [['where', 'recordedAt', '>=', 5000], ['where', 'recordedAt', '<=', 9000], ['orderBy', 'recordedAt', 'desc'], ['limit', 11]] });
+  assert.deepEqual(calls[1], { path: 'grades/S1/attemptSignals', parts: [['orderBy', 'recordedAt', 'asc'], ['limit', 1]] });
+  // Four in the window with room for three: three are kept, and the page is told there were more.
+  const over = await fetchAttemptSignals({ db: {}, studentId: 'S1', fromMs: 5000, toMs: 9000, max: 3, store });
+  assert.deepEqual([over.signals.map((row) => row.id), over.capped], [['s0', 's1', 's2'], true]);
+  assert.deepEqual(await fetchAttemptSignals({ db: null, studentId: 'S1', store }), { signals: [], firstRecordedAtMs: null, capped: false, max: 500 });
+});
+
 test("the case review reads the student's signals itself, reviewed ones included, and degrades to not loaded", () => {
   const store = executableSource(read('src/platform/caseReview/caseReviewStore.js'));
   const fetch = region(store, 'export const fetchAttemptSignals', '};', 'fetchAttemptSignals');
-  assert.match(fetch, /query\(collection\(db, 'grades', id, 'attemptSignals'\), orderBy\('recordedAt', 'desc'\), limit\(max\)\)/);
-  assert.doesNotMatch(fetch, /dismissedAt|where\(/, 'reviewed signals are read too');
-  assert.match(store, /attemptSignals: signals\.status === 'fulfilled' \? signals\.value : undefined,/);
+  assert.doesNotMatch(fetch, /dismissedAt/, 'reviewed signals are read too');
+  assert.match(store, /fetchAttemptSignals\(\{ db, studentId, fromMs: window\.fromMs, toMs: window\.toMs \}\),/);
+  assert.match(store, /attemptSignals: signals\.status === 'fulfilled' \? signals\.value\.signals : undefined,/);
+  assert.match(store, /attemptSignalsMeta: signals\.status === 'fulfilled' \? \{ firstRecordedAtMs: signals\.value\.firstRecordedAtMs, capped: signals\.value\.capped, max: signals\.value\.max \} : null,/);
+  assert.match(executableSource(read('src/components/teacher/caseReview/StudentCaseReviewView.jsx')), /attemptSignalsMeta: records\.attemptSignalsMeta,/);
   assert.match(executableSource(read('src/components/teacher/caseReview/StudentCaseReviewView.jsx')), /attemptSignals: records\.attemptSignals,/);
 });

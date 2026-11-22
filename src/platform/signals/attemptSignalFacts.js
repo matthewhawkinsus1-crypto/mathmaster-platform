@@ -23,8 +23,8 @@
 // teacher reads is src/platform/teacher/attemptSignalsView.js.
 
 import { normalizeStudentProfile } from '../../studentSupport.js';
-import { translationLanguageOf } from '../../../functions/shared/supportProfileModel.mjs';
-import { SUPPORT_CATALOG } from '../../../functions/shared/supportCatalog.mjs';
+import { derivedSupportIds, resolveEffectiveSupportPlan, supportAppliesToRole, translationLanguageOf } from '../../../functions/shared/supportProfileModel.mjs';
+import { INCLUSION_IMPLIED_SUPPORT_IDS, SUPPORT_CATALOG } from '../../../functions/shared/supportCatalog.mjs';
 import { lastPlatformLinkAt } from './signalPageNotes.js';
 
 export const ATTEMPT_SIGNAL_KIND = Object.freeze({
@@ -59,7 +59,7 @@ export const MAX_ATTEMPT_NUMBER = 99;
 // The supports a signal may name beside it: the catalog's own ids, and no
 // more of them than the catalog holds (firestore.rules lists the same ids).
 export const ATTEMPT_SIGNAL_SUPPORT_IDS = Object.freeze(SUPPORT_CATALOG.map((entry) => entry.id));
-export const MAX_SIGNAL_SUPPORTS = 40;
+export const MAX_SIGNAL_SUPPORTS = ATTEMPT_SIGNAL_SUPPORT_IDS.length;
 export const ATTEMPT_SIGNAL_ROLES = Object.freeze(['warmup', 'classwork', 'dol', 'practice', 'quiz', 'test', 'review', 'corrections']);
 
 const list = (value) => (Array.isArray(value) ? value : []);
@@ -102,16 +102,30 @@ export const exemptAttemptSignalKinds = (profile, { nowValue = Date.now() } = {}
 };
 
 /**
- * The accommodations, modifications and services in effect for this student
- * today, as catalog ids: stored beside each signal, so whoever reads it later
- * reads it with the supports the attempt was made under.
+ * The supports in effect for this student, on this kind of activity, today, as
+ * catalog ids: stored beside each signal, so whoever reads it later reads it
+ * with the supports the attempt was made under.
+ *
+ * "In effect" is the support plan's own answer (supportProfileModel.mjs):
+ *   - a support limited to some activities (`appliesTo`) is named only on
+ *     those: extra time on the DOL alone is not in effect on Classwork;
+ *   - the supports inclusion brings with it are in effect for a student whose
+ *     plan says inclusion, though no entry names them;
+ *   - a translation language on the plan is the translation tool.
+ * With no `activityRole`, every support on the plan is named. The list is
+ * never cut short: it cannot hold more ids than the catalog has
+ * (MAX_SIGNAL_SUPPORTS is the catalog's size, and firestore.rules allows as many).
  */
-export const supportsInEffect = (profile, { nowValue = Date.now() } = {}) => {
-  const normalized = normalizeStudentProfile(profile || {}, { nowValue });
+export const supportsInEffect = (profile, { nowValue = Date.now(), activityRole = null } = {}) => {
+  const plan = resolveEffectiveSupportPlan(profile || {}, { nowValue });
   const known = new Set(ATTEMPT_SIGNAL_SUPPORT_IDS);
-  const ids = new Set([...list(normalized.accommodations), ...list(normalized.modifications)].map(clean).filter((id) => known.has(id)));
-  if (translationLanguageOf(normalized.translationLanguage) && known.has('translation')) ids.add('translation');
-  return [...ids].sort().slice(0, MAX_SIGNAL_SUPPORTS);
+  const entries = [...list(plan.accommodations), ...list(plan.modifications)].map((entry) => clean(typeof entry === 'object' ? entry?.id : entry));
+  const ids = new Set([
+    ...entries,
+    ...derivedSupportIds(plan),
+    ...(plan.inclusionStatus === true ? INCLUSION_IMPLIED_SUPPORT_IDS : []),
+  ].filter((id) => known.has(id) && supportAppliesToRole(plan, id, activityRole)));
+  return [...ids].sort();
 };
 
 /** The question's authored difficulty band, 0 when it has none. */
@@ -272,13 +286,17 @@ export const createAttemptSignalTracker = ({ clock = sharedPageAwayClock(), now 
 
     /**
      * A paste into a math answer field, by the part it landed in. Null when
-     * the clipboard holds what was just copied from this page.
+     * the clipboard holds what was just copied from this page, and null for a
+     * part past the last one a record can name (MAX_PART_INDEX): a fact that
+     * named the wrong part, or two parts filed as one, would not be a fact.
      */
     pasteFact({ partIndex = 0, attemptNumber = 1 } = {}) {
       if (clock.clipboardIsFromPage?.()) return null;
+      const part = Math.floor(Number(partIndex));
+      if (!Number.isFinite(part) || part < 0 || part > MAX_PART_INDEX) return null;
       return {
         kind: ATTEMPT_SIGNAL_KIND.PASTED,
-        partIndex: clampInt(partIndex, 0, MAX_PART_INDEX),
+        partIndex: part,
         attemptNumber: clampInt(attemptNumber, 1, MAX_ATTEMPT_NUMBER),
       };
     },

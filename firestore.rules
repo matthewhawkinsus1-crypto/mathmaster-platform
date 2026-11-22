@@ -172,20 +172,29 @@ service cloud.firestore {
           'warmup', 'classwork', 'dol', 'practice', 'quiz', 'test', 'review', 'corrections'
         ])
         && (!d.keys().hasAny(['duringClass']) || d.duringClass is bool)
-        && (!d.keys().hasAny(['supports']) || (d.supports is list && d.supports.size() <= 40
+        && (!d.keys().hasAny(['supports']) || (d.supports is list && d.supports.size() <= 50
           && d.supports.toSet().hasOnly(attemptSignalSupportIds())));
     }
 
-    // The assignment is a real one, given to this student (their class, or to
-    // them individually: src/assignmentLifecycle.js assignmentIsForStudent),
-    // and the question is one of its own. A made-up id or position cannot be
-    // used to fill a student's record with facts.
+    // The assignment is a real one, given to this student, and the question
+    // is one of its own. A made-up id or position cannot be used to fill a
+    // student's record with facts. "Given to this student" is the same
+    // server-owned proof an assignment read asks for
+    // (studentRosterGrantsAssignment below): their roster class is one the
+    // assignment is assigned to; or the assignment is in their own
+    // `gradesByAssignment` (work they already hold on it, as after a move to
+    // another class); or it is in their `testCycleGrades` (a Test they were
+    // added to on their own). A student writes none of the three. No stored
+    // assignment carries a per-student mark: the device's own
+    // `assignedToStudentIndividually` is display only and is not read here.
     function attemptSignalAssignmentValid(studentId, d) {
       let assignment = get(/databases/$(database)/documents/assignments/$(d.assignmentId)).data;
       let roster = get(/databases/$(database)/documents/grades/$(studentId)).data;
       return exists(/databases/$(database)/documents/assignments/$(d.assignmentId))
-        && (assignment.get('assignedToStudentIndividually', false) == true
-          || assignment.get('assignedClassIds', []).hasAny([roster.get('classId', '')]))
+        && ((roster.get('classId', '') is string && roster.get('classId', '') != ''
+            && assignment.get('assignedClassIds', []).hasAny([roster.get('classId', '')]))
+          || d.assignmentId in roster.get('gradesByAssignment', {})
+          || d.assignmentId in roster.get('testCycleGrades', {}))
         && d.questionIndex < assignmentQuestionCount(assignment);
     }
 

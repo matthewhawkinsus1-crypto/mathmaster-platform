@@ -16,6 +16,7 @@ import {
   ATTEMPT_SIGNAL_KIND,
   ATTEMPT_SIGNAL_SUPPORT_IDS,
   MAX_AWAY_MS,
+  MAX_SIGNAL_SUPPORTS,
   MIN_AWAY_MS,
   PLATFORM_LINK_GRACE_MS,
   RETURN_WINDOW_MS,
@@ -28,6 +29,9 @@ import {
   exemptAttemptSignalKinds,
   questionDifficultyBand,
 } from '../../src/platform/signals/attemptSignalFacts.js';
+import { CLASS_TIME_UNKNOWN, SCHOOL_TIME_ZONE, classTimeFact, scheduleHasPeriods } from '../../src/platform/signals/classTimeFact.js';
+import { DEFAULT_CLASS_SCHEDULE } from '../../functions/shared/classSchedule.mjs';
+import { INCLUSION_IMPLIED_SUPPORT_IDS } from '../../functions/shared/supportCatalog.mjs';
 import { factsAfterSavedWork, pastedPartIndex } from '../../src/platform/signals/useAttemptSignals.js';
 import { attemptSignalCount, recordAttemptSignal, resetAttemptSignalWriter } from '../../src/platform/signals/attemptSignalWriter.js';
 import { lastPlatformLinkAt, notePlatformLinkOpened, resetSignalPageNotes } from '../../src/platform/signals/signalPageNotes.js';
@@ -209,7 +213,7 @@ test('where a paste landed: a marked answer box by its part, a lone math box on 
   // kind, a table's blank cell its position.
   const read = (file) => executableSource(readFileSync(new URL(`../../${file}`, import.meta.url), 'utf8'));
   assert.match(read('src/MultiAnswerGrader.jsx'), /data-answer-box-index=\{safeFields\.indexOf\(field\)\} data-answer-box-kind=\{shouldUsePlainTextInput\(field\) \? 'text' : undefined\}/);
-  assert.match(read('src/TableGrader.jsx'), /<td key=\{answerKey\} data-answer-box-index=\{isBlank \? rowIndex \* columns\.length \+ columnIndex : undefined\}/);
+  assert.match(read('src/TableGrader.jsx'), /<td key=\{answerKey\} data-answer-box-index=\{isBlank \? blankOrder\.indexOf\(answerKey\) : undefined\}/);
 });
 
 test('the stored record is positions and counts: no response, no pasted text, no unknown key', () => {
@@ -437,6 +441,138 @@ test('beside each fact: in the class\'s scheduled time or not, and the supports 
   assert.deepEqual(supportsInEffect(null), []);
 });
 
+test('the supports in effect are the plan\'s own answer: for this activity, with what inclusion brings, and never cut short', () => {
+  const plan = (revision) => ({ supportPlan: { schemaVersion: 1, windows: [{ revisionId: 'r1', revision: 1, status: 'active', effectiveStart: '2026-08-01', effectiveEnd: null, inclusionStatus: false, accommodations: [], modifications: [], translationLanguage: null, ...revision }] } });
+  const nowValue = Date.parse('2026-11-18T16:00:00Z');
+  // A support limited to some activities is named only on those.
+  const dolOnly = plan({ accommodations: [{ id: 'extra-time', params: {}, appliesTo: ['dol'] }, { id: 'calculator', params: {}, appliesTo: [] }] });
+  assert.deepEqual(supportsInEffect(dolOnly, { nowValue, activityRole: 'dol' }), ['calculator', 'extra-time']);
+  assert.deepEqual(supportsInEffect(dolOnly, { nowValue, activityRole: 'classwork' }), ['calculator'], 'extra time on the DOL alone is not in effect on Classwork');
+  assert.deepEqual(supportsInEffect(dolOnly, { nowValue }), ['calculator', 'extra-time'], 'with no activity named, every support on the plan');
+  // Inclusion brings its own supports, though no entry names them.
+  const inclusion = plan({ inclusionStatus: true, accommodations: [{ id: 'calculator', params: {}, appliesTo: [] }] });
+  assert.deepEqual(supportsInEffect(inclusion, { nowValue, activityRole: 'classwork' }), [...INCLUSION_IMPLIED_SUPPORT_IDS, 'calculator'].sort());
+  assert.deepEqual(supportsInEffect({ inclusionStatus: true, accommodations: [] }, { nowValue }), [...INCLUSION_IMPLIED_SUPPORT_IDS].sort(), 'and on a profile from before support plans');
+  // A plan not in effect today names nothing.
+  assert.deepEqual(supportsInEffect(plan({ status: 'inactive', accommodations: [{ id: 'calculator', params: {}, appliesTo: [] }] }), { nowValue }), []);
+  // Never cut short: a student with every support in the catalog has every one named, and the rules allow as many.
+  const everything = { accommodations: [...ATTEMPT_SIGNAL_SUPPORT_IDS] };
+  assert.equal(supportsInEffect(everything, { nowValue }).length, ATTEMPT_SIGNAL_SUPPORT_IDS.length);
+  assert.equal(MAX_SIGNAL_SUPPORTS, ATTEMPT_SIGNAL_SUPPORT_IDS.length);
+  const record = buildAttemptSignalRecord({ studentId: 'S1', assignmentId: 'a-1', questionIndex: 0, fact: { kind: ATTEMPT_SIGNAL_KIND.PASTED, partIndex: 0, attemptNumber: 1 }, supports: supportsInEffect(everything, { nowValue }) });
+  assert.equal(record.supports.length, ATTEMPT_SIGNAL_SUPPORT_IDS.length);
+  const rules = readFileSync(new URL('../../firestore.rules', import.meta.url), 'utf8');
+  const cap = Number(/d\.supports is list && d\.supports\.size\(\) <= (\d+)/.exec(rules)?.[1]);
+  assert.ok(cap >= ATTEMPT_SIGNAL_SUPPORT_IDS.length, `firestore.rules allows ${cap} supports beside a signal; the catalog has ${ATTEMPT_SIGNAL_SUPPORT_IDS.length}`);
+});
+
+test('the writer names the supports for the activity the fact was on', async () => {
+  const writes = [];
+  const store = { doc: (_db, ...segments) => segments.join('/'), serverTimestamp: () => 'T', setDoc: async (path, data) => { writes.push(data); } };
+  resetAttemptSignalWriter();
+  const fact = { kind: ATTEMPT_SIGNAL_KIND.PASTED, partIndex: 0, attemptNumber: 1 };
+  const profile = { supportPlan: { schemaVersion: 1, windows: [{ revisionId: 'r1', revision: 1, status: 'active', effectiveStart: '2020-01-01', effectiveEnd: null, inclusionStatus: false, accommodations: [{ id: 'extra-time', params: {}, appliesTo: ['dol'] }], modifications: [], translationLanguage: null }] } };
+  await recordAttemptSignal({ db: {}, studentId: 'S_R', assignmentId: 'a-r', questionIndex: 0, activityRole: 'classwork', fact, profile, store });
+  await recordAttemptSignal({ db: {}, studentId: 'S_R', assignmentId: 'a-r', questionIndex: 1, activityRole: 'dol', fact, profile, store });
+  assert.deepEqual(writes.map((write) => write.supports), [[], ['extra-time']]);
+  resetAttemptSignalWriter();
+});
+
+// The bell schedule answers in class or outside it, or cannot say. Each case
+// below was stored as "outside class time" before.
+const PERIODS_ON = (periods) => Object.fromEntries(Object.entries(periods).map(([period, [start, end]]) => [period, { enabled: true, start, end }]));
+const SAVED_SCHEDULE = {
+  version: 2,
+  daySchedules: { A: { periods: PERIODS_ON({ 'Period 3': ['10:00', '10:50'] }) }, B: { periods: PERIODS_ON({ 'Period 3': ['13:00', '13:50'], 'Period 4': ['14:00', '14:50'] }) } },
+};
+// School time (America/Chicago, CST = UTC-6): Wed 18 Nov 2026 is an A day, Thu 19 a B day, Fri 20 not chosen.
+const chicago = (date, time) => Date.parse(`${date}T${time}:00-06:00`);
+const NO_CLOSED_DAYS = new Set();
+const inClass = (overrides) => classTimeFact({ schedule: SAVED_SCHEDULE, classPeriod: 'Period 3', nonInstructionalKeys: NO_CLOSED_DAYS, ...overrides });
+
+test('class time, where the schedule answers: inside the period, outside it, a weekend, a closed day', () => {
+  assert.deepEqual(inClass({ nowValue: chicago('2026-11-18', '10:20') }), { duringClass: true, reason: '' });
+  assert.deepEqual(inClass({ nowValue: chicago('2026-11-18', '19:30') }), { duringClass: false, reason: '' });
+  assert.deepEqual(inClass({ nowValue: chicago('2026-11-19', '13:10') }), { duringClass: true, reason: '' }, 'the B day\'s own times');
+  assert.deepEqual(inClass({ nowValue: chicago('2026-11-21', '10:20') }), { duringClass: false, reason: '' }, 'a Saturday: no class meets');
+  assert.deepEqual(inClass({ nowValue: chicago('2026-11-18', '10:20'), nonInstructionalKeys: new Set(['2026-11-18']) }), { duringClass: false, reason: '' }, 'a day the calendar marks closed');
+});
+
+test('class time not known (a): no schedule has been loaded or saved', () => {
+  // The app starts on DEFAULT_CLASS_SCHEDULE, every period off, until settings/classSchedule arrives.
+  for (const schedule of [DEFAULT_CLASS_SCHEDULE, null, undefined, {}]) {
+    assert.deepEqual(classTimeFact({ schedule, classPeriod: 'Period 3', nowValue: chicago('2026-11-18', '19:30'), nonInstructionalKeys: NO_CLOSED_DAYS }), { duringClass: null, reason: CLASS_TIME_UNKNOWN.NO_SCHEDULE });
+  }
+  assert.equal(scheduleHasPeriods(DEFAULT_CLASS_SCHEDULE), false);
+  assert.equal(scheduleHasPeriods(SAVED_SCHEDULE), true);
+});
+
+test('class time not known (b): a Friday whose A/B day has not been chosen', () => {
+  assert.deepEqual(inClass({ nowValue: chicago('2026-11-20', '10:20') }), { duringClass: null, reason: CLASS_TIME_UNKNOWN.DAY_TYPE_NOT_SET });
+  // Once the teacher chooses the day, or the date has its own bell schedule, the schedule answers.
+  assert.equal(inClass({ schedule: { ...SAVED_SCHEDULE, dayTypeOverrides: { '2026-11-20': 'A' } }, nowValue: chicago('2026-11-20', '10:20') }).duringClass, true);
+  assert.equal(inClass({ schedule: { ...SAVED_SCHEDULE, modifiedSchedules: { '2026-11-20': { periods: PERIODS_ON({ 'Period 3': ['09:00', '09:30'] }) } } }, nowValue: chicago('2026-11-20', '10:20') }).duringClass, false);
+});
+
+test('class time not known (c): the school\'s clock decides, whatever time zone the device is set to', () => {
+  // 10:20 at school is 16:20 UTC. A device set to another zone hands over the
+  // same instant, and the answer is the same: the fact reads no device clock.
+  const now = chicago('2026-11-18', '10:20');
+  assert.equal(SCHOOL_TIME_ZONE, 'America/Chicago');
+  assert.equal(inClass({ nowValue: now }).duringClass, true);
+  for (const deviceZone of ['Asia/Tokyo', 'UTC', 'America/Los_Angeles']) {
+    const before = process.env.TZ;
+    process.env.TZ = deviceZone;
+    try {
+      assert.equal(inClass({ nowValue: now }).duringClass, true, `in class at school, on a device set to ${deviceZone}`);
+      // 23:30 at school on Wednesday is already Thursday in Tokyo: still Wednesday's schedule.
+      assert.deepEqual(inClass({ nowValue: chicago('2026-11-18', '23:30') }), { duringClass: false, reason: '' });
+    } finally { if (before === undefined) delete process.env.TZ; else process.env.TZ = before; }
+  }
+  const source = executableSource(readFileSync(new URL('../../src/platform/signals/classTimeFact.js', import.meta.url), 'utf8'));
+  assert.doesNotMatch(source, /getPeriodWindow|localDateKey|getHours\(|getDay\(\)/, 'no device-clock reading of the schedule');
+});
+
+test('class time not known (d): the student\'s period is missing, or is not on that day\'s schedule', () => {
+  // Period 4 meets on B days only: on an A day the schedule has no time for it.
+  assert.deepEqual(inClass({ classPeriod: 'Period 4', nowValue: chicago('2026-11-18', '14:10') }), { duringClass: null, reason: CLASS_TIME_UNKNOWN.PERIOD_NOT_ON_SCHEDULE });
+  assert.equal(inClass({ classPeriod: 'Period 4', nowValue: chicago('2026-11-19', '14:10') }).duringClass, true);
+  // A period switched off, or with no times.
+  const off = { ...SAVED_SCHEDULE, daySchedules: { ...SAVED_SCHEDULE.daySchedules, A: { periods: { 'Period 3': { enabled: false, start: '10:00', end: '10:50' }, 'Period 5': { enabled: true, start: '11:00', end: '11:50' } } } } };
+  assert.deepEqual(inClass({ schedule: off, nowValue: chicago('2026-11-18', '10:20') }), { duringClass: null, reason: CLASS_TIME_UNKNOWN.PERIOD_NOT_ON_SCHEDULE });
+  // No period on the student's row at all.
+  for (const classPeriod of [null, '', '  ']) assert.deepEqual(inClass({ classPeriod, nowValue: chicago('2026-11-18', '10:20') }), { duringClass: null, reason: CLASS_TIME_UNKNOWN.NO_PERIOD });
+});
+
+test('the writer stores in class or outside it only when the schedule answers; otherwise nothing', async () => {
+  const writes = [];
+  const store = { doc: (_db, ...segments) => segments.join('/'), serverTimestamp: () => 'T', setDoc: async (path, data) => { writes.push(data); } };
+  resetAttemptSignalWriter();
+  const fact = { kind: ATTEMPT_SIGNAL_KIND.PASTED, partIndex: 0, attemptNumber: 1 };
+  const send = (questionIndex, classTime) => recordAttemptSignal({ db: {}, studentId: 'S_T', assignmentId: 'a-t', questionIndex, fact, classTime, profile: null, store });
+  await send(0, { schedule: SAVED_SCHEDULE, classPeriod: 'Period 3', at: chicago('2026-11-18', '10:20') });
+  await send(1, { schedule: SAVED_SCHEDULE, classPeriod: 'Period 3', at: chicago('2026-11-18', '19:30') });
+  await send(2, { schedule: DEFAULT_CLASS_SCHEDULE, classPeriod: 'Period 3', at: chicago('2026-11-18', '19:30') });
+  await send(3, { schedule: SAVED_SCHEDULE, classPeriod: 'Period 3', at: chicago('2026-11-20', '19:30') });
+  await send(4, { schedule: SAVED_SCHEDULE, classPeriod: 'Period 4', at: chicago('2026-11-18', '19:30') });
+  await send(5, { schedule: SAVED_SCHEDULE, classPeriod: null, at: chicago('2026-11-18', '19:30') });
+  assert.deepEqual(writes.map((write) => ('duringClass' in write ? write.duringClass : 'not stored')), [true, false, 'not stored', 'not stored', 'not stored', 'not stored']);
+  resetAttemptSignalWriter();
+});
+
+test('a paste is filed under the part it landed in, or not at all', () => {
+  const tracker = createAttemptSignalTracker({ clock: createPageAwayClock({ now: () => 0 }) });
+  assert.equal(tracker.pasteFact({ partIndex: 49 }).partIndex, 49);
+  // Past the last part a record can name: no fact, rather than part 50's
+  // document standing for parts 51 and 60 as well.
+  for (const partIndex of [50, 60, 999]) assert.equal(tracker.pasteFact({ partIndex }), null);
+  // A table's boxes are numbered among the boxes the student fills, in reading order.
+  const table = executableSource(readFileSync(new URL('../../src/TableGrader.jsx', import.meta.url), 'utf8'));
+  assert.match(table, /const blankOrder = rows\.flatMap\(\(row, rowIndex\) => columns\.map\(\(column\) => `\$\{rowIndex\}:\$\{column\.key\}`\)\)\s*\.filter\(\(answerKey\) => Object\.prototype\.hasOwnProperty\.call\(answers, answerKey\) \|\| blanks\.includes\(answerKey\)\);/);
+  assert.match(table, /<td key=\{answerKey\} data-answer-box-index=\{isBlank \? blankOrder\.indexOf\(answerKey\) : undefined\}/);
+  assert.doesNotMatch(table, /rowIndex \* columns\.length/);
+});
+
 test('the rules list the same support ids as the catalog', () => {
   const rules = readFileSync(new URL('../../firestore.rules', import.meta.url), 'utf8');
   const listed = region(rules, 'function attemptSignalSupportIds() {', '];', 'the rules\' support ids').match(/'([a-z0-9-]+)'/g).map((id) => id.slice(1, -1));
@@ -457,7 +593,11 @@ test('a fact belongs to the question its engine was showing, not the one the stu
   const record = region(view, ': (fact, at) => {', "void import('../../platform/signals/attemptSignalWriter.js')", 'the recorder');
   assert.match(record, /questionIndex: Number\.isInteger\(at\?\.questionIndex\) \? at\.questionIndex : currentQuestionIndex,/, 'question 1 (index 0) is a place, not a missing one');
   assert.match(record, /activityRole: at\?\.activityRole \?\? runtimeActivityRole,/);
-  assert.match(record, /duringClass: classSchedule && user\.classPeriod \? studentClassInSession\(\{ schedule: classSchedule, classPeriod: user\.classPeriod, nowValue: Date\.now\(\) \}\) : null,/);
+  // The schedule, the period and the moment, as of the fact: the recorder
+  // answers in class, outside it, or not known (classTimeFact.js). The screen
+  // itself says neither, so a schedule that cannot say is never "outside".
+  assert.match(record, /classTime: \{ schedule: classSchedule, classPeriod: user\.classPeriod \|\| null, at: Date\.now\(\) \},/);
+  assert.doesNotMatch(record, /duringClass|studentClassInSession/);
   assert.match(record, /profile: user\.profile \|\| null,/);
   assert.match(view, /attemptSignalContext=\{renderMemo\('attemptSignalContext', \[currentQuestionIndex, runtimeActivityRole\], \(\) => \(\{ questionIndex: currentQuestionIndex, activityRole: runtimeActivityRole \}\)\)\}/);
 });

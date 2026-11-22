@@ -1,3 +1,4 @@
+import { TEACHER_NOTE_HEADING } from '../../../platform/teacher/attemptSignalsView.js';
 import { EmptyNote, pct, when } from './CaseReviewParts.jsx';
 
 /*
@@ -32,8 +33,9 @@ export default function CaseSignalsTab({ model, onOpenQuestion = null }) {
         {section.total ? (
           <ul className="cr-lines" data-case-signal-lines>{section.lines.map((line) => <li key={line}>{line}</li>)}</ul>
         ) : (
-          <EmptyNote>No signal is recorded on the {section.answeredQuestions} question{section.answeredQuestions === 1 ? '' : 's'} answered in this window.</EmptyNote>
+          <EmptyNote>No signal is recorded in this window. {section.denominator.words}</EmptyNote>
         )}
+        {section.capped && <p className="cr-note" role="status" data-case-signals-capped>{section.cappedNote}</p>}
       </section>
 
       {section.total > 0 && (
@@ -57,6 +59,28 @@ export default function CaseSignalsTab({ model, onOpenQuestion = null }) {
               </table>
             </div>
           </section>
+
+          {section.byMonth.length > 0 && (
+            <section className="cr-section" aria-labelledby="cr-signals-months">
+              <h2 id="cr-signals-months">Month by month</h2>
+              <div className="cr-scroll-x" role="region" aria-label="Signals by month" tabIndex={0}>
+                <table className="cr-table" aria-label="Signals by month" data-case-signal-months>
+                  <thead><tr><th>Month</th><th>Answers counted</th><th>Answers with a signal</th>{KIND_COLUMNS.map((column) => <th key={column.kind}>{column.label}</th>)}</tr></thead>
+                  <tbody>
+                    {section.byMonth.map((row) => (
+                      <tr key={row.key}>
+                        <td>{row.label}</td>
+                        <td className="cr-num">{row.answered}</td>
+                        <td className="cr-num">{row.questionsWithSignal} of {row.answered}{row.share === null ? '' : ` (${row.share}%)`}</td>
+                        {KIND_COLUMNS.map((column) => <td key={column.kind} className="cr-num">{row.byKind[column.kind] || 0}</td>)}
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              <p className="cr-note" data-case-signal-denominator>{section.denominator.words}</p>
+            </section>
+          )}
 
           <section className="cr-section" aria-labelledby="cr-signals-marking">
             <h2 id="cr-signals-marking">How the questions were marked</h2>
@@ -90,8 +114,8 @@ export default function CaseSignalsTab({ model, onOpenQuestion = null }) {
               </table>
             </div>
             <p className="cr-note">
-              Class time, as each record says: {section.classTime.during} during the class&apos;s scheduled time, {section.classTime.outside} outside it
-              {section.classTime.notRecorded ? `, ${section.classTime.notRecorded} not recorded` : ''}. The DOL and instructional sections are compared on the &ldquo;DOL vs instruction&rdquo; tab.
+              Class time, as each record says: {section.classTime.during} during the class&apos;s scheduled time, {section.classTime.outside} outside it, {section.classTime.notKnown} not known
+              (the bell schedule could not say). The DOL and instructional sections are compared on the &ldquo;DOL vs instruction&rdquo; tab.
             </p>
           </section>
 
@@ -112,11 +136,11 @@ export default function CaseSignalsTab({ model, onOpenQuestion = null }) {
                         {entry.partIndex === null ? '' : ` · part ${entry.partIndex + 1}`}
                       </td>
                       <td><strong>{entry.title}</strong> <span className="cr-note">({section.notConclusive.toLowerCase()})</span><br />{entry.facts}</td>
-                      <td>{[entry.classTime || 'Class time not recorded', entry.supports || 'Supports not recorded'].join(' · ')}</td>
+                      <td>{[entry.classTime, entry.supports || 'Supports not recorded'].join(' · ')}</td>
                       <td>{entry.outcomeLabel || '—'}</td>
                       <td>
                         {entry.reviewed
-                          ? <>Reviewed{entry.reviewedBy ? ` by ${entry.reviewedBy}` : ''}{entry.reviewedAtMs ? ` · ${when(entry.reviewedAtMs)}` : ''}{entry.reviewNote ? <><br /><em>Teacher note:</em> {entry.reviewNote}</> : null}</>
+                          ? <>Reviewed{entry.reviewedBy ? ` by ${entry.reviewedBy}` : ''}{entry.reviewedAtMs ? ` · ${when(entry.reviewedAtMs)}` : ''}{entry.reviewNote ? <><br /><span data-teacher-note="" title={entry.reviewNoteLabel}><em>{TEACHER_NOTE_HEADING}:</em> {entry.reviewNote}</span></> : null}</>
                           : 'Not yet reviewed'}
                       </td>
                     </tr>

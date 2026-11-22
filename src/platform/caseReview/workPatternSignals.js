@@ -20,7 +20,7 @@
  * the case's own question rows (attemptAnalysis.js). Pure: no Firestore.
  */
 import {
-  ATTEMPT_SIGNAL_PHRASE, ATTEMPT_SIGNAL_TITLE, NOT_CONCLUSIVE, describeAttemptSignal,
+  ATTEMPT_SIGNAL_PHRASE, ATTEMPT_SIGNAL_TITLE, CLASS_TIME_NOT_KNOWN, NOT_CONCLUSIVE, TEACHER_NOTE_HEADING, TEACHER_NOTE_LABEL, describeAttemptSignal,
 } from '../teacher/attemptSignalsView.js';
 import { ATTEMPT_SIGNAL_KINDS } from '../signals/attemptSignalFacts.js';
 import { CASE_PROVENANCE } from './caseProvenance.js';
@@ -31,7 +31,9 @@ export const WORK_PATTERN_NOTE = 'Facts recorded about attempts: not findings, a
 export const WORK_PATTERN_LIMITATIONS = Object.freeze([
   'Signals are recorded on the student\'s classroom assignments (credit work) from the date the feature was released. Earlier work, post-deadline practice, Recovery, My Math Path and secure Tests have none, so a question with no signal is not a question where nothing happened.',
   'A signal records a position and counts. What was typed or pasted, and what the student did while the page was hidden, are not recorded and cannot be known from it.',
-  '"During the class\'s scheduled time" is the bell schedule, not attendance or a location.',
+  '"During the class\'s scheduled time" is the bell schedule, not attendance or a location. Where the schedule could not say (no schedule saved yet, a Friday whose A/B day was not chosen, a period not on that day\'s schedule) the record reads "Class time not known", never "outside".',
+  'Counts are out of the answered questions where a signal could have been recorded: the Warm-Up, Classwork, Practice and DOL questions of classroom assignments, last answered on or after the first signal on record for this student. Answers before that date, and answers with no recorded time, are left out of the count rather than read as "no signal".',
+  'A reviewing teacher\'s note is the teacher\'s own words. It is labelled as such, and no count or narrative fact is written from it.',
   'A support that explains a pattern raises no signal of that kind (read aloud, translation, the glossary or See every part at once for leaving the page; a word-processed response for pasting).',
 ]);
 
@@ -39,6 +41,11 @@ const list = (value) => (Array.isArray(value) ? value : []);
 const clean = (value) => String(value ?? '').trim();
 const key = (assignmentId, questionIndex) => `${clean(assignmentId)}|${Number(questionIndex)}`;
 const share = (count, of) => (of > 0 ? Math.round((count / of) * 100) : null);
+
+// Where the recorder runs: the sections of a classroom assignment worked for
+// credit. Tests, Review, Corrections, Recovery and My Math Path record none.
+export const SIGNAL_RECORDED_SECTIONS = Object.freeze(['warmup', 'classwork', 'practice', 'dol']);
+export const SIGNAL_LIST_CAP_NOTE = (max) => `Only the newest ${max} signals in this window were loaded; older ones in the window are not counted here.`;
 
 const ANSWERED = (row) => Number(row?.totalAttempts) > 0
   && ![QUESTION_OUTCOME.NOT_ATTEMPTED, QUESTION_OUTCOME.SKIPPED, QUESTION_OUTCOME.NOT_REQUIRED].includes(row?.outcome);
@@ -70,6 +77,10 @@ const marking = (rows) => {
  */
 export const buildWorkPatternSignals = ({
   signals = undefined, questions = [], assignments = [], fromMs = null, toMs = null, timeZone = 'America/Chicago',
+  // What the load knows beyond the list: `firstRecordedAtMs`, the student's
+  // earliest signal on record (any date), and `capped`/`max` when the window
+  // held more signals than were loaded (caseReviewStore.js).
+  signalsMeta = null,
 } = {}) => {
   const loaded = Array.isArray(signals);
   const titles = new Map(list(assignments).map((entry) => [clean(entry.assignmentId), { title: clean(entry.title) }]));
@@ -95,7 +106,39 @@ export const buildWorkPatternSignals = ({
     })
     .sort((a, b) => a.recordedAtMs - b.recordedAtMs || a.assignmentId.localeCompare(b.assignmentId) || a.questionIndex - b.questionIndex || a.kind.localeCompare(b.kind));
 
-  const answeredRows = list(questions).filter(ANSWERED);
+  // THE DENOMINATOR. Only an answer where a signal could have been recorded
+  // counts: a section the recorder runs on, not Recovery, last answered on or
+  // after the first signal on record for this student. Everything else is
+  // left out and counted as left out, so "no signal" never includes work that
+  // was never watched.
+  const earliestLoaded = (loaded ? signals : []).map((signal) => describeAttemptSignal(signal)?.recordedAtMs || 0).filter((ms) => ms > 0);
+  const firstKnown = [Number(signalsMeta?.firstRecordedAtMs) || 0, ...earliestLoaded].filter((ms) => ms > 0);
+  const recordedSinceMs = firstKnown.length ? Math.min(...firstKnown) : null;
+  const allAnswered = list(questions).filter(ANSWERED);
+  const left = { otherSections: 0, beforeRecording: 0, noTime: 0 };
+  const answeredRows = allAnswered.filter((row) => {
+    if (!SIGNAL_RECORDED_SECTIONS.includes(row.section) || row.recoveredLate === true) { left.otherSections += 1; return false; }
+    if (recordedSinceMs === null) { left.beforeRecording += 1; return false; }
+    if (!Number.isFinite(row.lastAttemptAtMs) || row.lastAttemptAtMs === null) { left.noTime += 1; return false; }
+    if (row.lastAttemptAtMs < recordedSinceMs) { left.beforeRecording += 1; return false; }
+    return true;
+  });
+  const formatDay = (ms) => new Date(ms).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', timeZone });
+  const leftOutWords = [
+    left.beforeRecording ? `${left.beforeRecording} answered before then` : '',
+    left.otherSections ? `${left.otherSections} in Tests, Review, Corrections or Recovery` : '',
+    left.noTime ? `${left.noTime} with no recorded time` : '',
+  ].filter(Boolean);
+  const denominator = {
+    answered: answeredRows.length,
+    allAnswered: allAnswered.length,
+    sections: [...SIGNAL_RECORDED_SECTIONS],
+    recordedSinceMs,
+    leftOut: left,
+    words: recordedSinceMs === null
+      ? 'No signal is on record for this student, so there is no date from which answers can be counted.'
+      : `Counted out of ${answeredRows.length} answered Warm-Up, Classwork, Practice and DOL question${answeredRows.length === 1 ? '' : 's'}, last answered on or after ${formatDay(recordedSinceMs)} (the first signal on record for this student)${leftOutWords.length ? `. Left out: ${leftOutWords.join('; ')}` : ''}.`,
+  };
   const flaggedKeys = new Set(entries.map((entry) => key(entry.assignmentId, entry.questionIndex)));
   const flaggedRows = answeredRows.filter((row) => flaggedKeys.has(key(row.assignmentId, row.storageIndex)));
   const unflaggedRows = answeredRows.filter((row) => !flaggedKeys.has(key(row.assignmentId, row.storageIndex)));
@@ -139,24 +182,56 @@ export const buildWorkPatternSignals = ({
       };
     });
 
-  // In or outside the class's scheduled time, as each record says.
+  // Month by month (the school's calendar): the answers counted, and how many
+  // of them carry a signal. "6 of 40 answers in November."
+  const monthOf = (ms) => {
+    const parts = new Intl.DateTimeFormat('en-US', { timeZone, year: 'numeric', month: '2-digit' }).formatToParts(new Date(ms));
+    return `${parts.find((part) => part.type === 'year').value}-${parts.find((part) => part.type === 'month').value}`;
+  };
+  const monthLabel = (monthKey) => new Date(`${monthKey}-15T12:00:00Z`).toLocaleDateString('en-US', { month: 'long', year: 'numeric', timeZone: 'UTC' });
+  const monthKeys = [...new Set(answeredRows.map((row) => monthOf(row.lastAttemptAtMs)))].sort();
+  const byMonth = monthKeys.map((monthKey) => {
+    const rows = answeredRows.filter((row) => monthOf(row.lastAttemptAtMs) === monthKey);
+    const rowKeys = new Set(rows.map((row) => key(row.assignmentId, row.storageIndex)));
+    const monthEntries = entries.filter((entry) => rowKeys.has(key(entry.assignmentId, entry.questionIndex)));
+    const withSignal = new Set(monthEntries.map((entry) => key(entry.assignmentId, entry.questionIndex))).size;
+    const kinds = ATTEMPT_SIGNAL_KINDS.map((kind) => {
+      const count = new Set(monthEntries.filter((entry) => entry.kind === kind).map((entry) => key(entry.assignmentId, entry.questionIndex))).size;
+      return { kind, phrase: ATTEMPT_SIGNAL_PHRASE[kind], questions: count };
+    });
+    return {
+      key: monthKey,
+      label: monthLabel(monthKey),
+      answered: rows.length,
+      questionsWithSignal: withSignal,
+      share: share(withSignal, rows.length),
+      signals: monthEntries.length,
+      byKind: Object.fromEntries(kinds.map((row) => [row.kind, row.questions])),
+      line: `${monthLabel(monthKey)}: a signal on ${withSignal} of ${rows.length} answer${rows.length === 1 ? '' : 's'}${withSignal ? ` (${kinds.filter((row) => row.questions).map((row) => `${row.phrase} on ${row.questions}`).join('; ')})` : ''}.`,
+    };
+  });
+
+  // In or outside the class's scheduled time, as each record says. A record
+  // the bell schedule could not answer for is its own count, never "outside".
   const classTime = {
     during: entries.filter((entry) => entry.duringClass === true).length,
     outside: entries.filter((entry) => entry.duringClass === false).length,
-    notRecorded: entries.filter((entry) => entry.duringClass === null).length,
+    notKnown: entries.filter((entry) => entry.duringClass === null).length,
   };
+  const capped = loaded && signalsMeta?.capped === true;
 
   const comparison = { withSignal: marking(flaggedRows), withoutSignal: marking(unflaggedRows) };
   const lines = [];
   if (loaded && entries.length) {
+    if (capped) lines.push(SIGNAL_LIST_CAP_NOTE(signalsMeta.max));
+    lines.push(denominator.words);
     frequency.filter((row) => row.signals > 0).forEach((row) => lines.push(row.line));
     const pct = (value) => (value === null ? 'not recorded' : `${value}%`);
     if (comparison.withSignal.answered && comparison.withoutSignal.answered) {
       lines.push(`First-attempt correct: ${pct(comparison.withSignal.firstAttemptAccuracy)} on the ${comparison.withSignal.answered} answered question${comparison.withSignal.answered === 1 ? '' : 's'} with a signal, ${pct(comparison.withoutSignal.firstAttemptAccuracy)} on the ${comparison.withoutSignal.answered} without one.`);
     }
-    if (classTime.during || classTime.outside) {
-      lines.push(`${classTime.during} recorded during the class's scheduled time, ${classTime.outside} outside it${classTime.notRecorded ? `, ${classTime.notRecorded} with no class time recorded` : ''}.`);
-    }
+    if (byMonth.length > 1) byMonth.forEach((row) => lines.push(row.line));
+    lines.push(`Class time: ${classTime.during} during the class's scheduled time, ${classTime.outside} outside it, ${classTime.notKnown} ${CLASS_TIME_NOT_KNOWN.toLowerCase().replace('class time ', '')}.`);
     const reviewedCount = entries.filter((entry) => entry.reviewed).length;
     lines.push(`${reviewedCount} of ${entries.length} reviewed by a teacher; ${entries.length - reviewedCount} not yet reviewed.`);
   }
@@ -170,6 +245,10 @@ export const buildWorkPatternSignals = ({
     needsReview: entries.filter((entry) => !entry.reviewed).length,
     reviewed: entries.filter((entry) => entry.reviewed).length,
     answeredQuestions: answeredRows.length,
+    denominator,
+    byMonth,
+    capped,
+    cappedNote: capped ? SIGNAL_LIST_CAP_NOTE(signalsMeta.max) : '',
     frequency,
     comparison,
     bySection,
@@ -194,7 +273,9 @@ export const workPatternTimelineEntries = (section) => list(section?.entries)
     details: [
       { label: 'What was recorded', value: entry.facts },
       ...(entry.supports ? [{ label: 'Supports', value: entry.supports.replace(/^Supports in effect: /, '') }] : []),
-      { label: 'Review', value: entry.reviewed ? `Reviewed${entry.reviewedBy ? ` by ${entry.reviewedBy}` : ''}${entry.reviewNote ? `: ${entry.reviewNote}` : ''}` : 'Not yet reviewed' },
+      { label: 'Review', value: entry.reviewed ? `Reviewed${entry.reviewedBy ? ` by ${entry.reviewedBy}` : ''}` : 'Not yet reviewed' },
+      // The teacher's own words, under their own heading: never part of the fact.
+      ...(entry.reviewNote ? [{ label: TEACHER_NOTE_HEADING, value: entry.reviewNote, note: TEACHER_NOTE_LABEL }] : []),
     ],
   }));
 

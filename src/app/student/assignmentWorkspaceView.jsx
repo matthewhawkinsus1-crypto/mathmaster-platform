@@ -47,7 +47,6 @@ import {
 import { NO_RECORDS } from './noRecords.js';
 import { db } from '../../firebase.js';
 import { notePlatformLinkOpened } from '../../platform/signals/signalPageNotes.js';
-import { studentClassInSession } from '../../platform/supports/askTeacher.js';
 
 export function createAssignmentWorkspaceView(
   user, studentClassPoints, hasPracticePassFor, studentRequiredFor, assignmentResultRoute, activeClassroomSectionKey,
@@ -1287,7 +1286,9 @@ export function createAssignmentWorkspaceView(
                       db, studentId: user.id, assignmentId: activeAssignmentId, fact,
                       questionIndex: Number.isInteger(at?.questionIndex) ? at.questionIndex : currentQuestionIndex,
                       activityRole: at?.activityRole ?? runtimeActivityRole,
-                      duringClass: classSchedule && user.classPeriod ? studentClassInSession({ schedule: classSchedule, classPeriod: user.classPeriod, nowValue: Date.now() }) : null,
+                      // The bell schedule answers in or outside class time, or cannot
+                      // say; the recorder works out which (classTimeFact.js).
+                      classTime: { schedule: classSchedule, classPeriod: user.classPeriod || null, at: Date.now() },
                       profile: user.profile || null,
                     };
                     void import('../../platform/signals/attemptSignalWriter.js').then((writer) => writer.recordAttemptSignal(signal), () => {});

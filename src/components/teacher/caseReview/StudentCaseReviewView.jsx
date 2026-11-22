@@ -213,6 +213,7 @@ export default function StudentCaseReviewView({
       caseEvidenceError: records.caseEvidenceError,
       extensionGrants: records.extensionGrants,
       attemptSignals: records.attemptSignals,
+      attemptSignalsMeta: records.attemptSignalsMeta,
       sisSnapshot: sis.snapshot,
       sisConfirmedMatches: sis.confirmedMatches,
       nowValue: records.loadedAtMs,

@@ -270,8 +270,8 @@ export default function CasePrintView({ model, nextSteps = '' }) {
                     <td>{day(entry.recordedAtMs)}</td>
                     <td>{entry.assignmentTitle || entry.assignmentId}<br />{entry.questionLabel}{entry.partIndex === null ? '' : `, part ${entry.partIndex + 1}`}</td>
                     <td>{entry.title} ({model.workPatterns.notConclusive.toLowerCase()}). {entry.facts}</td>
-                    <td>{[entry.classTime, entry.supports].filter(Boolean).join('. ') || 'Not recorded'}</td>
-                    <td>{entry.reviewed ? `Reviewed${entry.reviewedBy ? ` by ${entry.reviewedBy}` : ''}${entry.reviewNote ? `: ${entry.reviewNote}` : ''}` : 'Not yet reviewed'}</td>
+                    <td>{[entry.classTime, entry.supports || 'Supports not recorded'].filter(Boolean).join('. ')}</td>
+                    <td>{entry.reviewed ? `Reviewed${entry.reviewedBy ? ` by ${entry.reviewedBy}` : ''}` : 'Not yet reviewed'}{entry.reviewNote ? <><br /><em>{entry.reviewNoteLabel}</em><br />{entry.reviewNote}</> : null}</td>
                   </tr>
                 ))}
               </tbody>

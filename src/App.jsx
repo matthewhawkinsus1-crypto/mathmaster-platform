@@ -3258,7 +3258,7 @@ function App() {
         ...payload,
         // Read as the heartbeat goes out: a fact is written a moment after
         // the answer that raised it, when no payload is being rebuilt.
-        attemptSignalCount: attemptSignalCount(payload.studentId, payload.assignmentId),
+        attemptSignalCount: Math.min(999, attemptSignalCount(payload.studentId, payload.assignmentId)),
         pageVisible: document.visibilityState === 'visible',
         updatedAt: Date.now(),
       }).catch(() => {

@@ -11,7 +11,7 @@ import { readFileSync } from 'node:fs';
 import path from 'node:path';
 
 import {
-  ATTEMPT_SIGNAL_TITLE, NOT_CONCLUSIVE, WORTH_A_CONVERSATION, WORTH_A_CONVERSATION_NOTE, describeAttemptSignal, describeAttemptSignals,
+  ATTEMPT_SIGNAL_TITLE, CLASS_TIME_NOT_KNOWN, NOT_CONCLUSIVE, SIGNALS_NOT_LOADED, TEACHER_NOTE_HEADING, TEACHER_NOTE_LABEL, WORTH_A_CONVERSATION, WORTH_A_CONVERSATION_NOTE, describeAttemptSignal, describeAttemptSignals,
   openAttemptSignals, questionAttemptSignals, reviewedAttemptSignals,
 } from '../../src/platform/teacher/attemptSignalsView.js';
 import { ATTEMPT_SIGNAL_KINDS } from '../../src/platform/signals/attemptSignalFacts.js';
@@ -141,8 +141,11 @@ test('every place a signal is shown says it is not conclusive, with its time, cl
   assert.equal(described.partIndex, 1);
   assert.equal(describeAttemptSignal({ ...SIGNALS[0], duringClass: true, supports: [] }).classTime, "During the class's scheduled time");
   assert.equal(describeAttemptSignal({ ...SIGNALS[0], duringClass: true, supports: [] }).supports, 'No supports in effect');
-  // Not recorded is said by silence, never guessed.
-  assert.deepEqual([describeAttemptSignal(SIGNALS[0]).classTime, describeAttemptSignal(SIGNALS[0]).supports], ['', '']);
+  // A record with no class time is one the bell schedule could not answer
+  // for: it is said in words, and never read as "outside".
+  assert.equal(CLASS_TIME_NOT_KNOWN, 'Class time not known');
+  assert.deepEqual([describeAttemptSignal(SIGNALS[0]).classTime, describeAttemptSignal(SIGNALS[0]).supports, describeAttemptSignal(SIGNALS[0]).duringClass], ['Class time not known', '', null]);
+  for (const unknown of [null, undefined, 'no', 0]) assert.equal(describeAttemptSignal({ ...SIGNALS[0], duringClass: unknown }).classTime, 'Class time not known');
   // Nothing about where the student was beyond the class's scheduled time.
   assert.doesNotMatch(`${described.classTime} ${describeAttemptSignal({ ...SIGNALS[0], duringClass: true }).classTime}`, /home|school|location|device|phone/i);
   // One drawing of a signal's facts, with the label, for every teacher surface.
@@ -179,13 +182,36 @@ test("in the assignment's results: a student's signals beside the question they 
   // A dozen notes on one screen share one watch, started by the first and stopped with the last.
   const notes = executableSource(read('src/components/teacher/QuestionSignalNotes.jsx'));
   assert.match(notes, /useSyncExternalStore\(source\.subscribe, source\.read, source\.read\)/);
-  assert.match(notes, /if \(!studentId \|\| !assignmentId \|\| !signals\.length\) return null;/, 'nothing for a question with none');
+  assert.match(notes, /if \(!signals\.length\) return null;/, 'nothing for a question with none');
+  // A read that failed is said in a line; it is not drawn as "no signals".
+  assert.match(SIGNALS_NOT_LOADED, /^Signals could not be loaded\./);
+  const failed = notes.indexOf('if (state.failed) {');
+  assert.ok(failed !== -1 && failed < notes.indexOf('if (!signals.length) return null;'), 'the failed read is said before the empty case is drawn as nothing');
+  assert.match(notes, /if \(state\.failed\) \{\s*return <p data-question-signals-failed="" role="status"[^>]*>\{SIGNALS_NOT_LOADED\}<\/p>;\s*\}/);
   const store = executableSource(read('src/platform/teacher/attemptSignalsStore.js'));
   const shared = region(store, 'export const subscribeSharedAttemptSignals', '\n};\n', 'subscribeSharedAttemptSignals');
   assert.match(shared, /const first = !shared\.has\(key\);/);
   assert.match(shared, /const stop = first\s*\? watchAttemptSignals\(\{/, 'only the first reader opens the watch');
   assert.match(shared, /if \(entry\.listeners\.size\) return;\s*if \(stop\) stop\(\);\s*else entry\.stop\?\.\(\);/, 'whoever leaves last closes it');
   assert.match(shared, /onError: \(\) => publish\(\{ signals: \[\], failed: true, loaded: true \}\)/);
+});
+
+test("a reviewing teacher's note is labelled as the teacher's own words wherever it is shown", () => {
+  const reviewed = describeAttemptSignal({ ...SIGNALS[0], dismissedAt: 5000, dismissedByEmail: 't@example.test', reviewNote: 'Talked with her; she used her notes.' });
+  assert.equal(reviewed.reviewNote, 'Talked with her; she used her notes.');
+  assert.equal(reviewed.reviewNoteLabel, TEACHER_NOTE_LABEL);
+  assert.match(TEACHER_NOTE_LABEL, /^Teacher-authored: written by the teacher, not a recorded fact/);
+  assert.match(TEACHER_NOTE_HEADING, /the teacher's own words/);
+  // No note, no label: the label never stands beside a generated line.
+  assert.equal(describeAttemptSignal({ ...SIGNALS[0], dismissedAt: 5000 }).reviewNoteLabel, '');
+  // The note is never part of the facts sentence, the title or the place.
+  assert.doesNotMatch(`${reviewed.facts} ${reviewed.title} ${reviewed.where} ${reviewed.classTime} ${reviewed.supports}`, /Talked with her/);
+  // On the teacher's screens: under the heading, with the label.
+  const facts = region(panel, 'export function SignalFacts(', '\n}\n', 'SignalFacts');
+  assert.match(facts, /<span data-teacher-note="" title=\{signal\.reviewNoteLabel\}><strong>\{TEACHER_NOTE_HEADING\}:<\/strong> \{signal\.reviewNote\}<\/span>/);
+  assert.doesNotMatch(facts, /Teacher note:/);
+  const tab = executableSource(read('src/components/teacher/caseReview/CaseSignalsTab.jsx'));
+  assert.match(tab, /<span data-teacher-note="" title=\{entry\.reviewNoteLabel\}><em>\{TEACHER_NOTE_HEADING\}:<\/em> \{entry\.reviewNote\}<\/span>/);
 });
 
 test("in the student's results: the drawer shows the panel to a signed-in teacher, beside fast-and-right", () => {

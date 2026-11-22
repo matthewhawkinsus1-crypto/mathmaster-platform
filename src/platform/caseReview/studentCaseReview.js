@@ -192,6 +192,7 @@ export const buildStudentCaseReview = ({
   // The student's stored teacher signals (grades/{student}/attemptSignals);
   // undefined = not loaded.
   attemptSignals = undefined,
+  attemptSignalsMeta = null,
   sisSnapshot = null,
   sisConfirmedMatches = {},
   nowValue = Date.now(),
@@ -456,6 +457,7 @@ export const buildStudentCaseReview = ({
   // never an input to a grade or to the narrative facts below.
   const workPatterns = buildWorkPatternSignals({
     signals: attemptSignals,
+    signalsMeta: attemptSignalsMeta,
     questions: allQuestions,
     assignments: entries,
     fromMs: Number.isFinite(support.meta?.fromMs) ? support.meta.fromMs : null,

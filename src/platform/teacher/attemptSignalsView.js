@@ -66,12 +66,20 @@ const factsSentence = (signal) => {
   return `${parts === 1 ? 'The answer was' : `All ${parts} parts were`} right on the first try, on a question of difficulty band ${num(signal.difficultyBand, 3)}, with no checkpoint, scratchpad or tool work to look at.`;
 };
 
-// In the class's scheduled time or outside it, as the record says; '' when
-// the record does not say. Nothing else about where the student was.
+// In the class's scheduled time or outside it, as the record says. A record
+// that does not say is one the bell schedule could not answer for (no
+// schedule yet, an A/B day not chosen, the period not on that day's
+// schedule): that is said in words, never read as "outside".
+// A reviewing teacher's note is the teacher's own words: not a recorded fact,
+// and not generated evidence. Every screen, print and export says so.
+export const TEACHER_NOTE_LABEL = 'Teacher-authored: written by the teacher, not a recorded fact or generated evidence.';
+export const TEACHER_NOTE_HEADING = 'Teacher\'s note (the teacher\'s own words)';
+export const SIGNALS_NOT_LOADED = 'Signals could not be loaded. That is a failed read, not an absence of signals.';
+export const CLASS_TIME_NOT_KNOWN = 'Class time not known';
 const classTimeWords = (signal) => (
   signal.duringClass === true ? 'During the class\'s scheduled time'
     : signal.duringClass === false ? 'Outside the class\'s scheduled time'
-      : ''
+      : CLASS_TIME_NOT_KNOWN
 );
 const supportsWords = (signal) => {
   if (!Array.isArray(signal.supports)) return '';
@@ -126,6 +134,8 @@ export const describeAttemptSignal = (signal = {}, { assignmentsById = null, for
     reviewedAtMs,
     reviewedBy: clean(signal.dismissedByEmail),
     reviewNote: clean(signal.reviewNote),
+    // The note is the teacher's own words, and is labelled so wherever it is shown or exported.
+    reviewNoteLabel: clean(signal.reviewNote) ? TEACHER_NOTE_LABEL : '',
   };
 };
 
