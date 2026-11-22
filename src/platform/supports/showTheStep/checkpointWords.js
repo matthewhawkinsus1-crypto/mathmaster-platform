@@ -2,7 +2,8 @@
  * SHOW THE STEP: THE WORDS (SP-4). What a step asks, what is off, and what the
  * student did, as sentences. None of them states a part's answer, or the value
  * a wrong entry should have had: a student is told what to look at again.
- * Import-free; the facts come from checkpointEngine.js.
+ * Import-free; the facts come from checkpointEngine.js. (A teacher's name for
+ * a step's row is the server's: functions/shared/showTheStepFields.mjs.)
  */
 const KIND = Object.freeze({ PICK_POINTS: 'pickPoints', STEP_MOVES: 'stepMoves', FACTOR_PAIR: 'factorPair', TABLE_ROW: 'tableRow' });
 
@@ -67,15 +68,6 @@ export const stepSummary = (source, check) => {
   if (source.kind === KIND.FACTOR_PAIR) return 'Your pair fits the trinomial.';
   if (source.kind === KIND.TABLE_ROW) return `Your ${plural(source.count, 'row fits', 'rows fit')} the rule.`;
   return '';
-};
-
-/** A teacher's name for the step's row, beside the part it belongs to. */
-export const stepRowLabel = (kind, partLabel) => {
-  const what = kind === KIND.PICK_POINTS ? 'points picked on the plane'
-    : kind === KIND.STEP_MOVES ? 'moves in Step Algebra'
-      : kind === KIND.FACTOR_PAIR ? 'factor pair'
-        : kind === KIND.TABLE_ROW ? 'table rows' : 'step';
-  return partLabel ? `Step shown for "${partLabel}": ${what}` : `Step shown: ${what}`;
 };
 
 /** The engine's reading of a recorded step, for a teacher. */

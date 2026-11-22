@@ -129,12 +129,20 @@ function PickPoints({ source, work, onWork, disabled }) {
   );
 }
 
-function StepMoves({ source, onWork, disabled, draftKey, verdictsWithheld }) {
+function StepMoves({ source, onWork, disabled, draftKey, verdictsWithheld, value }) {
   const pristine = source.equation;
+  // The moves are Step Algebra's to keep (its own draft and Undo). If the
+  // line beside the answer is changed from outside (the answer boxes' Undo),
+  // it is written again from the moves the workspace still shows.
+  const stepsRef = useRef(null);
   const report = useCallback((steps) => {
+    stepsRef.current = steps;
     const lines = [{ left: pristine.left, right: pristine.right }, ...(Array.isArray(steps) ? steps : []).map((step) => step?.after).filter((after) => after?.left && after?.right)];
     onWork(lines.length > 1 ? { lines } : null);
   }, [onWork, pristine]);
+  useEffect(() => {
+    if (stepsRef.current) report(stepsRef.current);
+  }, [value, report]);
   const ignore = useCallback(() => {}, []);
   return (
     <ToolRuntimeProvider hintsAllowed={!verdictsWithheld} verdictsWithheld={verdictsWithheld} showImmediateFeedback={!verdictsWithheld}>
@@ -245,7 +253,7 @@ export default function ShowTheStep({
         <div style={{ fontSize: 'calc(18 * var(--mm-px))' }}><MathDisplay value={source.of} format="text" /></div>
       ) : null}
       {kind === CHECKPOINT_KIND.PICK_POINTS && <PickPoints {...shared} />}
-      {kind === CHECKPOINT_KIND.STEP_MOVES && <StepMoves {...shared} draftKey={draftKey} verdictsWithheld={verdictsWithheld} />}
+      {kind === CHECKPOINT_KIND.STEP_MOVES && <StepMoves {...shared} value={value} draftKey={draftKey} verdictsWithheld={verdictsWithheld} />}
       {kind === CHECKPOINT_KIND.FACTOR_PAIR && <FactorPair {...shared} />}
       {kind === CHECKPOINT_KIND.TABLE_ROW && <TableRows {...shared} />}
       {asksForCheck ? (
