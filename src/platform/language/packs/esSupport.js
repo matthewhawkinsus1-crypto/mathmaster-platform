@@ -2318,6 +2318,9 @@ const workedExampleChecks = [
   ['Yes, that is what went wrong.', 'Sí, eso es lo que salió mal.'],
   ['Not this one.', 'Esta no.'],
   ['This is what went wrong.', 'Esto es lo que salió mal.'],
+  // A borrowed choice: true of another question, so never called wrong.
+  ['That describes a different mistake, one made on another question.', 'Eso describe un error distinto, uno que se cometió en otra pregunta.'],
+  ['Here is the mistake in this step.', 'Este es el error de este paso.'],
   ['Why this step?', '¿Por qué este paso?'],
   ['Pick the reason before it plays.', 'Elige la razón antes de que se muestre.'],
   ['Yes, that is the reason.', 'Sí, esa es la razón.'],

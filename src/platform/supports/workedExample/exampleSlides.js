@@ -225,13 +225,30 @@ export const SPOT_THE_MISTAKE_RIGHT = 'Yes, that is what went wrong.';
 export const SPOT_THE_MISTAKE_OTHER = 'Not this one. This is what went wrong.';
 export const SPOT_THE_MISTAKE_NOTE = 'Not scored: it only shows what to watch for.';
 export const SPOT_THE_MISTAKE_CHOSEN = 'Your choice';
+// A borrowed choice (another question's reason, spotTheMistake.js) is true
+// there: what is said about it never calls it wrong or false.
+export const SPOT_THE_MISTAKE_DIFFERENT = 'That describes a different mistake, one made on another question.';
+export const SPOT_THE_MISTAKE_THIS_STEP = 'Here is the mistake in this step.';
+export const SPOT_THE_MISTAKE_NOT_THIS_STEP = 'Not this step\'s mistake';
 
-/** What it says once a choice is made: whether it was the one, then the whole common error. */
+/**
+ * What it says once a choice is made. The right one: yes, then the whole
+ * common error. A fixed choice (false of any step with a mistake): not this
+ * one, then the whole common error. A borrowed one: a different mistake, made
+ * on another question, then this step's own.
+ */
 export const spotTheMistakeFeedback = (spot, choiceId) => {
   const choice = list(spot?.choices).find((entry) => entry.id === choiceId);
   if (!choice) return '';
+  if (choice.kind === 'borrowed') {
+    const reason = text(spot.reason) || text(list(spot.choices).find((entry) => entry.right)?.text);
+    return [SPOT_THE_MISTAKE_DIFFERENT, SPOT_THE_MISTAKE_THIS_STEP, reason].filter(Boolean).join(' ');
+  }
   return [choice.right ? SPOT_THE_MISTAKE_RIGHT : SPOT_THE_MISTAKE_OTHER, text(spot.explanation)].filter(Boolean).join(' ');
 };
+
+/** How the chosen button says it was chosen: a borrowed one is "not this step's mistake", never "wrong". */
+export const spotTheMistakeChosenLabel = (choice) => (choice?.kind === 'borrowed' ? `${SPOT_THE_MISTAKE_CHOSEN}: ${SPOT_THE_MISTAKE_NOT_THIS_STEP.charAt(0).toLowerCase()}${SPOT_THE_MISTAKE_NOT_THIS_STEP.slice(1)}` : SPOT_THE_MISTAKE_CHOSEN);
 
 /** What Read aloud is given: the intro, the step, the question and each choice, then the feedback once there is some. */
 export const spotTheMistakeReadingText = (spot, choiceId = null) => {

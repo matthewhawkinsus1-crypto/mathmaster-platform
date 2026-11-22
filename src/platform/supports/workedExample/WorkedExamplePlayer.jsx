@@ -5,7 +5,6 @@ import {
   EXAMPLE_SHOW_HOW_LABEL,
   EXAMPLE_SLIDE,
   EXAMPLE_YOUR_TURN_LABEL,
-  SPOT_THE_MISTAKE_CHOSEN,
   SPOT_THE_MISTAKE_HEADING,
   SPOT_THE_MISTAKE_INTRO,
   SPOT_THE_MISTAKE_NOTE,
@@ -22,6 +21,7 @@ import {
   slideReadingText,
   slideTranslationText,
   slideTurnText,
+  spotTheMistakeChosenLabel,
   spotTheMistakeFeedback,
   spotTheMistakeReadingText,
   spotTheMistakeTranslationText,
@@ -180,7 +180,7 @@ export function SpotTheMistake({ MathText, SupportedTextActions, spot, chosen, o
                   onClick={() => choose(choice)}
                   style={mine ? chosenButton : chosen ? { ...choiceButton, borderStyle: 'dashed', cursor: 'default' } : choiceButton}
                 >
-                  {mine ? <span style={{ display: 'block', fontSize: 'calc(12 * var(--mm-px))', fontWeight: 800 }}>{SPOT_THE_MISTAKE_CHOSEN}</span> : null}
+                  {mine ? <span data-spot-chosen="" style={{ display: 'block', fontSize: 'calc(12 * var(--mm-px))', fontWeight: 800 }}>{spotTheMistakeChosenLabel(choice)}</span> : null}
                   <MathText>{choice.text}</MathText>
                 </button>
               </li>

@@ -41,6 +41,8 @@ import { attemptSupportUsageFrom, emptySupportUse, rememberSupportUse, restoredS
 import { NO_DISTRACTOR_SECTION_ROLES, SPOT_THE_MISTAKE_GENERIC, splitCommonError, spotTheMistakeFor } from '../../src/platform/supports/workedExample/spotTheMistake.js';
 import { NO_EXAMPLE_SECTION_ROLES, exampleSectionRule, lessonExampleContext, workedExampleFor } from '../../src/platform/supports/workedExample/examplePlayer.js';
 import {
+  SPOT_THE_MISTAKE_DIFFERENT,
+  SPOT_THE_MISTAKE_THIS_STEP,
   SPOT_THE_MISTAKE_INTRO,
   SPOT_THE_MISTAKE_OTHER,
   SPOT_THE_MISTAKE_QUESTION,
@@ -49,6 +51,7 @@ import {
   WHY_THIS_STEP_PROMPT,
   WHY_THIS_STEP_RIGHT,
   exampleSlides,
+  spotTheMistakeChosenLabel,
   spotTheMistakeFeedback,
   spotTheMistakeReadingText,
   spotTheMistakeTranslationText,
@@ -246,6 +249,44 @@ test('the fixed choices fill only the slots the assignment cannot', () => {
     assert.deepEqual(fixed(none), [...SPOT_THE_MISTAKE_GENERIC], JSON.stringify(none)?.slice(0, 40));
   }
   assert.deepEqual(fixed([THIS, other('near', 'Counting grid squares from the wrong point: the run starts at the first point.')]), ['The run starts at the first point.', SPOT_THE_MISTAKE_GENERIC[0]]);
+});
+
+const BORROWING = () => [THIS, other('near', 'Counting grid squares from the wrong point: the run starts at the first point.'), other('far', 'Subtracting before dividing: the order of operations divides first.')];
+
+test('a borrowed choice is never called wrong: it is a different mistake, made on another question', () => {
+  const spot = spotTheMistakeFor(THIS, { assignmentQuestions: [BORROWING()[0], BORROWING()[1]] });
+  assert.deepEqual(spot.choices.map((choice) => choice.kind).sort(), ['borrowed', 'fixed', 'right']);
+  const borrowed = spot.choices.find((choice) => choice.kind === 'borrowed');
+  const feedback = spotTheMistakeFeedback(spot, borrowed.id);
+  assert.equal(feedback, `${SPOT_THE_MISTAKE_DIFFERENT} ${SPOT_THE_MISTAKE_THIS_STEP} Slope is the change in y over the change in x.`);
+  // Neither what it says nor how the chosen button names itself calls the statement wrong or false.
+  const NEVER = /\b(wrong|false|incorrect|not true|untrue)\b/i;
+  assert.doesNotMatch(feedback, NEVER);
+  assert.doesNotMatch(spotTheMistakeChosenLabel(borrowed), NEVER);
+  assert.equal(spotTheMistakeChosenLabel(borrowed), 'Your choice: not this step\'s mistake');
+  // In Spanish too: the pack's words for it say neither "mal", "falso", "incorrecto" nor "equivocado".
+  const spanish = new Map(supportSentences);
+  for (const sentence of [SPOT_THE_MISTAKE_DIFFERENT, SPOT_THE_MISTAKE_THIS_STEP]) {
+    assert.ok(spanish.has(sentence), sentence);
+    assert.doesNotMatch(spanish.get(sentence), /\b(mal|fals[oa]s?|incorrect[oa]s?|equivocad[oa]s?|erróne[oa]s?)\b/i, spanish.get(sentence));
+  }
+  // The leak gate refuses its words on a DOL, quiz or test.
+  for (const words of [SPOT_THE_MISTAKE_DIFFERENT, SPOT_THE_MISTAKE_THIS_STEP, "not this step's mistake"]) assert.ok(ASSESSMENT_LEAK_TEXTS.includes(words), words);
+});
+
+test('the right choice and a fixed choice keep their feedback', () => {
+  const spot = spotTheMistakeFor(THIS, { assignmentQuestions: [BORROWING()[0], BORROWING()[1]] });
+  const of = (kind) => spot.choices.find((choice) => choice.kind === kind);
+  assert.equal(spotTheMistakeFeedback(spot, of('fixed').id), `${SPOT_THE_MISTAKE_OTHER} ${THIS.solutionReview.commonError}`);
+  assert.equal(spotTheMistakeFeedback(spot, of('right').id), `${SPOT_THE_MISTAKE_RIGHT} ${THIS.solutionReview.commonError}`);
+  assert.equal(spotTheMistakeChosenLabel(of('fixed')), 'Your choice');
+  assert.equal(spotTheMistakeChosenLabel(of('right')), 'Your choice');
+  // With nothing to borrow, every wrong choice is fixed, and says so as before.
+  const alone = spotTheMistakeFor(THIS);
+  for (const choice of alone.choices.filter((entry) => !entry.right)) {
+    assert.equal(choice.kind, 'fixed');
+    assert.equal(spotTheMistakeFeedback(alone, choice.id), `${SPOT_THE_MISTAKE_OTHER} ${THIS.solutionReview.commonError}`);
+  }
 });
 
 test('the order is the same for a seed, and the right one is not always in the same place', () => {

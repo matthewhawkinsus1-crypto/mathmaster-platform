@@ -22,11 +22,13 @@ import {
   EXAMPLE_OPENED_BY_ITSELF_TEXT,
   EXAMPLE_PROBLEM_NOTE,
   EXAMPLE_YOUR_TURN_TEXT,
+  SPOT_THE_MISTAKE_DIFFERENT,
   SPOT_THE_MISTAKE_INTRO,
   SPOT_THE_MISTAKE_NOTE,
   SPOT_THE_MISTAKE_OTHER,
   SPOT_THE_MISTAKE_QUESTION,
   SPOT_THE_MISTAKE_RIGHT,
+  SPOT_THE_MISTAKE_THIS_STEP,
   WHY_THIS_STEP_OTHER,
   WHY_THIS_STEP_PROMPT,
   WHY_THIS_STEP_RIGHT,
@@ -67,6 +69,7 @@ export const LADDER_WORDS = Object.freeze(['LEAKCHECK', 'A hint is ready', 'Show
   // this step?") and "Skip" are words real prompts use, so the gate looks for
   // the controls themselves (EXAMPLE_CONTROL_SELECTORS).
   SPOT_THE_MISTAKE_INTRO, SPOT_THE_MISTAKE_QUESTION, SPOT_THE_MISTAKE_RIGHT, SPOT_THE_MISTAKE_OTHER, SPOT_THE_MISTAKE_NOTE,
+  SPOT_THE_MISTAKE_DIFFERENT, SPOT_THE_MISTAKE_THIS_STEP, "Not this step's mistake", "not this step's mistake",
   ...SPOT_THE_MISTAKE_GENERIC, WHY_THIS_STEP_PROMPT, WHY_THIS_STEP_RIGHT, WHY_THIS_STEP_OTHER]);
 
 /**
@@ -80,7 +83,7 @@ export const EXAMPLE_CONTROL_SELECTORS = Object.freeze([
   // WE-C: a replayed move's board, and a faded example.
   '[data-example-board]', '[data-example-board-line]', '[data-example-faded]', '[data-example-show-how]', '[data-example-plane]',
   // WE-F: Spot the mistake (its step, its choices, its answer) and Why this step?.
-  '[data-spot-the-mistake]', '[data-spot-line]', '[data-spot-choice]', '[data-spot-feedback]', '[data-why-this-step]', '[data-why-choice]', '[data-why-skip]', '[data-why-feedback]',
+  '[data-spot-the-mistake]', '[data-spot-line]', '[data-spot-choice]', '[data-spot-feedback]', '[data-spot-chosen]', '[data-why-this-step]', '[data-why-choice]', '[data-why-skip]', '[data-why-feedback]',
 ]);
 
 // Every misconception and generic miss message.

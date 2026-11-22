@@ -165,7 +165,11 @@ export const spotTheMistakeFor = (question, { seed = 0, assignmentQuestions = nu
     const borrowed = distractorsFrom(question, parts, assignmentQuestions);
     const texts = [...borrowed, ...SPOT_THE_MISTAKE_GENERIC].slice(0, 2);
     texts.splice(placeOf(explanation, seed, 3), 0, parts.reason);
-    const choices = texts.map((choice, index) => ({ id: `mistake-${index + 1}`, text: choice, right: choice === parts.reason }));
+    // `kind` says what the feedback may say about it: a borrowed reason is true
+    // of another question, so it is "a different mistake", never "wrong";
+    // a fixed one really is false here.
+    const kindOf = (choice) => (choice === parts.reason ? 'right' : borrowed.includes(choice) ? 'borrowed' : 'fixed');
+    const choices = texts.map((choice, index) => ({ id: `mistake-${index + 1}`, text: choice, right: choice === parts.reason, kind: kindOf(choice) }));
     // Every word it would show, held to the guard every worked sibling passes.
     const safe = similarExampleIsSafe(question, {
       prompt: parts.line,
@@ -173,7 +177,7 @@ export const spotTheMistakeFor = (question, { seed = 0, assignmentQuestions = nu
       answer: parts.reason,
     });
     if (!safe) return null;
-    return { source: 'commonError', line: parts.line, choices, explanation, borrowed: borrowed.length };
+    return { source: 'commonError', line: parts.line, reason: parts.reason, choices, explanation, borrowed: borrowed.length };
   } catch {
     return null;
   }

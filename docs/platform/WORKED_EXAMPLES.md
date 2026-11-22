@@ -229,7 +229,14 @@ Where slice F lives, and what it does:
   - A borrowed reason is wrong for this step's mistake, not false in general:
     on a lesson where several questions turn on one idea it can still read as
     true beside this step (correlation and cause, a perpendicular slope).
-    Nothing in the words tells those apart.
+    Nothing in the words tells those apart, so the wording never calls it
+    false. Chosen, it says "That describes a different mistake, one made on
+    another question. Here is the mistake in this step." and this step's own
+    reason, and the button reads "Your choice: not this step's mistake",
+    never "wrong". Only a fixed choice, which really is false of any step
+    holding a mistake, keeps "Not this one. This is what went wrong." with the
+    whole common error. Both new sentences are in the Spanish pack and in the
+    leak gate's words.
   - This question's other fields were measured as a source (below) and are not
     used.
   - Nothing else is written: no mathematics of its own. Every word it would
