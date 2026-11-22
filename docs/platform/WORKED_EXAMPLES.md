@@ -1,8 +1,8 @@
 # Worked examples: the platform teaches each new skill
 
 Status: **decided by the owner on 2026-11-20. Slice A (the player and the
-section rules), slice B (the coverage report) and slice C (the Step Algebra
-replay) are built; D to H are not.**
+section rules), slice B (the coverage report), slice C (the Step Algebra
+replay) and slice G (the teacher's view) are built; D to F and H are not.**
 This page is the spec. The build is split into slices that can ship in any
 order (section 9). Its companion, `docs/platform/SHOWING_THE_PROCESS.md`,
 covers answer boxes that one screenshot cannot answer.
@@ -33,6 +33,31 @@ otherwise):
   it "Example shown by Classwork (not asked for)".
 
 Neither changes a score.
+
+Where slice G lives:
+- **The counts:** `src/platform/teacher/workedExampleView.js`. Per skill (the
+  player's own, `exampleSkill.js`): which students have an example on their
+  record, on which question, whether they asked for it or Classwork showed it,
+  how that question was marked, and how the next question on the same skill
+  was marked (right on the first try, right after another try, not right, not
+  answered). It reads only what each answer already carries (`supportUsage`,
+  status, tries); it stores nothing and reads no server.
+- **The panel:** `WorkedExamplesBySkill.jsx`, loaded on demand in the
+  gradebook: under the class's scores for an assignment, and in one student's
+  results above the question cards, where each question's "worth a
+  conversation" notes are. In the class view a name opens that student's
+  results.
+- **What it does not say:** why. The record holds that an example was opened,
+  not when, so "next" is the order the student meets the questions in (a
+  replacement stands where the question it replaced stood, and a question not
+  required for a student is passed over); a next question the times
+  show was answered first is marked "answered earlier" and is not counted. A
+  question with no family and no student action is listed on its own, as a
+  question with no skill named. A student whose support record has not loaded
+  is said to be not loaded, not to have opened none, and "none opened" is
+  said only once every student's record is loaded.
+- **Tests:** `tests/platform/workedExampleTeacherView.test.mjs`, and step T6
+  of `tests/browser/teacherWorkflow/teacherSignalsJourneys.mjs`.
 
 What slice A plays: the question family's sibling, or the step card a lesson
 wrote (`steps`), when it passes `similarExampleIsSafe`. Not yet: a replay for
@@ -76,8 +101,10 @@ Where slice C lives, and what it plays:
   letter in it carries the engine's `assumption` (for example `x ≠ 0`). The
   live board shows it; a slide cannot yet, so such a move is refused.
 - **Tests:** `tests/platform/stepAlgebraReplay.test.mjs` and
-  `tests/browser/stepAlgebraReplay.mjs`. A built-in step is a full sentence that carries its own reason;
-only a lesson's step card has a separate "why" line.
+  `tests/browser/stepAlgebraReplay.mjs`.
+
+A built-in step is a full sentence that carries its own reason; only a
+lesson's step card has a separate "why" line.
 
 ## 1. The goal
 
