@@ -47,6 +47,7 @@ import { recordQuestionAttempt } from '../../functions/shared/attemptPolicy.mjs'
 import { buildResponseView } from '../../functions/shared/responseInspectorView.mjs';
 import { MAX_STEP_LINE_LENGTH, isStepFieldId, stepFieldId, stepFieldsFromAnswers, stepRowLabel } from '../../functions/shared/showTheStepFields.mjs';
 import { attemptHasToolWork } from '../../src/platform/signals/attemptSignalFacts.js';
+import { pastedPartIndex } from '../../src/platform/signals/useAttemptSignals.js';
 import { mergeQuestion, splitQuestion } from '../../functions/shared/assignmentKeySplit.mjs';
 import { classifyQuestionExposure } from '../../scripts/report-assignment-key-exposure.mjs';
 import { executableSource, region } from './helpers/sourceContract.mjs';
@@ -468,6 +469,17 @@ test('a secure Test, Corrections and Path draw a part with a checkpoint as today
   // The student's copy of a secure item never needed the step to be answered.
   const plan = await mathPath.buildIssuePlan(withStep);
   assert.equal(plan.issuable, true, plan.reason);
+});
+
+test('a paste into a step\'s own box raises no "pasted into a math box": it is a tool\'s checked work', () => {
+  const inside = (...selectors) => ({ closest: (selector) => (selectors.includes(selector) ? { getAttribute: (name) => (name === 'data-answer-box-index' ? '0' : null) } : null) });
+  // The part's own answer box, as before.
+  assert.equal(pastedPartIndex(inside('[data-answer-box-index]', 'math-field')), 0);
+  // A box of the step drawn inside that same part.
+  assert.equal(pastedPartIndex(inside('[data-answer-box-index]', '[data-show-the-step]')), null);
+  assert.equal(pastedPartIndex(inside('[data-answer-box-index]', '[data-show-the-step]', 'math-field'), { answerBoxesOnly: true }), null);
+  // And the step on the screen carries that mark.
+  assert.match(executableSource(readFileSync(path.join(ROOT, 'src/platform/supports/showTheStep/ShowTheStep.jsx'), 'utf8')), /data-show-the-step=\{kind\}/);
 });
 
 test('a question with a checkpoint counts as work a teacher can look at', () => {
