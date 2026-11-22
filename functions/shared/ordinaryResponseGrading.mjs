@@ -289,7 +289,7 @@ export const multiAnswerFields = (question = {}) => list(question.answerFields).
 export const gradeMultiAnswerResponse = (question = {}, responsesById = {}, { followThrough } = {}) => {
   const authored = multiAnswerFields(question);
   const pending = !followThrough && authored.some((field) => field.followThrough);
-  const fields = followThrough ? followThrough.withFollowThroughKeys(authored, responsesById) : authored;
+  const fields = followThrough ? followThrough.withFollowThroughKeys(authored, responsesById, numericSetCredit) : authored;
   const parts = fields.map((field) => {
     const response = text(responsesById?.[field.id]);
     // GR03: a line field whose question asks for no form takes any equation

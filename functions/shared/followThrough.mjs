@@ -46,7 +46,6 @@ import { parsePolynomial } from './algebraicForm.mjs';
 import { asNumber, normalizeAnswer } from './answerEquivalence.mjs';
 import { exactConstantValue } from './exactConstantValue.mjs';
 import { MAX_TYPED_ANSWER_LENGTH, hasDanglingOperator } from './typedEntryGuard.mjs';
-import { numericSetCredit } from './numericSetCredit.mjs';
 import {
   PLACEHOLDER, fieldId, followThroughLabel as labelWith, followThroughOf, followThroughPlaceholders, partsById,
   withFollowThroughLabels as labelsWith,
@@ -182,7 +181,9 @@ export const followThroughKeys = (fields = [], responsesById = {}) => {
  * against, and the other is still accepted whole. Any other field is the
  * field itself.
  */
-export const withFollowThroughKeys = (fields = [], responsesById = {}) => {
+// `setCredit` is the grader's own numericSetCredit, handed in so this module
+// does not split it out of the grader's chunk on the first load.
+export const withFollowThroughKeys = (fields = [], responsesById = {}, setCredit = () => 0) => {
   const keys = followThroughKeys(fields, responsesById);
   return fields.map((field, index) => {
     if (!followThroughOf(field)) return field;
@@ -193,7 +194,7 @@ export const withFollowThroughKeys = (fields = [], responsesById = {}) => {
     if (field.equivalence !== 'numericSet' || field.partialCredit !== 'matchedElements') return { ...out, acceptedAnswers: [...accepted, ...keyed] };
     // The authored set first, so a tie keeps it, as on a question with no followThrough.
     const sets = [field.answer, ...keyed].filter((entry) => entry !== undefined);
-    const credit = (set) => numericSetCredit(responsesById?.[field.id], set, field.numericTolerance);
+    const credit = (set) => setCredit(responsesById?.[field.id], set, field.numericTolerance);
     const best = sets.reduce((top, set) => (credit(set) > credit(top) ? set : top));
     return { ...out, answer: best, acceptedAnswers: [...sets.filter((set) => set !== best), ...accepted] };
   });
