@@ -955,3 +955,16 @@ export const buildFactoringVariant = (question, { seed = 0 } = {}) => {
     return null;
   }
 };
+
+/**
+ * How the lesson's method factors a·x² + b·x + c, for another tool's worked
+ * example (the radical replay's factoring slides, radicalReplay.js): the two
+ * numbers of the split (m + n = b, m·n = a·c) and the factors
+ * (p·x + q)(r·x + s). Null where the method above does something else with it
+ * (a common factor first, a perfect square) or leaves it prime.
+ */
+export const factorQuadraticByMethod = (a, b, c, letter = 'x') => {
+  if (![a, b, c].every(Number.isSafeInteger) || !a || !b || !c) return null;
+  const node = factorByMethod([term(a, { [letter]: 2 }), term(b, { [letter]: 1 }), term(c, {})]);
+  return node?.method === 'trinomial' ? { a: node.a, b: node.b, c: node.c, m: node.m, n: node.n, split: { ...node.split } } : null;
+};
