@@ -125,7 +125,10 @@ const normal = (value) => text(value).toLowerCase().replace(/[\s.;:,!?]+$/u, '')
  *     can prove it does not. Where either skill is unknown it may still lend,
  *     under the next rule;
  *   - it shares no word stem with THIS question's whole common error
- *     (contentStems): the same idea in other words is not lent.
+ *     (contentStems): the same idea in other words is not lent;
+ *   - it is words only (wordsOnly): no digit, no mathematics, no letter
+ *     standing alone. Another item's mathematics can be its worked result
+ *     ("…leaving 3√2"), and no comparison of answer forms is sure to see it.
  * In the assignment's own order.
  */
 /*
@@ -136,6 +139,19 @@ const normal = (value) => text(value).toLowerCase().replace(/[\s.;:,!?]+$/u, '')
  */
 export const STEM_LENGTH = 4;
 const STEM_STOPLIST = new Set(['because', 'which', 'there', 'where', 'these', 'those', 'should', 'would', 'could', 'value', 'answer', 'number']);
+/*
+ * Words only: refused for a digit; = < > ≤ ≥ ± × ÷ · √ ∛ ∜ (and + − ^); a
+ * superscript or subscript character (², ᵏ, ₙ); $ or a backslash (LaTeX); or a
+ * letter that stands alone other than "a" and "I" (x, the x in "x + m" or
+ * "x-coordinate").
+ */
+const MATH_CHARACTERS = /[0-9=<>≤≥±×÷·√∛∜+−^$\\\u00B2\u00B3\u00B9\u2070-\u209F\u1D2C-\u1D6A\u1D9B-\u1DBF]/u;
+export const wordsOnly = (value) => {
+  const sentenceText = text(value);
+  if (!sentenceText || MATH_CHARACTERS.test(sentenceText)) return false;
+  return !(sentenceText.match(/[A-Za-z]+/g) || []).some((token) => token.length === 1 && token !== 'a' && token !== 'A' && token !== 'I');
+};
+
 export const contentStems = (value) => new Set((text(value).toLowerCase().match(/[a-z]+/g) || [])
   .filter((word) => word.length >= 5 && !STEM_STOPLIST.has(word) && !STEM_STOPLIST.has(word.replace(/s$/, '')))
   .map((word) => word.slice(0, STEM_LENGTH)));
@@ -166,6 +182,7 @@ const distractorsFrom = (question, parts, assignmentQuestions) => {
     if (candidate === reason || candidate.includes(reason) || reason.includes(candidate)) continue;
     if (found.some((chosen) => normal(chosen) === candidate)) continue;
     if ([...contentStems(split.reason)].some((stem) => ownStems.has(stem))) continue;
+    if (!wordsOnly(split.reason)) continue;
     if (!similarExampleIsSafe(question, { prompt: split.reason, steps: [split.reason], answer: split.reason })) continue;
     found.push(split.reason);
   }

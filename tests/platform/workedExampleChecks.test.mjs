@@ -39,7 +39,7 @@ import { questionAnswerValues } from '../../src/platform/supports/hints/question
 import { exampleSkillOf } from '../../src/platform/supports/workedExample/exampleSkill.js';
 import { SPOT_THE_MISTAKE_LABEL, analyzeAssignmentQuestions } from '../../src/platform/caseReview/attemptAnalysis.js';
 import { attemptSupportUsageFrom, emptySupportUse, rememberSupportUse, restoredSupportUse, supportUseFromRecord } from '../../src/platform/supports/supportUseMemory.js';
-import { NO_DISTRACTOR_SECTION_ROLES, SPOT_THE_MISTAKE_GENERIC, contentStems, splitCommonError, spotTheMistakeFor } from '../../src/platform/supports/workedExample/spotTheMistake.js';
+import { NO_DISTRACTOR_SECTION_ROLES, SPOT_THE_MISTAKE_GENERIC, contentStems, splitCommonError, spotTheMistakeFor, wordsOnly } from '../../src/platform/supports/workedExample/spotTheMistake.js';
 import { NO_EXAMPLE_SECTION_ROLES, exampleSectionRule, lessonExampleContext, workedExampleFor } from '../../src/platform/supports/workedExample/examplePlayer.js';
 import {
   SPOT_THE_MISTAKE_DIFFERENT,
@@ -335,6 +335,46 @@ test('rule 2: a reason that shares a word stem with this whole common error is n
   assert.deepEqual(borrowedOf(shading, [shading, other('shades', 'Keeping < after dividing by −1, which shades the wrong half-plane.')]), []);
   // The stoplist does not count: "because", "value" and "number" are in every lesson.
   assert.deepEqual(borrowedOf(THIS, [THIS, other('stoplist', 'Counting grid squares from the wrong point: the number is wrong because the value moved.')]), ['The number is wrong because the value moved.']);
+});
+
+test('rule 3: a borrowed reason is words only, so it never carries another item\'s mathematics (pair 8)', () => {
+  // Pair 8 of the review: a radical lesson's reason that states another item's worked result.
+  const radical = { ...other('rxh', 'Writing 3x²y³∜(2x): y may be negative, which makes y³ negative, but a fourth root never is.'), standard: 'A2.7G' };
+  const lender = other('rationalize', 'Leaving the radical in the denominator: rationalizing gives 6√2/2, and the 2 divides out, leaving 3√2.');
+  assert.equal(wordsOnly(splitCommonError(lender.solutionReview.commonError).reason), false);
+  assert.deepEqual(borrowedOf(radical, [radical, lender]), []);
+  assert.deepEqual(spotTheMistakeFor(radical, { assignmentQuestions: [radical, lender] }).choices.filter((choice) => !choice.right).map((choice) => choice.text), [...SPOT_THE_MISTAKE_GENERIC]);
+});
+
+test('words only: each class of character that is mathematics is refused', () => {
+  const refused = {
+    'a digit': 'The run starts at point 1.',
+    '=': 'The sides are = now.',
+    '<': 'The symbol < is kept.',
+    '>': 'The symbol > is kept.',
+    '≤': 'The symbol ≤ is kept.',
+    '≥': 'The symbol ≥ is kept.',
+    '±': 'The root takes ± here.',
+    '×': 'The terms are multiplied × once.',
+    '÷': 'The terms are divided ÷ once.',
+    '·': 'The product · is kept.',
+    '√': 'The root √ stays.',
+    '∛': 'The root ∛ stays.',
+    '∜': 'The root ∜ stays.',
+    'a superscript': 'The square² stays.',
+    'a modifier superscript': 'The power ᵏ stays.',
+    'a subscript': 'The term ₙ stays.',
+    '$': 'The term $ stays.',
+    'a backslash': 'The term \\frac stays.',
+    'a letter alone': 'The x-coordinate comes first.',
+    'a letter beside a symbol': 'A factor of m gives the root.',
+    '+ − ^': 'The terms + and − and ^ stay.',
+  };
+  for (const [kind, sentence] of Object.entries(refused)) assert.equal(wordsOnly(sentence), false, kind);
+  // Words, with "a" and "I", are words.
+  for (const sentence of ['The symbol decides the side.', 'I see a line, and a point on it.', 'Onions are on the horizontal axis.']) assert.equal(wordsOnly(sentence), true, sentence);
+  // And it is applied: a lender whose reason holds one is not lent, and the slot takes a fixed choice.
+  assert.deepEqual(borrowedOf(THIS, [THIS, other('digit', 'Counting grid squares from the wrong point: the run starts at point 1.')]), []);
 });
 
 test("Codex's case: Shading below because the slope is positive borrows no reason on its skill or with its words", () => {

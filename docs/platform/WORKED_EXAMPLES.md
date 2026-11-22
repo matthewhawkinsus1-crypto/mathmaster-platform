@@ -229,20 +229,28 @@ Where slice F lives, and what it does:
       more, without a short stoplist: because, which, there, where, these,
       those, should, would, could, value, answer, number). Four letters, not
       five, so that "shading" and "shades" meet ("shad"), as "slope" and
-      "slopes" do. Five would leave the case below to the skill rule alone.
+      "slopes" do. Five would leave the case below to the skill rule alone;
+    - it is **words only** (`wordsOnly`): no digit; none of = < > ≤ ≥ ± × ÷ ·
+      √ ∛ ∜ (nor + − ^); no superscript or subscript character; no `$` or
+      backslash; and no letter standing alone other than "a" and "I" (so no
+      x², xᵏ, x + m, or "x-coordinate"). Another item's mathematics can be its
+      worked result ("Rationalizing gives 6√2/2, and the 2 divides out,
+      leaving 3√2.", which the answer guard let through and which was lent to
+      another radical question on the same lesson), and no comparison of
+      answer forms is sure to see it. So none is lent.
     Only a slot left empty takes a fixed choice (`SPOT_THE_MISTAKE_GENERIC`:
     both say the step is correct, which a step holding a known mistake never
     is). The right one's place is fixed by the common error and the seed, so
-    a redraw does not reshuffle it. Over the 450 shown below, 350 get two
-    borrowed wrong choices, 61 get one and 39 get none (five-letter stems: 355,
-    56 and 39).
-  - The case that set these two rules: in Graphing Inequalities in Two
+    a redraw does not reshuffle it. Over the 450 shown below, 264 get two
+    borrowed wrong choices, 74 get one and 112 get none (before words only:
+    350, 61 and 39).
+  - The case that set the skill and stem rules: in Graphing Inequalities in Two
     Variables, cw-6 ("Shading below because the slope is positive") had
     borrowed "That shades the wrong half-plane." from cw-11, which explains
     cw-6's mistake too. cw-11 is on the same skill, and "shades" shares a stem
     with "Shading". Either rule now refuses it.
   - A borrowed reason is wrong for this step's mistake, not false in general.
-    The two rules make it unlikely to explain this step's mistake as well, but
+    The rules make it unlikely to explain this step's mistake as well, but
     nothing in the words can prove it does not, so the wording never calls it
     false. Chosen, it says "That describes a different mistake, one made on
     another question. Here is the mistake in this step." and this step's own
