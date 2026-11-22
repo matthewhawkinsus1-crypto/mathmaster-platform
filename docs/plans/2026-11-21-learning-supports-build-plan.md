@@ -52,6 +52,7 @@ gate, and merges with a merge commit when CI is green.
 | SP-2: teacher signals, "worth a conversation" | #591 |
 | SP-2b: signals as evidence (assignment results, Case Review, review note, class time, supports) | #597 |
 | WE-A: the example player and the section rules | #594 |
+| WE-G: the teacher's view of worked examples, by skill | build session F's third PR |
 
 ## Track SP: showing the process
 
