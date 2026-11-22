@@ -68,6 +68,7 @@ import { SR_ONLY_STYLE } from '../../ui/srOnly.js';
 import RepresentationAudit from './RepresentationAudit';
 import RecoveryReadinessPanel from './RecoveryReadinessPanel.jsx';
 import ClassworkExampleCoveragePanel from './ClassworkExampleCoveragePanel.jsx';
+import NewAssignmentRulesPanel from './NewAssignmentRulesPanel.jsx';
 import { classworkExampleCoverage } from '../../platform/supports/workedExample/classworkCoverage.js';
 import { RECOVERY_REPAIR_INSTRUCTION } from '../../platform/recovery/recoveryReadinessCopy.js';
 import SectionBalanceRigorAudit from './SectionBalanceRigorAudit.jsx';
@@ -316,9 +317,13 @@ export const LessonPreflightModal = ({
     () => preflightClassSizeFor(draft.assignedClassIds, rosterSizesByClassId),
     [draft.assignedClassIds, rosterSizesByClassId],
   );
+  // A setup edit of an existing assignment, or a new (or newly imported) one.
+  // The one rule for "new" that Review's advice uses: the worked-example
+  // coverage panel warns and SP-5's authoring rules look only when it is new.
+  const isUpdateMode = reviewMode === 'update';
   const preflightModel = useMemo(
-    () => buildAssignmentV5PreflightModel(reviewedAssignmentV5, { classSize: preflightClassSize }),
-    [reviewedAssignmentV5, preflightClassSize],
+    () => buildAssignmentV5PreflightModel(reviewedAssignmentV5, { classSize: preflightClassSize, isNewAssignment: !isUpdateMode }),
+    [reviewedAssignmentV5, preflightClassSize, isUpdateMode],
   );
   const effectiveAssignmentV5 = preflightModel.assignmentV5;
   // WORKED EXAMPLES (WE-B): how many Classwork questions an example covers,
@@ -1099,7 +1104,6 @@ export const LessonPreflightModal = ({
   const canCreate = readiness.canCreate
     && !busy
     && (!testCyclePreview || (serverCyclePreflight?.loading === false && serverCyclePreflight.blocked !== true));
-  const isUpdateMode = reviewMode === 'update';
   // The button says which of the two actions it performs. A teacher who has
   // selected no class is saving to the library, and the label should not
   // promise them an assignment their students will receive.
@@ -2067,6 +2071,13 @@ export const LessonPreflightModal = ({
           anything (ClassworkExampleCoveragePanel.jsx). Its heading is one
           below the step's, which a phone does not draw. */}
       <ClassworkExampleCoveragePanel coverage={classworkExamples} isNew={!isUpdateMode} headingLevel={isNarrow ? 4 : 5} />
+
+      {/* SP-5, new assignments only: answer boxes that ask for what a tool
+          produces, and three or more parts with no checked step
+          (newAssignmentRulesPreflight.js). A warning that never stops
+          anything, beside the coverage panel; an existing assignment draws
+          nothing (NewAssignmentRulesPanel.jsx). */}
+      <NewAssignmentRulesPanel rules={preflightModel.newAssignmentRules} headingLevel={isNarrow ? 4 : 5} />
 
       {/* The advice below, counted (TT14, TT21), every panel of it, each
           count in the number it needs ("1 hint that states the answer"): it

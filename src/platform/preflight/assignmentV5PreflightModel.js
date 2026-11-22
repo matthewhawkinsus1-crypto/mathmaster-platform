@@ -23,6 +23,7 @@ import { auditAssignmentAnswerKeys } from './answerKeyPreflight.js';
 import { auditAssignmentImpossibleItems } from './impossibleItemsPreflight.js';
 import { auditAssignmentOtherQuestionReferences } from './otherQuestionReferencePreflight.js';
 import { auditAssignmentGraphingCalculatorPrompts } from './graphingCalculatorPromptPreflight.js';
+import { auditNewAssignmentRules } from './newAssignmentRulesPreflight.js';
 import { buildPreflightDiagnostics } from './preflightDiagnostics.js';
 import { deriveAssignmentAuthoringState } from './assignmentAuthoringState.js';
 import { analyzeClassworkPlannedTime } from '../teacher/classworkPacing.js';
@@ -85,7 +86,11 @@ const withRuntimeSectionMetadata = (section, index) => ({
   })),
 });
 
-export const buildAssignmentV5PreflightModel = (input = {}, { titleOverride = null, teacherReviewContext = null, classSize = null } = {}) => {
+// isNewAssignment: the review is of a new or newly imported assignment, not an
+// existing one's setup edit (LessonPreflightModal's rule, the one its
+// worked-example coverage panel uses). Only then are SP-5's two authoring
+// warnings looked for; every other caller gets none.
+export const buildAssignmentV5PreflightModel = (input = {}, { titleOverride = null, teacherReviewContext = null, classSize = null, isNewAssignment = false } = {}) => {
   const normalizedSource = normalizeAssignmentV5({
     ...input,
     assignment: {
@@ -214,6 +219,12 @@ export const buildAssignmentV5PreflightModel = (input = {}, { titleOverride = nu
   // give them, judged on the calculator a student actually gets with this
   // review's settings (graphingCalculatorPromptPreflight.js): advisory.
   const graphingCalculatorPrompts = auditAssignmentGraphingCalculatorPrompts(runtimeSource, questions, deliveredOnly);
+  // SP-5, new assignments only (newAssignmentRulesPreflight.js): an answer box
+  // asking for what a tool produces, and three or more parts with no
+  // checkpoint or followThrough. Advice in its own panel, like the coverage
+  // panel: never a diagnostic, never in the suggestions count, and nothing at
+  // all for an existing assignment.
+  const newAssignmentRules = auditNewAssignmentRules(questions, { isNew: isNewAssignment === true, ...deliveredOnly });
   // Question ↔ tool contract: judged on the LITERAL record, because it also
   // reports records that only work because a runtime repair rescues them and
   // offers the safe repair that makes the saved assignment match.
@@ -318,6 +329,7 @@ export const buildAssignmentV5PreflightModel = (input = {}, { titleOverride = nu
     impossibleItems,
     otherQuestionReferences,
     graphingCalculatorPrompts,
+    newAssignmentRules,
     // Excluded questions Pre-Flight kept but did not judge for delivery.
     retiredQuestions,
     errors: uniqueErrors,
