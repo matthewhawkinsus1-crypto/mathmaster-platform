@@ -29,7 +29,7 @@
  * the question it is about.
  */
 
-import { followThroughPlaceholders } from '../../../functions/shared/followThrough.mjs';
+import { followThroughPlaceholders } from '../../../functions/shared/followThroughNames.mjs';
 
 const isObject = (value) => Boolean(value) && typeof value === 'object' && !Array.isArray(value);
 const clean = (value) => String(value ?? '').trim();
@@ -72,8 +72,8 @@ const ROLE_NAMES = Object.freeze({ dol: 'DOL', quiz: 'quiz', test: 'test' });
  * as words write it ("Using your slope of {slope}, …"); braces that belong to
  * mathematics or a Question Family template are not. One definition, shared
  * with the screens and graders that replace the names
- * (functions/shared/followThrough.mjs), so what is checked here is what they
- * replace.
+ * (functions/shared/followThroughNames.mjs), so what is checked here is what
+ * they replace.
  */
 export { followThroughPlaceholders };
 

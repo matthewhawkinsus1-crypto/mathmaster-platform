@@ -31,7 +31,7 @@ import { readDisplayMatrices } from '../math/displayMatrices.js';
 import { sayFigure } from './figureSay.js';
 import { figureName as platformName } from './figureNames.js';
 import { definedFunctionNames, lineBreaksAsPauses } from './speechText.js';
-import { withFollowThroughLabels } from '../../../functions/shared/followThrough.mjs';
+import { withFollowThroughLabels } from '../../../functions/shared/followThroughNames.mjs';
 
 const WORDS = {
   en: {
@@ -190,11 +190,12 @@ const stageChoices = (stage, workflow = []) => {
  *                  (`labelSay`, a name it builds from its own words), or the
  *                  platform name it is (figureNames.js).
  *   answers        the student's answers by part id, so a part that builds on
- *                  an earlier one (followThrough, SP-3) is read with their
- *                  own value in its label, or "your slope …" before there is
- *                  one, as the screen shows it (followThrough.mjs). Never a key.
+ *   followThrough  an earlier one (SP-3) is read with their own value in its
+ *                  label, read by these rules (followThrough.mjs, loaded by
+ *                  the host), or "your slope …" before there is one or
+ *                  before the rules arrive, as the screen shows it. Never a key.
  */
-export const questionReadingParts = (question, { referenceInfo = null, backUp = null, stage = null, language = 'en', figures = [], figurePack = null, answers = null } = {}) => {
+export const questionReadingParts = (question, { referenceInfo = null, backUp = null, stage = null, language = 'en', figures = [], figurePack = null, answers = null, followThrough = null } = {}) => {
   if (!question || typeof question !== 'object') return [];
   const w = wordsFor(language);
   const englishFrame = w === WORDS.en;
@@ -272,6 +273,7 @@ export const questionReadingParts = (question, { referenceInfo = null, backUp = 
   const authoredFields = (Array.isArray(question.answerFields) ? question.answerFields : []).filter((field) => field?.id);
   const fields = withFollowThroughLabels(authoredFields, answers && typeof answers === 'object' ? answers : {}, {
     latexOf: (field) => field.labelLatex === true || field.labelFormat === 'latex',
+    value: followThrough?.followThroughValue,
   });
   fields.forEach((field, index) => {
     const label = clean(field.label || field.id);

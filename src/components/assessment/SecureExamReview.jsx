@@ -10,7 +10,8 @@ import { speechAvailable } from '../../platform/language/speechText.js';
 import { FRAMEWORK_LABELS } from '../../platform/ccmr/assessmentCrosswalk.js';
 import { getStudentSecureExamReview } from '../../services/secureExamService.js';
 import { describeToolWork, rawToolWorkOf, toolWorkLabel } from '../../platform/assessment/secureToolWorkSummary.js';
-import { withFollowThroughLabels } from '../../../functions/shared/followThrough.mjs';
+import { withFollowThroughLabels } from '../../../functions/shared/followThroughNames.mjs';
+import { useFollowThroughRules } from '../../platform/interaction/useFollowThroughRules.js';
 import {
   RESULT_STATUS,
   answerIsLatex,
@@ -58,7 +59,7 @@ import {
  * so a keyboard or screen-reader user starts at the top of what changed.
  */
 
-const responseRows = (item) => {
+const responseRows = (item, followThrough = null) => {
   // A Rich Tool answer is a construction, read back in the student's values.
   const toolId = item?.pathToolId || item?.questionSnapshot?.pathToolId || null;
   if (toolId) {
@@ -73,7 +74,7 @@ const responseRows = (item) => {
   const snapshotFields = Array.isArray(item?.questionSnapshot?.responseFields) ? item.questionSnapshot.responseFields : [];
   // SP-3: each answer under the label the student read, their own earlier
   // value written into a part that builds on it (followThrough.mjs).
-  const fields = withFollowThroughLabels(snapshotFields, responses);
+  const fields = withFollowThroughLabels(snapshotFields, responses, { value: followThrough?.followThroughValue });
   const choices = Array.isArray(item?.questionSnapshot?.choices) ? item.questionSnapshot.choices : [];
   return Object.entries(responses)
     .map(([fieldId, raw]) => {
@@ -172,6 +173,12 @@ export default function SecureExamReview({ examSessionId, onBack, onPracticeSkil
   const [error, setError] = useState('');
   const headingRef = useRef(null);
   const released = !loading && !error && reviewIsReleased(review);
+  // SP-3: the follow-through rules, loaded only for a review with such a part.
+  const reviewFields = useMemo(
+    () => (Array.isArray(review?.items) ? review.items : []).flatMap((item) => item?.questionSnapshot?.responseFields || []),
+    [review],
+  );
+  const followThrough = useFollowThroughRules(reviewFields);
   const solutionSupports = useMemo(
     () => workedSolutionSupports(releasedReviewAccessEntitlement(studentSupportProfile), { speechReady: speechAvailable() }),
     [studentSupportProfile],
@@ -284,7 +291,7 @@ export default function SecureExamReview({ examSessionId, onBack, onPracticeSkil
           {items.map((item, index) => {
             const result = reviewItemResult(item, index, { solutionsHeld: review.solutionsHeld === true });
             const tone = STATUS_TONE[result.status];
-            const answerRows = result.status === RESULT_STATUS.BLANK ? [] : responseRows(item);
+            const answerRows = result.status === RESULT_STATUS.BLANK ? [] : responseRows(item, followThrough.rules);
             const code = teksKeyOf(item);
             return (
               <article key={item.questionInstanceId || index} data-result-status={result.status} aria-labelledby={`result-question-${index}`} style={{ ...sectionCard, border: `1px solid ${tone.border}`, minWidth: 0 }}>

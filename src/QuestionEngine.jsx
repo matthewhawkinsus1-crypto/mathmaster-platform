@@ -141,7 +141,7 @@ import { seenHelpText } from './platform/language/seenHelpText.js';
 import { useFocusReturnAfterLock } from './components/common/useFocusReturnAfterLock.js';
 import { speakAloud, speechAvailable } from './platform/language/speechText.js';
 import { backUpQuestionText, questionReadingParts, questionReadingText, readingPartsShown } from './platform/language/questionReading.js';
-import { hasFollowThrough } from '../functions/shared/followThrough.mjs';
+import { useFollowThroughRules } from './platform/interaction/useFollowThroughRules.js';
 import { KeypadConstantsProvider, keypadConstantsFor } from './platform/interaction/keypadConstants.js';
 
 // The graphing calculator (pass 3, PR-26) loads only for a question whose
@@ -567,6 +567,12 @@ function QuestionEngineBody({
    */
   const canonicalAnswerSavedAt = canonicalResponseSavedAt(record);
   const [answerState, setAnswerState] = useState(EMPTY_ANSWER_STATE);
+  // SP-3: a question with a followThrough part starts loading its rules as it
+  // opens, and its Submit is held, busy, until they arrive, so the device
+  // marks it as the server will (useFollowThroughRules.js). Any other question
+  // loads nothing and is not held.
+  const followThrough = useFollowThroughRules(processedQuestion?.answerFields);
+  const followThroughLoading = followThrough.pending;
   // WHAT EVERY RESPONSE MODULE REPORTS INTO.
   //
   // Modules report their answer state from effects, and most rebuild the object
@@ -1334,7 +1340,7 @@ function QuestionEngineBody({
   // the student's own value in its label, as the screen shows it. Only for a
   // question that has one: any other question is read as before, and is not
   // read again on every keystroke.
-  const followThroughQuestion = useMemo(() => hasFollowThrough(processedQuestion?.answerFields), [processedQuestion]);
+  const followThroughQuestion = followThrough.rules !== null || followThrough.pending;
   const readingAnswersKey = followThroughQuestion
     ? JSON.stringify(Object.fromEntries((answerState.parts || []).map((part) => [String(part?.id ?? ''), String(part?.response ?? '')])))
     : '';
@@ -1348,8 +1354,9 @@ function QuestionEngineBody({
       figures: figureReadings,
       figurePack,
       answers: readingAnswers,
+      followThrough: followThrough.rules,
     }),
-    [processedQuestion, referenceInfo, scaffoldRequired, scaffold, readingStage, readAloudLanguage, figureReadings, figurePack, readingAnswers],
+    [processedQuestion, referenceInfo, scaffoldRequired, scaffold, readingStage, readAloudLanguage, figureReadings, figurePack, readingAnswers, followThrough.rules],
   );
   // PART BY PART (SP-1c): Read aloud reads the open part and the answered
   // lines, never a part the screen does not show yet.
@@ -1425,7 +1432,7 @@ function QuestionEngineBody({
   };
 
   const performSubmit = async () => {
-    if (!answerState.isComplete || submitting || submissionInFlightRef.current || locked || pausedByAnotherTab) return;
+    if (!answerState.isComplete || followThroughLoading || submitting || submissionInFlightRef.current || locked || pausedByAnotherTab) return;
     /*
      * A SERVER-GRADED QUESTION WHOSE WORK THE SHARED GRADER DECLINED.
      *
@@ -1572,7 +1579,7 @@ function QuestionEngineBody({
     await performSubmit();
   };
 
-  enterFreshRef.current = { isComplete: answerState.isComplete, submitDisabled: !answerState.isComplete || submitting || locked || scaffoldRequired || contextScaffoldRequired, handleSubmit };
+  enterFreshRef.current = { isComplete: answerState.isComplete, submitDisabled: !answerState.isComplete || followThroughLoading || submitting || locked || scaffoldRequired || contextScaffoldRequired, handleSubmit };
 
   /*
    * A REGISTRY TOOL'S LIVE WORK, AS A CHECKPOINTABLE RESPONSE.
@@ -2756,7 +2763,7 @@ function QuestionEngineBody({
     />
   ) : null;
 
-  const submitDisabled = !answerState.isComplete || submitting || locked || scaffoldRequired || contextScaffoldRequired || pausedByAnotherTab;
+  const submitDisabled = !answerState.isComplete || followThroughLoading || submitting || locked || scaffoldRequired || contextScaffoldRequired || pausedByAnotherTab;
   const shouldShowSubmit = !missingToolDefinition && processedQuestion?.type !== 'modelingLab' && processedQuestion?.type !== 'platformQuestionError' && (processedQuestion?.type !== 'stepAlgebra' || answerState.isComplete);
   const scratchpadQuestionDetails = answerState.questionDetails || processedQuestion?.prompt || 'Show your work for this question.';
   // "40% partial credit so far" says how much, never what for. Where outcome
@@ -3797,6 +3804,7 @@ function QuestionEngineBody({
           className={`mathmaster-bar-submit${submitShowsCost ? ' has-try-cost' : ''}${submitLastTry ? ' is-last-try' : ''}`}
           data-try-cost={submitShowsCost ? tryCost.kind : undefined}
           aria-label={submitLabel}
+          aria-busy={followThroughLoading || undefined}
           onClick={handleSubmit}
           disabled={submitDisabled}
           style={{

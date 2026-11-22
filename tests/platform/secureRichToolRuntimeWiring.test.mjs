@@ -504,5 +504,5 @@ test('released review reads a tool answer back in the student\'s own values', ()
   assert.deepEqual(rawToolWorkOf({ rawJson: '{"points":[[0,1],[1,3]]}' }), { points: [[0, 1], [1, 3]] });
   assert.equal(toolWorkLabel('graphing2'), 'Graphing');
   const review = read('src/components/assessment/SecureExamReview.jsx');
-  assert.match(region(review, 'const responseRows = (item) => {', 'export default function', 'review rows'), /describeToolWork\(toolId, rawToolWorkOf\(item\?\.responsePayload\)\)/);
+  assert.match(region(review, 'const responseRows = (item, followThrough = null) => {', 'export default function', 'review rows'), /describeToolWork\(toolId, rawToolWorkOf\(item\?\.responsePayload\)\)/);
 });

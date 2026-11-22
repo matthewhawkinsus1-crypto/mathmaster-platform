@@ -207,7 +207,7 @@ test('QuestionEngine counts the parts and treats a DOL or one-try item as delibe
   // Moving to Submit frames later is a deferred focus: a press or key after
   // this Enter (the student went on) cancels it. The ticket is taken at Enter.
   assert.match(capture, /const enterTicket = focusAuthority\.ticket\(\{ since: 'now', channel: 'enter' \}\);/);
-  assert.match(engine, /enterFreshRef\.current = \{ isComplete: answerState\.isComplete, submitDisabled: !answerState\.isComplete \|\| submitting \|\| locked \|\| scaffoldRequired \|\| contextScaffoldRequired, handleSubmit \};/, 'the same gates as the Submit button');
+  assert.match(engine, /enterFreshRef\.current = \{ isComplete: answerState\.isComplete, submitDisabled: !answerState\.isComplete \|\| followThroughLoading \|\| submitting \|\| locked \|\| scaffoldRequired \|\| contextScaffoldRequired, handleSubmit \};/, 'the same gates as the Submit button');
   assert.match(engine, /<button\s+ref=\{submitButtonRef\}/);
   const input = executableSource(read('src/MathInput.jsx'));
   assert.match(input, /data-mm-enter-owner=\{onSubmit \? 'field' : undefined\}/);

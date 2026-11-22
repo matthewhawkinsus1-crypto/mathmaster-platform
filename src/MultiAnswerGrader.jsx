@@ -19,7 +19,8 @@ import { keypadProfileForResponseField } from './platform/interaction/interactio
 import { declaredKeypadProfile, withheldVerdictKeys } from './platform/interaction/withheldVerdictKeypad.js';
 import { formatProblemForResponse } from './platform/interaction/answerShapeGuard.js';
 import { typedEntryNotice } from '../functions/shared/typedEntryGuard.mjs';
-import { withFollowThroughLabels } from '../functions/shared/followThrough.mjs';
+import { withFollowThroughLabels } from '../functions/shared/followThroughNames.mjs';
+import { useFollowThroughRules } from './platform/interaction/useFollowThroughRules.js';
 import TypedEntryNotice from './components/common/TypedEntryNotice.jsx';
 import useUndoHistory from './useUndoHistory';
 import { draftNormalizer, draftShape } from './tools/shared/toolDraftShape.js';
@@ -216,14 +217,21 @@ function MultiAnswerGrader({ question, onStateChange, onUndoStateChange, feedbac
   );
   const history = useUndoHistory({}, 60, draftKey ? `${draftKey}:multi-answer` : null, { normalize: ANSWERS_DRAFT });
   const answers = history.value;
-  // SP-3: a part that builds on an earlier one (followThrough) shows the
-  // student's own value in its label ("Using your slope of −3, …"), or "your
-  // slope …" before there is one: on its box, its answered line, Review all
-  // parts and what a screen reader says (followThrough.mjs). With no
-  // followThrough these are the fields themselves.
+  // SP-3: a part that builds on an earlier one (followThrough) is graded with
+  // the follow-through rules, loaded only for such a question; until they
+  // arrive it is not complete, so it cannot be submitted.
+  // Its label shows the student's own value ("Using your slope of −3, …"), or
+  // "your slope …" before there is one: on its box, its answered line, Review
+  // all parts and what a screen reader says. With no followThrough these are
+  // the fields themselves, and nothing is loaded.
+  const followThrough = useFollowThroughRules(safeFields);
+  const followThroughRules = followThrough.rules;
   const labelledFields = useMemo(
-    () => withFollowThroughLabels(safeFields, answers, { latexOf: (field) => field.labelLatex === true || field.labelFormat === 'latex' }),
-    [safeFields, answers],
+    () => withFollowThroughLabels(safeFields, answers, {
+      latexOf: (field) => field.labelLatex === true || field.labelFormat === 'latex',
+      value: followThroughRules?.followThroughValue,
+    }),
+    [safeFields, answers, followThroughRules],
   );
   const shown = (field) => labelledFields[safeFields.indexOf(field)] || field;
   // Each graded field says so in words under it, and its control is described
@@ -236,8 +244,8 @@ function MultiAnswerGrader({ question, onStateChange, onUndoStateChange, feedbac
   // of its line is read from the question's words (GR03, lineFormPolicy.mjs).
   // Once per change of the answers, not once per render.
   const graded = useMemo(
-    () => gradeMultiAnswerResponse({ ...question, answerFields: safeFields }, answers),
-    [question, safeFields, answers],
+    () => gradeMultiAnswerResponse({ ...question, answerFields: safeFields }, answers, { followThrough: followThroughRules }),
+    [question, safeFields, answers, followThroughRules],
   );
   const { parts, isCorrect } = graded;
   // A response that breaks its field's stated shape is not ready to submit:
@@ -309,7 +317,9 @@ function MultiAnswerGrader({ question, onStateChange, onUndoStateChange, feedbac
     const box = describeBoxPlaceholder(field, {
       inferredFormat: shouldUseSetInput(field) ? 'set' : shouldUseInequalityInput(field) ? 'inequality' : '',
       prompt,
-      isAnswer: (typed) => gradeMultiAnswerResponse({ ...question, answerFields: safeFields }, { [field.id]: typed })
+      // Read against the part's own answer alone (the box has no earlier
+      // values here), as a question with no followThrough is.
+      isAnswer: (typed) => gradeMultiAnswerResponse({ ...question, answerFields: safeFields.map(({ followThrough: _builds, ...own }) => own) }, { [field.id]: typed })
         .parts.find((part) => part.id === field.id)?.isCorrect === true,
     });
     // The keypad: the box's shape, the pad its field names (a number,

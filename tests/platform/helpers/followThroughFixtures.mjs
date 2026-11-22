@@ -4,7 +4,8 @@
  *
  * The questions are compiled as an author's file is, so the graders read the
  * compiled shape. Every grader here is the real one a surface uses:
- *   clientGrade     MultiAnswerGrader's grader (gradeMultiAnswerResponse)
+ *   clientGrade     MultiAnswerGrader's grader (gradeMultiAnswerResponse), with
+ *                   the follow-through rules it loads for such a question
  *   serverGrade     the server's dispatch over the checkpointed response, as a
  *                   manual submit and the deadline finalizer mark it
  *   secureGrade     a secure Test, Corrections or Path field item, issued and
@@ -22,6 +23,7 @@ import { gradeMultiAnswerResponse, normalizeOrdinaryResponse } from '../../../fu
 import { gradeQuestionResponse } from '../../../functions/shared/serverGrading/questionResponseGrading.mjs';
 import { gradeFieldResponse } from '../../../src/platform/simulation/teacherPathRuntime.js';
 import { buildFieldGradingDefinition } from '../../../functions/shared/legacyFieldGrading.mjs';
+import * as followThrough from '../../../functions/shared/followThrough.mjs';
 
 const require = createRequire(import.meta.url);
 export const mathPath = require('../../../functions/lib/mathPath.js');
@@ -76,12 +78,13 @@ export const fieldItem = Object.freeze({
 
 const verdicts = (parts) => Object.fromEntries(parts.map((part) => [part.id, part.isCorrect]));
 
-export const clientGrade = (question, answers) => verdicts(gradeMultiAnswerResponse(question, answers).parts);
+export const followThroughRules = followThrough;
+export const clientGrade = (question, answers) => verdicts(gradeMultiAnswerResponse(question, answers, { followThrough }).parts);
 
 // A response with a blank part is not marked (incomplete-response), but the
 // server still reports each part's verdict, which is what is compared.
 export const serverGrade = (question, answers) => {
-  const answerState = { parts: gradeMultiAnswerResponse(question, answers).parts };
+  const answerState = { parts: gradeMultiAnswerResponse(question, answers, { followThrough }).parts };
   const response = normalizeOrdinaryResponse({ question, answerState });
   const result = gradeQuestionResponse({ question, response });
   const filled = question.answerFields.every((field) => String(answers[field.id] ?? '').trim() !== '');

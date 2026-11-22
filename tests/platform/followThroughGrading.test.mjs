@@ -57,9 +57,12 @@ test('the part\'s own answer is still right after a slip: a right answer is neve
   await assertEveryGrader({ slope: '-3', inequality: 'y > -2x + 3' }, { slope: false, inequality: true });
 });
 
-test('a negative and a fraction slope are written in as mathematics and graded as the student writes them', async () => {
+test('a negative, a fraction and a root slope are written in as mathematics and graded as the student writes them', async () => {
   await assertEveryGrader({ slope: '-\\frac{1}{2}', inequality: 'y>-\\frac{1}{2}x+3' }, { slope: false, inequality: true });
   await assertEveryGrader({ slope: '\\frac{1}{2}', inequality: 'y>\\frac{1}{2}x+3' }, { slope: false, inequality: true });
+  // A root is one term: keyed as \sqrt{2}x, as the student writes it.
+  await assertEveryGrader({ slope: '\\sqrt{2}', inequality: 'y>\\sqrt{2}x+3' }, { slope: false, inequality: true });
+  await assertEveryGrader({ slope: '\\sqrt{2}', inequality: 'y > 2x + 3' }, { slope: false, inequality: false });
   await assertEveryGrader({ slope: '-4', inequality: 'y > -4x + 3' }, { slope: false, inequality: true });
   // Brackets keep the sign: slope -4 is not "y > x - 4 + 3" or "y > 4x + 3".
   await assertEveryGrader({ slope: '-4', inequality: 'y > 4x + 3' }, { slope: false, inequality: false });

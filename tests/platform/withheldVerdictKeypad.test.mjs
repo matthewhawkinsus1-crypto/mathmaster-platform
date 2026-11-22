@@ -190,7 +190,8 @@ test('nothing graded changes: the box publishes the same answer state either way
   // the question, its fields and the answers since the keystroke pass).
   const source = executableSource(readFileSync(path.join(ROOT, 'src/MultiAnswerGrader.jsx'), 'utf8'));
   const grading = region(source, 'const graded = ', 'useEffect(', 'grading');
-  assert.match(grading, /gradeMultiAnswerResponse\(\{ \.\.\.question, answerFields: safeFields \}, answers\)/);
+  // (and, for a follow-through question, the follow-through rules it loaded: SP-3).
+  assert.match(grading, /gradeMultiAnswerResponse\(\{ \.\.\.question, answerFields: safeFields \}, answers(?:, \{ followThrough: followThroughRules \})?\)/);
   assert.doesNotMatch(grading, /verdictsWithheld|withheldKeys/);
 });
 
