@@ -36,6 +36,7 @@
  */
 import { equationToLatex, parseEquationInput } from '../../../../functions/shared/algebra/algebraAstEngine.mjs';
 import { evaluate, parse } from '../../../../functions/shared/algebra/safeMath.mjs';
+import { normalizeAnswer } from '../../../../functions/shared/answerEquivalence.mjs';
 import { gradeEquationObjective } from '../../../../functions/shared/serverGrading/stepAlgebraEquationVerdict.mjs';
 import {
   identicallyEqual, isSafeStudentExpression, isolatedNumericValue, studentExpressionBudget,
@@ -83,9 +84,34 @@ const sidesOf = (text) => {
 
 /* --- pickPoints ------------------------------------------------------------ */
 
+// Two points the question names, "(0, -2) and (2, 4)": the line through them,
+// as the plane itself builds a line from two points (lineFromPoints).
+const TWO_POINTS = /^\(\s*(-?\d+(?:\.\d+)?)\s*,\s*(-?\d+(?:\.\d+)?)\s*\)\s*(?:,|and)?\s*\(\s*(-?\d+(?:\.\d+)?)\s*,\s*(-?\d+(?:\.\d+)?)\s*\)$/;
+const lineThrough = (of) => {
+  const match = TWO_POINTS.exec(plain(of));
+  if (!match) return null;
+  const [x1, y1, x2, y2] = match.slice(1).map(Number);
+  if (x1 === x2 && y1 === y2) return null;
+  const gridOn = (points) => points.filter(([x, y]) => [x, y].every((value) => Number.isInteger(value) && value >= PLANE.min && value <= PLANE.max));
+  if (x1 === x2) {
+    if (!Number.isInteger(x1) || x1 < PLANE.min || x1 > PLANE.max) return null;
+    return { kind: 'vertical', x: x1, straight: true, through: [[x1, y1], [x2, y2]], gridPoints: gridOn(Array.from({ length: PLANE.max - PLANE.min + 1 }, (_, index) => [x1, PLANE.min + index])) };
+  }
+  const line = lineFromPoints([x1, y1], [x2, y2]);
+  const slope = (y2 - y1) / (x2 - x1);
+  const at = (x) => (Number.isFinite(line?.m) && Number.isFinite(line?.b) ? line.m * x + line.b : y1 + slope * (x - x1));
+  return {
+    kind: 'function', at, straight: true, through: [[x1, y1], [x2, y2]],
+    gridPoints: gridOn(Array.from({ length: PLANE.max - PLANE.min + 1 }, (_, index) => [PLANE.min + index, tidy(at(PLANE.min + index))])),
+  };
+};
+
 // "y = <an expression in x>" draws a line or a curve; "x = <a number>" is a
-// vertical line. Nothing else is a graph the plane draws from one rule.
+// vertical line; two points draw the line through them. Nothing else is a
+// graph the plane draws from one rule.
 const readRelation = (of) => {
+  const through = lineThrough(of);
+  if (through) return through;
   const sides = sidesOf(of);
   if (!sides) return null;
   const rule = sides.left === 'y' ? sides.right : sides.right === 'y' ? sides.left : null;
@@ -193,36 +219,36 @@ const readRule = (of) => {
  */
 export const readCheckpointSource = (checkpoint) => {
   const step = checkpointOf({ checkpoint });
-  if (!step) return { ok: false, error: 'is not a checkpoint.' };
+  if (!step) return { ok: false, error: ' is not a checkpoint.' };
   const { kind, count, of } = step;
-  if (!of) return { ok: false, error: `needs "of": what the student works on (${OF_EXAMPLE[kind]}).` };
+  if (!of) return { ok: false, error: `.of is missing: say what the student works on (${OF_EXAMPLE[kind]}).` };
   if (kind === CHECKPOINT_KIND.PICK_POINTS) {
     const relation = readRelation(of);
-    if (!relation) return { ok: false, error: `"of" ${JSON.stringify(of)} is not a graph the plane can draw. Write it as y = an expression in x (y = 3x - 2), or x = a whole number.` };
+    if (!relation) return { ok: false, error: `.of ${JSON.stringify(of)} is not a graph the plane can draw. Write two points of a line, as the question gives them ((0, -2) and (2, 4)), or y = an expression in x (y = x^2 - 4), or x = a whole number.` };
     if (relation.gridPoints.length < count) {
-      return { ok: false, error: `"of" ${JSON.stringify(of)} passes through ${relation.gridPoints.length} grid point${relation.gridPoints.length === 1 ? '' : 's'} between ${PLANE.min} and ${PLANE.max}, and the step asks for ${count}. Choose a graph with enough whole-number points, or a smaller count.` };
+      return { ok: false, error: `.of ${JSON.stringify(of)} passes through ${relation.gridPoints.length} grid point${relation.gridPoints.length === 1 ? '' : 's'} between ${PLANE.min} and ${PLANE.max}, and the step asks for ${count}. Choose a graph with enough whole-number points, or a smaller count.` };
     }
     return { ok: true, kind, count, of, relation, bounds: PLANE };
   }
   if (kind === CHECKPOINT_KIND.STEP_MOVES) {
     const equation = readEquation(of);
-    if (!equation) return { ok: false, error: `"of" ${JSON.stringify(of)} is not an equation Step Algebra can open. Write it as you would a Step Algebra question's equation (4x + 7 = x - 8).` };
+    if (!equation) return { ok: false, error: `.of ${JSON.stringify(of)} is not an equation Step Algebra can open. Write it as you would a Step Algebra question's equation (4x + 7 = x - 8).` };
     return { ok: true, kind, count: null, of, question: stepQuestion(of), equation };
   }
   if (kind === CHECKPOINT_KIND.FACTOR_PAIR) {
     const trinomial = readTrinomial(of);
-    if (!trinomial) return { ok: false, error: `"of" ${JSON.stringify(of)} is not a trinomial with whole-number coefficients. Write it as x^2 + 5x + 6.` };
+    if (!trinomial) return { ok: false, error: `.of ${JSON.stringify(of)} is not a trinomial with whole-number coefficients. Write it as x^2 + 5x + 6.` };
     const factored = factorQuadraticByMethod(trinomial.a, trinomial.b, trinomial.c, trinomial.letter);
-    if (!factored) return { ok: false, error: `"of" ${JSON.stringify(of)} has no pair of whole numbers that multiplies to ${trinomial.a * trinomial.c} and adds to ${trinomial.b}, so there is no pair for the student to choose.` };
+    if (!factored) return { ok: false, error: `.of ${JSON.stringify(of)} has no pair of whole numbers that multiplies to ${trinomial.a * trinomial.c} and adds to ${trinomial.b}, so there is no pair for the student to choose.` };
     return { ok: true, kind, count: null, of, trinomial, product: trinomial.a * trinomial.c, sum: trinomial.b };
   }
   const rule = readRule(of);
-  if (!rule) return { ok: false, error: `"of" ${JSON.stringify(of)} is not a rule a table follows. Write it as y = an expression in x (y = 2x + 1).` };
+  if (!rule) return { ok: false, error: `.of ${JSON.stringify(of)} is not a rule a table follows. Write it as y = an expression in x (y = 2x + 1).` };
   return { ok: true, kind, count, of, rule };
 };
 
 const OF_EXAMPLE = Object.freeze({
-  [CHECKPOINT_KIND.PICK_POINTS]: 'the graph on the plane, such as "y = 3x - 2"',
+  [CHECKPOINT_KIND.PICK_POINTS]: 'the graph on the plane, such as "(0, -2) and (2, 4)" for the line through two points',
   [CHECKPOINT_KIND.STEP_MOVES]: 'the equation Step Algebra opens, such as "4x + 7 = x - 8"',
   [CHECKPOINT_KIND.FACTOR_PAIR]: 'the trinomial, such as "x^2 + 5x + 6"',
   [CHECKPOINT_KIND.TABLE_ROW]: 'the rule the table follows, such as "y = 2x + 1"',
@@ -276,7 +302,7 @@ export const normalizeCheckpointWork = (kind, work) => {
   return null;
 };
 
-const NOT_STARTED = Object.freeze({ done: false, ok: false, problem: null, facts: Object.freeze({}) });
+const NOT_STARTED = Object.freeze({ done: false, ok: false, skipped: false, problem: null, facts: Object.freeze({}) });
 
 const checkPickPoints = (source, work) => {
   const points = work.points.filter((point, index) => work.points.findIndex((other) => samePoint(other, point)) === index);
@@ -356,6 +382,7 @@ const CHECKS = Object.freeze({
 /**
  * The engine's reading of the student's work for one step.
  *
+ *   skipped  the student chose to answer without the step.
  *   done     the step is finished: every point placed, every box filled, the
  *            equation solved. An unfinished step is never right or wrong.
  *   ok       done, and the engine accepts it.
@@ -365,14 +392,41 @@ const CHECKS = Object.freeze({
 export const checkCheckpoint = (checkpoint, work) => {
   const source = readCheckpointSource(checkpoint);
   if (!source.ok) return NOT_STARTED;
+  // A step the student chose to answer without is recorded as that, with
+  // whatever they had done; it is never "accepted".
+  const skipped = isObject(work) && work.skipped === true;
   const normalized = normalizeCheckpointWork(source.kind, work);
-  if (!normalized) return NOT_STARTED;
+  if (!normalized) return skipped ? { ...NOT_STARTED, skipped } : NOT_STARTED;
   try {
-    return CHECKS[source.kind](source, normalized);
+    return { ...CHECKS[source.kind](source, normalized), skipped };
   } catch {
-    return NOT_STARTED;
+    return skipped ? { ...NOT_STARTED, skipped } : NOT_STARTED;
   }
 };
+
+// Every keyed value of a question, authored or compiled, with where it is.
+const keyedValues = (question) => {
+  const found = [];
+  const push = (value, where) => {
+    if (typeof value === 'number') found.push({ value: String(value), where });
+    else if (typeof value === 'string' && value.trim()) found.push({ value, where });
+    else if (Array.isArray(value)) value.forEach((entry) => push(entry, where));
+  };
+  ['responses', 'answerFields', 'responseFields'].forEach((list) => {
+    (Array.isArray(question[list]) ? question[list] : []).forEach((part, index) => {
+      if (!isObject(part)) return;
+      const name = `the answer to part "${clean(part.id) || index + 1}"`;
+      [part.answer, part.expected, part.accepted, part.acceptedAnswers, part.followThrough?.answer].forEach((value) => push(value, name));
+    });
+  });
+  [question.answer, question.acceptedAnswers, question.solution, question.generatedAnswer, question.solutionKey?.value]
+    .forEach((value) => push(value, 'an answer to the question'));
+  return found;
+};
+const written = (value) => {
+  try { return normalizeAnswer(plain(value)); } catch { return plain(value).replace(/\s+/g, '').toLowerCase(); }
+};
+const sameWritten = (a, b) => written(a) !== '' && written(a) === written(b);
 
 /**
  * What an author must fix, for every checkpoint in an assignment being
@@ -388,7 +442,16 @@ export const checkpointSourceErrors = (input = {}) => {
         (Array.isArray(question[list]) ? question[list] : []).forEach((part, partIndex) => {
           if (!isObject(part) || !checkpointOf(part)) return;
           const source = readCheckpointSource(part.checkpoint);
-          if (!source.ok) errors.push(`Section ${sectionIndex + 1} Question ${questionIndex + 1} ${list}[${partIndex}].checkpoint ${source.error}`);
+          const at = `Section ${sectionIndex + 1} Question ${questionIndex + 1} ${list}[${partIndex}].checkpoint`;
+          if (!source.ok) {
+            errors.push(`${at}${source.error}`);
+            return;
+          }
+          // `of` is what the student already sees. It is public wherever the
+          // question is, so it may never be an answer: this part's, or any
+          // other keyed value of the question.
+          const keyed = keyedValues(question).find((entry) => sameWritten(entry.value, source.of));
+          if (keyed) errors.push(`${at}.of ${JSON.stringify(source.of)} is ${keyed.where}. "of" is shown to the student before they answer, so it can never be an answer. Write what the question already gives (for a line, two of its points), or move the step to a question that does not ask for it.`);
         });
       });
     });

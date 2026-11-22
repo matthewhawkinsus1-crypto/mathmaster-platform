@@ -460,6 +460,11 @@ export default function StepByStepAlgebra({
   // intercept orchestrator's `{ zeroVariable }` — so a step's raw work names
   // the equation the server must check it against. Never a verdict.
   stepWorkContext = null,
+  // Optional: told each time the workspace refuses something the student
+  // tried (the shake). A host that embeds the workspace as one step of its
+  // own counts them (SHOW THE STEP, SP-4: after two, the student may answer
+  // without the step). Never a verdict, and nothing is recorded here.
+  onSlip = null,
 }) {
   // The props are what QuestionEngine passes the solvers it mounts. Every
   // other host inherits the activity's ToolRuntimeContext instead — a composed
@@ -1103,6 +1108,7 @@ export default function StepByStepAlgebra({
   };
 
   const triggerShake = () => {
+    onSlip?.();
     setShake(false);
     window.requestAnimationFrame(() => {
       setShake(true);

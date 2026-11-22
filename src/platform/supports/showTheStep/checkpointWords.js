@@ -16,9 +16,10 @@ export const stepInstruction = (source) => {
   if (!source?.ok) return '';
   if (source.kind === KIND.PICK_POINTS) {
     const graph = source.relation.straight ? 'line' : 'graph';
+    const named = source.relation.through ? `through ${source.of}` : source.of;
     const riseRun = source.relation.kind === 'function' && source.relation.straight && source.count === 2
       ? ' Then count the rise and the run from your first point to your second.' : '';
-    return `Pick ${source.count} ${plural(source.count, 'point', 'points')} on the ${graph} ${source.of}. Choose ${plural(source.count, 'a point', 'points')} where the ${graph} crosses the grid lines.${riseRun}`;
+    return `Pick ${source.count} ${plural(source.count, 'point', 'points')} on the ${graph} ${named}. Choose ${plural(source.count, 'a point', 'points')} where the ${graph} crosses the grid lines.${riseRun}`;
   }
   if (source.kind === KIND.STEP_MOVES) return `Solve ${source.of} one move at a time. Your moves are saved with your answer.`;
   if (source.kind === KIND.FACTOR_PAIR) return 'Enter the pair of numbers you will use to factor this trinomial.';
@@ -73,6 +74,7 @@ export const stepSummary = (source, check) => {
 /** The engine's reading of a recorded step, for a teacher. */
 export const stepVerdictText = (source, check) => {
   if (!source?.ok) return 'This step could not be read.';
+  if (check?.skipped) return 'Skipped: the student chose to answer without this step, after it was refused twice.';
   if (!check?.done) return 'Not finished.';
   if (check.ok) return `Checked: ${stepSummary(source, check)}`;
   return `Not accepted: ${stepProblemText(source, check)}`;

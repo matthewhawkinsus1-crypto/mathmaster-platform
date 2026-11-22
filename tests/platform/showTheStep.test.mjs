@@ -17,10 +17,15 @@
  *   5. A TEACHER sees the step in a row of its own, after its part, with no
  *      result of its own.
  *   6. READ ALOUD says the step with its part, in English and in Spanish.
+ *   7. `of` IS NEVER A KEY: the validator refuses one that is an answer, the
+ *      answer-key split leaves it public, and the exposure report does not
+ *      count it.
+ *   8. NO GRADE PATH READS A STEP, and the screens that do not open one (a
+ *      secure Test, Corrections, Path) draw and mark the part as before.
  */
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -41,6 +46,10 @@ import { recordQuestionAttempt } from '../../functions/shared/attemptPolicy.mjs'
 import { buildResponseView } from '../../functions/shared/responseInspectorView.mjs';
 import { isStepFieldId, stepFieldId, stepFieldsFromAnswers, stepRowLabel } from '../../functions/shared/showTheStepFields.mjs';
 import { attemptHasToolWork } from '../../src/platform/signals/attemptSignalFacts.js';
+import { mergeQuestion, splitQuestion } from '../../functions/shared/assignmentKeySplit.mjs';
+import { classifyQuestionExposure } from '../../scripts/report-assignment-key-exposure.mjs';
+import { executableSource, region } from './helpers/sourceContract.mjs';
+import { fieldItem, mathPath, secureGrade, simulatorGrade } from './helpers/followThroughFixtures.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
 const fixture = () => JSON.parse(readFileSync(path.join(ROOT, 'tests/platform/fixtures/learningSupportsLessonFragment.json'), 'utf8'));
@@ -50,7 +59,8 @@ const refusal = (source) => {
   return null;
 };
 
-const POINTS = { kind: 'pickPoints', count: 2, of: 'y = 3x - 2' };
+// The guide's own step: the line through the two points its prompt names.
+const POINTS = { kind: 'pickPoints', count: 2, of: '(0, -2) and (2, 4)' };
 const MOVES = { kind: 'stepMoves', of: '4x + 7 = x - 8' };
 const PAIR = { kind: 'factorPair', of: 'x^2 + 5x + 6' };
 const ROWS = { kind: 'tableRow', count: 2, of: 'y = 2x + 1' };
@@ -150,7 +160,7 @@ test('an unfinished step, no work, or a checkpoint its tool cannot read is never
 
 test('the words say what to look at again, never the answer or the value an entry should have had', () => {
   const source = readCheckpointSource(POINTS);
-  assert.match(stepInstruction(source), /^Pick 2 points on the line y = 3x - 2\./);
+  assert.match(stepInstruction(source), /^Pick 2 points on the line through \(0, -2\) and \(2, 4\)\./);
   assert.match(stepInstruction(source), /rise and the run from your first point to your second/);
   // From (-1, -5) to (3, 7) the rise is 12 and the run is 4.
   const riseRun = checkLine(POINTS, { points: [[-1, -5], [3, 7]], rise: '3', run: '1' });
@@ -209,7 +219,7 @@ test('the line fits one answer box, however long the run of moves: the first lin
 });
 
 test('a part\'s checkpoint is read with its count and what it works on; anything else is no checkpoint', () => {
-  assert.deepEqual(checkpointOf({ checkpoint: POINTS }), { kind: 'pickPoints', count: 2, of: 'y = 3x - 2' });
+  assert.deepEqual(checkpointOf({ checkpoint: POINTS }), { kind: 'pickPoints', count: 2, of: '(0, -2) and (2, 4)' });
   assert.deepEqual(checkpointOf({ checkpoint: { kind: 'stepMoves', of: ' 2x = 4 ', count: 3 } }), { kind: 'stepMoves', count: null, of: '2x = 4' });
   assert.equal(checkpointOf({ checkpoint: { kind: 'tableRow', of: 'y = x' } }).count, 1);
   assert.equal(checkpointOf({ checkpoint: { kind: 'pickPoints', count: 99, of: 'y = x' } }).count, CHECKPOINT_LIMITS.count);
@@ -234,8 +244,11 @@ test('the guide\'s lesson says what its step works on, and compiles with no erro
 
 const part0 = (source) => source.sections[0].questions[3].responses[0];
 const REFUSED = [
-  ['a checkpoint that does not say what the step works on', (cp) => { delete cp.of; }, 'Section 1 Question 4 responses[0].checkpoint needs "of": what the student works on (the graph on the plane, such as "y = 3x - 2").'],
-  ['a graph the plane cannot draw', (cp) => { cp.of = 'slope 3'; }, 'Section 1 Question 4 responses[0].checkpoint "of" "slope 3" is not a graph the plane can draw.'],
+  ['a checkpoint that does not say what the step works on', (cp) => { delete cp.of; }, 'Section 1 Question 4 responses[0].checkpoint.of is missing: say what the student works on (the graph on the plane, such as "(0, -2) and (2, 4)" for the line through two points).'],
+  ['a graph the plane cannot draw', (cp) => { cp.of = 'slope 3'; }, 'Section 1 Question 4 responses[0].checkpoint.of "slope 3" is not a graph the plane can draw.'],
+  // `of` is public wherever the question is, so it is never an answer.
+  ['of that is another part\'s answer', (cp) => { cp.of = 'y = 3x - 2'; }, 'Section 1 Question 4 responses[0].checkpoint.of "y = 3x - 2" is the answer to part "equation". "of" is shown to the student before they answer, so it can never be an answer.'],
+  ['of that is that answer written another way', (cp) => { cp.of = 'y=3x−2'; }, 'checkpoint.of "y=3x−2" is the answer to part "equation".'],
   ['more points than the graph has on the grid', (cp) => { cp.of = 'y = x/7'; cp.count = 4; }, 'passes through 3 grid points between -10 and 10, and the step asks for 4.'],
   ['an equation Step Algebra cannot open', (cp) => { cp.kind = 'stepMoves'; delete cp.count; cp.of = 'solve it'; }, 'is not an equation Step Algebra can open.'],
   ['a trinomial with no pair to choose', (cp) => { cp.kind = 'factorPair'; delete cp.count; cp.of = 'x^2 + x + 1'; }, 'has no pair of whole numbers that multiplies to 1 and adds to 1'],
@@ -261,7 +274,10 @@ REFUSED.forEach(([name, edit, message]) => {
 
 test('each kind reads what an author writes for it', () => {
   for (const [checkpoint, facts] of [
-    [POINTS, (source) => source.relation.straight === true && source.relation.gridPoints.length === 7],
+    [POINTS, (source) => source.relation.straight === true && source.relation.gridPoints.length === 7 && source.relation.at(1) === 1],
+    [{ kind: 'pickPoints', count: 2, of: '(0, -2), (2, 4)' }, (source) => source.relation.at(3) === 7],
+    [{ kind: 'pickPoints', count: 2, of: '(3, -1) and (3, 5)' }, (source) => source.relation.kind === 'vertical' && source.relation.x === 3],
+    [{ kind: 'pickPoints', count: 2, of: 'y = 3x - 2' }, (source) => source.relation.straight === true && source.relation.gridPoints.length === 7],
     [{ kind: 'pickPoints', count: 2, of: 'y = -1/2x + 4' }, (source) => source.relation.straight === true],
     [{ kind: 'pickPoints', count: 3, of: 'y = x^2' }, (source) => source.relation.straight === false],
     [MOVES, (source) => source.equation.left === '4x + 7' && source.question.type === 'stepAlgebra'],
@@ -328,6 +344,107 @@ test('no score changes: every verdict, part grade and attempt record is the same
   }
 });
 
+test('a step the student chose to answer without is recorded as skipped, with what they had done, and is never "accepted"', () => {
+  const line = writeCheckpointWork('pickPoints', { points: [[0, -2], [2, 5]], rise: '1', run: '9', skipped: true });
+  assert.equal(line, 'skipped; (0, -2) (2, 5); rise 1; run 9');
+  const check = checkCheckpoint(POINTS, readCheckpointWork('pickPoints', line));
+  assert.deepEqual([check.skipped, check.ok, check.problem.kind], [true, false, 'offGraph']);
+  assert.match(stepVerdictText(readCheckpointSource(POINTS), check), /^Skipped: the student chose to answer without this step/);
+  // Nothing done at all.
+  assert.equal(writeCheckpointWork('stepMoves', { skipped: true }), 'skipped');
+  const bare = checkCheckpoint(MOVES, readCheckpointWork('stepMoves', 'skipped'));
+  assert.deepEqual([bare.skipped, bare.done, bare.ok], [true, false, false]);
+  // It travels like any step, and no score reads it.
+  const q = question();
+  const held = { ...ANSWERS, [stepFieldId('slope')]: line };
+  assert.equal(normalizeOrdinaryResponse({ question: q, answerState: answerState(q, held) }).fields[3].value, line);
+  assert.equal(JSON.stringify(gradeMultiAnswerResponse(q, held)), JSON.stringify(gradeMultiAnswerResponse(q, ANSWERS)));
+  // An honest "not skipped" check says so.
+  assert.equal(checkLine(POINTS, { points: [[0, -2], [2, 4]], rise: '6', run: '2' }).skipped, false);
+});
+
+test('the answer-key split leaves a checkpoint public, of included, and the key-exposure report does not count it', () => {
+  const q = question();
+  const { publicQuestion, privatePart } = splitQuestion(q);
+  assert.deepEqual(publicQuestion.answerFields[0].checkpoint, POINTS, 'the screen needs it to draw the step');
+  assert.equal(publicQuestion.answerFields[0].answer, undefined, 'the part\'s answer moved');
+  assert.doesNotMatch(JSON.stringify(privatePart), /checkpoint|\(0, -2\) and \(2, 4\)/, 'nothing of the checkpoint is a key');
+  assert.deepEqual(mergeQuestion(publicQuestion, privatePart), q, 'and the round trip is exact');
+  for (const checkpoint of [POINTS, MOVES, PAIR, ROWS]) {
+    for (const list of ['answerFields', 'responseFields', 'responses']) {
+      assert.deepEqual(classifyQuestionExposure({ type: 'multiAnswer', [list]: [{ id: 'a', label: 'A', checkpoint }] }).storedKeyFields, [], `${list} ${checkpoint.kind}`);
+    }
+  }
+  // With its answers split away, the question still has no stored key.
+  assert.deepEqual(classifyQuestionExposure(publicQuestion).storedKeyFields, []);
+});
+
+// The grade, attempt and mastery paths, by name (the list
+// attemptSignalsNeverGrade.test.mjs keeps for the teacher signals).
+const GRADE_PATHS = [
+  'src/app/student/gradingControls.js', 'src/app/student/studentOutbox.js', 'src/attemptPolicy.js',
+  'src/grading', 'src/platform/grading', 'src/platform/grades',
+  'functions/shared/attemptPolicy.mjs', 'functions/shared/ordinaryResponseGrading.mjs', 'functions/shared/answerEquivalence.mjs',
+  'functions/shared/legacyFieldGrading.mjs', 'functions/shared/followThrough.mjs', 'functions/shared/attemptEvidenceEvent.mjs',
+  'functions/shared/gradeEntryStorage.mjs', 'functions/shared/gradeDocumentAuthority.mjs', 'functions/shared/submissionIngestion.mjs',
+  'functions/shared/serverGrading', 'functions/gradingFunctions.js', 'functions/classroomFunctions.js', 'functions/testCycleFunctions.js',
+  'functions/lib/gradeDetailStore.js', 'functions/lib/classroomGradeRuntime.js', 'functions/lib/sectionRecoveryGrades.js',
+  'src/masteryEngine.js', 'src/platform/mastery', 'functions/shared/masteryRule.mjs', 'functions/shared/masteryScoring.mjs',
+  'functions/shared/practiceMastery.mjs', 'functions/mathPathFunctions.js', 'functions/lib/mathPath.js',
+];
+const filesUnder = (entry) => {
+  const full = path.join(ROOT, entry);
+  if (!existsSync(full)) return [];
+  if (!statSync(full).isDirectory()) return [entry];
+  return readdirSync(full).flatMap((name) => filesUnder(path.join(entry, name))).filter((file) => /\.(mjs|js|jsx)$/.test(file));
+};
+const STEP_WORDS = /checkpoint(?!Document|Action|Id|ed|s\b| writer|Allowed|Pending|Identity|Timer|Written|Eligib)|showTheStep|ShowTheStep|stepField|::step/;
+
+test('no grade, attempt or mastery path reads a checkpoint or its step: one normaliser carries the line, and nothing marks it', () => {
+  let read = 0;
+  for (const entry of GRADE_PATHS) {
+    const files = filesUnder(entry);
+    assert.ok(files.length > 0, `${entry} was not found: name the path that replaced it`);
+    for (const file of files) {
+      read += 1;
+      const source = executableSource(readFileSync(path.join(ROOT, file), 'utf8'));
+      if (file === 'functions/shared/ordinaryResponseGrading.mjs') continue;
+      assert.doesNotMatch(source, /showTheStep|ShowTheStep|stepFieldsFromAnswers|checkCheckpoint|\.checkpoint\b|::step/, `${file} is a grade path and reads a checkpoint or its step`);
+    }
+  }
+  assert.ok(read > 60, `only ${read} grade-path files were read`);
+  // The one grade-path file that names the step: it carries the line in the
+  // response it builds, and its graders do not see it.
+  const ordinary = executableSource(readFileSync(path.join(ROOT, 'functions/shared/ordinaryResponseGrading.mjs'), 'utf8'));
+  assert.equal(ordinary.split('stepFieldsFromAnswers').length - 1, 2, 'imported once, used once');
+  assert.match(region(ordinary, 'export const normalizeOrdinaryResponse', '\n};', 'the response builder'), /stepFieldsFromAnswers\(question, answerState\?\.responseKey\)/);
+  for (const grader of ['export const gradeMultiAnswerResponse', 'export const gradeOrdinaryResponse']) {
+    assert.doesNotMatch(region(ordinary, grader, '\n};', grader), STEP_WORDS, `${grader} does not read a step`);
+  }
+  // And the module that carries it marks nothing: it imports nothing at all.
+  assert.doesNotMatch(executableSource(readFileSync(path.join(ROOT, 'functions/shared/showTheStepFields.mjs'), 'utf8')), /\bimport\b|isCorrect|credit|score/);
+});
+
+test('a secure Test, Corrections and Path draw a part with a checkpoint as today\'s answer box, and mark it as before', async () => {
+  // These screens do not open a step (the ordinary runner does). They must
+  // not half-draw one either: none of them reads a checkpoint, so the part is
+  // the answer box it always was.
+  for (const file of ['src/components/question/RichQuestionRuntime.jsx', 'src/components/student/PathResponseFields.jsx', 'src/components/student/PathSessionPlayer.jsx', 'src/components/assessment/SecureExamReview.jsx', 'src/components/student/TestCycleCorrections.jsx']) {
+    const source = executableSource(readFileSync(path.join(ROOT, file), 'utf8'));
+    assert.doesNotMatch(source, /ShowTheStep|showTheStep|checkpointOf|\.checkpoint\b/, `${file} does not draw or wait for a step`);
+  }
+  // And a secure item's part is marked the same with a checkpoint on it.
+  const withStep = structuredClone(fieldItem);
+  withStep.responseFields[0].checkpoint = { kind: 'pickPoints', count: 2, of: '(0, 3) and (1, 1)' };
+  for (const responses of [{ slope: '-2', inequality: 'y > -2x + 3' }, { slope: '2', inequality: 'y > 2x + 3' }, { slope: '5', inequality: 'y < x' }]) {
+    assert.deepEqual(await secureGrade(withStep, responses), await secureGrade(fieldItem, responses), JSON.stringify(responses));
+    assert.deepEqual(simulatorGrade(withStep, responses), simulatorGrade(fieldItem, responses), JSON.stringify(responses));
+  }
+  // The student's copy of a secure item never needed the step to be answered.
+  const plan = await mathPath.buildIssuePlan(withStep);
+  assert.equal(plan.issuable, true, plan.reason);
+});
+
 test('a question with a checkpoint counts as work a teacher can look at', () => {
   assert.equal(attemptHasToolWork({ question: question() }), true);
 });
@@ -367,9 +484,10 @@ test('Read aloud says the step with its part, in English and in Spanish, and onl
   const q = question();
   const said = (language) => Object.fromEntries(questionReadingParts(q, { language }).filter((part) => part.kind === 'part').map((part) => [part.id, part.text]));
   const english = said('en');
-  assert.match(english['part-slope'], /Slope of the line\. First, show the step: pick 2 points on the graph of y = 3x - 2\.$/);
+  assert.match(english['part-slope'], /Slope of the line\. First, show the step: pick 2 points on the line through \(0, -2\) and \(2, 4\)\.$/);
   assert.doesNotMatch(english['part-intercept'], /show the step/);
-  assert.match(said('es')['part-slope'], /Primero, muestra el paso: elige 2 puntos en la gráfica de y = 3x - 2\.$/);
+  assert.match(said('es')['part-slope'], /Primero, muestra el paso: elige 2 puntos en la recta que pasa por \(0, -2\) y|Primero, muestra el paso: elige 2 puntos en la recta que pasa por \(0, -2\) and \(2, 4\)\.$/);
+  assert.match(questionReadingParts({ ...q, answerFields: [{ ...q.answerFields[0], checkpoint: { kind: 'pickPoints', count: 3, of: 'y = x^2' } }] }, {}).find((part) => part.kind === 'part').text, /pick 3 points on the graph of y = x\^2\./);
   for (const [checkpoint, words] of [[MOVES, /solve 4x \+ 7 = x - 8 one move at a time\./], [PAIR, /enter the pair of numbers you will use to factor x\^2 \+ 5x \+ 6\./], [ROWS, /fill in 2 rows of the table for y = 2x \+ 1\./]]) {
     const other = { ...q, answerFields: [{ ...q.answerFields[0], checkpoint }] };
     assert.match(questionReadingParts(other, {}).find((part) => part.kind === 'part').text, words);

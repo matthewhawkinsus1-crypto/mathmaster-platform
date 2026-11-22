@@ -2711,7 +2711,7 @@ function QuestionEngineBody({
       case 'multiAnswer':
         // An exit ticket, a quiz or a test before its release: the keypad says
         // nothing about the answer (N56, withheldVerdictKeypad.js).
-        return <MultiAnswerGrader {...commonModuleProps} verdictsWithheld={!showOutcomeFeedback} partByPart={walkAnswerParts} onShownPartsChange={setShownAnswerParts} />;
+        return <MultiAnswerGrader {...commonModuleProps} verdictsWithheld={!showOutcomeFeedback} partByPart={walkAnswerParts} onShownPartsChange={setShownAnswerParts} stepsOptional={supportPresentation.everyPartAtOnce === true} />;
       case 'relationshipModel':
         return <RelationshipModel {...commonModuleProps} />;
       case 'graphScenarioMatch':

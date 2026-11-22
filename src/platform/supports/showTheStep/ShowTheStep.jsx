@@ -14,8 +14,12 @@
  *   Classwork and Practice   once the engine accepts the step. The student
  *                            asks with "Check my step" and is told in words
  *                            what is off; nothing here states the answer.
+ *                            After two refusals "Answer without this step"
+ *                            opens the box: recorded as skipped, no penalty.
  *   DOL, quiz and test       (`verdictsWithheld`) once the step is done.
  *                            Nothing says right or wrong.
+ *   See every part at once   (`optional`, the student's support) at once.
+ *                            Whatever step work is done is still recorded.
  *
  * A lazy chunk: the answer boxes load it only for a part that has a step.
  */
@@ -129,7 +133,7 @@ function PickPoints({ source, work, onWork, disabled }) {
   );
 }
 
-function StepMoves({ source, onWork, disabled, draftKey, verdictsWithheld, value }) {
+function StepMoves({ source, onWork, disabled, draftKey, verdictsWithheld, value, onSlip }) {
   const pristine = source.equation;
   // The moves are Step Algebra's to keep (its own draft and Undo). If the
   // line beside the answer is changed from outside (the answer boxes' Undo),
@@ -158,6 +162,7 @@ function StepMoves({ source, onWork, disabled, draftKey, verdictsWithheld, value
         showPrompt={false}
         disabled={disabled}
         hintsAllowed={!verdictsWithheld}
+        onSlip={onSlip}
       />
     </ToolRuntimeProvider>
   );
@@ -210,7 +215,7 @@ function TableRows({ source, work, onWork, disabled }) {
 }
 
 export default function ShowTheStep({
-  checkpoint, value = '', onChange, onStatus, verdictsWithheld = false, disabled = false, draftKey = null, partLabel = '',
+  checkpoint, value = '', onChange, onStatus, verdictsWithheld = false, optional = false, disabled = false, draftKey = null, partLabel = '',
 }) {
   const source = useMemo(() => readCheckpointSource(checkpoint), [checkpoint]);
   const kind = source.ok ? source.kind : null;
@@ -223,7 +228,23 @@ export default function ShowTheStep({
   // no second press.
   const [checked, setChecked] = useState(() => (check.ok ? value : null));
   const isChecked = checked === value;
-  const open = !source.ok || (verdictsWithheld ? check.done : asksForCheck ? check.ok && isChecked : check.ok);
+  // A STUCK STUDENT IS NEVER LOCKED OUT (Classwork and Practice). Once the
+  // engine has refused the step twice, "Answer without this step" opens the
+  // answer box. The step is recorded as skipped, with whatever was done, and
+  // costs nothing.
+  const [refusals, setRefusals] = useState(0);
+  const refused = useCallback(() => setRefusals((count) => count + 1), []);
+  const skipped = check.skipped === true;
+  // `optional`: the student's See every part at once support. The answer box
+  // is open from the start, and any step work is still recorded.
+  const accepted = asksForCheck ? check.ok && isChecked : check.ok;
+  // Where verdicts are withheld nothing may say the step is right, so the box
+  // cannot wait for a right one. It opens once the step is done; for Step
+  // Algebra, once a move is made, so a student who cannot finish solving is
+  // not kept from answering.
+  const attempted = check.done || (kind === CHECKPOINT_KIND.STEP_MOVES && (work?.lines?.length || 0) >= 2);
+  const open = !source.ok || optional || (verdictsWithheld ? attempted : accepted || skipped);
+  const offerSkip = !verdictsWithheld && !optional && !open && refusals >= 2;
   const onStatusRef = useRef(onStatus);
   onStatusRef.current = onStatus;
   useEffect(() => {
@@ -233,18 +254,26 @@ export default function ShowTheStep({
 
   // Stable for the tools below (Step Algebra reports its steps from an effect
   // keyed on this), and silent when the line has not changed.
-  const latest = useRef({ onChange, value });
-  latest.current = { onChange, value };
+  const latest = useRef({ onChange, value, skipped });
+  latest.current = { onChange, value, skipped };
   const onWork = useCallback((next) => {
     if (!kind) return;
-    const line = next ? writeCheckpointWork(kind, next) : '';
+    // A skipped step stays skipped while the student works on it again, until
+    // the engine accepts what they have done.
+    const keepSkip = latest.current.skipped && !(next && checkCheckpoint(checkpoint, next).ok);
+    const line = keepSkip ? writeCheckpointWork(kind, { ...next, skipped: true }) : next ? writeCheckpointWork(kind, next) : '';
     if (line !== latest.current.value) latest.current.onChange?.(line);
-  }, [kind]);
+  }, [kind, checkpoint]);
+  const skip = () => latest.current.onChange?.(writeCheckpointWork(kind, { ...work, skipped: true }));
+  const pressCheck = () => {
+    setChecked(value);
+    if (!check.ok) refused();
+  };
 
   if (!source.ok) return null;
   const headingText = partLabel ? `First, show the step for: ${partLabel}` : 'First, show the step';
   const shared = { source, work, onWork, disabled };
-  const verdict = !verdictsWithheld && check.done && (asksForCheck ? isChecked : true);
+  const verdict = !verdictsWithheld && check.done && (asksForCheck ? isChecked : true) && !(skipped && !check.ok);
   return (
     <div role="group" aria-label={headingText} data-show-the-step={kind} data-step-open={open ? 'true' : 'false'} style={BOX}>
       <h4 style={HEADING}>First, show the step</h4>
@@ -253,20 +282,27 @@ export default function ShowTheStep({
         <div style={{ fontSize: 'calc(18 * var(--mm-px))' }}><MathDisplay value={source.of} format="text" /></div>
       ) : null}
       {kind === CHECKPOINT_KIND.PICK_POINTS && <PickPoints {...shared} />}
-      {kind === CHECKPOINT_KIND.STEP_MOVES && <StepMoves {...shared} value={value} draftKey={draftKey} verdictsWithheld={verdictsWithheld} />}
+      {kind === CHECKPOINT_KIND.STEP_MOVES && <StepMoves {...shared} value={value} draftKey={draftKey} verdictsWithheld={verdictsWithheld} onSlip={refused} />}
       {kind === CHECKPOINT_KIND.FACTOR_PAIR && <FactorPair {...shared} />}
       {kind === CHECKPOINT_KIND.TABLE_ROW && <TableRows {...shared} />}
       {asksForCheck ? (
-        <button type="button" data-step-check="" disabled={disabled || !check.done} onClick={() => setChecked(value)} style={{ ...BUTTON(check.done && !disabled), justifySelf: 'start' }}>
+        <button type="button" data-step-check="" disabled={disabled || !check.done} onClick={pressCheck} style={{ ...BUTTON(check.done && !disabled), justifySelf: 'start' }}>
           Check my step
         </button>
       ) : null}
       <p role="status" data-step-status="" style={verdict ? NOTE(check.ok ? 'good' : 'warn') : { ...TEXT, color: 'var(--mm-text-muted)' }}>
         {verdict
           ? (check.ok ? `${stepSummary(source, check)} Now answer the part below.` : stepProblemText(source, check))
-          : verdictsWithheld && check.done ? 'Step recorded. Now answer the part below.'
-            : 'The answer box opens when this step is done.'}
+          : skipped ? 'You chose to answer without this step. It does not change your score. You can still do the step: your teacher sees what you did.'
+            : optional ? 'This step is optional for you. Any work you do here is saved with your answer.'
+              : verdictsWithheld && attempted ? 'Step recorded. Now answer the part below.'
+                : 'The answer box opens when this step is done.'}
       </p>
+      {offerSkip ? (
+        <button type="button" data-step-skip="" disabled={disabled} onClick={skip} style={{ ...BUTTON(true, true), justifySelf: 'start' }}>
+          Answer without this step
+        </button>
+      ) : null}
     </div>
   );
 }

@@ -205,7 +205,9 @@ const ANSWERS_DRAFT = draftNormalizer(draftShape.map(draftShape.nullable(draftSh
 // open one at a time (the open one and the answered lines; every part in
 // Review all parts or after a graded attempt), or null when every part is
 // drawn. Read aloud reads only those (SP-1c).
-function MultiAnswerGrader({ question, onStateChange, onUndoStateChange, feedback, draftKey, verdictsWithheld = false, partByPart = false, onShownPartsChange = null }) {
+// `stepsOptional`: the student's See every part at once support. A part's
+// step (SHOW THE STEP, above) never holds its answer box shut for them.
+function MultiAnswerGrader({ question, onStateChange, onUndoStateChange, feedback, draftKey, verdictsWithheld = false, partByPart = false, onShownPartsChange = null, stepsOptional = false }) {
   const { prompt, answerFields = NO_FIELDS } = question;
   // Read as the box its key says it is: an older import stamped some number
   // boxes as set boxes (RT02), and the grader reads them the same way.
@@ -279,7 +281,7 @@ function MultiAnswerGrader({ question, onStateChange, onUndoStateChange, feedbac
   // step lets the answer box open. A part with a step is not answered, and the
   // question not ready to submit, until then.
   const [stepStatus, setStepStatus] = useState(NO_STEPS);
-  const stepIsOpen = (field) => !checkpointOf(field) || stepStatus[field.id]?.open === true;
+  const stepIsOpen = (field) => stepsOptional || !checkpointOf(field) || stepStatus[field.id]?.open === true;
   const reportStep = (id, status) => setStepStatus((current) => (
     current[id]?.open === status.open && current[id]?.done === status.done ? current : { ...current, [id]: status }
   ));
@@ -457,6 +459,7 @@ function MultiAnswerGrader({ question, onStateChange, onUndoStateChange, feedbac
                 onChange={(line) => history.setValue((current) => (String(current[stepKey] || '') === line ? current : { ...current, [stepKey]: line }))}
                 onStatus={(status) => reportStep(field.id, status)}
                 verdictsWithheld={verdictsWithheld}
+                optional={stepsOptional}
                 draftKey={draftKey ? `${draftKey}:step-${field.id}` : null}
                 partLabel={accessibleFieldLabel(shown(field))}
               />

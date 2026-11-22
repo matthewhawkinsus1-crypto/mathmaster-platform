@@ -58,6 +58,7 @@ export const hasCheckpoint = (parts) => Array.isArray(parts) && parts.some((part
  *   stepMoves   4x + 7 = x - 8 ; 3x + 7 = -8 ; 3x = -15 ; x = -5
  *   factorPair  2 and 3
  *   tableRow    (1, 3) (2, 5)
+ *   (any)       skipped; (0, -2) (2, 5); rise 1; run 9
  *
  * Text, because that is what an answer box's value is everywhere it travels:
  * the draft, Undo, the submitted response and the teacher's view of it carry
@@ -75,9 +76,22 @@ const entry = (value) => String(value ?? '').replace(/[;()]/g, '').trim().slice(
 const pairText = ([a, b]) => `(${entry(a)}, ${entry(b)})`;
 const equationText = (equation) => `${String(equation?.left ?? '').trim()} = ${String(equation?.right ?? '').trim()}`;
 
+// A step the student chose to answer without (offered on Classwork and
+// Practice after the engine has refused it twice): the line starts with this
+// word, then whatever work they had done.
+export const SKIPPED_STEP = 'skipped';
+
 /** The step's line of text for the student's work, or '' when there is none. */
 export const writeCheckpointWork = (kind, work) => {
   if (!isObject(work)) return '';
+  if (work.skipped === true) {
+    const done = writeWork(kind, work);
+    return done ? `${SKIPPED_STEP}; ${done}`.slice(0, CHECKPOINT_LIMITS.workLength) : SKIPPED_STEP;
+  }
+  return writeWork(kind, work);
+};
+
+const writeWork = (kind, work) => {
   if (kind === CHECKPOINT_KIND.PICK_POINTS) {
     const points = (Array.isArray(work.points) ? work.points : []).slice(0, CHECKPOINT_LIMITS.points).map(pairText);
     const [rise, run] = [entry(work.rise), entry(work.run)];
@@ -123,7 +137,16 @@ const sidesOf = (line) => {
 /** The student's work read back from a step's line of text, or null. */
 export const readCheckpointWork = (kind, value) => {
   if (typeof value !== 'string' || !value.trim() || value.length > CHECKPOINT_LIMITS.workLength + 1) return null;
-  const text = value.trim();
+  const line = value.trim();
+  if (line === SKIPPED_STEP || line.startsWith(`${SKIPPED_STEP};`)) {
+    return { ...(readWork(kind, line.slice(SKIPPED_STEP.length + 1)) || {}), skipped: true };
+  }
+  return readWork(kind, line);
+};
+
+const readWork = (kind, value) => {
+  const text = String(value || '').trim();
+  if (!text) return null;
   if (kind === CHECKPOINT_KIND.PICK_POINTS) {
     const [pointsText = '', ...rest] = text.split(';');
     const named = (name) => (rest.map((piece) => piece.trim()).find((piece) => piece.startsWith(`${name} `) || piece === name) || '').slice(name.length).trim();

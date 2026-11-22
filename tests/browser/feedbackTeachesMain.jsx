@@ -111,7 +111,7 @@ const QUESTIONS = {
     type: 'multiAnswer',
     prompt: 'A line passes through (0, -2) and (2, 4).',
     answerFields: [
-      { id: 'slope', label: 'Slope of the line', answer: '3', inputProfile: 'number', checkpoint: { kind: 'pickPoints', count: 2, of: 'y = 3x - 2' } },
+      { id: 'slope', label: 'Slope of the line', answer: '3', inputProfile: 'number', checkpoint: { kind: 'pickPoints', count: 2, of: '(0, -2) and (2, 4)' } },
       { id: 'intercept', label: 'The y-intercept', answer: '-2', inputProfile: 'number' },
     ],
   },
