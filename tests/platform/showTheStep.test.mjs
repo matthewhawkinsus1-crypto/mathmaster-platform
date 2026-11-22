@@ -34,9 +34,10 @@ import { buildAssignmentV5PreflightModel } from '../../src/platform/preflight/as
 import {
   CHECKPOINT_KIND, checkCheckpoint, checkpointSourceErrors, normalizeCheckpointWork, readCheckpointSource,
 } from '../../src/platform/supports/showTheStep/checkpointEngine.js';
-import {
-  CHECKPOINT_LIMITS, OMITTED_LINES, checkpointOf, checkpointWorkKey, hasCheckpoint, readCheckpointWork, writeCheckpointWork,
-} from '../../src/platform/supports/showTheStep/checkpointShape.js';
+import { CHECKPOINT_LIMITS, checkpointOf, checkpointWorkKey, hasCheckpoint } from '../../src/platform/supports/showTheStep/checkpointShape.js';
+import { OMITTED_LINES, readCheckpointWork, writeCheckpointWork } from '../../src/platform/supports/showTheStep/checkpointLine.js';
+import { factorPairOf } from '../../src/platform/supports/showTheStep/checkpointSource.js';
+import { factorQuadraticByMethod } from '../../src/platform/supports/workedExample/factoringVariant.js';
 import { stepInstruction, stepProblemText, stepSummary, stepVerdictText } from '../../src/platform/supports/showTheStep/checkpointWords.js';
 import { questionReadingParts } from '../../src/platform/language/questionReading.js';
 import { gradeMultiAnswerResponse, gradeOrdinaryResponse, normalizeOrdinaryResponse } from '../../functions/shared/ordinaryResponseGrading.mjs';
@@ -44,7 +45,7 @@ import { normalizeStoredResponse } from '../../functions/shared/responseCheckpoi
 import { MAX_TYPED_ANSWER_LENGTH } from '../../functions/shared/typedEntryGuard.mjs';
 import { recordQuestionAttempt } from '../../functions/shared/attemptPolicy.mjs';
 import { buildResponseView } from '../../functions/shared/responseInspectorView.mjs';
-import { isStepFieldId, stepFieldId, stepFieldsFromAnswers, stepRowLabel } from '../../functions/shared/showTheStepFields.mjs';
+import { MAX_STEP_LINE_LENGTH, isStepFieldId, stepFieldId, stepFieldsFromAnswers, stepRowLabel } from '../../functions/shared/showTheStepFields.mjs';
 import { attemptHasToolWork } from '../../src/platform/signals/attemptSignalFacts.js';
 import { mergeQuestion, splitQuestion } from '../../functions/shared/assignmentKeySplit.mjs';
 import { classifyQuestionExposure } from '../../scripts/report-assignment-key-exposure.mjs';
@@ -227,6 +228,8 @@ test('a part\'s checkpoint is read with its count and what it works on; anything
   assert.equal(hasCheckpoint([{ id: 'a' }, { id: 'b', checkpoint: PAIR }]), true);
   assert.equal(hasCheckpoint([{ id: 'a' }]), false);
   assert.equal(checkpointWorkKey('slope'), 'slope::step');
+  assert.equal(checkpointWorkKey('slope'), stepFieldId('slope'), 'the boxes and the response name the step alike');
+  assert.equal(CHECKPOINT_LIMITS.workLength, MAX_STEP_LINE_LENGTH);
   assert.equal(Object.values(CHECKPOINT_KIND).length, 4);
 });
 
@@ -270,6 +273,28 @@ REFUSED.forEach(([name, edit, message]) => {
     const errors = buildAssignmentV5PreflightModel(stored).errors;
     assert.ok(errors.some((entry) => entry.includes(message.replace('responses[0]', 'answerFields[0]'))), errors.join('\n'));
   });
+});
+
+test('the pair a step asks for is the pair the factoring slides\' method splits with', () => {
+  let compared = 0;
+  for (let a = -4; a <= 4; a += 1) {
+    for (let b = -12; b <= 12; b += 1) {
+      for (let c = -12; c <= 12; c += 1) {
+        if (!a || !b || !c) continue;
+        const method = factorQuadraticByMethod(a, b, c);
+        const pair = factorPairOf({ a, b, c });
+        // Wherever the method splits the middle term, it is with this pair.
+        if (method) {
+          compared += 1;
+          assert.deepEqual([method.m, method.n].sort((x, y) => x - y), pair, `${a}x^2 + ${b}x + ${c}`);
+        }
+        // And a pair is always what the rule says a pair is.
+        if (pair) assert.deepEqual([pair[0] + pair[1], pair[0] * pair[1]], [b, a * c]);
+      }
+    }
+  }
+  assert.ok(compared > 300, `${compared} trinomials were compared`);
+  assert.equal(factorPairOf({ a: 1, b: 1, c: 1 }), null);
 });
 
 test('each kind reads what an author writes for it', () => {

@@ -22,7 +22,7 @@ import { radicalEquationOpensRelationWorkspace } from './radicalEquationIntent.j
 import { lessonSupportsPassThroughErrors, validateLessonSupportsV5 } from './lessonSupportsV5.js';
 import { stepAlgebraReplayErrors } from '../supports/workedExample/stepAlgebraReplay.js';
 import { radicalReplayErrors } from '../supports/workedExample/radicalReplay.js';
-import { checkpointSourceErrors } from '../supports/showTheStep/checkpointEngine.js';
+import { checkpointSourceErrors } from '../supports/showTheStep/checkpointSource.js';
 
 const asArray = (value) => Array.isArray(value) ? value : value == null ? [] : [value];
 const isObject = (value) => value && typeof value === 'object' && !Array.isArray(value);
@@ -2375,7 +2375,7 @@ export const compileAuthoringIntentV5 = (input = {}) => {
   // that does not reach its answer is refused here, before it can be saved
   // (WE-C; stepAlgebraReplay.js). No replay, no check.
   // …and a checkpoint is checked by its tool's engine, so one that tool
-  // cannot read is refused too (SP-4; checkpointEngine.js).
+  // cannot read is refused too (SP-4; checkpointSource.js).
   const replayErrors = [...stepAlgebraReplayErrors(input), ...radicalReplayErrors(input), ...checkpointSourceErrors(input)];
   if (replayErrors.length) {
     throw new Error(`Assignment V5 validation failed:\n- ${replayErrors.join('\n- ')}`);

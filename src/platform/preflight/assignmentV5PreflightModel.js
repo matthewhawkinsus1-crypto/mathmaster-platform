@@ -2,7 +2,7 @@ import { normalizeAssignmentV5, validateAssignmentV5, flattenV5Sections } from '
 import { validateLessonSupportsV5 } from '../contract/lessonSupportsV5.js';
 import { stepAlgebraReplayErrors } from '../supports/workedExample/stepAlgebraReplay.js';
 import { radicalReplayErrors } from '../supports/workedExample/radicalReplay.js';
-import { checkpointSourceErrors } from '../supports/showTheStep/checkpointEngine.js';
+import { checkpointSourceErrors } from '../supports/showTheStep/checkpointSource.js';
 import { validateAssignmentQuestions } from '../../assignmentBlueprint.js';
 import { validateQuestionsSemantics } from '../contract/semanticValidation.js';
 import { validateAlignments, auditAlignmentSpecificity } from '../contract/alignments.js';

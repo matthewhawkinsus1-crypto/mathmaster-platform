@@ -1,4 +1,4 @@
-import { Suspense, lazy, memo, useEffect, useId, useMemo, useRef, useState } from 'react';
+import { Suspense, memo, useEffect, useId, useMemo, useRef, useState } from 'react';
 import MathInput from './MathInput';
 import MathDisplay from './MathDisplay';
 import QuestionPrompt from './QuestionPrompt';
@@ -35,12 +35,13 @@ import { checkpointOf, checkpointWorkKey } from './platform/supports/showTheStep
 
 // SHOW THE STEP (SP-4). A part with a `checkpoint` asks for one step in a
 // tool before its answer box opens: points picked on the plane, moves in Step
-// Algebra, a factor pair, a table's rows. The step and its tool load only for
-// such a part. The student's step is kept as one line of text beside the
-// part's answer (`<id>::step`), so the draft, Undo and the submitted response
-// carry it; the graders read only the parts a question authors, so it changes
-// no verdict and no score.
-const ShowTheStep = lazy(() => import('./platform/supports/showTheStep/ShowTheStep.jsx'));
+// Algebra, a factor pair, a table's rows. The host hands the step in
+// (`StepComponent`: the question engine's lazy ShowTheStep, which loads with
+// its tools only for such a part). A host that hands none in draws the part
+// as its answer box, as before. The student's step is kept as one line of
+// text beside the part's answer (`<id>::step`), so the draft, Undo and the
+// submitted response carry it; the graders read only the parts a question
+// authors, so it changes no verdict and no score.
 const NO_STEPS = Object.freeze({});
 
 const TEXTUAL_MATH_SIGNAL = /[=<>≤≥≠+*/^()[\]{}\\∞π√∪∩]/;
@@ -207,7 +208,7 @@ const ANSWERS_DRAFT = draftNormalizer(draftShape.map(draftShape.nullable(draftSh
 // drawn. Read aloud reads only those (SP-1c).
 // `stepsOptional`: the student's See every part at once support. A part's
 // step (SHOW THE STEP, above) never holds its answer box shut for them.
-function MultiAnswerGrader({ question, onStateChange, onUndoStateChange, feedback, draftKey, verdictsWithheld = false, partByPart = false, onShownPartsChange = null, stepsOptional = false }) {
+function MultiAnswerGrader({ question, onStateChange, onUndoStateChange, feedback, draftKey, verdictsWithheld = false, partByPart = false, onShownPartsChange = null, stepsOptional = false, StepComponent = null }) {
   const { prompt, answerFields = NO_FIELDS } = question;
   // Read as the box its key says it is: an older import stamped some number
   // boxes as set boxes (RT02), and the grader reads them the same way.
@@ -281,7 +282,8 @@ function MultiAnswerGrader({ question, onStateChange, onUndoStateChange, feedbac
   // step lets the answer box open. A part with a step is not answered, and the
   // question not ready to submit, until then.
   const [stepStatus, setStepStatus] = useState(NO_STEPS);
-  const stepIsOpen = (field) => stepsOptional || !checkpointOf(field) || stepStatus[field.id]?.open === true;
+  const stepOf = (field) => (StepComponent ? checkpointOf(field) : null);
+  const stepIsOpen = (field) => stepsOptional || !stepOf(field) || stepStatus[field.id]?.open === true;
   const reportStep = (id, status) => setStepStatus((current) => (
     current[id]?.open === status.open && current[id]?.done === status.done ? current : { ...current, [id]: status }
   ));
@@ -362,7 +364,7 @@ function MultiAnswerGrader({ question, onStateChange, onUndoStateChange, feedbac
   const partDone = useMemo(() => new Map(safeFields.map((field) => [
     field.id,
     parts.find((part) => part.id === field.id)?.isComplete === true && !formatProblems[field.id] && !entryProblems[field.id] && stepIsOpen(field),
-  ])), [safeFields, parts, formatProblems, entryProblems, stepStatus]);
+  ])), [safeFields, parts, formatProblems, entryProblems, stepStatus, stepsOptional, StepComponent]);
   const firstOpenPart = () => safeFields.find((field) => !partDone.get(field.id))?.id ?? null;
   // `open`: the open part's id, or null for Review all parts. `target`: what
   // takes focus after the student moved (`focus` counts the moves).
@@ -442,7 +444,7 @@ function MultiAnswerGrader({ question, onStateChange, onUndoStateChange, feedbac
     const grade = feedback?.partGrades?.find((part) => part.id === field.id);
     const markId = `${markBase}-${field.id}-mark`;
     const { choiceOptions, inferredRequiredSymbols, requiredSymbols, answerShape, box, toolProfile, withheldKeys } = fieldPresentation.get(field.id);
-    const step = checkpointOf(field);
+    const step = stepOf(field);
     const stepKey = checkpointWorkKey(field.id);
     const stepOpen = stepIsOpen(field);
     return (
@@ -453,7 +455,7 @@ function MultiAnswerGrader({ question, onStateChange, onUndoStateChange, feedbac
         {step ? (
           <div style={{ marginBottom: 14 }}>
             <Suspense fallback={<p role="status" style={{ margin: 0, color: 'var(--mm-text-muted)' }}>Loading the step…</p>}>
-              <ShowTheStep
+              <StepComponent
                 checkpoint={field.checkpoint}
                 value={String(answers[stepKey] || '')}
                 onChange={(line) => history.setValue((current) => (String(current[stepKey] || '') === line ? current : { ...current, [stepKey]: line }))}

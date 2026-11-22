@@ -29,6 +29,7 @@ import { fileURLToPath } from 'node:url';
 import { screenshotKeepingTouch } from './support/touchEmulation.mjs';
 import { answerParts } from './support/partByPart.mjs';
 import { solveLinearInEquationWorkspace } from './equationWorkspacePlanner.mjs';
+import { ASSESSMENT_LEAK_TEXTS, EXAMPLE_CONTROL_SELECTORS } from './support/assessmentLadderWords.mjs';
 
 const ORIGIN = process.env.AUDIT_ORIGIN || 'http://127.0.0.1:5199';
 const ARTIFACTS = path.join(path.dirname(fileURLToPath(import.meta.url)), 'artifacts/showTheStep');
@@ -101,6 +102,14 @@ const noSidewaysScroll = async (page, where) => {
     return box.width > 0 && (box.right > window.innerWidth + 1 || box.left < -1);
   }).map((element) => element.tagName));
   check(wide.length === 0, `${where}: every control of the step is inside the screen`, wide.join(' '));
+};
+// What the assessment leak gate refuses on a DOL page (assessmentLeakGates.mjs):
+// every text of the feedback ladder and every control of a worked example,
+// anywhere in the document.
+const leaksOn = async (page) => {
+  const html = await page.content();
+  const controls = await page.evaluate((selectors) => selectors.filter((selector) => document.querySelector(selector)), EXAMPLE_CONTROL_SELECTORS);
+  return [...ASSESSMENT_LEAK_TEXTS.filter((text) => html.includes(text.replace(/&/g, '&amp;'))), ...controls];
 };
 const VERDICT_WORDS = /not on the (line|graph)|are on the (line|graph)|do not match|match them|fits the|does not fit|do not fit|solves? the equation|not right|choose again|Count again/i;
 
@@ -201,6 +210,8 @@ for (const device of [DESKTOP, PHONE]) {
   const said = await page.locator('.mathmaster-question-stage').innerText();
   check(!VERDICT_WORDS.test(said), `${where}: no word on the screen judges the step`, (said.match(VERDICT_WORDS) || [''])[0]);
   check((await step(page).locator('[data-step-skip]').count()) === 0, `${where}: and no "Answer without this step" is needed or shown`);
+  const leaks = await leaksOn(page);
+  check(leaks.length === 0, `${where}: the step brings no hint, example or feedback word onto the DOL`, leaks.join(' | '));
   await noSidewaysScroll(page, where);
   await answerParts(page, ['3', '-2']);
   await submit(page);
@@ -223,6 +234,11 @@ for (const role of ['practice', 'dol']) {
   const said = await status(page);
   check(role === 'dol' ? said === 'Step recorded. Now answer the part below.' : /^Your \d+ moves solve the equation\./.test(said), `${where}: ${role === 'dol' ? 'the moves are recorded with no verdict' : 'the engine accepts the moves'}`, said);
   check(await isOpen(page), `${where}: the answer box opens`);
+  if (role === 'dol') {
+    const leaks = await leaksOn(page);
+    check(leaks.length === 0, `${where}: the workspace brings no hint, example or feedback word onto the DOL`, leaks.join(' | '));
+    check(!VERDICT_WORDS.test(await page.locator('.mathmaster-question-stage').innerText()), `${where}: no word on the screen judges the step`);
+  }
   await answerParts(page, ['4', '11']);
   await submit(page);
   const [grade] = await grades(page);

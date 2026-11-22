@@ -21,16 +21,17 @@
  *   See every part at once   (`optional`, the student's support) at once.
  *                            Whatever step work is done is still recorded.
  *
- * A lazy chunk: the answer boxes load it only for a part that has a step.
+ * A lazy chunk: the question engine loads it only for a part that has a step.
+ * The engine also hands in the Step Algebra workspace it already holds
+ * (`StepByStepAlgebraCore`), so this chunk does not carry a second route to
+ * it and the app's first load is not reshuffled.
  */
 import React, { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react';
 import CoordinatePlane from '../../../tools/shared/CoordinatePlane.jsx';
-import StepByStepAlgebraCore from '../../../StepByStepAlgebraCore.jsx';
 import { ToolRuntimeProvider } from '../../../tools/shared/ToolRuntimeContext.jsx';
-import { placePoint } from '../../../tools/graphing2/placePoint.js';
 import MathDisplay from '../../../MathDisplay.jsx';
 import { CHECKPOINT_KIND, checkCheckpoint, readCheckpointSource } from './checkpointEngine.js';
-import { readCheckpointWork, writeCheckpointWork } from './checkpointShape.js';
+import { readCheckpointWork, writeCheckpointWork } from './checkpointLine.js';
 import { stepInstruction, stepProblemText, stepSummary } from './checkpointWords.js';
 
 const BOX = {
@@ -91,7 +92,10 @@ function PickPoints({ source, work, onWork, disabled }) {
     if (![x, y].every(Number.isFinite)) return;
     // A press on a point already picked takes it away again.
     const held = points.findIndex((existing) => existing[0] === x && existing[1] === y);
-    setPoints(held >= 0 ? points.filter((_, index) => index !== held) : placePoint(points, [x, y], count));
+    // …and once the step has all its points, a new one takes the place of
+    // the last one picked (Graphing's own rule replaces the nearest: here the
+    // points are few and named, so the last is the one a student means).
+    setPoints(held >= 0 ? points.filter((_, index) => index !== held) : [...points.slice(0, count - 1), [x, y]]);
   };
   const functions = useMemo(() => (relation.kind === 'function' ? [(x) => relation.at(x) ?? NaN] : []), [relation]);
   const verticalLines = useMemo(() => (relation.kind === 'vertical' ? [{ x: relation.x }] : []), [relation]);
@@ -133,7 +137,7 @@ function PickPoints({ source, work, onWork, disabled }) {
   );
 }
 
-function StepMoves({ source, onWork, disabled, draftKey, verdictsWithheld, value, onSlip }) {
+function StepMoves({ source, onWork, disabled, draftKey, verdictsWithheld, value, onSlip, StepByStepAlgebraCore }) {
   const pristine = source.equation;
   // The moves are Step Algebra's to keep (its own draft and Undo). If the
   // line beside the answer is changed from outside (the answer boxes' Undo),
@@ -148,6 +152,7 @@ function StepMoves({ source, onWork, disabled, draftKey, verdictsWithheld, value
     if (stepsRef.current) report(stepsRef.current);
   }, [value, report]);
   const ignore = useCallback(() => {}, []);
+  if (!StepByStepAlgebraCore) return null;
   return (
     <ToolRuntimeProvider hintsAllowed={!verdictsWithheld} verdictsWithheld={verdictsWithheld} showImmediateFeedback={!verdictsWithheld}>
       <StepByStepAlgebraCore
@@ -216,8 +221,13 @@ function TableRows({ source, work, onWork, disabled }) {
 
 export default function ShowTheStep({
   checkpoint, value = '', onChange, onStatus, verdictsWithheld = false, optional = false, disabled = false, draftKey = null, partLabel = '',
+  StepByStepAlgebraCore = null,
 }) {
-  const source = useMemo(() => readCheckpointSource(checkpoint), [checkpoint]);
+  const read = useMemo(() => readCheckpointSource(checkpoint), [checkpoint]);
+  // A step in Step Algebra needs the workspace its host holds. Without it the
+  // step cannot be drawn, and (like a checkpoint its tool cannot read) it
+  // never holds the answer box shut.
+  const source = read.ok && read.kind === CHECKPOINT_KIND.STEP_MOVES && !StepByStepAlgebraCore ? { ok: false } : read;
   const kind = source.ok ? source.kind : null;
   const work = useMemo(() => (kind ? readCheckpointWork(kind, value) : null), [kind, value]);
   const check = useMemo(() => checkCheckpoint(checkpoint, work), [checkpoint, work]);
@@ -282,7 +292,7 @@ export default function ShowTheStep({
         <div style={{ fontSize: 'calc(18 * var(--mm-px))' }}><MathDisplay value={source.of} format="text" /></div>
       ) : null}
       {kind === CHECKPOINT_KIND.PICK_POINTS && <PickPoints {...shared} />}
-      {kind === CHECKPOINT_KIND.STEP_MOVES && <StepMoves {...shared} value={value} draftKey={draftKey} verdictsWithheld={verdictsWithheld} onSlip={refused} />}
+      {kind === CHECKPOINT_KIND.STEP_MOVES && <StepMoves {...shared} value={value} draftKey={draftKey} verdictsWithheld={verdictsWithheld} onSlip={refused} StepByStepAlgebraCore={StepByStepAlgebraCore} />}
       {kind === CHECKPOINT_KIND.FACTOR_PAIR && <FactorPair {...shared} />}
       {kind === CHECKPOINT_KIND.TABLE_ROW && <TableRows {...shared} />}
       {asksForCheck ? (

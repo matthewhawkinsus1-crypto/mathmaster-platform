@@ -25,7 +25,7 @@
  * stepAlgebraReplayErrors), and the compiler and Pre-Flight run it beside
  * this one. A part's `checkpoint` opens its step in the tool (SP-4); whether
  * that tool can read `of`, and that `of` is never an answer, is checked with
- * the step (supports/showTheStep/checkpointEngine.js checkpointSourceErrors),
+ * the step (supports/showTheStep/checkpointSource.js checkpointSourceErrors),
  * beside this one too. Reference cards are a later package (WE-H) that reads
  * its fields as they stand here. So an assignment that carries none of the fields is judged and
  * compiled exactly as before.
@@ -384,7 +384,7 @@ const validateCheckpoint = ({ part, at, errors }) => {
     }
   }
   // What the step works on. Whether its tool can read it is the tool's own
-  // engine's to say (checkpointEngine.js checkpointSourceErrors, run by the
+  // engine's to say (checkpointSource.js checkpointSourceErrors, run by the
   // compiler and Pre-Flight beside this).
   if (value.of !== undefined && !isNonEmptyString(value.of)) {
     errors.push(`${at}.checkpoint.of must be what the student works on, as text: "y = 3x - 2", "4x + 7 = x - 8", "x^2 + 5x + 6".`);

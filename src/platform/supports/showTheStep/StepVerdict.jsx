@@ -7,7 +7,7 @@
  * shown, never taken from the record. Loaded only for a response with a step.
  */
 import { checkCheckpoint, readCheckpointSource } from './checkpointEngine.js';
-import { readCheckpointWork } from './checkpointShape.js';
+import { readCheckpointWork } from './checkpointLine.js';
 import { stepVerdictText } from './checkpointWords.js';
 
 export default function StepVerdict({ step, line }) {
