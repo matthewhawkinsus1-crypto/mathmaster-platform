@@ -76,9 +76,12 @@ const numberOrNull = (value) => {
   const text = plain(value);
   if (!text || text.length > CHECKPOINT_LIMITS.numberLength) return null;
   if (!/^-?(?:\d+(?:\.\d+)?|\.\d+)(?:\/\d+(?:\.\d+)?)?$/.test(text)) return null;
+  // The value as typed, at full precision: 1/3 is a third, and is compared
+  // with a rule's own third. (Rounding is for what is shown, never for the
+  // check.)
   const [top, bottom] = text.split('/').map(Number);
   const result = bottom === undefined ? top : top / bottom;
-  return Number.isFinite(result) ? tidy(result) : null;
+  return Number.isFinite(result) ? result : null;
 };
 
 const pairOf = (value) => (Array.isArray(value) && value.length === 2 ? value.map(numberOrNull) : null);

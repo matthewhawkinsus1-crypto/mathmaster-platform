@@ -145,6 +145,13 @@ test('tableRow: each row is the rule\'s own value at the student\'s x, with a di
   const wrong = checkLine(ROWS, { rows: [['1', '3'], ['2', '6']] });
   assert.deepEqual([wrong.done, wrong.ok, wrong.problem.kind, wrong.problem.rows], [true, false, 'rows', [[2, 6]]]);
   assert.equal(checkLine(ROWS, { rows: [['1', '3'], ['1', '3']] }).problem.kind, 'repeatedInput');
+  // A value that does not end is checked as the fraction the student typed.
+  const thirds = { kind: 'tableRow', count: 2, of: 'y = x/3' };
+  assert.equal(checkLine(thirds, { rows: [['1', '1/3'], ['2', '2/3']] }).ok, true);
+  assert.equal(checkLine(thirds, { rows: [['1', '0.333333'], ['3', '1']] }).ok, false, 'a rounded decimal is not a third');
+  assert.equal(checkLine({ kind: 'tableRow', count: 1, of: 'y = 2x/7 + 1/6' }, { rows: [['1/3', '11/42']] }).ok, true);
+  // The same for a rise typed as a fraction, and a pair.
+  assert.equal(checkLine({ kind: 'pickPoints', count: 2, of: '(0, 1) and (3, 2)' }, { points: [[0, 1], [3, 2]], rise: '3/3', run: '9/3' }).ok, true);
   assert.equal(checkLine(ROWS, { rows: [['1', '3'], ['', '']] }).done, false);
 });
 
