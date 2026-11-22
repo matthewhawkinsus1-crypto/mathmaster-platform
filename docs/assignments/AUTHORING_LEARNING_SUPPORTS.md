@@ -54,8 +54,14 @@ The example player (WE-A) reads a question's `example` and
 - **A radical equation replay** (`"tool": "radicalEquation"`, section 9) is
   played on the relation workspace's own engine, with the factoring slides. A
   radical equation item with no example of its own gets a built-in one;
-- a replay for another tool (the plane, the inequality builder, division) is
-  not played yet (WE-E). Until then such a question gets its built-in example.
+- **A question answered on the plane** (a line to graph from y = mx + b, a
+  system of two lines to graph, one or two inequalities to build) gets a
+  built-in example drawn as its own tool's record: the intercept, rise and
+  run, the line solid or dashed, a test point, the shading, the check. It
+  needs nothing in the JSON. A lesson's own `moves` for these tools are not
+  played yet;
+- a replay for division is not played yet. Until then such a question gets
+  its built-in example.
 
 A part's `followThrough` works (SP-3): its label shows the student's own
 earlier value ("your slope …" before there is one), and every grader accepts
