@@ -316,7 +316,7 @@ const MALFORMED = [
   },
   {
     name: 'a checkpoint on a question whose tool keeps no answer parts',
-    edit: (s) => { questionOf(s, 'ls-cw-2').responses = [{ id: 'x', label: 'x', answer: '-5', checkpoint: { kind: 'stepMoves' } }]; },
+    edit: (s) => { questionOf(s, 'ls-cw-2').responses = [{ id: 'x', label: 'x', answer: '-5', checkpoint: { kind: 'stepMoves', of: '4x + 7 = x - 8' } }]; },
     message: 'Section 1 Question 2 responses[0].checkpoint did not reach the compiled question: MathMaster compiled it as stepAlgebra with no answer part "x" to carry it.',
   },
 ];
@@ -458,7 +458,7 @@ const withNewFields = (source) => {
       list.forEach((part, partIndex) => {
         if (!part || typeof part !== 'object') return;
         if (partIndex === 0) {
-          part.checkpoint = { kind: 'tableRow', count: 1 };
+          part.checkpoint = { kind: 'tableRow', count: 1, of: 'y = 2x + 1' };
         } else if (followThroughPlaceholders(part.label ?? part.prompt).every((name) => name === ids[0])) {
           part.followThrough = { from: [ids[0]], answer: `{${ids[0]}}` };
         } else return;

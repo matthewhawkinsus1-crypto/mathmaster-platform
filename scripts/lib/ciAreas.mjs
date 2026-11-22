@@ -320,6 +320,7 @@ export const CI_AREAS = {
     'tests/browser/stepAlgebraReplay*',
     'tests/browser/radicalReplay*',
     'tests/browser/planeReplay*',
+    'tests/browser/showTheStep*',
     'tests/browser/draftPersistence*',
     'tests/browser/harnessProduction.config.mjs',
     'scripts/serve-static-spa.mjs',
@@ -395,6 +396,7 @@ export const CI_AREAS = {
     'tests/browser/stepAlgebraReplay*',
     'tests/browser/radicalReplay*',
     'tests/browser/planeReplay*',
+    'tests/browser/showTheStep*',
     'tests/browser/readAloudTranslate*',
     'tests/browser/reviewMyWork*',
     // The accommodation review's QA journey, run after its emulator test.

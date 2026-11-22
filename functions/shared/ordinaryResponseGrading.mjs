@@ -41,6 +41,7 @@ import {
 import { numericSetCredit } from './numericSetCredit.mjs';
 import { withLineFormPolicy } from './lineFormPolicy.mjs';
 import { TYPED_ANSWER_WIRE_LENGTH, refusesTypedEntry } from './typedEntryGuard.mjs';
+import { stepFieldsFromAnswers } from './showTheStepFields.mjs';
 
 const text = (value) => String(value ?? '');
 const filled = (value) => text(value).trim() !== '';
@@ -385,13 +386,19 @@ export const normalizeOrdinaryResponse = ({ question, answerState } = {}) => {
       kind: 'fields',
       type,
       value: '',
-      fields: parts.map((part, index) => ({
-        id: text(part?.id ?? `part-${index + 1}`),
-        // One past the limit, so that the server can refuse an over-long box
-        // (typedEntryGuard.mjs TYPED_ANSWER_WIRE_LENGTH).
-        value: text(part?.response).slice(0, TYPED_ANSWER_WIRE_LENGTH),
-        isComplete: part?.isComplete === true,
-      })),
+      fields: [
+        ...parts.map((part, index) => ({
+          id: text(part?.id ?? `part-${index + 1}`),
+          // One past the limit, so that the server can refuse an over-long box
+          // (typedEntryGuard.mjs TYPED_ANSWER_WIRE_LENGTH).
+          value: text(part?.response).slice(0, TYPED_ANSWER_WIRE_LENGTH),
+          isComplete: part?.isComplete === true,
+        })),
+        // SP-4: the step a part's checkpoint asked for, as the student left
+        // it. Work for a teacher to see; no grader reads it
+        // (showTheStepFields.mjs).
+        ...(type === 'multiAnswer' ? stepFieldsFromAnswers(question, answerState?.responseKey) : []),
+      ],
     };
   }
   return {

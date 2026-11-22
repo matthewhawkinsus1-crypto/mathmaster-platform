@@ -63,7 +63,15 @@ test('the assignment engine: each typed grader reports an unfinished or over-lon
   const entryProblems = region(multi, 'const entryProblems = useMemo(', '\n  useEffect(', 'entryProblems');
   assert.match(entryProblems, /typedEntryNotice\(answers\[field\.id\], \{/);
   assert.match(entryProblems, /words: shouldUsePlainTextInput\(field\) \|\| isChoiceAnswerField\(field\)/, 'a box of words or choices is read for its length only');
-  assert.match(entryProblems, /const isComplete = graded\.isComplete && !Object\.values\(formatProblems\)\.some\(Boolean\) && !Object\.values\(entryProblems\)\.some\(Boolean\);/);
+  // What it protects: a box whose shape or entry is refused keeps the whole
+  // answer "not complete", so it is not submitted. The statement may fold in
+  // other reasons too (SP-4: a part's step not done yet); these two stay.
+  const complete = /const isComplete = ([^;]+);/.exec(entryProblems)?.[1] || '';
+  assert.match(complete, /^graded\.isComplete\s*&&/, 'isComplete starts from the grader');
+  assert.match(complete, /&&\s*!Object\.values\(formatProblems\)\.some\(Boolean\)/, 'a refused shape is not complete');
+  assert.match(complete, /&&\s*!Object\.values\(entryProblems\)\.some\(Boolean\)/, 'a refused entry is not complete');
+  assert.doesNotMatch(complete, /\|\|/, 'no other reason can make a refused entry complete');
+  assert.match(region(multi, 'onStateChange({', '});', 'the grader\'s report'), /\n\s+isComplete,/, 'and that isComplete is what the engine is told');
   assert.match(multi, /<TypedEntryNotice message=\{entryProblems\[field\.id\]\} entry=\{answers\[field\.id\]\}/);
   // Part by part: a part whose entry is refused cannot be passed.
   assert.match(region(multi, 'const partDone = useMemo(', 'const firstOpenPart', 'partDone'), /&& !entryProblems\[field\.id\]/);

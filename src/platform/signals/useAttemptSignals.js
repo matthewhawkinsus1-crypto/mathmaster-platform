@@ -13,6 +13,7 @@ import { ATTEMPT_SIGNAL_KIND, createAttemptSignalTracker, exemptAttemptSignalKin
 // cells), and says when it takes words, not mathematics.
 const BOX_SELECTOR = '[data-answer-box-index]';
 const MATH_FIELD_SELECTOR = 'math-field';
+const STEP_SELECTOR = '[data-show-the-step]';
 const NONE_EXEMPT = new Set();
 
 /**
@@ -23,10 +24,15 @@ const NONE_EXEMPT = new Set();
  *   - a math field outside any marked box: part 1, but only on a question
  *     that is answer boxes and nothing else (`answerBoxesOnly`). On a tool
  *     (Step Algebra's move boxes, a graph's entry) a typed or pasted value is
- *     one of the tool's own checked moves, not an answer.
+ *     one of the tool's own checked moves, not an answer;
+ *   - a box of a part's step (its rise and run, a factor pair, a table row,
+ *     a Step Algebra move): never, for the same reason.
  */
 export const pastedPartIndex = (target, { answerBoxesOnly = false } = {}) => {
   if (!target || typeof target.closest !== 'function') return null;
+  // A part's step (SHOW THE STEP, SP-4) is drawn inside its answer box, and
+  // is a tool: its boxes hold the tool's own checked work, not an answer.
+  if (target.closest(STEP_SELECTOR)) return null;
   const box = target.closest(BOX_SELECTOR);
   if (box) {
     if (box.getAttribute?.('data-answer-box-kind') === 'text') return null;
