@@ -1,8 +1,10 @@
 /*
- * SHOW THE STEP: THE SHAPE OF A CHECKPOINT (SP-4). Import-free, so the answer
+ * SHOW THE STEP: THE SHAPE OF A CHECKPOINT (SP-4). Light, so the answer
  * boxes can ask "does this part have a step?" without loading any tool's
  * engine. The engine itself is checkpointEngine.js, loaded with the step.
  */
+import { MAX_STEP_LINE_LENGTH, isStepFieldId, partIdOfStepField, stepFieldId } from '../../../../functions/shared/showTheStepFields.mjs';
+
 export const CHECKPOINT_KIND = Object.freeze({
   PICK_POINTS: 'pickPoints',
   STEP_MOVES: 'stepMoves',
@@ -24,8 +26,7 @@ export const CHECKPOINT_LIMITS = Object.freeze({
   sideLength: 240,
   descriptionLength: 160,
   numberLength: 16,
-  // One answer box's worth of text (typedEntryGuard.mjs MAX_TYPED_ANSWER_LENGTH).
-  workLength: 240,
+  workLength: MAX_STEP_LINE_LENGTH,
 });
 
 const isObject = (value) => Boolean(value) && typeof value === 'object' && !Array.isArray(value);
@@ -64,10 +65,7 @@ export const hasCheckpoint = (parts) => Array.isArray(parts) && parts.some((part
  * not author. It holds the work only, never a verdict; the engine reads it
  * again wherever it is shown (checkpointEngine.js).
  */
-export const CHECKPOINT_WORK_SUFFIX = '::step';
-export const checkpointWorkKey = (partId) => `${partId}${CHECKPOINT_WORK_SUFFIX}`;
-export const isCheckpointWorkKey = (key) => typeof key === 'string' && key.endsWith(CHECKPOINT_WORK_SUFFIX);
-export const partIdOfWorkKey = (key) => (isCheckpointWorkKey(key) ? key.slice(0, -CHECKPOINT_WORK_SUFFIX.length) : null);
+export { stepFieldId as checkpointWorkKey, isStepFieldId as isCheckpointWorkKey, partIdOfStepField as partIdOfWorkKey };
 
 // Left out of a run of moves too long for one line: the first line and the
 // last ones are kept, and this stands for the lines between.

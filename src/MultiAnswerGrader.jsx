@@ -1,4 +1,4 @@
-import { memo, useEffect, useId, useMemo, useRef, useState } from 'react';
+import { Suspense, lazy, memo, useEffect, useId, useMemo, useRef, useState } from 'react';
 import MathInput from './MathInput';
 import MathDisplay from './MathDisplay';
 import QuestionPrompt from './QuestionPrompt';
@@ -31,6 +31,17 @@ import { ChoiceMark, useChoiceGroup } from './platform/interaction/choiceGroup.j
 import GradedEntryMark, { gradedEntryInputProps } from './components/common/GradedEntryMark.jsx';
 import { isSingleLineAnswerTarget } from './platform/interaction/answerEntryUx.js';
 import { SR_ONLY_STYLE } from './ui/srOnly.js';
+import { checkpointOf, checkpointWorkKey } from './platform/supports/showTheStep/checkpointShape.js';
+
+// SHOW THE STEP (SP-4). A part with a `checkpoint` asks for one step in a
+// tool before its answer box opens: points picked on the plane, moves in Step
+// Algebra, a factor pair, a table's rows. The step and its tool load only for
+// such a part. The student's step is kept as one line of text beside the
+// part's answer (`<id>::step`), so the draft, Undo and the submitted response
+// carry it; the graders read only the parts a question authors, so it changes
+// no verdict and no score.
+const ShowTheStep = lazy(() => import('./platform/supports/showTheStep/ShowTheStep.jsx'));
+const NO_STEPS = Object.freeze({});
 
 const TEXTUAL_MATH_SIGNAL = /[=<>≤≥≠+*/^()[\]{}\\∞π√∪∩]/;
 
@@ -264,7 +275,16 @@ function MultiAnswerGrader({ question, onStateChange, onUndoStateChange, feedbac
       keys: acceptedAnswersForField(field),
     }),
   ])), [safeFields, answers]);
-  const isComplete = graded.isComplete && !Object.values(formatProblems).some(Boolean) && !Object.values(entryProblems).some(Boolean);
+  // What each part's step last said (ShowTheStep's onStatus): `open` once the
+  // step lets the answer box open. A part with a step is not answered, and the
+  // question not ready to submit, until then.
+  const [stepStatus, setStepStatus] = useState(NO_STEPS);
+  const stepIsOpen = (field) => !checkpointOf(field) || stepStatus[field.id]?.open === true;
+  const reportStep = (id, status) => setStepStatus((current) => (
+    current[id]?.open === status.open && current[id]?.done === status.done ? current : { ...current, [id]: status }
+  ));
+  const isComplete = graded.isComplete && !Object.values(formatProblems).some(Boolean) && !Object.values(entryProblems).some(Boolean)
+    && safeFields.every(stepIsOpen);
 
   useEffect(() => {
     const responseDetails = labelledFields.map((field) => `${field.label || field.id}=${answers[field.id] ?? ''}`).join(', ');
@@ -339,8 +359,8 @@ function MultiAnswerGrader({ question, onStateChange, onUndoStateChange, feedbac
   const walkParts = partByPart === true && safeFields.length > 1;
   const partDone = useMemo(() => new Map(safeFields.map((field) => [
     field.id,
-    parts.find((part) => part.id === field.id)?.isComplete === true && !formatProblems[field.id] && !entryProblems[field.id],
-  ])), [safeFields, parts, formatProblems, entryProblems]);
+    parts.find((part) => part.id === field.id)?.isComplete === true && !formatProblems[field.id] && !entryProblems[field.id] && stepIsOpen(field),
+  ])), [safeFields, parts, formatProblems, entryProblems, stepStatus]);
   const firstOpenPart = () => safeFields.find((field) => !partDone.get(field.id))?.id ?? null;
   // `open`: the open part's id, or null for Review all parts. `target`: what
   // takes focus after the student moved (`focus` counts the moves).
@@ -420,11 +440,31 @@ function MultiAnswerGrader({ question, onStateChange, onUndoStateChange, feedbac
     const grade = feedback?.partGrades?.find((part) => part.id === field.id);
     const markId = `${markBase}-${field.id}-mark`;
     const { choiceOptions, inferredRequiredSymbols, requiredSymbols, answerShape, box, toolProfile, withheldKeys } = fieldPresentation.get(field.id);
+    const step = checkpointOf(field);
+    const stepKey = checkpointWorkKey(field.id);
+    const stepOpen = stepIsOpen(field);
     return (
       <div key={field.id} data-answer-box-index={safeFields.indexOf(field)} data-answer-box-kind={shouldUsePlainTextInput(field) ? 'text' : undefined} style={{ padding: '16px', border: `2px solid ${grade ? (grade.isCorrect ? '#188038' : '#d93025') : 'var(--mm-border)'}`, borderRadius: '10px', background: grade && !grade.isCorrect ? 'var(--mm-error-subtle)' : 'var(--mm-surface)' }}>
         <label style={{ display: 'block', marginBottom: '10px', fontWeight: 'bold', color: 'var(--mm-text)' }}>
           {fieldLabelContent(shown(field))}
         </label>
+        {step ? (
+          <div style={{ marginBottom: 14 }}>
+            <Suspense fallback={<p role="status" style={{ margin: 0, color: 'var(--mm-text-muted)' }}>Loading the step…</p>}>
+              <ShowTheStep
+                checkpoint={field.checkpoint}
+                value={String(answers[stepKey] || '')}
+                onChange={(line) => history.setValue((current) => (String(current[stepKey] || '') === line ? current : { ...current, [stepKey]: line }))}
+                onStatus={(status) => reportStep(field.id, status)}
+                verdictsWithheld={verdictsWithheld}
+                draftKey={draftKey ? `${draftKey}:step-${field.id}` : null}
+                partLabel={accessibleFieldLabel(shown(field))}
+              />
+            </Suspense>
+          </div>
+        ) : null}
+        {stepOpen ? (
+        <>
         {(answerShape.hint || box.example) && !choiceOptions && (
           <p style={{ margin: '-4px 0 10px', fontSize: 'calc(13 * var(--mm-px))', lineHeight: 1.4, color: 'var(--mm-text-muted)', fontWeight: 600 }}>
             {answerShape.hint}
@@ -489,6 +529,8 @@ function MultiAnswerGrader({ question, onStateChange, onUndoStateChange, feedbac
           />
         )}
         <GradedEntryMark grade={grade} id={markId} />
+        </>
+        ) : null}
       </div>
     );
   };

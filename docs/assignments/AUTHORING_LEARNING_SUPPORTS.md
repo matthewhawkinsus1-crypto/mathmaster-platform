@@ -476,7 +476,7 @@ How it follows the rules:
               "id": "slope",
               "label": "Slope of the line",
               "answer": "3",
-              "checkpoint": { "kind": "pickPoints", "count": 2 }
+              "checkpoint": { "kind": "pickPoints", "count": 2, "of": "y = 3x - 2" }
             },
             {
               "id": "intercept",

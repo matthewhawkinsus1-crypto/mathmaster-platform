@@ -1,0 +1,264 @@
+/*
+ * SHOW THE STEP: THE STEP ITSELF, ON THE SCREEN (SP-4).
+ *
+ * One part's checkpoint, drawn above its answer box: the plane to pick points
+ * on, Step Algebra to solve in, the boxes for a factor pair or a table's rows.
+ * Each is the platform's own tool (CoordinatePlane, StepByStepAlgebraCore),
+ * and each check is that tool's engine (checkpointEngine.js).
+ *
+ * It holds no answer of its own. The student's work is the one line of text
+ * the answer boxes keep beside the part (`value`, `onChange`), so the draft,
+ * Undo and the submitted response carry it as they carry any box. `onStatus`
+ * tells the boxes when the step lets the answer box open:
+ *
+ *   Classwork and Practice   once the engine accepts the step. The student
+ *                            asks with "Check my step" and is told in words
+ *                            what is off; nothing here states the answer.
+ *   DOL, quiz and test       (`verdictsWithheld`) once the step is done.
+ *                            Nothing says right or wrong.
+ *
+ * A lazy chunk: the answer boxes load it only for a part that has a step.
+ */
+import React, { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react';
+import CoordinatePlane from '../../../tools/shared/CoordinatePlane.jsx';
+import StepByStepAlgebraCore from '../../../StepByStepAlgebraCore.jsx';
+import { ToolRuntimeProvider } from '../../../tools/shared/ToolRuntimeContext.jsx';
+import { placePoint } from '../../../tools/graphing2/placePoint.js';
+import MathDisplay from '../../../MathDisplay.jsx';
+import { CHECKPOINT_KIND, checkCheckpoint, readCheckpointSource } from './checkpointEngine.js';
+import { readCheckpointWork, writeCheckpointWork } from './checkpointShape.js';
+import { stepInstruction, stepProblemText, stepSummary } from './checkpointWords.js';
+
+const BOX = {
+  display: 'grid', gap: 10, padding: 14, minWidth: 0, textAlign: 'left',
+  border: '2px solid var(--mm-tint-border)', borderRadius: 10, background: 'var(--mm-surface-tint, var(--mm-surface))',
+};
+const HEADING = { margin: 0, fontSize: 'calc(15 * var(--mm-px))', fontWeight: 800, color: 'var(--mm-text-strong)' };
+const TEXT = { margin: 0, fontSize: 'calc(15 * var(--mm-px))', lineHeight: 1.45, color: 'var(--mm-text)' };
+const ENTRY = {
+  width: '100%', minHeight: 48, padding: '8px 10px', boxSizing: 'border-box', borderRadius: 8,
+  border: '2px solid var(--mm-primary)', background: 'var(--mm-surface)', color: 'var(--mm-text-strong)',
+  fontSize: 'calc(17 * var(--mm-px))', fontFamily: 'inherit',
+};
+const BUTTON = (enabled, quiet = false) => ({
+  minHeight: 44, padding: '0 16px', borderRadius: 8, fontWeight: 800, fontSize: 'calc(15 * var(--mm-px))', fontFamily: 'inherit',
+  border: quiet ? '2px solid var(--mm-tint-border)' : 0,
+  background: quiet ? 'var(--mm-surface)' : enabled ? 'var(--mm-primary)' : 'var(--mm-surface-control-strong)',
+  color: quiet ? 'var(--mm-primary-text)' : enabled ? 'var(--mm-on-primary)' : 'var(--mm-disabled-text)',
+  cursor: enabled ? 'pointer' : 'not-allowed',
+});
+const NOTE = (tone) => ({
+  margin: 0, padding: '8px 10px', borderRadius: 8, fontSize: 'calc(15 * var(--mm-px))', lineHeight: 1.45, fontWeight: 700,
+  background: tone === 'good' ? 'var(--mm-success-subtle)' : 'var(--mm-warning-bg)',
+  color: tone === 'good' ? 'var(--mm-success-text, var(--mm-text-strong))' : 'var(--mm-warning-text)',
+  border: `1px solid ${tone === 'good' ? 'var(--mm-success-border)' : 'var(--mm-warning-border, var(--mm-border))'}`,
+});
+
+const NumberEntry = ({ label, value, onChange, disabled, name }) => {
+  const id = useId();
+  return (
+    <span style={{ display: 'grid', gap: 4, minWidth: 0 }}>
+      <label htmlFor={id} style={{ fontSize: 'calc(14 * var(--mm-px))', fontWeight: 700, color: 'var(--mm-text)' }}>{label}</label>
+      <input
+        id={id}
+        type="text"
+        inputMode="text"
+        autoComplete="off"
+        spellCheck={false}
+        maxLength={16}
+        disabled={disabled}
+        data-step-entry={name}
+        value={value}
+        onChange={(event) => onChange(event.target.value)}
+        style={ENTRY}
+      />
+    </span>
+  );
+};
+
+function PickPoints({ source, work, onWork, disabled }) {
+  const { relation, count, bounds } = source;
+  const points = work?.points || [];
+  const check = useMemo(() => checkCheckpoint({ kind: source.kind, count, of: source.of }, work), [source, count, work]);
+  const setPoints = (next) => onWork({ points: next, rise: work?.rise || '', run: work?.run || '' });
+  const plot = (point) => {
+    if (disabled) return;
+    const [x, y] = Array.isArray(point) ? point : [point?.x, point?.y];
+    if (![x, y].every(Number.isFinite)) return;
+    // A press on a point already picked takes it away again.
+    const held = points.findIndex((existing) => existing[0] === x && existing[1] === y);
+    setPoints(held >= 0 ? points.filter((_, index) => index !== held) : placePoint(points, [x, y], count));
+  };
+  const functions = useMemo(() => (relation.kind === 'function' ? [(x) => relation.at(x) ?? NaN] : []), [relation]);
+  const verticalLines = useMemo(() => (relation.kind === 'vertical' ? [{ x: relation.x }] : []), [relation]);
+  const plotted = points.map(([x, y], index) => ({ x, y, label: `P${index + 1}` }));
+  const asks = check.facts?.asksRiseRun === true || (relation.kind === 'function' && relation.straight && count === 2);
+  const placed = points.length >= count;
+  return (
+    <>
+      <div style={{ width: '100%', maxWidth: 520, minWidth: 0 }}>
+      <CoordinatePlane
+        xMin={bounds.min} xMax={bounds.max} yMin={bounds.min} yMax={bounds.max}
+        equalUnits
+        functions={functions}
+        verticalLines={verticalLines}
+        points={plotted}
+        onPlot={plot}
+        plotProgress={`${points.length} of ${count} ${count === 1 ? 'point' : 'points'} picked.`}
+        cursorLabel="Pick"
+        ariaLabel="Coordinate plane for picking your points"
+        enlargeable={false}
+        viewResetKey={source.of}
+      />
+      </div>
+      <p style={TEXT} data-step-points="">
+        {points.length ? `Your points: ${points.map(([x, y]) => `(${x}, ${y})`).join(' and ')}.` : 'No points picked yet.'}
+      </p>
+      {points.length ? (
+        <button type="button" disabled={disabled} onClick={() => onWork({ points: [], rise: '', run: '' })} style={{ ...BUTTON(true, true), justifySelf: 'start' }}>
+          Clear my points
+        </button>
+      ) : null}
+      {asks && placed ? (
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 200px), 1fr))', gap: 12 }}>
+          <NumberEntry name="rise" label={`Rise from (${points[0][0]}, ${points[0][1]}) to (${points[1][0]}, ${points[1][1]})`} value={work?.rise || ''} disabled={disabled} onChange={(rise) => onWork({ points, rise, run: work?.run || '' })} />
+          <NumberEntry name="run" label="Run between the same two points" value={work?.run || ''} disabled={disabled} onChange={(run) => onWork({ points, rise: work?.rise || '', run })} />
+        </div>
+      ) : null}
+    </>
+  );
+}
+
+function StepMoves({ source, onWork, disabled, draftKey, verdictsWithheld }) {
+  const pristine = source.equation;
+  const report = useCallback((steps) => {
+    const lines = [{ left: pristine.left, right: pristine.right }, ...(Array.isArray(steps) ? steps : []).map((step) => step?.after).filter((after) => after?.left && after?.right)];
+    onWork(lines.length > 1 ? { lines } : null);
+  }, [onWork, pristine]);
+  const ignore = useCallback(() => {}, []);
+  return (
+    <ToolRuntimeProvider hintsAllowed={!verdictsWithheld} verdictsWithheld={verdictsWithheld} showImmediateFeedback={!verdictsWithheld}>
+      <StepByStepAlgebraCore
+        embedded
+        embeddedTitle="Your moves"
+        question={source.question}
+        questionRecord={null}
+        draftKey={draftKey}
+        onStateChange={ignore}
+        onStepGrade={null}
+        onWorkStepsChange={report}
+        showPrompt={false}
+        disabled={disabled}
+        hintsAllowed={!verdictsWithheld}
+      />
+    </ToolRuntimeProvider>
+  );
+}
+
+function FactorPair({ work, onWork, disabled }) {
+  const pair = work?.pair || ['', ''];
+  return (
+    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 160px), 1fr))', gap: 12 }}>
+      <NumberEntry name="pair-0" label="First number" value={pair[0]} disabled={disabled} onChange={(value) => onWork({ pair: [value, pair[1]] })} />
+      <NumberEntry name="pair-1" label="Second number" value={pair[1]} disabled={disabled} onChange={(value) => onWork({ pair: [pair[0], value] })} />
+    </div>
+  );
+}
+
+function TableRows({ source, work, onWork, disabled }) {
+  const { count, rule } = source;
+  const rows = Array.from({ length: count }, (_, index) => work?.rows?.[index] || ['', '']);
+  const set = (rowIndex, column, value) => onWork({ rows: rows.map((row, index) => (index === rowIndex ? (column === 0 ? [value, row[1]] : [row[0], value]) : row)) });
+  const cell = { padding: 6, border: '1px solid var(--mm-tint-border)' };
+  return (
+    <table style={{ borderCollapse: 'collapse', width: '100%', maxWidth: 360 }} data-step-table="">
+      <thead>
+        <tr>
+          <th scope="col" style={{ ...cell, fontWeight: 800 }}>{rule.input}</th>
+          <th scope="col" style={{ ...cell, fontWeight: 800 }}>{rule.output}</th>
+        </tr>
+      </thead>
+      <tbody>
+        {rows.map((row, index) => (
+          // eslint-disable-next-line react/no-array-index-key
+          <tr key={index}>
+            {[0, 1].map((column) => (
+              <td key={column} style={cell}>
+                <input
+                  type="text" inputMode="text" autoComplete="off" spellCheck={false} maxLength={16} disabled={disabled}
+                  aria-label={`Row ${index + 1}, ${column === 0 ? rule.input : rule.output}`}
+                  data-step-entry={`row-${index}-${column}`}
+                  value={row[column]}
+                  onChange={(event) => set(index, column, event.target.value)}
+                  style={{ ...ENTRY, minHeight: 44 }}
+                />
+              </td>
+            ))}
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  );
+}
+
+export default function ShowTheStep({
+  checkpoint, value = '', onChange, onStatus, verdictsWithheld = false, disabled = false, draftKey = null, partLabel = '',
+}) {
+  const source = useMemo(() => readCheckpointSource(checkpoint), [checkpoint]);
+  const kind = source.ok ? source.kind : null;
+  const work = useMemo(() => (kind ? readCheckpointWork(kind, value) : null), [kind, value]);
+  const check = useMemo(() => checkCheckpoint(checkpoint, work), [checkpoint, work]);
+  // Step Algebra accepts or refuses each move itself, so its step is checked
+  // as it is made; the others are checked when the student asks.
+  const asksForCheck = !verdictsWithheld && kind !== CHECKPOINT_KIND.STEP_MOVES;
+  // Work that was already right when the part opened (a restored draft) needs
+  // no second press.
+  const [checked, setChecked] = useState(() => (check.ok ? value : null));
+  const isChecked = checked === value;
+  const open = !source.ok || (verdictsWithheld ? check.done : asksForCheck ? check.ok && isChecked : check.ok);
+  const onStatusRef = useRef(onStatus);
+  onStatusRef.current = onStatus;
+  useEffect(() => {
+    // A step whose tool cannot read it never holds the answer box shut.
+    onStatusRef.current?.({ open, done: !source.ok || check.done });
+  }, [open, check.done, source.ok]);
+
+  // Stable for the tools below (Step Algebra reports its steps from an effect
+  // keyed on this), and silent when the line has not changed.
+  const latest = useRef({ onChange, value });
+  latest.current = { onChange, value };
+  const onWork = useCallback((next) => {
+    if (!kind) return;
+    const line = next ? writeCheckpointWork(kind, next) : '';
+    if (line !== latest.current.value) latest.current.onChange?.(line);
+  }, [kind]);
+
+  if (!source.ok) return null;
+  const headingText = partLabel ? `First, show the step for: ${partLabel}` : 'First, show the step';
+  const shared = { source, work, onWork, disabled };
+  const verdict = !verdictsWithheld && check.done && (asksForCheck ? isChecked : true);
+  return (
+    <div role="group" aria-label={headingText} data-show-the-step={kind} data-step-open={open ? 'true' : 'false'} style={BOX}>
+      <h4 style={HEADING}>First, show the step</h4>
+      <p style={TEXT} data-step-instruction="">{stepInstruction(source)}</p>
+      {kind !== CHECKPOINT_KIND.STEP_MOVES && kind !== CHECKPOINT_KIND.PICK_POINTS ? (
+        <div style={{ fontSize: 'calc(18 * var(--mm-px))' }}><MathDisplay value={source.of} format="text" /></div>
+      ) : null}
+      {kind === CHECKPOINT_KIND.PICK_POINTS && <PickPoints {...shared} />}
+      {kind === CHECKPOINT_KIND.STEP_MOVES && <StepMoves {...shared} draftKey={draftKey} verdictsWithheld={verdictsWithheld} />}
+      {kind === CHECKPOINT_KIND.FACTOR_PAIR && <FactorPair {...shared} />}
+      {kind === CHECKPOINT_KIND.TABLE_ROW && <TableRows {...shared} />}
+      {asksForCheck ? (
+        <button type="button" data-step-check="" disabled={disabled || !check.done} onClick={() => setChecked(value)} style={{ ...BUTTON(check.done && !disabled), justifySelf: 'start' }}>
+          Check my step
+        </button>
+      ) : null}
+      <p role="status" data-step-status="" style={verdict ? NOTE(check.ok ? 'good' : 'warn') : { ...TEXT, color: 'var(--mm-text-muted)' }}>
+        {verdict
+          ? (check.ok ? `${stepSummary(source, check)} Now answer the part below.` : stepProblemText(source, check))
+          : verdictsWithheld && check.done ? 'Step recorded. Now answer the part below.'
+            : 'The answer box opens when this step is done.'}
+      </p>
+    </div>
+  );
+}

@@ -2,6 +2,7 @@ import { normalizeAssignmentV5, validateAssignmentV5, flattenV5Sections } from '
 import { validateLessonSupportsV5 } from '../contract/lessonSupportsV5.js';
 import { stepAlgebraReplayErrors } from '../supports/workedExample/stepAlgebraReplay.js';
 import { radicalReplayErrors } from '../supports/workedExample/radicalReplay.js';
+import { checkpointSourceErrors } from '../supports/showTheStep/checkpointEngine.js';
 import { validateAssignmentQuestions } from '../../assignmentBlueprint.js';
 import { validateQuestionsSemantics } from '../contract/semanticValidation.js';
 import { validateAlignments, auditAlignmentSpecificity } from '../contract/alignments.js';
@@ -127,7 +128,9 @@ export const buildAssignmentV5PreflightModel = (input = {}, { titleOverride = nu
   structural.errors.push(...supports.errors);
   // A Step Algebra replay is played by the tool's own engine: a script that
   // does not reach its answer is an error (WE-C; stepAlgebraReplay.js).
-  if (!supports.errors.length) structural.errors.push(...stepAlgebraReplayErrors(source), ...radicalReplayErrors(source));
+  // A checkpoint is checked by its tool's engine: one that tool cannot read is
+  // an error (SP-4; checkpointEngine.js).
+  if (!supports.errors.length) structural.errors.push(...stepAlgebraReplayErrors(source), ...radicalReplayErrors(source), ...checkpointSourceErrors(source));
   structural.warnings.push(...supports.warnings);
   const sections = (runtimeSource.sections || []).map(withRuntimeSectionMetadata);
   const persistenceSections = (source.sections || []).map(withRuntimeSectionMetadata);
