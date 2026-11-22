@@ -222,6 +222,72 @@ test('the compiler and Pre-Flight refuse a lesson whose Step Algebra replay does
   assert.equal(isStepAlgebraReplayEntry({ tool: 'stepAlgebra', steps: [] }), false);
 });
 
+test('a faded replay never shows the solved line: the validator refuses the fade, and the player stops before it', () => {
+  const withFade = (fade) => { const source = fixture(); source.lessonSupports.examples[0].fade = fade; return source; };
+  const replay = replayStepAlgebra({ sibling: { equation: GUIDE_EQUATION }, moves: GUIDE_SCRIPT });
+  // The guide's script: subtract 2x, subtract 3, divide by 3 (x = -4), check. Two moves come before the solving one.
+  assert.equal(replay.fadeLimit, 2);
+  assert.match(replay.steps[replay.fadeLimit].board.after, /^x = -4$/);
+  for (const fade of [{ handOverAfter: 1 }, { handOverAfter: 2 }, { fromStep: 3 }]) {
+    assert.deepEqual(stepAlgebraReplayErrors(withFade(fade)), [], JSON.stringify(fade));
+  }
+  // handOverAfter 3 passes the shape check (the check is a fourth step) and would end on x = -4.
+  for (const fade of [{ handOverAfter: 3 }, { fromStep: 4 }]) {
+    const errors = stepAlgebraReplayErrors(withFade(fade));
+    assert.equal(errors.length, 1, JSON.stringify(fade));
+    assert.match(errors[0], /^lessonSupports\.examples\[0\]\.fade would show the solved equation: move 3 is the one that leaves the variable alone, and a faded example stops before it\. Use handOverAfter of 2 or less\.$/);
+    assert.throws(() => parseAssignmentBlueprintText(JSON.stringify(withFade(fade))), /fade would show the solved equation/);
+  }
+  // A one-move replay has nothing to fade.
+  const oneMove = fixture();
+  Object.assign(oneMove.lessonSupports.examples[0], { sibling: { equation: '3x = -12' }, moves: [{ op: 'divide', operand: '3' }, { check: true }], fade: { handOverAfter: 1 } });
+  assert.match(stepAlgebraReplayErrors(oneMove)[0], /fade would show the solved equation: move 1 .* This replay has one move, so it has nothing to fade: take the fade out\.$/);
+  // At runtime, a stored lesson that asks for 3 anyway is stopped at 2: no slide reads x = -4.
+  const stored = storedLesson();
+  const supports = JSON.parse(JSON.stringify(stored.lessonSupports));
+  supports.examples[0].fade = { handOverAfter: 3 };
+  const example = authoredReplay({ example: 'ex-both-sides' }, supports, { sectionRole: 'classwork' });
+  assert.deepEqual([example.handOverAfter, example.fadeLimit, example.steps.length], [2, 2, 4]);
+  const solvedLine = /x = -4/;
+  for (const faded of [fadedExample(example), fadedExample({ ...example, handOverAfter: 3 })]) {
+    assert.equal(faded.faded, true);
+    assert.equal(faded.steps.length, 2);
+    assert.doesNotMatch(JSON.stringify(exampleSlides(faded)), solvedLine);
+  }
+  assert.match(JSON.stringify(exampleSlides(example)), solvedLine, 'the whole example, asked for, still reaches it');
+  // The platform's own fade keeps to the same rule: one move, and none where the first move solves.
+  const builtIn = (equation) => {
+    const moves = stepAlgebraMovesFor({ equation });
+    return replayStepAlgebra({ sibling: { equation }, moves });
+  };
+  assert.equal(builtIn('3x = -12').fadeLimit, 0);
+  assert.equal(builtIn('x + 5 = 2').fadeLimit, 0);
+  assert.equal(builtIn('5x + 3 = 2x - 9').fadeLimit, 2);
+  const playerSource = executableSource(read('src/platform/supports/workedExample/examplePlayer.js'));
+  assert.match(region(playerSource, 'const familyReplay', 'const safeFor'), /handOverAfter: Math\.min\(1, replay\.fadeLimit\)/);
+});
+
+test('a move that multiplies or divides by an expression with a letter in it is refused: its condition cannot be shown', () => {
+  // x + 1 = 1 has the solution x = 0. Dividing by x, multiplying back, then subtracting 1 would "reach" it by dividing by zero.
+  const moves = [{ op: 'divide', operand: 'x' }, { op: 'multiply', operand: 'x' }, { op: 'subtract', operand: '1' }, { check: true }];
+  const engineMove = applyBalancedOperation({ equationState: parseEquationInput({ equation: 'x + 1 = 1' }), operation: 'divide', operand: 'x' });
+  assert.equal(engineMove.assumption, 'x ≠ 0', 'the engine attaches the condition; the live board shows it');
+  assert.equal(engineMove.preservesSolution, true, 'so preservesSolution alone does not catch it');
+  const replay = replayStepAlgebra({ sibling: { equation: 'x + 1 = 1' }, moves });
+  assert.equal(replay.ok, false);
+  assert.equal(replay.steps, undefined);
+  assert.match(replay.error, /^moves\[0\] cannot be played on x\+1 = 1: dividing by x is only valid where x ≠ 0, and a replay cannot show that condition\./);
+  const multiply = replayStepAlgebra({ sibling: { equation: 'x + 1 = 1' }, moves: [{ op: 'multiply', operand: '2x' }, { check: true }] });
+  assert.match(multiply.error, /multiplying by 2 ?x is only valid where 2 ?x ≠ 0/);
+  // The validator raises it; adding or subtracting a variable term, and a number to multiply or divide by, still play.
+  const source = fixture();
+  Object.assign(source.lessonSupports.examples[0], { sibling: { equation: 'x + 1 = 1' }, moves });
+  delete source.lessonSupports.examples[0].fade;
+  assert.match(stepAlgebraReplayErrors(source)[0], /^lessonSupports\.examples\[0\] is a Step Algebra replay the tool cannot play: moves\[0\] cannot be played on x\+1 = 1: dividing by x/);
+  assert.equal(replayStepAlgebra({ sibling: { equation: 'x + 1 = 1' }, moves: [{ op: 'subtract', operand: '1' }, { check: true }] }).ok, true);
+  assert.equal(replayStepAlgebra({ sibling: { equation: GUIDE_EQUATION }, moves: GUIDE_SCRIPT }).ok, true);
+});
+
 // ------------------------------------------ 3. variables on both sides first
 
 test('the built-in moves: the variable terms, then the numbers, then the coefficient, then the check', () => {
@@ -372,7 +438,9 @@ test('the second Classwork question on a skill is shown the first moves only; on
   assert.equal(slideTurnText(whole.at(-1)), EXAMPLE_YOUR_TURN_TEXT);
   // Nothing to fade: the example itself.
   assert.equal(fadedExample({ ...example, handOverAfter: 0 }).faded, undefined);
-  assert.equal(fadedExample({ ...example, handOverAfter: example.steps.length }).faded, undefined);
+  // Asked for every step, a replay is still stopped before its solving move; a step card has nothing left to fade.
+  assert.equal(fadedExample({ ...example, handOverAfter: example.steps.length }).steps.length, example.fadeLimit);
+  assert.equal(fadedExample({ ...example, fadeLimit: undefined, handOverAfter: example.steps.length }).faded, undefined);
   // A step card fades too (`fromStep: 3` lets the student do step 3 onward).
   const card = { source: 'authored', format: 'steps', prompt: 'P', steps: [{ show: 'a', why: 'w' }, { show: 'b', why: 'w' }, { show: 'c', why: 'w' }, { show: 'd', why: 'w' }], answer: 'd', handOverAfter: 2 };
   assert.deepEqual(exampleSlides(fadedExample(card)).map((slide) => slide.show), ['P', 'a', 'b']);

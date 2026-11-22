@@ -70,6 +70,11 @@ Where slice C lives, and what it plays:
   and no answer. A question that names no example takes the one the first
   question on its skill named. Asked for, the whole example plays. Like any
   example that opens by itself it is recorded as `workedExampleShown: 'auto'`.
+  A faded replay stops before its solving move (`fadeLimit`), whatever the
+  lesson's `fade` says, and the validator refuses a `fade` that reaches it.
+- **Conditional moves:** multiplying or dividing by an expression with a
+  letter in it carries the engine's `assumption` (for example `x ≠ 0`). The
+  live board shows it; a slide cannot yet, so such a move is refused.
 - **Tests:** `tests/platform/stepAlgebraReplay.test.mjs` and
   `tests/browser/stepAlgebraReplay.mjs`. A built-in step is a full sentence that carries its own reason;
 only a lesson's step card has a separate "why" line.

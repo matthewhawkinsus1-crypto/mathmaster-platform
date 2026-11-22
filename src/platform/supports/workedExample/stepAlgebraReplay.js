@@ -104,6 +104,13 @@ const playedMoves = new Map();
 const playReplayMove = (equation, operation, operand) => {
   const move = applyBalancedOperation({ equationState: equation, operation, operand: String(operand) });
   if (move.preservesSolution === false) throw new Error('that move would change the solutions');
+  // Multiplying or dividing by an expression with a letter in it holds only
+  // where that expression is not zero. The live board shows that condition
+  // beside the move; a slide has nowhere to show it yet, so the move is
+  // refused instead of being played as if it had no condition.
+  if (move.assumption) {
+    throw new Error(`${operation === 'divide' ? 'dividing' : 'multiplying'} by ${move.operandExpression} is only valid where ${move.assumption}, and a replay cannot show that condition. Use a number, or add or subtract the term`);
+  }
   const cancels = list(move.requiredCancellationSides);
   const cancelled = resolveEquationAfterMove(move, DEFAULT_SUPPORT_LEVEL, cancels);
   const next = {
@@ -189,6 +196,8 @@ const readEquation = (source) => {
  * `show` is the slide in one sentence (what Read aloud and Translate are
  * given, and what the same-answer guard reads); `board` is the same move as
  * the lines the board shows. `moveCount` counts the operations, not the check.
+ * `fadeLimit` is how many steps come before the solving move (the one whose
+ * line reads x = value): the most a faded example may show.
  */
 export const replayStepAlgebra = ({ sibling = null, equation: equationText = '', moves = [] } = {}) => {
   const first = readEquation(sibling || equationText);
@@ -199,6 +208,7 @@ export const replayStepAlgebra = ({ sibling = null, equation: equationText = '',
 
   let equation = first;
   let checked = false;
+  let fadeLimit = null;
   const steps = [];
   for (let index = 0; index < script.length; index += 1) {
     const move = script[index];
@@ -247,6 +257,7 @@ export const replayStepAlgebra = ({ sibling = null, equation: equationText = '',
       board: { ...applied.board, label: applied.label },
     });
     equation = applied.next;
+    if (fadeLimit === null && isSolvedEquation(equation)) fadeLimit = steps.length - 1;
   }
 
   if (!isSolvedEquation(equation)) {
@@ -260,6 +271,7 @@ export const replayStepAlgebra = ({ sibling = null, equation: equationText = '',
     steps,
     answer: `$${variable} = ${expressionToLatex(value)}$`,
     moveCount: steps.filter((step) => step.board.kind === REPLAY_BOARD.MOVE).length,
+    fadeLimit: fadeLimit ?? 0,
   };
 };
 
@@ -333,6 +345,13 @@ export const stepAlgebraMovesFor = (source) => {
 
 /* ------------------------------------------------- Pre-Flight's refusal */
 
+/** How many steps a `fade` asks to show: `handOverAfter`, or the steps before `fromStep`. Zero for none. */
+export const replayHandOver = (fade) => {
+  if (!isObject(fade)) return 0;
+  if (Number.isInteger(fade.handOverAfter)) return Math.max(0, fade.handOverAfter);
+  return Number.isInteger(fade.fromStep) ? Math.max(0, fade.fromStep - 1) : 0;
+};
+
 /**
  * The errors Pre-Flight and the compiler raise for a lesson's Step Algebra
  * replays: an authored script the board's engine cannot play to its answer.
@@ -346,6 +365,11 @@ export const stepAlgebraReplayErrors = (input = {}) => {
     const replay = replayStepAlgebra({ sibling: entry.sibling, moves: entry.moves });
     if (!replay.ok) {
       errors.push(`lessonSupports.examples[${index}] is a Step Algebra replay the tool cannot play: ${replay.error} A replay is checked by the tool's own engine, so its moves must reach the answer.`);
+      return;
+    }
+    const handOver = replayHandOver(entry.fade);
+    if (handOver > replay.fadeLimit) {
+      errors.push(`lessonSupports.examples[${index}].fade would show the solved equation: move ${replay.fadeLimit + 1} is the one that leaves the variable alone, and a faded example stops before it. ${replay.fadeLimit >= 1 ? `Use handOverAfter of ${replay.fadeLimit} or less.` : 'This replay has one move, so it has nothing to fade: take the fade out.'}`);
     }
   });
   return errors;

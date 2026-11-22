@@ -56,7 +56,7 @@
 import { buildSimilarWorkedExample, similarExampleIsSafe } from './similarProblem.js';
 import { exampleSkillOf } from './exampleSkill.js';
 import { familyFor } from '../families/index.js';
-import { isStepAlgebraReplayEntry, replayStepAlgebra, stepAlgebraMovesFor } from './stepAlgebraReplay.js';
+import { isStepAlgebraReplayEntry, replayHandOver, replayStepAlgebra, stepAlgebraMovesFor } from './stepAlgebraReplay.js';
 
 // A step as { show, why } (the same reading exampleSlides.js gives it; that
 // module is the player's own, and is not imported here: see its header).
@@ -128,8 +128,7 @@ const isAssignmentItem = (prompt, assignmentProblems) => Boolean(
 // Where a faded example hands over: after `handOverAfter` steps, or before
 // step `fromStep`. Zero where nothing is left for the student to do.
 const handOverOf = (fade, stepCount) => {
-  if (!isObject(fade)) return 0;
-  const after = Number.isInteger(fade.handOverAfter) ? fade.handOverAfter : Number.isInteger(fade.fromStep) ? fade.fromStep - 1 : 0;
+  const after = replayHandOver(fade);
   return after >= 1 && after < stepCount ? after : 0;
 };
 
@@ -180,7 +179,9 @@ export const authoredReplay = (question, lessonSupports = null, { sectionRole = 
     prompt: replay.prompt,
     steps: replay.steps,
     answer: replay.answer,
-    handOverAfter: handOverOf(entry.fade, replay.steps.length),
+    // A faded replay stops before the solving move, whatever the lesson asked for.
+    handOverAfter: Math.min(handOverOf(entry.fade, replay.steps.length), replay.fadeLimit),
+    fadeLimit: replay.fadeLimit,
   };
 };
 
@@ -204,8 +205,9 @@ const familyReplay = (question, sibling) => {
     prompt: replay.prompt,
     steps: replay.steps,
     answer: replay.answer,
-    // A built-in replay fades after its first move.
-    handOverAfter: replay.moveCount >= 2 ? 1 : 0,
+    // A built-in replay fades after its first move, and never shows the solving one.
+    handOverAfter: Math.min(1, replay.fadeLimit),
+    fadeLimit: replay.fadeLimit,
   };
 };
 
@@ -253,7 +255,10 @@ export const workedExampleFor = (question, { seed = 0, lessonSupports = null, se
  * where it has nothing to fade.
  */
 export const fadedExample = (example) => {
-  const after = Number(example?.handOverAfter);
+  // A replay carries `fadeLimit`: the steps before its solving move. The line
+  // that reads x = value is never on a faded slide.
+  const asked = Number(example?.handOverAfter);
+  const after = Number.isInteger(example?.fadeLimit) ? Math.min(asked, example.fadeLimit) : asked;
   if (!isObject(example) || !(after >= 1) || after >= list(example.steps).length) return example;
   return { ...example, steps: example.steps.slice(0, after), answer: '', faded: true, stepCount: example.steps.length };
 };

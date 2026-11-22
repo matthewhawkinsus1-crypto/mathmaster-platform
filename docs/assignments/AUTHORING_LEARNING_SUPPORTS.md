@@ -154,6 +154,17 @@ The three sources:
 
 Either number is at least 1 and no more than the example's steps or moves.
 
+A faded Step Algebra replay stops before the solving move: the one whose line
+reads `x = value`. A fade that would show it is an error, and the player
+never shows that line on a faded slide:
+
+> lessonSupports.examples[0].fade would show the solved equation: move 3 is the one that leaves the variable alone, and a faded example stops before it. Use handOverAfter of 2 or less.
+
+A move that multiplies or divides by an expression with a letter in it (such
+as `{ "op": "divide", "operand": "x" }`) is refused. It holds only where
+that expression is not zero, and a slide cannot show that condition yet.
+Multiply or divide by a number; add or subtract a variable term.
+
 ```json
 {
   "id": "ex-both-sides",
