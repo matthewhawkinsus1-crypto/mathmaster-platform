@@ -400,7 +400,7 @@ function MultiAnswerGrader({ question, onStateChange, onUndoStateChange, feedbac
     const markId = `${markBase}-${field.id}-mark`;
     const { choiceOptions, inferredRequiredSymbols, requiredSymbols, answerShape, box, toolProfile, withheldKeys } = fieldPresentation.get(field.id);
     return (
-      <div key={field.id} data-answer-box-index={safeFields.indexOf(field)} style={{ padding: '16px', border: `2px solid ${grade ? (grade.isCorrect ? '#188038' : '#d93025') : 'var(--mm-border)'}`, borderRadius: '10px', background: grade && !grade.isCorrect ? 'var(--mm-error-subtle)' : 'var(--mm-surface)' }}>
+      <div key={field.id} data-answer-box-index={safeFields.indexOf(field)} data-answer-box-kind={shouldUsePlainTextInput(field) ? 'text' : undefined} style={{ padding: '16px', border: `2px solid ${grade ? (grade.isCorrect ? '#188038' : '#d93025') : 'var(--mm-border)'}`, borderRadius: '10px', background: grade && !grade.isCorrect ? 'var(--mm-error-subtle)' : 'var(--mm-surface)' }}>
         <label style={{ display: 'block', marginBottom: '10px', fontWeight: 'bold', color: 'var(--mm-text)' }}>
           {fieldLabelContent(field)}
         </label>

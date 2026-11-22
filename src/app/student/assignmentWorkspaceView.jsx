@@ -46,8 +46,7 @@ import {
 } from '../../platform/liveChallenge/warmupChallengeLink.js';
 import { NO_RECORDS } from './noRecords.js';
 import { db } from '../../firebase.js';
-import { recordAttemptSignal } from '../../platform/signals/attemptSignalWriter.js';
-import { notePlatformLinkOpened } from '../../platform/signals/attemptSignalFacts.js';
+import { notePlatformLinkOpened } from '../../platform/signals/signalPageNotes.js';
 
 export function createAssignmentWorkspaceView(
   user, studentClassPoints, hasPracticePassFor, studentRequiredFor, assignmentResultRoute, activeClassroomSectionKey,
@@ -1280,7 +1279,20 @@ export function createAssignmentWorkspaceView(
                 // grade path, never in it (attemptSignalWriter.js).
                 onAttemptSignal: preview || lifecycle.isPracticeOnly || user?.role !== 'student' || !user?.id
                   ? null
-                  : (fact) => { void recordAttemptSignal({ db, studentId: user.id, assignmentId: activeAssignmentId, questionIndex: currentQuestionIndex, activityRole: runtimeActivityRole, fact }); },
+                  // The recorder's code came with the question engine; what it
+                  // is told is fixed here, as of the fact, before it is fetched.
+                  : (fact, at) => {
+                    const signal = {
+                      db, studentId: user.id, assignmentId: activeAssignmentId, fact,
+                      questionIndex: Number.isInteger(at?.questionIndex) ? at.questionIndex : currentQuestionIndex,
+                      activityRole: at?.activityRole ?? runtimeActivityRole,
+                      // The bell schedule answers in or outside class time, or cannot
+                      // say; the recorder works out which (classTimeFact.js).
+                      classTime: { schedule: classSchedule, classPeriod: user.classPeriod || null, at: Date.now() },
+                      profile: user.profile || null,
+                    };
+                    void import('../../platform/signals/attemptSignalWriter.js').then((writer) => writer.recordAttemptSignal(signal), () => {});
+                  },
                 onAskTeacher: preview || lifecycle.isPracticeOnly || user?.role !== 'student'
                   ? null
                   : (requested) => setHelpRequest(nextHelpRequest({ requested, assignmentId: activeAssignmentId, questionIndex: currentQuestionIndex })),
@@ -1291,6 +1303,8 @@ export function createAssignmentWorkspaceView(
               // follows this prop). Null while there is none to send to.
               onSpotlightFrame={preview ? null : studentSpotlightRequest && publishSpotlightWork}
               draftRestore={draftRestoreFocus?.questionIndex === currentQuestionIndex ? draftRestoreFocus : null}
+              // Which question a teacher signal belongs to, as this engine was shown it.
+              attemptSignalContext={renderMemo('attemptSignalContext', [currentQuestionIndex, runtimeActivityRole], () => ({ questionIndex: currentQuestionIndex, activityRole: runtimeActivityRole }))}
               question={questions[currentQuestionIndex]}
               questionRecord={workingTracker?.[currentQuestionIndex]}
               generationKey={`${activeAssignmentId}|${generationStudentKey}|${currentQuestionIndex}|variant:${currentRecord.variantIndex}`}

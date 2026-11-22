@@ -7,7 +7,7 @@ import { selectReportAssignments } from '../../../platform/supportEvidence/suppo
 import { buildStudentCaseReview } from '../../../platform/caseReview/studentCaseReview.js';
 import { loadStudentCaseRecords, saveSisSnapshot } from '../../../platform/caseReview/caseReviewStore.js';
 import {
-  caseAssignmentsCsv, caseFactsCsv, caseQuestionsCsv, caseReviewFileName, caseReviewJson, TEACHER_AUTHORED_LABEL,
+  caseAssignmentsCsv, caseFactsCsv, caseQuestionsCsv, caseReviewFileName, caseReviewJson, caseSignalsCsv, TEACHER_AUTHORED_LABEL,
 } from '../../../platform/caseReview/caseReviewExport.js';
 import {
   NEXT_STEPS_MAX_LENGTH, forgetOtherAccountsDrafts, nextStepsDraftAvailable, readNextStepsDraft, writeNextStepsDraft,
@@ -18,6 +18,7 @@ import CaseGradesTab from './CaseGradesTab.jsx';
 import CaseQuestionsTab from './CaseQuestionsTab.jsx';
 import CaseSkillsTab from './CaseSkillsTab.jsx';
 import CaseDolTab from './CaseDolTab.jsx';
+import CaseSignalsTab from './CaseSignalsTab.jsx';
 import CaseCompletionTab from './CaseCompletionTab.jsx';
 import CaseSupportTab from './CaseSupportTab.jsx';
 import CaseTimelineTab from './CaseTimelineTab.jsx';
@@ -55,6 +56,7 @@ const TABS = [
   { key: 'questions', label: 'Questions & attempts' },
   { key: 'skills', label: 'Skills' },
   { key: 'dol', label: 'DOL vs instruction' },
+  { key: 'signals', label: 'Work-pattern signals' },
   { key: 'completion', label: 'Completion' },
   { key: 'supports', label: 'Supports' },
   { key: 'timeline', label: 'Timeline' },
@@ -210,6 +212,8 @@ export default function StudentCaseReviewView({
       caseEvidence: records.caseEvidence,
       caseEvidenceError: records.caseEvidenceError,
       extensionGrants: records.extensionGrants,
+      attemptSignals: records.attemptSignals,
+      attemptSignalsMeta: records.attemptSignalsMeta,
       sisSnapshot: sis.snapshot,
       sisConfirmedMatches: sis.confirmedMatches,
       nowValue: records.loadedAtMs,
@@ -337,6 +341,7 @@ export default function StudentCaseReviewView({
     if (kind === 'json') download(caseReviewJson(model, { nextSteps }), caseReviewFileName(model, '', 'json'), 'application/json');
     if (kind === 'assignments') download(caseAssignmentsCsv(model), caseReviewFileName(model, 'assignments', 'csv'), 'text/csv');
     if (kind === 'questions') download(caseQuestionsCsv(model), caseReviewFileName(model, 'questions', 'csv'), 'text/csv');
+    if (kind === 'signals') download(caseSignalsCsv(model), caseReviewFileName(model, 'work-pattern-signals', 'csv'), 'text/csv');
     if (kind === 'facts') download(caseFactsCsv(model), caseReviewFileName(model, 'facts', 'csv'), 'text/csv');
     setNotice('Download started.');
   };
@@ -348,6 +353,7 @@ export default function StudentCaseReviewView({
       case 'questions': return <CaseQuestionsTab model={model} drill={location.tab === 'questions' ? location.drill : {}} onDrill={(drill) => navigate({ tab: 'questions', drill })} onInspectResponse={onInspectResponse} />;
       case 'skills': return <CaseSkillsTab model={model} />;
       case 'dol': return <CaseDolTab model={model} />;
+      case 'signals': return <CaseSignalsTab model={model} onOpenQuestion={openQuestion} />;
       case 'completion': return <CaseCompletionTab model={model} />;
       case 'supports': return <CaseSupportTab model={model} onOpenSupportReport={onOpenSupportReport} />;
       case 'timeline': return <CaseTimelineTab model={model} />;
@@ -387,6 +393,7 @@ export default function StudentCaseReviewView({
               <button type="button" className="tw-btn tw-btn--primary tw-btn--sm" onClick={() => setPrinting(true)}>Print / Save PDF</button>
               <button type="button" className="tw-btn tw-btn--sm" onClick={() => exportsFor('assignments')}>Assignments CSV</button>
               <button type="button" className="tw-btn tw-btn--sm" onClick={() => exportsFor('questions')}>Questions CSV</button>
+              <button type="button" className="tw-btn tw-btn--sm" onClick={() => exportsFor('signals')}>Signals CSV</button>
               <button type="button" className="tw-btn tw-btn--sm" onClick={() => exportsFor('facts')}>Facts CSV</button>
               <button type="button" className="tw-btn tw-btn--sm" onClick={() => exportsFor('json')}>JSON (full case file)</button>
               {notice && <span className="cr-note" role="status">{notice}</span>}

@@ -361,6 +361,9 @@ function QuestionEngineBody({
   // response). Only the student's classroom assignment passes it. It is not
   // part of grading: nothing it is told reaches onGrade.
   onAttemptSignal = null,
+  // The host's own note of which question this engine is showing, handed
+  // back with each fact (the host may be on another question by then).
+  attemptSignalContext = null,
   // Which Language tools to offer, when the caller already knows
   // (supportToolsEntitlement.js toolsEntitlementFromPath on My Math Path).
   supportEntitlement = null,
@@ -896,12 +899,19 @@ function QuestionEngineBody({
   const locked = Boolean(isCorrect || isExpired || assignmentLocked);
   // TEACHER SIGNALS. Facts for the teacher's "worth a conversation", raised
   // beside the attempt and never inside it (useAttemptSignals.js).
+  // Answered in boxes and nothing else, by the module drawn (a literal
+  // question on the balance workspace is not).
+  const drawnInAnswerBoxes = drawnKind?.route === DRAWN_QUESTION_ROUTE.QUESTION_TYPE
+    && ANSWER_BOX_TYPES.includes(drawnKind.type)
+    && !(drawnKind.type === 'literal' && literalWorkspace?.question);
   const attemptSignals = useAttemptSignals({
     onAttemptSignal,
     studentProfile: stableStudentProfile,
     answerState,
     attemptNumber: (Number(record.totalAttempts) || 0) + 1,
     open: !locked,
+    answerBoxesOnly: drawnInAnswerBoxes,
+    context: attemptSignalContext,
   });
   // THE WAY ON FROM A CLOSED QUESTION, one rule for the action bar, the Enter
   // shortcut and where focus goes: Continue when the section is done, Next,
@@ -1461,11 +1471,7 @@ function QuestionEngineBody({
         // A composed question's stages are its work.
         if (isComposed) attemptSignals.noteToolWork();
         attemptSignals.attemptSubmitted({
-          // Answered in boxes and nothing else, by the module drawn (a literal
-          // question on the balance workspace is not).
-          drawnInAnswerBoxes: drawnKind?.route === DRAWN_QUESTION_ROUTE.QUESTION_TYPE
-            && ANSWER_BOX_TYPES.includes(drawnKind.type)
-            && !(drawnKind.type === 'literal' && literalWorkspace?.question),
+          drawnInAnswerBoxes,
           question: processedQuestion,
           answerState,
           // The marks the host's grading returned, where it returns them.

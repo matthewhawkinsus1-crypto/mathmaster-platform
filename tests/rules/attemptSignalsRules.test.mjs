@@ -1,9 +1,11 @@
 import test, { after, before } from 'node:test';
+import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import { assertFails, assertSucceeds, initializeTestEnvironment } from '@firebase/rules-unit-testing';
 import { collection, deleteDoc, doc, getDoc, getDocs, limit, orderBy, query, serverTimestamp, setDoc, updateDoc, where } from 'firebase/firestore';
 
 import {
+  ATTEMPT_SIGNAL_SUPPORT_IDS,
   ATTEMPT_SIGNAL_KIND, attemptSignalDocumentId, buildAttemptSignalRecord,
 } from '../../src/platform/signals/attemptSignalFacts.js';
 import { buildLiveStatus } from '../../src/livePresence.js';
@@ -19,7 +21,12 @@ import { buildLiveStatus } from '../../src/livePresence.js';
 //     a classmate, not another teacher, not a signed-out browser;
 //   * nobody edits or deletes a fact; that teacher may dismiss it, as
 //     themselves and at the server's time, and change nothing else;
-//   * the heartbeat's count is a small whole number.
+//   * the heartbeat's count is a small whole number;
+//   * the context beside a fact is a yes or no for class time and catalog
+//     support ids, nothing else;
+//   * a fact names a real assignment given to the student, and one of its
+//     questions: made-up ids and positions cannot flood a record;
+//   * a review is who, when and an optional short note, once.
 //
 // Synthetic identities only. Own projectId: rules suites run in parallel.
 
@@ -42,8 +49,8 @@ const FACTS = {
   hardFirstTry: { kind: ATTEMPT_SIGNAL_KIND.HARD_FIRST_TRY, difficultyBand: 4, partCount: 4, attemptNumber: 1 },
 };
 // Exactly what attemptSignalWriter.js writes.
-const recordFor = (kind, { studentId = 'S_A', assignmentId = 'a-1', questionIndex = 3 } = {}) => {
-  const record = buildAttemptSignalRecord({ studentId, assignmentId, questionIndex, activityRole: 'classwork', fact: FACTS[kind] });
+const recordFor = (kind, { studentId = 'S_A', assignmentId = 'a-1', questionIndex = 3, context = {} } = {}) => {
+  const record = buildAttemptSignalRecord({ studentId, assignmentId, questionIndex, activityRole: 'classwork', fact: FACTS[kind], ...context });
   return { id: attemptSignalDocumentId(record), data: { ...record, recordedAt: serverTimestamp() } };
 };
 const signalRef = (db, studentId, id) => doc(db, 'grades', studentId, 'attemptSignals', id);
@@ -56,10 +63,30 @@ before(async () => {
   await env.clearFirestore();
   await env.withSecurityRulesDisabled(async (context) => {
     const db = context.firestore();
-    await setDoc(doc(db, 'grades/S_A'), { classId: 'class-a', status: 'active', assignedTeacherEmail: TEACHER_A });
+    // S_A as production writes the row: the class, the server's proof of a
+    // Test this student was added to on their own (`testCycleGrades`), and work
+    // already held on a lesson of a class they have since left
+    // (`gradesByAssignment`). S_B has the class only.
+    await setDoc(doc(db, 'grades/S_A'), {
+      classId: 'class-a', status: 'active', assignedTeacherEmail: TEACHER_A,
+      testCycleGrades: { 'a-individual': { individuallyAssigned: true } },
+      gradesByAssignment: { 'a-class-left': { score: 80 } },
+    });
     await setDoc(doc(db, 'grades/S_B'), { classId: 'class-a', status: 'active', assignedTeacherEmail: TEACHER_A });
     // The assignment the signals name: a signal needs a real one.
-    await setDoc(doc(db, 'assignments/a-1'), { title: 'Slope and intercept', assignedClassIds: ['class-a'] });
+    // Seventy questions, given to class-a (and to class-m, for the teacher
+    // whose address has capitals).
+    await setDoc(doc(db, 'assignments/a-1'), { title: 'Slope and intercept', assignedClassIds: ['class-a', 'class-m'], questions: Array.from({ length: 70 }, (unused, index) => ({ questionId: `q-${index}` })) });
+    // A v5 assignment: its questions are its sections' (three in all).
+    await setDoc(doc(db, 'assignments/a-v5'), { schemaVersion: 5, assignedClassIds: ['class-a'], sections: [{ questions: [{ questionId: 'w1' }] }, { questions: [{ questionId: 'c1' }, { questionId: 'c2' }] }] });
+    // Given to another class; a Test S_A was added to on their own (the stored
+    // assignment carries no per-student mark, as in production); a lesson of
+    // the class S_A left; and an assignment carrying the device-only mark that
+    // no stored assignment has, which proves nothing.
+    await setDoc(doc(db, 'assignments/a-other'), { assignedClassIds: ['class-z'], questions: [{ questionId: 'q' }, { questionId: 'q2' }] });
+    await setDoc(doc(db, 'assignments/a-individual'), { assignedClassIds: [], questions: [{ questionId: 'q' }, { questionId: 'q2' }] });
+    await setDoc(doc(db, 'assignments/a-class-left'), { assignedClassIds: ['class-old'], questions: [{ questionId: 'q' }, { questionId: 'q2' }] });
+    await setDoc(doc(db, 'assignments/a-marked'), { assignedToStudentIndividually: true, assignedClassIds: [], questions: [{ questionId: 'q' }, { questionId: 'q2' }] });
     // A signal already on file, for the read, edit and dismissal cases.
     const seeded = recordFor('pasted', { questionIndex: 7 });
     await setDoc(signalRef(db, 'S_A', seeded.id), { ...seeded.data, recordedAt: new Date() });
@@ -73,10 +100,17 @@ test('a student records each kind of fact about their own attempt, as the app bu
     const { id, data } = recordFor(kind);
     await assertSucceeds(setDoc(signalRef(studentA(), 'S_A', id), data));
   }
-  // Without the optional section name too.
+  // The section is part of the fact: a record without one is refused.
   const { id, data } = recordFor('hardFirstTry', { questionIndex: 9 });
   const { activityRole: _role, ...withoutRole } = data;
-  await assertSucceeds(setDoc(signalRef(studentA(), 'S_A', id), withoutRole));
+  await assertFails(setDoc(signalRef(studentA(), 'S_A', id), withoutRole));
+  // On the four sections the case review counts, and on no other.
+  for (const [index, activityRole] of ['warmup', 'classwork', 'practice', 'dol'].entries()) {
+    await assertSucceeds(setDoc(signalRef(studentA(), 'S_A', id.replace('__9__', `__${12 + index}__`)), { ...data, questionIndex: 12 + index, activityRole }));
+  }
+  for (const activityRole of ['quiz', 'test', 'review', 'corrections']) {
+    await assertFails(setDoc(signalRef(studentA(), 'S_A', id), { ...data, activityRole }));
+  }
 });
 
 test('the first record of a fact stands: the student cannot write it again, change it or delete it', async () => {
@@ -143,7 +177,7 @@ test('a signal names a real assignment, by an id that cannot be mistaken for ano
   await assertFails(setDoc(signalRef(studentA(), 'S_A', made.id), made.data));
   for (const assignmentId of ['a__1', '_a-1', 'a-1_']) {
     // Even if such an assignment existed, its id could spell another fact's position.
-    await env.withSecurityRulesDisabled((context) => setDoc(doc(context.firestore(), 'assignments', assignmentId), { title: 'x' }));
+    await env.withSecurityRulesDisabled((context) => setDoc(doc(context.firestore(), 'assignments', assignmentId), { title: 'x', assignedClassIds: ['class-a'], questions: [{ questionId: 'q' }, { questionId: 'q2' }] }));
     const odd = recordFor('pasted', { assignmentId, questionIndex: 1 });
     await assertFails(setDoc(signalRef(studentA(), 'S_A', odd.id), odd.data));
   }
@@ -218,4 +252,106 @@ test('the heartbeat carries how many, as a small whole number', async () => {
   await assertFails(setDoc(doc(studentA(), 'presence/S_A'), { ...presence({}), attemptSignalCount: 'pasted y = 2x' }));
   await assertFails(setDoc(doc(studentA(), 'presence/S_A'), { ...presence({}), attemptSignalCount: 1000 }));
   await assertFails(setDoc(doc(studentA(), 'presence/S_A'), { ...presence({}), attemptSignals: [{ kind: 'pasted' }] }));
+});
+
+test('the context beside a fact: in class time or not, and the supports in effect, as catalog ids', async () => {
+  const withContext = (context, questionIndex) => recordFor('pasted', { questionIndex, context });
+  let made = withContext({ duringClass: true, supports: ['extra-time', 'text-to-speech'] }, 61);
+  await assertSucceeds(setDoc(signalRef(studentA(), 'S_A', made.id), made.data));
+  made = withContext({ duringClass: false, supports: [] }, 62);
+  await assertSucceeds(setDoc(signalRef(studentA(), 'S_A', made.id), made.data));
+  // Anything else in those fields is refused.
+  const base = withContext({}, 63);
+  const write = (extra) => setDoc(signalRef(studentA(), 'S_A', base.id), { ...base.data, ...extra });
+  await assertFails(write({ duringClass: 'at home, on a phone' }));
+  await assertFails(write({ duringClass: 1 }));
+  await assertFails(write({ supports: 'extra-time' }));
+  await assertFails(write({ supports: ['extra-time', 'has an IEP for reading'] }));
+  await assertFails(write({ supports: [{ id: 'extra-time' }] }));
+  // As many as the catalog holds, so a student's list is never cut short; no more.
+  await assertFails(write({ supports: Array.from({ length: ATTEMPT_SIGNAL_SUPPORT_IDS.length + 1 }, () => 'extra-time') }));
+  const everySupport = withContext({ supports: [...ATTEMPT_SIGNAL_SUPPORT_IDS] }, 64);
+  assert.equal(everySupport.data.supports.length, ATTEMPT_SIGNAL_SUPPORT_IDS.length);
+  await assertSucceeds(setDoc(signalRef(studentA(), 'S_A', everySupport.id), everySupport.data));
+  await assertFails(write({ location: 'home' }));
+  await assertFails(write({ ipAddress: '203.0.113.9' }));
+  await assertSucceeds(write({ duringClass: true, supports: ['every-part-at-once'] }));
+});
+
+test('a fact names an assignment given to this student, and one of its own questions: no flooding with made-up places', async () => {
+  // Another class's assignment.
+  const other = recordFor('pasted', { assignmentId: 'a-other', questionIndex: 0 });
+  await assertFails(setDoc(signalRef(studentA(), 'S_A', other.id), other.data));
+  // A Test this student was added to on their own: the proof is the server's
+  // own record on their grade document, and it is theirs alone.
+  const individual = recordFor('pasted', { assignmentId: 'a-individual', questionIndex: 1 });
+  await assertSucceeds(setDoc(signalRef(studentA(), 'S_A', individual.id), individual.data));
+  const notTheirs = recordFor('pasted', { studentId: 'S_B', assignmentId: 'a-individual', questionIndex: 1 });
+  await assertFails(setDoc(signalRef(studentB(), 'S_B', notTheirs.id), notTheirs.data));
+  // A mark on the assignment itself is the device's own, display only: it proves nothing.
+  const marked = recordFor('pasted', { assignmentId: 'a-marked', questionIndex: 0 });
+  await assertFails(setDoc(signalRef(studentA(), 'S_A', marked.id), marked.data));
+  // A student moved to another class, still working a lesson of the class
+  // left: they hold work on it, so the fact is recorded, not refused. A
+  // student with no work on it is refused.
+  const classLeft = recordFor('pasted', { assignmentId: 'a-class-left', questionIndex: 1 });
+  await assertSucceeds(setDoc(signalRef(studentA(), 'S_A', classLeft.id), classLeft.data));
+  const noWork = recordFor('pasted', { studentId: 'S_B', assignmentId: 'a-class-left', questionIndex: 1 });
+  await assertFails(setDoc(signalRef(studentB(), 'S_B', noWork.id), noWork.data));
+  // A position past the assignment's last question, on a legacy and a v5 assignment.
+  for (const [assignmentId, questionIndex, ok] of [['a-1', 69, true], ['a-1', 70, false], ['a-1', 999, false], ['a-v5', 2, true], ['a-v5', 3, false], ['a-individual', 2, false]]) {
+    const placed = recordFor('hardFirstTry', { assignmentId, questionIndex });
+    const attempt = setDoc(signalRef(studentA(), 'S_A', placed.id), placed.data);
+    await (ok ? assertSucceeds(attempt) : assertFails(attempt));
+  }
+  // So one assignment holds at most its questions times the kinds (a paste per
+  // part): a client that walks every id it can name is refused past that.
+  let accepted = 0;
+  for (let questionIndex = 0; questionIndex < 8; questionIndex += 1) {
+    const placed = recordFor('leftThenRight', { assignmentId: 'a-v5', questionIndex });
+    try { await setDoc(signalRef(studentA(), 'S_A', placed.id), placed.data); accepted += 1; } catch { /* refused */ }
+  }
+  assert.equal(accepted, 3, 'three questions, three facts of this kind, however many are tried');
+});
+
+test('a review may carry a short note; it is still once, and still changes nothing else', async () => {
+  const open = async (questionIndex) => {
+    const made = recordFor('pasted', { questionIndex });
+    await env.withSecurityRulesDisabled((context) => setDoc(signalRef(context.firestore(), 'S_A', made.id), { ...made.data, recordedAt: new Date() }));
+    return made.id;
+  };
+  const review = (db, id, extra = {}) => updateDoc(signalRef(db, 'S_A', id), { dismissedAt: serverTimestamp(), dismissedByEmail: TEACHER_A, ...extra });
+  let id = await open(64);
+  await assertFails(review(teacherA(), id, { reviewNote: '' }));
+  await assertFails(review(teacherA(), id, { reviewNote: 'x'.repeat(501) }));
+  await assertFails(review(teacherA(), id, { reviewNote: ['a list'] }));
+  await assertFails(review(teacherA(), id, { reviewNote: 'Talked with her', finding: 'cheated' }));
+  // A note without the review itself is not a review.
+  await assertFails(updateDoc(signalRef(teacherA(), 'S_A', id), { reviewNote: 'Talked with her' }));
+  await assertSucceeds(review(teacherA(), id, { reviewNote: 'Talked with her; she used the prompt\'s own numbers.' }));
+  // Reviewed: the note cannot be added to, replaced or removed, and the fact is still there.
+  await assertFails(updateDoc(signalRef(teacherA(), 'S_A', id), { reviewNote: 'changed my mind' }));
+  await assertFails(review(teacherA(), id, { reviewNote: 'again' }));
+  await assertFails(deleteDoc(signalRef(teacherA(), 'S_A', id)));
+  await assertSucceeds(getDoc(signalRef(teacherA(), 'S_A', id)));
+  // The student writes no review and no note.
+  id = await open(65);
+  await assertFails(review(studentA(), id));
+  await assertFails(updateDoc(signalRef(studentA(), 'S_A', id), { reviewNote: 'nothing to see' }));
+  const seeded = recordFor('pasted', { questionIndex: 66 });
+  await assertFails(setDoc(signalRef(studentA(), 'S_A', seeded.id), { ...seeded.data, reviewNote: 'pre-reviewed' }));
+});
+
+test("the case review's reads: the student's signals in a window of dates, and the earliest on record, for their teacher only", async () => {
+  const signalsOf = (db) => collection(db, 'grades', 'S_A', 'attemptSignals');
+  const windowed = (db) => getDocs(query(signalsOf(db), where('recordedAt', '>=', new Date(Date.now() - 86400000)), where('recordedAt', '<=', new Date(Date.now() + 86400000)), orderBy('recordedAt', 'desc'), limit(501)));
+  const earliest = (db) => getDocs(query(signalsOf(db), orderBy('recordedAt', 'asc'), limit(1)));
+  const found = await assertSucceeds(windowed(teacherA()));
+  assert.ok(found.docs.length >= 1, 'the seeded signal is in the window');
+  assert.equal((await assertSucceeds(earliest(teacherA()))).docs.length, 1);
+  await assertSucceeds(windowed(root()));
+  for (const other of [studentA(), studentB(), teacherB(), anonymous()]) {
+    await assertFails(windowed(other));
+    await assertFails(earliest(other));
+  }
 });

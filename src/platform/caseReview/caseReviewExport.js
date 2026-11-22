@@ -33,6 +33,9 @@ export const PRINT_SECTIONS = Object.freeze([
   { key: 'gaps', title: '10. Evidence gaps' },
   { key: 'facts', title: '11. Facts available for teacher narrative' },
   { key: 'nextSteps', title: '12. Teacher-entered next steps' },
+  // Added with the teacher signals (SHOWING_THE_PROCESS.md, section 7): last,
+  // so the twelve sections of the original brief keep their numbers.
+  { key: 'signals', title: '13. Work-pattern signals (not conclusive)' },
 ]);
 
 export const TEACHER_AUTHORED_LABEL = 'Teacher-authored — written by the teacher, not generated evidence.';
@@ -90,6 +93,24 @@ export const caseQuestionsCsv = (model) => {
     ];
   }));
 };
+
+/**
+ * One row per recorded work-pattern signal: what, when, where, its context
+ * and its review. Facts only, and the first column says so on every row.
+ */
+export const caseSignalsCsv = (model) => csv(
+  [
+    'Not conclusive', 'Signal', 'Recorded at', 'Assignment', 'Assignment ID', 'Section', 'Question', 'Part', 'Attempt', 'What was recorded',
+    'During class time', 'Supports in effect', 'Question outcome', 'Reviewed', 'Reviewed by', 'Reviewed at', 'Teacher note (teacher-authored: the teacher\'s own words, not a recorded fact)',
+  ],
+  list(model?.workPatterns?.entries).map((entry) => [
+    model.workPatterns.notConclusive, entry.title, iso(entry.recordedAtMs), entry.assignmentTitle, entry.assignmentId, entry.sectionLabel, entry.questionLabel,
+    entry.partIndex === null ? '' : entry.partIndex + 1, /try (\d+)/.exec(entry.where)?.[1] || 1, entry.facts,
+    entry.duringClass === null ? 'not known' : (entry.duringClass ? 'yes' : 'no'),
+    entry.supportIds === null ? 'not recorded' : entry.supportIds.join('; '),
+    entry.outcomeLabel, entry.reviewed ? 'yes' : 'no', entry.reviewedBy, entry.reviewed ? iso(entry.reviewedAtMs) : '', entry.reviewNote,
+  ]),
+);
 
 export const caseFactsCsv = (model) => csv(
   ['Fact', 'Category', 'How known', 'Sources', 'Limitation'],

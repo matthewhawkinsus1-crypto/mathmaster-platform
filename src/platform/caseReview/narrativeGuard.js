@@ -51,6 +51,11 @@ export const FORBIDDEN_CONCLUSIONS = Object.freeze([
     pattern: /\b(?:would|could|should|might)(?:\s+not|n't)?\s+have\b|\bwould\s+(?:pass|fail|succeed|score|improve)\b|\bwithout (?:the|a|an|this|that|these|those|their|his|her) (?:support|accommodation|modification)s?\b/i,
   },
   {
+    id: 'integrity-conclusion',
+    reason: 'A conclusion about honesty or the source of a student\'s work (cheated, copied, plagiarised, used AI, dishonest). A work-pattern signal is a recorded fact, never conclusive, and no narrative is written from one.',
+    pattern: /\b(?:cheat\w*|plagiar\w*|dishonest\w*|copied|copying|academic (?:integrity|misconduct|dishonesty)|integrity (?:violation|concern|issue)|(?:used|using|uses|with|by|from) (?:an? )?(?:AI|artificial intelligence|chatbot|ChatGPT)|AI[- ](?:generated|assisted|written)|not (?:the student's|his|her|their) own work|unauthori[sz]ed (?:help|aid|assistance))\b/i,
+  },
+  {
     id: 'proof-claim',
     reason: 'A claim that the records prove something. They are records, not proof.',
     pattern: /\b(?:prove[sd]?|proving|proof)\b/i,

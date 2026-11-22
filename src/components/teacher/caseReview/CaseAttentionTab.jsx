@@ -137,6 +137,16 @@ export default function CaseAttentionTab({ model, onOpenAssignment, onOpenQuesti
         ) : <EmptyNote>MathMaster contains no support record for this selection.</EmptyNote>}
       </section>
 
+      <section className="cr-section" aria-labelledby="cr-attn-signals" data-attention-signals>
+        <h2 id="cr-attn-signals">Work-pattern signals not yet reviewed ({attention.signalsToReview.loaded ? attention.signalsToReview.count : '—'})</h2>
+        {!attention.signalsToReview.loaded
+          ? <EmptyNote>The signal records were not loaded.</EmptyNote>
+          : attention.signalsToReview.count
+            ? <p>{attention.signalsToReview.count} of {attention.signalsToReview.total} recorded in this window have not been marked reviewed. They are on the &ldquo;Work-pattern signals&rdquo; tab, and are reviewed from the student&apos;s drawer or the assignment&apos;s results.</p>
+            : <EmptyNote>{attention.signalsToReview.total ? 'Every signal recorded in this window has been reviewed.' : 'No signal is recorded in this window.'}</EmptyNote>}
+        <Rule>{attention.rules.signalsToReview}</Rule>
+      </section>
+
       <section className="cr-section" aria-labelledby="cr-attn-missing">
         <h2 id="cr-attn-missing">Evidence that is missing</h2>
         {attention.evidenceMissing.length ? (

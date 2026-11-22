@@ -17,7 +17,7 @@
  * initialises Firebase (node tests import it directly).
  */
 import {
-  collection, doc, getDocs, limit, orderBy, query, serverTimestamp, setDoc,
+  collection, doc, getDocs, limit, orderBy, query, serverTimestamp, setDoc, where,
 } from 'firebase/firestore';
 import { httpsCallable } from 'firebase/functions';
 import { zonedDateKey } from '../../../functions/shared/instructionalCalendar.mjs';
@@ -94,6 +94,36 @@ export const fetchAttendanceExtensionGrants = async ({ db, studentId, max = 300 
 };
 
 /** Save one student's imported rows with their case file. Read-only analysis; changes no grade. */
+/**
+ * The student's teacher signals (grades/{student}/attemptSignals), reviewed
+ * ones included: a case review reads the whole record. Rules-guarded: only
+ * the student's teacher (or root) can read them.
+ */
+export const ATTEMPT_SIGNALS_MAX = 500;
+// Firestore's own readers; a test passes its own.
+const FIRESTORE_READS = { collection, getDocs, limit, orderBy, query, where };
+export const fetchAttemptSignals = async ({ db, studentId, fromMs = null, toMs = null, max = ATTEMPT_SIGNALS_MAX, store = FIRESTORE_READS } = {}) => {
+  const id = clean(studentId);
+  if (!db || !id) return { signals: [], firstRecordedAtMs: null, capped: false, max };
+  const signalsOf = store.collection(db, 'grades', id, 'attemptSignals');
+  // The case's own window, newest first, and one more than is kept: the extra
+  // row is how the page knows the window held more than it loaded, and says so.
+  const bounds = [
+    ...(Number.isFinite(fromMs) ? [store.where('recordedAt', '>=', new Date(fromMs))] : []),
+    ...(Number.isFinite(toMs) ? [store.where('recordedAt', '<=', new Date(toMs))] : []),
+  ];
+  const [windowed, first] = await Promise.all([
+    store.getDocs(store.query(signalsOf, ...bounds, store.orderBy('recordedAt', 'desc'), store.limit(max + 1))),
+    // The student's earliest signal on record, whatever the window: the date
+    // from which an answer with no signal means something.
+    store.getDocs(store.query(signalsOf, store.orderBy('recordedAt', 'asc'), store.limit(1))),
+  ]);
+  const rows = windowed.docs.map((entry) => ({ id: entry.id, ...entry.data() }));
+  const earliest = first.docs[0]?.data()?.recordedAt;
+  const firstRecordedAtMs = typeof earliest?.toMillis === 'function' ? earliest.toMillis() : (Number.isFinite(Number(earliest)) && earliest ? Number(earliest) : null);
+  return { signals: rows.slice(0, max), firstRecordedAtMs, capped: rows.length > max, max };
+};
+
 export const saveSisSnapshot = async ({
   db, student, extracted, layout, fileName, confirmedMatches = {}, teacherEmail, nowMs = Date.now(),
 } = {}) => {
@@ -131,7 +161,7 @@ export const loadStudentCaseRecords = async ({
   });
 
   // Optional: each degrades to "not loaded".
-  const [history, transfer, evidence, saved, grants] = await Promise.allSettled([
+  const [history, transfer, evidence, saved, grants, signals] = await Promise.allSettled([
     fetchStudentSupportHistory({ db, teacherEmail, studentId, supportLimit: 300, sessionLimit: 365 }),
     fullStudent.classId ? loadTeacherGradeTransferState({ classIds: [fullStudent.classId] }) : Promise.resolve(null),
     assignmentIds.length && functions
@@ -139,6 +169,7 @@ export const loadStudentCaseRecords = async ({
       : Promise.resolve(null),
     fetchSavedSisSnapshots({ db, studentId }),
     fetchAttendanceExtensionGrants({ db, studentId }),
+    fetchAttemptSignals({ db, studentId, fromMs: window.fromMs, toMs: window.toMs }),
   ]);
   const historyValue = settledValue(history);
   const transferValue = settledValue(transfer);
@@ -162,6 +193,10 @@ export const loadStudentCaseRecords = async ({
     savedSnapshotsError: settledError(saved),
     // undefined = not loaded (the model then falls back to the shared stub).
     extensionGrants: grants.status === 'fulfilled' ? grants.value : undefined,
+    // The student's teacher signals; undefined = not loaded.
+    attemptSignals: signals.status === 'fulfilled' ? signals.value.signals : undefined,
+    // The earliest signal on record and whether the window held more than was loaded.
+    attemptSignalsMeta: signals.status === 'fulfilled' ? { firstRecordedAtMs: signals.value.firstRecordedAtMs, capped: signals.value.capped, max: signals.value.max } : null,
     loadedAtMs: nowMs,
   };
 };
