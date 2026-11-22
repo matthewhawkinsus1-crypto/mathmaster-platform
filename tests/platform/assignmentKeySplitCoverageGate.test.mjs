@@ -280,6 +280,10 @@ const PUBLIC_GRADER_READS = Object.freeze({
     'answerFields[].inputContract.format', 'answerFields[].answerForm', 'answerFields[].answerFormat',
     'answerFields[].equivalence', 'answerFields[].lineForm', 'answerFields[].numberRules', 'answerFields[].allowArithmetic',
     'answerFields[].gradingMode', 'answerFields[].partialCredit', 'answerFields[].scoreWeight',
+    // Which earlier parts a follow-through part builds on (SP-3): the screen
+    // writes the student's own values into its label. Its answer moves
+    // (`answerFields[].followThrough.answer` in KEY_FIELDS).
+    'answerFields[].followThrough',
     'responseFields', 'responses', 'analysisRequests', 'analysisRequests[].id', 'analysisRequests[].kind',
     'analysisRequests[].label', 'analysisRequests[].feature', 'analysisRequests[].notation', 'analysisRequests[].allowNone',
     'analysisRequests[].answerMode', 'analysisRequests[].responseMode', 'fields', 'fields[].id', 'fields[].label', 'fields[].type',

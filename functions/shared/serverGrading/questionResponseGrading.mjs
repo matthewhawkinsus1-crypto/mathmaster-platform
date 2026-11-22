@@ -26,6 +26,9 @@ import numberLine from './questionGraders/numberLine.mjs';
 import stepAlgebra from './questionGraders/stepAlgebra.mjs';
 // The factoredForm / simplestRadicalForm field comparators (answerUtils.mjs).
 import '../formSpecificFieldGrading.mjs';
+// SP-3: the follow-through rules, handed to the ordinary grader, which marks
+// no follow-through question without them.
+import * as followThrough from '../followThrough.mjs';
 
 
 /*
@@ -73,7 +76,7 @@ export const gradeQuestionResponse = ({ question, response } = {}) => {
 
   if (declaration.kind === 'ordinary') {
     if (isToolResponse(response)) return { ...ungradedResult('response-shape-mismatch'), surfaceId, mode: null };
-    const ordinary = gradeOrdinaryResponse({ question, response });
+    const ordinary = gradeOrdinaryResponse({ question, response, followThrough });
     if (!ordinary.graded) return { ...ungradedResult(ordinary.reason), parts: ordinary.parts || [], surfaceId, mode: null };
     return {
       ...ordinary,

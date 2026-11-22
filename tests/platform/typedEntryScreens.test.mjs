@@ -97,7 +97,8 @@ test('the secure field item: Corrections cannot submit such an entry, and a secu
   assert.match(item, /const complete = fields\.every\(\(field\) => String\(responses\[field\.id\] \?\? ''\)\.trim\(\)\) && !Object\.values\(entryProblems\)\.some\(Boolean\);/);
   // Where there is a Submit (Corrections: every press spends a try), it is held back.
   assert.match(item, /if \(navigationMode \|\| !complete \|\| locked\) return;/);
-  assert.match(runtime, /const enabled = complete && !locked;/);
+  // (and, on a follow-through item, held until its rules arrive: SP-3)
+  assert.match(runtime, /const enabled = complete && !locked(?: && !followThrough\.pending)?;/);
   // In a secure test the draft is still saved as typed: the refusal loses nothing.
   const update = region(item, 'const updateResponse = (id, value) => {', '\n  };\n', 'updateResponse');
   assert.match(update, /onDraftChange\?\.\(\{ responses: next/);

@@ -53,15 +53,13 @@ The example player (WE-A) reads a question's `example` and
 - a replay for another tool (the plane, the inequality builder, division) is
   not played yet (WE-E). Until then such a question gets its built-in example.
 
+A part's `followThrough` works (SP-3): its label shows the student's own
+earlier value ("your slope …" before there is one), and every grader accepts
+the answer keyed to that value as well as the part's own `answer`.
+
 The other fields are read by the packages being built on them:
 - reference cards (WE-H);
-- follow-through grading (SP-3);
 - checkpoints (SP-4).
-
-Until those ship:
-- a part is graded against its own `answer`, as today;
-- a label is shown as written, so a follow-through label's `{slope}` appears
-  with its braces.
 
 **Scope.** These are rules for new and newly imported assignments. Existing
 assignments (`teacher-import-jsons/`) are not rewritten or back-filled, and
@@ -220,8 +218,8 @@ Leave `example` off every DOL, quiz and test question, exemptions included.
 
 ## 6. Later parts use the student's answer: `followThrough`
 
-A part names the earlier parts it builds on. Once SP-3 ships, the platform
-writes the student's own values into its label, and the grader keys the part
+A part names the earlier parts it builds on. The platform writes the
+student's own values into its label, and the grader keys the part
 to them, so an early slip is not marked wrong twice.
 
 ```jsonc
@@ -249,7 +247,7 @@ The rules:
   - a Question Family's `{{k}}`;
   - a set such as `{1, 2, 3}`.
 - **Keep the part's own `answer`:** the key when the earlier parts are right.
-  It is what the grader uses until SP-3 ships, and the key a teacher reads.
+  The grader still accepts it, and it is the key a teacher reads.
 
 ## 7. Show the step: `checkpoint`
 

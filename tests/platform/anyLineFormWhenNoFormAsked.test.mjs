@@ -253,7 +253,8 @@ test('the teacher\'s Path simulation stores the same decision as production', as
 
 test('the screen hands the shared grader the whole question, so it reads the same words as the server', () => {
   const source = executableSource(fs.readFileSync(new URL('../../src/MultiAnswerGrader.jsx', import.meta.url), 'utf8'));
-  const call = /gradeMultiAnswerResponse\(([^;]*?),\s*answers\)/.exec(source);
+  // The answers may be followed by the grader's options (SP-3's follow-through rules).
+  const call = /gradeMultiAnswerResponse\(([^;]*?),\s*answers(?:,\s*\{[^;{}]*\})?\)/.exec(source);
   assert.ok(call, 'the screen grades with gradeMultiAnswerResponse');
   assert.match(call[1], /^\{\s*\.\.\.question\s*,/, 'with the question it shows, not its fields alone');
 });

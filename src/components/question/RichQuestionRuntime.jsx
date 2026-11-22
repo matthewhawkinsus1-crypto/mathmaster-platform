@@ -10,6 +10,8 @@ import SecureItemAccessSupports from '../assessment/SecureItemAccessSupports.jsx
 import SecureMathAnswerField from '../assessment/SecureMathAnswerField.jsx';
 import TypedEntryNotice from '../common/TypedEntryNotice.jsx';
 import { typedEntryNotice } from '../../../functions/shared/typedEntryGuard.mjs';
+import { withFollowThroughLabels } from '../../../functions/shared/followThroughNames.mjs';
+import { useFollowThroughRules } from '../../platform/interaction/useFollowThroughRules.js';
 import { normalizeInteractionInputProfile } from '../../platform/interaction/interactionContract.js';
 import { SECURE_ACTIVITY_ROLE, secureAccessEntitlement, secureFigureLanguage } from '../../platform/assessment/secureItemAccess.js';
 import { FigureWordsProvider } from '../../platform/language/figureReadings.js';
@@ -220,7 +222,21 @@ const FieldItem = ({ question, policy, calculatorPolicy, studentSupportProfile, 
     return () => { current = false; };
   }, [figureLanguage]);
   const figurePack = loadedFigureWords?.language === figureLanguage ? loadedFigureWords.pack : null;
-  const fields = question?.responseFields?.length ? question.responseFields : [{ id: 'answer', label: 'Answer', inputProfile: 'text' }];
+  const authoredFields = useMemo(
+    () => (question?.responseFields?.length ? question.responseFields : [{ id: 'answer', label: 'Answer', inputProfile: 'text' }]),
+    [question?.responseFields],
+  );
+  // SP-3: a field that builds on an earlier one (its public `followThrough`
+  // names which) shows the student's own value in its label, or "your slope …"
+  // before there is one, on its box, its line and Review all parts. The rules
+  // that read the value load only for such an item, and its action waits for
+  // them. Only the student's own responses are read, never a key: the item
+  // has none. With no followThrough, the fields themselves, and nothing loads.
+  const followThrough = useFollowThroughRules(authoredFields);
+  const fields = useMemo(
+    () => withFollowThroughLabels(authoredFields, responses, { value: followThrough.rules?.followThroughValue }),
+    [authoredFields, responses, followThrough.rules],
+  );
   const choices = Array.isArray(question?.choices) ? question.choices : [];
   // An entry left unfinished (`12 +`, `4*`) or longer than an answer may be
   // (typedEntryGuard.mjs; #557, #558) is said at its box. Where this item has
@@ -297,6 +313,8 @@ const FieldItem = ({ question, policy, calculatorPolicy, studentSupportProfile, 
     // Navigation mode: Enter in an answer box records nothing and moves
     // nowhere. The answer is already autosaving as a draft.
     if (navigationMode || !complete || locked) return;
+    // SP-3: not until the follow-through rules that write its labels arrive.
+    if (followThrough.pending) return;
     await onSubmit?.({ responses, toolState: { linearRegression: regressionState } }, supportUsage());
   };
   const updateResponse = (id, value) => {
@@ -319,7 +337,7 @@ const FieldItem = ({ question, policy, calculatorPolicy, studentSupportProfile, 
     : (attempt
       ? submitActionLabel({ submitting: busy, cost: submitTryCost({ maximumAttempts: attempt.allowed, attemptCount: attempt.used }) })
       : (busy ? 'Submitting…' : SUBMIT_VERB));
-  const enabled = complete && !locked;
+  const enabled = complete && !locked && !followThrough.pending;
 
   return (
     <Landmark style={{ width: 'min(820px, 100%)', margin: '0 auto', padding: '28px 18px 64px', boxSizing: 'border-box' }}>
@@ -429,7 +447,7 @@ const FieldItem = ({ question, policy, calculatorPolicy, studentSupportProfile, 
               visible answer. In navigation mode there is no per-question
               action at all: nothing is gated on answering, and moving on is
               the container's Previous/Next. */}
-          {!navigationMode && (!walkFields || inReview) && <button type="submit" disabled={!enabled} style={{ width: '100%', minHeight: 48, marginTop: 22, border: 0, borderRadius: 9, background: !enabled ? 'var(--mm-surface-control-strong)' : 'var(--mm-primary)', color: !enabled ? 'var(--mm-disabled-text)' : 'var(--mm-on-primary)', fontWeight: 900, cursor: !enabled ? 'not-allowed' : 'pointer' }}>{actionLabel}</button>}
+          {!navigationMode && (!walkFields || inReview) && <button type="submit" disabled={!enabled} aria-busy={followThrough.pending || undefined} style={{ width: '100%', minHeight: 48, marginTop: 22, border: 0, borderRadius: 9, background: !enabled ? 'var(--mm-surface-control-strong)' : 'var(--mm-primary)', color: !enabled ? 'var(--mm-disabled-text)' : 'var(--mm-on-primary)', fontWeight: 900, cursor: !enabled ? 'not-allowed' : 'pointer' }}>{actionLabel}</button>}
         </form>
         <InstructionalSupport policy={policy} feedback={feedback} isToolItem={false} supportProfile={rawStudentSupportProfile || studentSupportProfile} />
       </section>
