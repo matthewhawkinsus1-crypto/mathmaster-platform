@@ -105,7 +105,9 @@ test('every move and Submit saves what is pending first, and stays put when it c
 
 test('field items lose the record button in navigation mode; a Rich Tool\'s "Save answer" saves a draft and returns nothing', () => {
   const fieldItem = region(runtime, 'const FieldItem = (', 'const ToolItem = (', 'field item');
-  assert.match(fieldItem, /\{!navigationMode && <button type="submit"/, 'no per-question button to gate on');
+  // Part by part (SP-1b) adds one condition: the button shows only in Review
+  // all parts. In navigation mode there is still none.
+  assert.match(fieldItem, /\{!navigationMode && \(!walkFields \|\| inReview\) && <button type="submit"/, 'no per-question button to gate on');
   assert.match(fieldItem, /if \(navigationMode \|\| !complete \|\| locked\) return;/, 'Enter records nothing');
 
   const toolItem = region(runtime, 'const ToolItem = (', 'export default function RichQuestionRuntime(', 'tool item');

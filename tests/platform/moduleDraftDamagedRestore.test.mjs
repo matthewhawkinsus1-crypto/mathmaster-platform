@@ -306,13 +306,16 @@ test('the lab and a secure field item read their valid saved work back as saved'
   const secure = sceneOf('secure-field-item');
   for (const payload of secure.valid.payload) {
     const opened = await openScene(secure, { payload });
-    // What each box holds: the typed answer and every regression cell, as saved.
+    // What each box holds: every regression cell, as saved. A secure Test's
+    // field item opens one part at a time (SP-1b): the typed answer, already
+    // given, is the line of its part, with the value as saved.
     const shown = opened.interact.boxes().map((node) => String(node.value ?? ''));
+    const lines = opened.interact.answeredParts();
     await opened.close();
     assert.deepEqual(errorText(opened), []);
     const cells = payload.toolState.linearRegression.rows.flatMap((row) => (Array.isArray(row) ? row : row.cells));
-    // The regression panel is above the answer box.
-    assert.deepEqual(shown, [...cells, payload.responses.answer], 'the regression table and the answer are in their boxes as saved');
+    assert.deepEqual(shown, cells, 'the regression table is in its boxes as saved');
+    assert.deepEqual(lines.find((line) => line.id === 'answer'), { id: 'answer', value: payload.responses.answer }, 'the answer is on its part\'s line as saved');
   }
 });
 

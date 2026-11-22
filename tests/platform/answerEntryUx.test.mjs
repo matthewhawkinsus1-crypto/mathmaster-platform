@@ -167,7 +167,9 @@ test('shared student runtimes use the answer-entry behavior', () => {
   assert.match(engine, /resolveQuestionEnterIntent\(\{/);
   assert.match(pathFields, /onSubmit=\{disabled \? null : onSubmit\}/);
   assert.match(secureExam, /<RichQuestionRuntime\b/);
-  assert.match(region(secureRuntime, 'const FieldItem = (', 'const ToolItem = (', 'the secure field renderer'), /autoFocus=\{fieldIndex === 0\}/);
+  // The secure field item focuses its first box: the first field when every
+  // field is drawn, the open part on mount when it goes part by part (SP-1b).
+  assert.match(region(secureRuntime, 'const FieldItem = (', 'const ToolItem = (', 'the secure field renderer'), /autoFocus=\{walkFields \? \(walk\.focus === 0 && field\.id === openFieldId\) : fieldIndex === 0\}/);
   assert.match(live, /autoFocus=\{fieldIndex === 0\}/);
   assert.match(shell, /resolveToolEnterAction\(\{ field: event\.target, shell: shellRef\.current \}\)/);
   assert.match(engine, /shouldAdvanceOnEnter/);
