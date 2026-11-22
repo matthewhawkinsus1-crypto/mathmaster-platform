@@ -86,10 +86,10 @@ const withRuntimeSectionMetadata = (section, index) => ({
   })),
 });
 
-// isNewAssignment: the review is of a new or newly imported assignment, not an
-// existing one's setup edit (LessonPreflightModal's rule, the one its
-// worked-example coverage panel uses). Only then are SP-5's two authoring
-// warnings looked for; every other caller gets none.
+// isNewAssignment: the review is of an assignment imported or authored now, not
+// an existing one (a setup edit, or a stored Library assignment re-assigned):
+// newAssignmentRulesApply, as LessonPreflightModal asks it. Only then are SP-5's
+// two authoring warnings looked for; every other caller gets none.
 export const buildAssignmentV5PreflightModel = (input = {}, { titleOverride = null, teacherReviewContext = null, classSize = null, isNewAssignment = false } = {}) => {
   const normalizedSource = normalizeAssignmentV5({
     ...input,

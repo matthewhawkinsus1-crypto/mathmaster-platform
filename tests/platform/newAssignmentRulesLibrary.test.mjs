@@ -7,6 +7,11 @@
  * assignment: the two new-assignment warnings (newAssignmentRulesPreflight.js)
  * find nothing, not even information.
  *
+ * Each file is also given to a class from the Library: stored as the Library
+ * stores it, then opened the way a teacher re-assigning it opens Review
+ * (openStoredAssignmentForPreflight: create mode, and not authored now). That
+ * is an existing assignment too, so it raises nothing either.
+ *
  * Then each file is judged again as if it were new, to show what the rules
  * would say about content like ours (the counts are printed as diagnostics):
  *   - tool first: none. The library already asks for equations, graphs and
@@ -18,7 +23,7 @@
  *     independently of the module.
  * No lesson file is changed.
  */
-import test from 'node:test';
+import test, { after, before } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
@@ -27,6 +32,7 @@ import { compileTeacherImport } from '../../scripts/check-teacher-import.mjs';
 import { lessonFiles } from '../../scripts/lib/classworkExampleCoverageReport.mjs';
 import { auditNewAssignmentRules } from '../../src/platform/preflight/newAssignmentRulesPreflight.js';
 import { repo } from './helpers/firstLoadGraph.mjs';
+import { openedByLibraryReuse, reviewOpener, rulesReviewShows, storedLibraryRecord } from './helpers/preflightOpenPaths.mjs';
 
 const FILES = lessonFiles(repo);
 // As new: the rules over the very questions the model judged, as the model
@@ -48,6 +54,25 @@ test('every assignment file in teacher-import-jsons compiles for Pre-Flight', ()
 
 test('as existing assignments, the library raises nothing new, not even as information', () => {
   for (const { file, existing } of LESSONS) assert.deepEqual(existing.newAssignmentRules, NOTHING, file);
+});
+
+let vite = null;
+before(async () => {
+  const { createServer } = await import('vite');
+  vite = await createServer({ server: { middlewareMode: true }, appType: 'custom', logLevel: 'silent' });
+});
+after(async () => { await vite?.close(); });
+
+test('re-assigned from the Library, every lesson still raises nothing', async () => {
+  const open = await reviewOpener(vite);
+  let reused = 0;
+  for (const file of FILES) {
+    const state = openedByLibraryReuse(open, storedLibraryRecord(JSON.parse(readFileSync(path.join(repo, file), 'utf8')), file));
+    assert.equal(state.mode, 'create', `${file}: Library reuse opens Review in create mode`);
+    assert.deepEqual(rulesReviewShows(state), NOTHING, file);
+    reused += 1;
+  }
+  assert.equal(reused, FILES.length, 'every file goes through Library reuse');
 });
 
 test('as if each file were new: what the two rules would say', (t) => {

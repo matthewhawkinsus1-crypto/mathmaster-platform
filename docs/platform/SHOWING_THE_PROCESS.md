@@ -160,8 +160,9 @@ It also warns when a new multi-part answer-box question with three or more
 parts has neither a `checkpoint` nor a `followThrough`.
 
 Both warnings are in Pre-Flight's Check step today (SP-5,
-`newAssignmentRulesPreflight.js`): only for a new or newly imported assignment,
-never for an existing one, and neither stops the assignment being created.
+`newAssignmentRulesPreflight.js`): only for an assignment being imported or
+authored now, never for an existing one (one re-assigned from the Library
+included), and neither stops the assignment being created.
 
 ## 7. Teacher signals
 

@@ -12,13 +12,15 @@
  *   SHOW THE STEP. A new answer-box question with three or more parts has
  *   neither a `checkpoint` nor a `followThrough` on any part.
  *
- * NEW ASSIGNMENTS ONLY. The caller says which, by the rule the worked-example
- * coverage panel already uses (LessonPreflightModal: a review that is not an
- * existing assignment's setup edit, `reviewMode !== 'update'`). For an existing
- * assignment nothing is looked at and nothing is returned, not even
- * information: existing assignments are not rewritten (the authoring guide's
- * Scope). `isNew` defaults to false, so every other caller of the Pre-Flight
- * model (the Question Editor, the Repair Center, a stored draft) sees nothing.
+ * NEW ASSIGNMENTS ONLY: one being imported or authored now
+ * (newAssignmentRulesApply). Narrower than the worked-example coverage panel's
+ * "new" (any review that is not a setup edit): re-assigning a stored Library
+ * assignment opens Review in create mode too, and is an existing assignment
+ * here. For an existing assignment nothing is looked at and nothing is
+ * returned, not even information: existing assignments are not rewritten (the
+ * authoring guide's Scope). `isNew` defaults to false, so every other caller
+ * of the Pre-Flight model (the Question Editor, the Repair Center, a stored
+ * draft) sees nothing.
  *
  * ADVICE, NEVER READINESS. Like the coverage panel these never enter the
  * diagnostics: a warning diagnostic makes an assignment "Needs Review", which
@@ -456,6 +458,19 @@ export const toolFirstWarning = (questionNumber, finding) => {
 
 export const showTheStepWarning = (questionNumber, finding) => (
   `Question ${questionNumber} has ${finding.parts} answer boxes and none of them checks a step. In a new assignment, give one part a checkpoint (a step done in a tool, such as picking two points on the line) or a followThrough (a later part that uses the student's own earlier answer, so one early slip is not marked wrong twice).`
+);
+
+/*
+ * WHETHER A REVIEW IS OF A NEW ASSIGNMENT, FOR THESE TWO RULES. Only when it is
+ * being imported or authored now: Review was opened from the intake (pasted,
+ * uploaded or dropped JSON, or a repaired Incomplete draft), which says so with
+ * `authoredNow` (assignmentPreflightControls.js). A stored Library assignment
+ * re-assigned to a class, or given another class, is opened in create mode
+ * without it, and a setup edit is `update`: both existing, so both get nothing.
+ * Anything that does not say so is existing.
+ */
+export const newAssignmentRulesApply = ({ reviewMode = 'create', authoredNow = false } = {}) => (
+  reviewMode !== 'update' && authoredNow === true
 );
 
 const empty = () => ({ warnings: [], findings: [] });

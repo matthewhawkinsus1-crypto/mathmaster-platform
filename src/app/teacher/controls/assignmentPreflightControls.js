@@ -77,6 +77,10 @@ export function createAssignmentPreflightControls(requireTeacherKit, setAssignme
         existingAssignmentId: reviewOptions.existingAssignmentId || null,
         allowQuestionRepair: reviewOptions.allowQuestionRepair !== false,
         sourceContentLineage: reviewOptions.sourceContentLineage || null,
+        // The intake says the assignment is being imported or authored now; a
+        // stored Library assignment opened for reuse does not. Only then does
+        // Review give SP-5's two authoring warnings (newAssignmentRulesApply).
+        authoredNow: reviewOptions.authoredNow === true,
         // When this review started from an Incomplete draft, remember which one.
         // Publishing has to close that draft, or the same assignment sits in the
         // Library and in Incomplete Assignments at once, and the stale copy is

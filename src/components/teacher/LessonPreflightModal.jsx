@@ -69,6 +69,7 @@ import RepresentationAudit from './RepresentationAudit';
 import RecoveryReadinessPanel from './RecoveryReadinessPanel.jsx';
 import ClassworkExampleCoveragePanel from './ClassworkExampleCoveragePanel.jsx';
 import NewAssignmentRulesPanel from './NewAssignmentRulesPanel.jsx';
+import { newAssignmentRulesApply } from '../../platform/preflight/newAssignmentRulesPreflight.js';
 import { classworkExampleCoverage } from '../../platform/supports/workedExample/classworkCoverage.js';
 import { RECOVERY_REPAIR_INSTRUCTION } from '../../platform/recovery/recoveryReadinessCopy.js';
 import SectionBalanceRigorAudit from './SectionBalanceRigorAudit.jsx';
@@ -252,6 +253,7 @@ export const LessonPreflightModal = ({
   onConfirmPublish,
   busy = false,
   reviewMode = 'create',
+  authoredNow = false,
   allowQuestionRepair = true,
   // The saved assignments, so a reused assignmentKey is caught here and not at
   // Create (findAssignmentKeyConflict; TT10).
@@ -317,13 +319,18 @@ export const LessonPreflightModal = ({
     () => preflightClassSizeFor(draft.assignedClassIds, rosterSizesByClassId),
     [draft.assignedClassIds, rosterSizesByClassId],
   );
-  // A setup edit of an existing assignment, or a new (or newly imported) one.
-  // The one rule for "new" that Review's advice uses: the worked-example
-  // coverage panel warns and SP-5's authoring rules look only when it is new.
+  // A setup edit of an existing assignment, or a review in create mode. WE-B's
+  // worked-example coverage panel reads this as is: it warns on anything that
+  // is not a setup edit, a re-assigned Library assignment included.
   const isUpdateMode = reviewMode === 'update';
+  // SP-5's two authoring rules are narrower, for these two rules only: an
+  // assignment imported or authored now (`authoredNow`, from the intake). A
+  // stored Library assignment re-assigned to a class is existing for them, so
+  // its teacher is not shown warnings about a lesson that is not to be changed.
+  const newAssignmentRules = newAssignmentRulesApply({ reviewMode, authoredNow });
   const preflightModel = useMemo(
-    () => buildAssignmentV5PreflightModel(reviewedAssignmentV5, { classSize: preflightClassSize, isNewAssignment: !isUpdateMode }),
-    [reviewedAssignmentV5, preflightClassSize, isUpdateMode],
+    () => buildAssignmentV5PreflightModel(reviewedAssignmentV5, { classSize: preflightClassSize, isNewAssignment: newAssignmentRules }),
+    [reviewedAssignmentV5, preflightClassSize, newAssignmentRules],
   );
   const effectiveAssignmentV5 = preflightModel.assignmentV5;
   // WORKED EXAMPLES (WE-B): how many Classwork questions an example covers,

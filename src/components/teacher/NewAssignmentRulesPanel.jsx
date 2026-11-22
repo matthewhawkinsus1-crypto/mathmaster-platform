@@ -45,13 +45,16 @@ export default function NewAssignmentRulesPanel({ rules = null, headingLevel = 5
         <span>Warning: </span>
         {plural(total, 'note', 'notes')} on answer boxes in a new assignment
       </Heading>
-      <p style={{ margin: '5px 0 9px', color: 'var(--mm-text)', fontSize: 'calc(12.5 * var(--mm-px))', lineHeight: 1.5 }}>
+      <p style={{ margin: '5px 0 6px', color: 'var(--mm-text)', fontSize: 'calc(12.5 * var(--mm-px))', lineHeight: 1.5 }}>
         In a new assignment, a tool does the work a tool can do, and a long answer box checks at least one step, so you see how a student got there and not only the answer.
         {' '}This never stops you creating the assignment.
       </p>
+      {/* Compact: one line of counts per rule, each list folded until asked
+          for. Each summary is a pointer target of at least 24 CSS px (WCAG
+          2.5.8), at any text size. */}
       {groups.map((group) => (
-        <details key={group.id} open data-new-assignment-rule={group.id} style={{ marginTop: 6 }}>
-          <summary style={{ cursor: 'pointer', minHeight: 24, fontSize: 'calc(12.5 * var(--mm-px))', fontWeight: 800 }}>
+        <details key={group.id} data-new-assignment-rule={group.id} style={{ marginTop: 2 }}>
+          <summary style={{ cursor: 'pointer', minHeight: 24, padding: '4px 0', boxSizing: 'border-box', fontSize: 'calc(12.5 * var(--mm-px))', fontWeight: 800 }}>
             {group.title}: {plural(group.warnings.length, group.one, group.many)}
           </summary>
           <ul style={{ margin: '6px 0 0', paddingLeft: 18, fontSize: 'calc(13 * var(--mm-px))', lineHeight: 1.5, color: 'var(--mm-warning-text)' }}>

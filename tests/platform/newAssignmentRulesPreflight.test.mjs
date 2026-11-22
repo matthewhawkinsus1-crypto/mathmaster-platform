@@ -24,6 +24,7 @@ import { renderToStaticMarkup } from 'react-dom/server';
 
 import { buildAssignmentV5PreflightModel } from '../../src/platform/preflight/assignmentV5PreflightModel.js';
 import {
+  newAssignmentRulesApply,
   TOOL_FIRST_FAMILIES,
   TOOL_FIRST_KINDS,
   auditNewAssignmentRules,
@@ -33,6 +34,7 @@ import {
 import { allRegisteredQuestionFamilies } from '../../functions/shared/questionFamilyRegistry.mjs';
 import { componentSource, executableSource, region } from './helpers/sourceContract.mjs';
 import { chainTo, firstLoadGraph, repo, teacherFirstLoadGraph } from './helpers/firstLoadGraph.mjs';
+import { openedByIntake, openedByLibraryReuse, reviewOpener, rulesReviewShows, storedLibraryRecord } from './helpers/preflightOpenPaths.mjs';
 
 const lesson = (questions, role = 'classwork') => ({
   schemaVersion: 5,
@@ -226,14 +228,26 @@ after(async () => { await vite?.close(); });
 const PANEL = '/src/components/teacher/NewAssignmentRulesPanel.jsx';
 const panelMarkup = async (props) => renderToStaticMarkup(React.createElement((await vite.ssrLoadModule(PANEL)).default, props));
 
-test('the panel on a new assignment: a warning, each rule with its questions, and it never stops creating', async () => {
+test('the panel on a new assignment: a warning, one line of counts per rule, each list folded', async () => {
   const html = await panelMarkup({ rules: asNew(EVERY_FIXTURE), headingLevel: 5 });
   assert.match(html, /^<section data-new-assignment-rules-panel="true" aria-labelledby="[^"]+"/);
   assert.match(html, /<h5 id="[^"]+"[^>]*><span>Warning: <\/span>6 notes on answer boxes in a new assignment<\/h5>/);
   assert.match(html, /This never stops you creating the assignment\./);
-  assert.match(html, /<details open="" data-new-assignment-rule="toolFirst"[^>]*><summary[^>]*>Use the tool: 5 questions<\/summary>/);
-  assert.match(html, /<details open="" data-new-assignment-rule="showTheStep"[^>]*><summary[^>]*>Show a step: 1 question<\/summary>/);
+  // Compact: a closed disclosure per rule, its summary the rule's count.
+  assert.match(html, /<details data-new-assignment-rule="toolFirst"[^>]*><summary[^>]*>Use the tool: 5 questions<\/summary>/);
+  assert.match(html, /<details data-new-assignment-rule="showTheStep"[^>]*><summary[^>]*>Show a step: 1 question<\/summary>/);
+  assert.doesNotMatch(html, /<details[^>]* open/, 'every list starts folded');
+  // Each summary is a pointer target of at least 24 CSS px (WCAG 2.5.8).
+  const summaries = html.match(/<summary style="[^"]*"/g) || [];
+  assert.equal(summaries.length, 2);
+  for (const summary of summaries) {
+    assert.match(summary, /min-height:24px/, summary);
+    assert.match(summary, /box-sizing:border-box/, summary);
+  }
+  // The list is unchanged inside.
+  assert.match(html, /<summary[^>]*>Use the tool: 5 questions<\/summary><ul [^>]*><li>Question 1 gives students an equation to solve \(3x \+ 5 = 20\)/);
   assert.match(html, /<li>Question 5 gives students a polynomial to divide/);
+  assert.match(html, /<summary[^>]*>Show a step: 1 question<\/summary><ul [^>]*><li>Question 6 has 3 answer boxes and none of them checks a step\./);
 });
 
 test('the panel draws nothing for an existing assignment, or a new one with nothing to say', async () => {
@@ -251,22 +265,78 @@ test('the panel draws in theme tokens only, and sizes its text from the page', (
   assert.doesNotMatch(panel, /\bwidth: \d|minWidth: \d|whiteSpace: 'nowrap'/);
 });
 
-test('Pre-Flight\'s review asks for the rules by the coverage panel\'s rule for "new", and draws them in the Check step', () => {
+test('Pre-Flight\'s review asks for the rules only for an assignment authored now, and draws them in the Check step', () => {
   const modal = executableSource(componentSource('src/components/teacher/LessonPreflightModal.jsx'));
   assert.match(modal, /^import NewAssignmentRulesPanel from '\.\/NewAssignmentRulesPanel\.jsx';$/m);
+  assert.match(modal, /^import \{ newAssignmentRulesApply \} from '\.\.\/\.\.\/platform\/preflight\/newAssignmentRulesPreflight\.js';$/m);
+  // A review that does not say it is authored now is not one.
+  assert.match(modal, /^ {2}authoredNow = false,$/m);
+  assert.match(modal, /const newAssignmentRules = newAssignmentRulesApply\(\{ reviewMode, authoredNow \}\);/);
   const memo = region(modal, 'const preflightModel = useMemo(', ');', 'the review\'s model');
-  assert.match(memo, /buildAssignmentV5PreflightModel\(reviewedAssignmentV5, \{ classSize: preflightClassSize, isNewAssignment: !isUpdateMode \}\)/);
-  assert.match(memo, /\[reviewedAssignmentV5, preflightClassSize, isUpdateMode\]/);
-  // One rule for "new": the same isUpdateMode the coverage panel reads, set once, before the model.
+  assert.match(memo, /buildAssignmentV5PreflightModel\(reviewedAssignmentV5, \{ classSize: preflightClassSize, isNewAssignment: newAssignmentRules \}\)/);
+  assert.match(memo, /\[reviewedAssignmentV5, preflightClassSize, newAssignmentRules\]/);
+  assert.ok(modal.indexOf('const newAssignmentRules = ') < modal.indexOf('const preflightModel = useMemo('), 'decided before the model reads it');
+  // WE-B's coverage panel keeps its own rule, untouched: any review that is not a setup edit.
   assert.equal((modal.match(/const isUpdateMode = /g) || []).length, 1);
-  assert.ok(modal.indexOf("const isUpdateMode = reviewMode === 'update';") < modal.indexOf('const preflightModel = useMemo('), 'set before the model reads it');
+  assert.match(modal, /const isUpdateMode = reviewMode === 'update';/);
   // Drawn right after the coverage panel (comments are stripped to { }).
   const check = region(modal, 'const renderCheck = () => (', '\n  );\n', 'the Check step');
-  assert.match(check, /<ClassworkExampleCoveragePanel coverage=\{classworkExamples\} isNew=\{!isUpdateMode\}[^>]*\/>[\s{}]*<NewAssignmentRulesPanel rules=\{preflightModel\.newAssignmentRules\} headingLevel=\{isNarrow \? 4 : 5\} \/>/);
+  assert.match(check, /<ClassworkExampleCoveragePanel coverage=\{classworkExamples\} isNew=\{!isUpdateMode\} headingLevel=\{isNarrow \? 4 : 5\} \/>[\s{}]*<NewAssignmentRulesPanel rules=\{preflightModel\.newAssignmentRules\} headingLevel=\{isNarrow \? 4 : 5\} \/>/);
   // Readiness never reads them.
   for (const file of ['src/platform/preflight/preflightDiagnostics.js', 'src/platform/preflight/assignmentAuthoringState.js', 'src/components/teacher/preflightSteps.js']) {
     assert.doesNotMatch(executableSource(readFileSync(path.join(repo, file), 'utf8')), /newAssignmentRules|NewAssignmentRules/, file);
   }
+});
+
+/* ------------------------------------------- authored now, or Library reuse */
+
+test('only an assignment imported or authored now is new for these rules', () => {
+  assert.equal(newAssignmentRulesApply({ reviewMode: 'create', authoredNow: true }), true, 'the intake');
+  assert.equal(newAssignmentRulesApply({ reviewMode: 'create', authoredNow: false }), false, 'a stored Library assignment given to a class');
+  assert.equal(newAssignmentRulesApply({ reviewMode: 'create' }), false, 'a review that does not say');
+  assert.equal(newAssignmentRulesApply({ reviewMode: 'update', authoredNow: true }), false, 'a setup edit');
+  assert.equal(newAssignmentRulesApply({ reviewMode: 'create', authoredNow: 'yes' }), false, 'only true');
+  assert.equal(newAssignmentRulesApply(), false);
+});
+
+test('the intake says it is authored now; the Library and setup-edit paths do not', () => {
+  const workspace = executableSource(componentSource('src/app/teacher/TeacherWorkspace.jsx'));
+  // The intake (pasted, uploaded and dropped JSON, and a repaired Incomplete draft), both ways it opens Review.
+  const intake = region(workspace, 'const handleAssignmentJsonReady = async', '\n  };\n', 'the intake');
+  const intakeOpens = intake.match(/openAssignmentPreflight\([\s\S]*?\);/g) || [];
+  assert.equal(intakeOpens.length, 2, 'the salvage preview and the clean open');
+  for (const call of intakeOpens) assert.match(call, /\{ incompleteDraftId, authoredNow: true \}\s*,?\s*\)/, call);
+  // Library reuse (a class given a Library assignment, or another class added) never does.
+  const reuse = region(workspace, 'const openStoredAssignmentForPreflight = async', '\n  };\n', 'Library reuse');
+  assert.match(reuse, /openAssignmentPreflight\(/);
+  assert.doesNotMatch(reuse, /authoredNow/);
+  // No other opener names it: only the intake's two calls.
+  assert.equal((workspace.match(/authoredNow: true/g) || []).length, 2);
+  // Review is mounted with what the opener stored, and only `true` counts.
+  assert.match(workspace, /reviewMode=\{assignmentPreflight\.mode \|\| 'create'\}\s*authoredNow=\{assignmentPreflight\.authoredNow === true\}/);
+  const controls = executableSource(readFileSync(path.join(repo, 'src/app/teacher/controls/assignmentPreflightControls.js'), 'utf8'));
+  assert.match(controls, /authoredNow: reviewOptions\.authoredNow === true,/);
+});
+
+const LESSON_FILE = 'teacher-import-jsons/algebra1-module3/T1_L1_Solving_Linear_Equations.json';
+
+test('the intake shows show-the-step on a lesson; re-assigning the same lesson from the Library shows nothing', async () => {
+  const open = await reviewOpener(vite);
+  const text = readFileSync(path.join(repo, LESSON_FILE), 'utf8');
+
+  const imported = openedByIntake(open, text, 'T1_L1_Solving_Linear_Equations.json');
+  assert.equal(imported.mode, 'create');
+  assert.equal(imported.authoredNow, true);
+  const shown = rulesReviewShows(imported);
+  assert.equal(shown.isNew, true);
+  assert.ok(shown.showTheStep.findings.length > 0, 'the lesson has answer boxes of three or more parts with no checked step');
+
+  const reused = openedByLibraryReuse(open, storedLibraryRecord(JSON.parse(text)));
+  assert.equal(reused.mode, 'create', 'Library reuse opens Review in create mode, like the intake');
+  assert.equal(reused.authoredNow, false);
+  assert.deepEqual(rulesReviewShows(reused), { isNew: false, toolFirst: { warnings: [], findings: [] }, showTheStep: { warnings: [], findings: [] } });
+  // The same questions either way: only where Review was opened from differs.
+  assert.equal(reused.questions.length, imported.questions.length);
 });
 
 test('nothing a student loads, and nothing in a teacher\'s first load, carries the rules or the panel', () => {
