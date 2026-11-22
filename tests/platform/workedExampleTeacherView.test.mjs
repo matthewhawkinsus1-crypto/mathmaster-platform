@@ -145,8 +145,31 @@ test('the next question is one the gradebook shows: a question the teacher left 
   assert.equal(leftOut.skills[0].next.notAnswered, 0);
   // The rule is the gradebook's own, not a second one.
   const model = executableSource(read('src/platform/teacher/workedExampleView.js'));
-  assert.match(model, /\.filter\(\(\{ question \}\) => question && questionIsIncluded\(question\)\)/);
+  assert.match(model, /\.filter\(\(entry\) => entry\?\.question && questionIsIncluded\(entry\.question\)\)/);
   assert.match(executableSource(read('src/app/teacher/TeacherWorkspace.jsx')), /if \(!questionIsIncluded\(question\)\) return null;/);
+});
+
+test('a replacement question stands where the student sees it, not where it is stored', () => {
+  // Storage: [question 1 (left out), question 2, question 1's replacement].
+  // The student sees [the replacement, question 2]. An example opened on the
+  // replacement has question 2 as its next question.
+  const replaced = {
+    id: 'L8',
+    schemaVersion: 5,
+    sections: [{ id: 'cw', role: 'classwork', questions: [
+      question('factoring-trinomials', { questionId: 'q1', teacherExcluded: true }),
+      question('factoring-trinomials', { questionId: 'q2' }),
+      question('factoring-trinomials', { questionId: 'q1b', supersedesQuestionId: 'q1' }),
+    ] }],
+  };
+  const replacedView = buildWorkedExampleView({ assignment: replaced, students: [{ id: 'S1', name: 'Ana Ruiz', tracker: { 2: answer('correct', 2, SHOWN, 1), 1: answer('correct', 1, {}, 5) } }] });
+  // The order students meet them, each with its storage position (what the tracker and the gradebook's cards go by).
+  assert.deepEqual(replacedView.skills[0].questions.map((place) => place.questionIndex), [2, 1]);
+  const entry = replacedView.skills[0].students[0].opened[0];
+  assert.deepEqual([entry.questionIndex, entry.next.questionIndex, entry.next.outcome], [2, 1, EXAMPLE_NEXT.RIGHT_FIRST]);
+  // And an example opened on question 2, the last one the student meets, has no later question.
+  const onSecond = buildWorkedExampleView({ assignment: replaced, students: [{ id: 'S2', name: 'Ben Ortiz', tracker: { 1: answer('correct', 1, ASKED, 5), 2: answer('correct', 1, {}, 1) } }] });
+  assert.deepEqual([onSecond.skills[0].students[0].opened[0].next.questionIndex, onSecond.skills[0].students[0].opened[0].next.outcome], [null, EXAMPLE_NEXT.NONE]);
 });
 
 test('a question not required for a student is never their next question', () => {
@@ -183,6 +206,13 @@ test('none opened is said as none; a support record that has not loaded is not "
   assert.ok(!('supportUsage' in summary));
   const waiting = buildWorkedExampleView({ assignment: ASSIGNMENT, students: [{ id: 'S8', name: 'Hal Kim', tracker: { 0: summary } }, STUDENTS[0]] });
   assert.deepEqual(waiting.notLoaded, [{ studentId: 'S8', name: 'Hal Kim' }]);
+  // Nothing opened so far, with a record still to arrive, is not "none": the
+  // definitive line waits for every record, even when a loaded student opened none.
+  const stillWaiting = buildWorkedExampleView({ assignment: ASSIGNMENT, students: [{ id: 'S8', name: 'Hal Kim', tracker: { 0: summary } }, STUDENTS[3]] });
+  assert.deepEqual([stillWaiting.none, stillWaiting.unknown, stillWaiting.opened.length, stillWaiting.notLoaded.length], ['', true, 0, 1]);
+  assert.deepEqual([none.unknown, view.unknown, waiting.unknown], [false, false, false], 'known none, and something opened, are not unknown');
+  const panel = executableSource(read('src/components/teacher/WorkedExamplesBySkill.jsx'));
+  assert.match(panel, /\{view\.unknown \? null : view\.none \? \(/, 'the panel draws no "none" line while a record is still to arrive');
   assert.deepEqual(view.notLoaded, []);
   // No assignment, no students: an empty view, not an error.
   assert.deepEqual(buildWorkedExampleView().skills, []);
@@ -198,7 +228,7 @@ test('it says what was recorded, never why, and that no score changes', () => {
   const model = executableSource(read('src/platform/teacher/workedExampleView.js'));
   assert.doesNotMatch(model, /firebase|setDoc|updateDoc|getDoc|httpsCallable|onSnapshot/);
   const imports = [...model.matchAll(/from '([^']+)'/g)].map((match) => match[1]);
-  assert.deepEqual(imports, ['../supports/workedExample/exampleSkill.js', '../contract/storedAssignmentV5.js', '../policies/activityPolicies.js', '../../assignmentLifecycle.js', '../../../functions/shared/gradeEntryStorage.mjs']);
+  assert.deepEqual(imports, ['../supports/workedExample/exampleSkill.js', '../assignments/currentContentProjection.js', '../../assignmentLifecycle.js', '../../../functions/shared/gradeEntryStorage.mjs']);
   // The tracker it is handed is not changed.
   const before = JSON.stringify(STUDENTS);
   buildWorkedExampleView({ assignment: ASSIGNMENT, students: STUDENTS });

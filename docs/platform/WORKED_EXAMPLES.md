@@ -48,11 +48,14 @@ Where slice G lives:
   conversation" notes are. In the class view a name opens that student's
   results.
 - **What it does not say:** why. The record holds that an example was opened,
-  not when, so "next" is the assignment's order; a next question the times
+  not when, so "next" is the order the student meets the questions in (a
+  replacement stands where the question it replaced stood, and a question not
+  required for a student is passed over); a next question the times
   show was answered first is marked "answered earlier" and is not counted. A
   question with no family and no student action is listed on its own, as a
   question with no skill named. A student whose support record has not loaded
-  is said to be not loaded, not to have opened none.
+  is said to be not loaded, not to have opened none, and "none opened" is
+  said only once every student's record is loaded.
 - **Tests:** `tests/platform/workedExampleTeacherView.test.mjs`, and step T6
   of `tests/browser/teacherWorkflow/teacherSignalsJourneys.mjs`.
 

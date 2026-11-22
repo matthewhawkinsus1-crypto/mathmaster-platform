@@ -33,7 +33,7 @@ export default function WorkedExamplesBySkill({ assignment = null, students = []
           The support record has not loaded yet for {view.notLoaded.length === 1 ? view.notLoaded[0].name : `${view.notLoaded.length} students`}. What they opened is not known yet; that is not the same as opening none.
         </p>
       )}
-      {view.none ? (
+      {view.unknown ? null : view.none ? (
         <p data-worked-examples-none="" style={{ margin: '8px 0 0', fontSize: 'calc(13 * var(--mm-px))' }}>{view.none}</p>
       ) : (
         <>

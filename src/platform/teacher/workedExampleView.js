@@ -24,7 +24,10 @@
  * is written, and no grade, attempt or mastery path reads this module.
  *
  * "THE NEXT QUESTION" is the next question on the same skill later in the
- * assignment's own order, in any section (so a DOL question on the skill
+ * order the student works the assignment in (the current-content projection,
+ * assignments/currentContentProjection.js: a replacement question stands where
+ * the question it replaced stood, though it is stored at the end), in any
+ * section (so a DOL question on the skill
  * counts). When the record shows it was last answered before the question the
  * example was opened on, it is reported as answered earlier, and is not
  * counted as what happened next.
@@ -32,8 +35,7 @@
  * Pure: no Firestore, no React.
  */
 import { exampleSkillOf, exampleKindOf, primaryStandardOf } from '../supports/workedExample/exampleSkill.js';
-import { getStoredAssignmentQuestions } from '../contract/storedAssignmentV5.js';
-import { resolveQuestionActivityRole } from '../policies/activityPolicies.js';
+import { projectCurrentAssignmentContent } from '../assignments/currentContentProjection.js';
 import { questionIsIncluded } from '../../assignmentLifecycle.js';
 import { DETAIL_FIELDS, isSplitSummary } from '../../../functions/shared/gradeEntryStorage.mjs';
 
@@ -128,24 +130,25 @@ const detailMissing = (record) => isSplitSummary(record)
   && !DETAIL_FIELDS.some((field) => Object.prototype.hasOwnProperty.call(record, field));
 
 /**
- * @param assignment the stored assignment (its questions, in order).
+ * @param assignment the stored assignment. Its questions are read in the
+ *                   order students see them; each keeps its storage position,
+ *                   which is what a tracker and the gradebook's cards go by.
  * @param students   `[{ id, name, tracker, omitted }]`: each student's records
  *                   for this assignment, by question position, joined to their
  *                   detail; `omitted` is the positions not required for that
  *                   student (a reduced workload: studentRequiredQuestions, as
  *                   the gradebook computes it). A question not required for a
  *                   student is never their "next question".
- * @param questions  the assignment's questions, when the caller already has them.
  */
-export const buildWorkedExampleView = ({ assignment = null, students = [], questions = null } = {}) => {
-  const stored = list(questions || getStoredAssignmentQuestions(assignment || {}));
-  // Each question that teaches or tests a skill, in the assignment's order.
-  const placed = stored
-    .map((question, index) => ({ question, index }))
+export const buildWorkedExampleView = ({ assignment = null, students = [] } = {}) => {
+  // Each question that teaches or tests a skill, in the order the student
+  // meets them: the same projection the student's own screen is built from.
+  const placed = list(projectCurrentAssignmentContent(assignment || {}).entries)
     // The gradebook's own rule for which questions it shows (assignmentLifecycle.js).
-    .filter(({ question }) => question && questionIsIncluded(question))
-    .map(({ question, index }) => {
-      const role = clean(resolveQuestionActivityRole({ question, assignment: assignment || {} })).toLowerCase();
+    .filter((entry) => entry?.question && questionIsIncluded(entry.question))
+    .map((entry) => {
+      const { question, storageIndex: index } = entry;
+      const role = clean(entry.logicalRole).toLowerCase();
       const skill = exampleSkillOf(question);
       // No family and no student action: its own heading, so nothing opened on it is lost.
       return skill
@@ -266,7 +269,10 @@ export const buildWorkedExampleView = ({ assignment = null, students = [], quest
     studentsLooked: list(students).filter((student) => clean(student?.id)).length,
     // Students whose support record has not arrived: not "opened none".
     notLoaded,
-    none: opened.length === 0 ? WORKED_EXAMPLES_NONE : '',
+    // "None" is said only when every student's record is here to say it. With
+    // one still to arrive, nothing opened so far is not yet known to be none.
+    none: opened.length === 0 && notLoaded.length === 0 ? WORKED_EXAMPLES_NONE : '',
+    unknown: opened.length === 0 && notLoaded.length > 0,
     limitations: [...WORKED_EXAMPLES_LIMITATIONS],
   };
 };
