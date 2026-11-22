@@ -56,5 +56,7 @@ export const StudentSpotlightView = drawnPanel(() => import('../../components/te
 export const WorthAConversationTile = drawnPanel(() => import('../../components/teacher/WorthAConversation.jsx'), "This device is offline. Worth a conversation shows when it is back online.");
 // A student's signals beside each question of an assignment's results (app/teacher/TeacherWorkspace.jsx, the gradebook's student view).
 export const QuestionSignalNotes = drawnPanel(() => import('../../components/teacher/QuestionSignalNotes.jsx'), "");
+// Worked examples by skill, in an assignment's results (app/teacher/TeacherWorkspace.jsx: the gradebook's class view and student view).
+export const WorkedExamplesBySkill = drawnPanel(() => import('../../components/teacher/WorkedExamplesBySkill.jsx'), "");
 // Submission recovery's panel (src/TeacherHome.jsx), mounted again for each class and assignment chosen.
 export const StudentPersistenceRecoveryPanel = drawnPanel(() => import('../../components/teacher/StudentPersistenceRecoveryPanel.jsx'), "This device is offline. Submission recovery shows when it is back online.");

@@ -35,6 +35,8 @@
 //       a student's drawer opened over them
 //   T3  the student's drawer lists the facts that need attention and keeps
 //       the reviewed one under "Reviewed"
+//   T6  (WE-G) worked examples by skill, in the student's and the class's
+//       results: who opened one, and how the next question on the skill went
 //   T4  the assignment's results show the student's signals beside the
 //       question they belong to
 //   T5  the case review's "Work-pattern signals" tab counts them over the
@@ -391,6 +393,54 @@ for (const viewport of VIEWPORTS) {
   expect(`T4 ${tag} the reviewed ones stay, marked reviewed with the note; one still needs attention`, (await questionNotes.locator('[data-attempt-signal][data-reviewed="true"]').count()) === 2 && notesText.includes(REVIEW_NOTE) && (await questionNotes.getByRole('button', { name: /^Mark reviewed:/ }).count()) === 1, notesText);
   expect(`T4 ${tag} no other question carries a note`, (await page.locator('[data-question-signals]').count()) === 1, `${await page.locator('[data-question-signals]').count()} questions show signals`);
   if (await questionNotes.count()) { await questionNotes.scrollIntoViewIfNeeded(); await shot(page, 't4-assignment-results', viewport); }
+
+  /* ------------------------- worked examples, by skill (WE-G), beside them */
+  // Nothing opened yet: the student's results say so, and say it changes no score.
+  const studentExamples = page.locator('[data-worked-examples-by-skill="student"]');
+  await studentExamples.waitFor({ timeout: 20000 }).catch(() => {});
+  const noneText = (await studentExamples.count()) ? await studentExamples.innerText() : '';
+  expect(`T6 ${tag} the student's results have "Worked examples, by skill", beside the worth-a-conversation notes`, (await studentExamples.count()) === 1 && /Worked examples, by skill/.test(noneText) && /changes no score/.test(noneText) && (await page.locator('[data-question-signals]').count()) === 1, noneText || 'no worked-examples panel in the gradebook\'s student view');
+  expect(`T6 ${tag} none opened is said as none`, /No worked example was opened on this assignment\./.test(noneText), noneText);
+  // (This lesson's questions name no family and no student action, so each is
+  // listed as a question with no skill named: tests/platform/workedExampleTeacherView.test.mjs
+  // covers named skills and their next question.)
+  // The student's answer is on record as one they asked for an example on
+  // (what QuestionEngine records with the attempt: supportUsage.workedExampleUsed).
+  const seeded = await page.evaluate(([student, assignmentId, index]) => {
+    const store = window.__mmHarnessStore;
+    const mark = (record) => ({ ...record, supportUsage: { ...(record?.supportUsage || {}), workedExampleUsed: true } });
+    const detailPath = `grades/${student}/responseDetail/${assignmentId}`;
+    const detail = store.get(detailPath);
+    if (detail?.questions?.[index]) {
+      store.set(detailPath, { ...detail, questions: { ...detail.questions, [index]: mark(detail.questions[index]) } });
+      return 'detail';
+    }
+    const row = store.get(`grades/${student}`) || {};
+    const tracker = row.gradesByAssignment?.[assignmentId] || {};
+    if (!tracker[index]) return '';
+    store.set(`grades/${student}`, { ...row, gradesByAssignment: { ...row.gradesByAssignment, [assignmentId]: { ...tracker, [index]: mark(tracker[index]) } } });
+    return 'record';
+  }, [STUDENT, ASSIGNMENT, QUESTION_INDEX]);
+  await studentExamples.locator('[data-example-opened="asked"]').first().waitFor({ timeout: 20000 }).catch(() => {});
+  const openedText = (await studentExamples.count()) ? await studentExamples.innerText() : '';
+  const openedRow = studentExamples.locator('[data-example-opened="asked"]');
+  expect(`T6 ${tag} an example the student asked for is shown under its skill, with the question and how it was marked`, Boolean(seeded) && (await openedRow.count()) === 1 && /This student opened a worked example once, on 1 question with no skill named\./.test(openedText) && new RegExp(`Question ${QUESTION_INDEX + 1} \\(Classwork\\)`).test(openedText) && /Asked for it/.test(openedText) && /Right on the first try|Right after another try|Not right/.test(openedText), openedText || `seeded: ${seeded || 'no record to mark'}`);
+  expect(`T6 ${tag} and what followed on the next question on the skill, as recorded`, /Next question on the skill/i.test(openedText) && /No later question on this skill|Question \d+ \((?:Classwork|Practice|DOL)\): (?:Right on the first try|Right after another try|Not right|Not answered|Answered earlier)/.test(openedText), openedText);
+  expect(`T6 ${tag} it says what was recorded, not why`, /do not say the example is why/.test(openedText) && !/because|helped|caused/i.test(openedText), openedText);
+  if (await studentExamples.count()) { await studentExamples.scrollIntoViewIfNeeded(); await shot(page, 't6-worked-examples-student', viewport); }
+  // The class: which students opened one, per skill; a name opens that student's results.
+  await page.getByRole('button', { name: 'Back to class list' }).click();
+  const classExamples = page.locator('[data-worked-examples-by-skill="class"]');
+  await classExamples.waitFor({ timeout: 20000 }).catch(() => {});
+  const classText = (await classExamples.count()) ? await classExamples.innerText() : '';
+  expect(`T6 ${tag} the class's results name who opened an example, per skill`, (await classExamples.count()) === 1 && /1 of \d+ students? opened a worked example, on 1 question with no skill named\./.test(classText) && /1 student opened an example \(1 time\)\. On the next question on the skill: /.test(classText) && (await classExamples.locator('[data-example-opened]').count()) === 1, classText || 'no worked-examples panel in the gradebook\'s class view');
+  if (await classExamples.count()) {
+    await classExamples.scrollIntoViewIfNeeded();
+    await shot(page, 't6-worked-examples-class', viewport);
+    await classExamples.getByRole('button', { name: /open this student's results/ }).first().click();
+    await page.locator('[data-worked-examples-by-skill="student"]').waitFor({ timeout: 20000 }).catch(() => {});
+    expect(`T6 ${tag} a name opens that student's results, with the notes`, (await page.locator('[data-worked-examples-by-skill="student"]').count()) === 1 && (await page.locator(`[data-question-signals="${QUESTION_INDEX}"]`).count()) === 1, 'the student\'s results did not open from the class view');
+  }
   await page.close();
 
   /* ------------------------------------------------- the case review */
