@@ -18,9 +18,13 @@
  * (authoringIntentV5Core.js). The worked-example player (WE-A) reads a
  * question's `example` and a lesson's step cards
  * (supports/workedExample/examplePlayer.js); no grader reads any of them.
- * Tool replays, reference cards, follow-through grading and checkpoints are
- * later packages (WE-C to WE-E, WE-H, SP-3, SP-4) that read these fields as
- * they stand here. So an assignment that carries none of the fields is judged
+ * A Step Algebra replay (`moves`) and `fade` are played too (WE-C); whether
+ * a replay's moves reach its answer is the tool engine's to say, so that
+ * check lives with the replay (supports/workedExample/stepAlgebraReplay.js,
+ * stepAlgebraReplayErrors), and the compiler and Pre-Flight run it beside
+ * this one. The other replays, reference cards, follow-through grading and
+ * checkpoints are later packages (WE-D, WE-E, WE-H, SP-3, SP-4) that read
+ * these fields as they stand here. So an assignment that carries none of the fields is judged
  * and compiled exactly as before.
  *
  * The messages lead with "Section S Question Q <field path>", the locator

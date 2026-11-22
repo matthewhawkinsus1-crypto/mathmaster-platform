@@ -27,14 +27,24 @@
  * WHICH EXAMPLE. Always a sibling problem, never the student's item and never
  * another item on the same assignment:
  *
- *   1. the step card the lesson wrote for the question (`example` names an
- *      entry of `lessonSupports.examples` with `steps`), when it passes the
- *      same guard every built-in sibling passes (similarExampleIsSafe);
- *   2. otherwise the question family's sibling (buildSimilarWorkedExample).
+ *   1. the example the lesson wrote for the question (`example` names an
+ *      entry of `lessonSupports.examples`): a Step Algebra replay (`moves`),
+ *      played through the tool's own engine (stepAlgebraReplay.js, WE-C), or
+ *      a step card (`steps`); when it passes the same guard every built-in
+ *      sibling passes (similarExampleIsSafe). A question that names none
+ *      takes the one the first question on its skill named;
+ *   2. otherwise the question family's sibling (buildSimilarWorkedExample):
+ *      for a Step Algebra question as a replay of its equation, where the
+ *      built-in moves cover it; otherwise as its text steps.
  *
  * An example whose problem is an item on the assignment is not shown. A
- * lesson's tool replay (`moves`) is played by the tool's own engine, in the
- * replay packages; until then such a question gets its family's sibling.
+ * replay the engine cannot play to its answer is not shown either. Replays
+ * for the other tools are later packages (WE-D, WE-E); until then such a
+ * question gets its family's sibling.
+ *
+ * THE FADED EXAMPLE. On the second Classwork question on a skill the example
+ * opens by itself with its first steps only (`handOverAfter`) and no answer;
+ * the rest is the student's. Asked for, the whole example plays.
  *
  * WHAT OPENING ONE COSTS: nothing. It is recorded as `workedExampleUsed`, as
  * it always was, so the teacher sees it and mastery counts the attempt as

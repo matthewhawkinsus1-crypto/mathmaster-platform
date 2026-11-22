@@ -403,7 +403,7 @@ test('the player draws a move as the board\'s lines, each named in words', async
     // The board component itself, on the move and on the check.
     const playerSource = executableSource(read('src/platform/supports/workedExample/WorkedExamplePlayer.jsx'));
     assert.match(playerSource, /\{slide\.board \? <ReplayBoard MathText=\{MathText\} board=\{slide\.board\} \/> : \(/);
-    for (const name of ['Start with', 'The same move on both sides', 'What cancels on ', 'Simplify', 'The first equation', 'With the value put in', 'Both sides']) {
+    for (const name of ['Start with', 'The same move on both sides', 'Cancel on ', 'Simplify', 'The first equation', 'With the value put in', 'Both sides']) {
       assert.ok(playerSource.includes(`'${name}`) || playerSource.includes(`\`${name}`), `the board names "${name}" in words`);
     }
     // A faded example says so when it opens by itself, and ends on the faded line.

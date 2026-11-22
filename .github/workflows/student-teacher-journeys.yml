@@ -707,6 +707,14 @@ jobs:
           PLAYWRIGHT_MODULE: playwright
           AUDIT_ORIGIN: "http://127.0.0.1:5199"
         run: node tests/browser/workedExamplePlayer.mjs
+      # WE-C: a Step Algebra example plays as the tool's own moves, faded on the
+      # second question on the skill, on request on Practice, never on a DOL.
+      - name: Step Algebra replay (the worked example on the board's engine)
+        if: ${{ !cancelled() }}
+        env:
+          PLAYWRIGHT_MODULE: playwright
+          AUDIT_ORIGIN: "http://127.0.0.1:5199"
+        run: node tests/browser/stepAlgebraReplay.mjs
       # Read aloud says the whole question (choices, matrices, parts heard
       # again) and Translate shows Spanish or says why not (student pass 3, batch 6).
       - name: Read aloud and Translate (heard and seen)

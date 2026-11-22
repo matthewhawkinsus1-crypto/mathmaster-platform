@@ -58,7 +58,7 @@ const muted = { margin: 0, color: 'var(--mm-text-muted)' };
 
 const boardLine = { display: 'grid', gap: 2, minWidth: 0 };
 const boardName = { margin: 0, fontSize: 'calc(12 * var(--mm-px))', fontWeight: 800, color: 'var(--mm-text-muted)' };
-const boardMath = { margin: 0, fontWeight: 700, lineHeight: 1.6, overflowX: 'auto', overflowY: 'hidden', maxWidth: '100%' };
+const boardMath = { margin: 0, fontWeight: 700, lineHeight: 1.6, overflowWrap: 'anywhere' };
 
 const sidesNamed = (sides) => (sides.length === 2 ? 'both sides' : `the ${sides[0]} side`);
 const asMath = (latex) => ['$', latex, '$'].join('');
@@ -70,7 +70,7 @@ function ReplayBoard({ MathText, board }) {
   const lines = [
     { id: 'before', name: check ? 'The first equation' : 'Start with', latex: board.before },
     { id: 'applied', name: check ? 'With the value put in' : 'The same move on both sides', latex: board.applied },
-    board.cancelled ? { id: 'cancelled', name: `What cancels on ${sidesNamed(board.cancels)}`, latex: board.cancelled } : null,
+    board.cancelled ? { id: 'cancelled', name: `Cancel on ${sidesNamed(board.cancels)}`, latex: board.cancelled } : null,
     { id: 'after', name: check ? 'Both sides' : 'Simplify', latex: board.after },
   ].filter(Boolean);
   return (
