@@ -68,6 +68,8 @@ import { SR_ONLY_STYLE } from '../../ui/srOnly.js';
 import RepresentationAudit from './RepresentationAudit';
 import RecoveryReadinessPanel from './RecoveryReadinessPanel.jsx';
 import ClassworkExampleCoveragePanel from './ClassworkExampleCoveragePanel.jsx';
+import NewAssignmentRulesPanel from './NewAssignmentRulesPanel.jsx';
+import { newAssignmentRulesApply } from '../../platform/preflight/newAssignmentRulesPreflight.js';
 import { classworkExampleCoverage } from '../../platform/supports/workedExample/classworkCoverage.js';
 import { RECOVERY_REPAIR_INSTRUCTION } from '../../platform/recovery/recoveryReadinessCopy.js';
 import SectionBalanceRigorAudit from './SectionBalanceRigorAudit.jsx';
@@ -251,6 +253,7 @@ export const LessonPreflightModal = ({
   onConfirmPublish,
   busy = false,
   reviewMode = 'create',
+  authoredNow = false,
   allowQuestionRepair = true,
   // The saved assignments, so a reused assignmentKey is caught here and not at
   // Create (findAssignmentKeyConflict; TT10).
@@ -316,9 +319,18 @@ export const LessonPreflightModal = ({
     () => preflightClassSizeFor(draft.assignedClassIds, rosterSizesByClassId),
     [draft.assignedClassIds, rosterSizesByClassId],
   );
+  // A setup edit of an existing assignment, or a review in create mode. WE-B's
+  // worked-example coverage panel reads this as is: it warns on anything that
+  // is not a setup edit, a re-assigned Library assignment included.
+  const isUpdateMode = reviewMode === 'update';
+  // SP-5's two authoring rules are narrower, for these two rules only: an
+  // assignment imported or authored now (`authoredNow`, from the intake). A
+  // stored Library assignment re-assigned to a class is existing for them, so
+  // its teacher is not shown warnings about a lesson that is not to be changed.
+  const newAssignmentRules = newAssignmentRulesApply({ reviewMode, authoredNow });
   const preflightModel = useMemo(
-    () => buildAssignmentV5PreflightModel(reviewedAssignmentV5, { classSize: preflightClassSize }),
-    [reviewedAssignmentV5, preflightClassSize],
+    () => buildAssignmentV5PreflightModel(reviewedAssignmentV5, { classSize: preflightClassSize, isNewAssignment: newAssignmentRules }),
+    [reviewedAssignmentV5, preflightClassSize, newAssignmentRules],
   );
   const effectiveAssignmentV5 = preflightModel.assignmentV5;
   // WORKED EXAMPLES (WE-B): how many Classwork questions an example covers,
@@ -1099,7 +1111,6 @@ export const LessonPreflightModal = ({
   const canCreate = readiness.canCreate
     && !busy
     && (!testCyclePreview || (serverCyclePreflight?.loading === false && serverCyclePreflight.blocked !== true));
-  const isUpdateMode = reviewMode === 'update';
   // The button says which of the two actions it performs. A teacher who has
   // selected no class is saving to the library, and the label should not
   // promise them an assignment their students will receive.
@@ -2067,6 +2078,13 @@ export const LessonPreflightModal = ({
           anything (ClassworkExampleCoveragePanel.jsx). Its heading is one
           below the step's, which a phone does not draw. */}
       <ClassworkExampleCoveragePanel coverage={classworkExamples} isNew={!isUpdateMode} headingLevel={isNarrow ? 4 : 5} />
+
+      {/* SP-5, new assignments only: answer boxes that ask for what a tool
+          produces, and three or more parts with no checked step
+          (newAssignmentRulesPreflight.js). A warning that never stops
+          anything, beside the coverage panel; an existing assignment draws
+          nothing (NewAssignmentRulesPanel.jsx). */}
+      <NewAssignmentRulesPanel rules={preflightModel.newAssignmentRules} headingLevel={isNarrow ? 4 : 5} />
 
       {/* The advice below, counted (TT14, TT21), every panel of it, each
           count in the number it needs ("1 hint that states the answer"): it
