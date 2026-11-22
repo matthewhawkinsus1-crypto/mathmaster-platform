@@ -1,8 +1,8 @@
 # Worked examples: the platform teaches each new skill
 
 Status: **decided by the owner on 2026-11-20. Slice A (the player and the
-section rules), slice B (the coverage report) and slice G (the teacher's view)
-are built; C to F and H are not.**
+section rules), slice B (the coverage report), slice C (the Step Algebra
+replay) and slice G (the teacher's view) are built; D to F and H are not.**
 This page is the spec. The build is split into slices that can ship in any
 order (section 9). Its companion, `docs/platform/SHOWING_THE_PROCESS.md`,
 covers answer boxes that one screenshot cannot answer.
@@ -60,12 +60,51 @@ Where slice G lives:
   of `tests/browser/teacherWorkflow/teacherSignalsJourneys.mjs`.
 
 What slice A plays: the question family's sibling, or the step card a lesson
-wrote (`steps`), when it passes `similarExampleIsSafe`. Not yet: a tool replay
-(`moves`, slices C to E; such a question gets its family's sibling meanwhile),
-sub-skill slides (slice D), the faded second example (slice C), and a sibling
-for a question no family claims (an authored step card, or the generators of
-WE-I in the build plan). A built-in step is a full sentence that carries its own reason;
-only a lesson's step card has a separate "why" line.
+wrote (`steps`), when it passes `similarExampleIsSafe`. Not yet: a replay for
+a tool other than Step Algebra (slices D and E; such a question gets its
+family's sibling meanwhile), sub-skill slides (slice D), and a sibling for a
+question no family claims (an authored step card, or the generators of WE-I
+in the build plan).
+
+Where slice C lives, and what it plays:
+- **The replay:** `src/platform/supports/workedExample/stepAlgebraReplay.js`.
+  It runs a script of moves through the functions the Step Algebra board
+  itself calls (`applyBalancedOperation`, `resolveEquationAfterMove`,
+  `simplifyStudentExpression`, `isSolvedEquation`) and returns each move as
+  the board's lines: the equation it starts with, the operation on both
+  sides, the equation once the cancelling terms are gone, and the simplified
+  line. A `check` move puts the value back into the first equation. No line
+  of mathematics is written anywhere else.
+- **A script that does not reach its answer is refused.** The replay returns
+  no slides for it, so it is never played, and the compiler and Pre-Flight
+  raise it as an error (`stepAlgebraReplayErrors`).
+- **Two sources of moves:** a lesson's own (`lessonSupports.examples[]` with
+  `tool: "stepAlgebra"`, `sibling.equation` and `moves`), and the built-in
+  moves for a Step Algebra question with no example of its own
+  (`stepAlgebraMovesFor`: the variable terms to one side first, then the
+  numbers, then the coefficient, then the check). The built-in moves cover an
+  equation whose sides are plain (`ax + b`, whole numbers, one solution); any
+  other keeps its family's text example.
+- **Where it is drawn:** in the example player, above the student's own
+  board, one move per slide, each line named in words
+  (`WorkedExamplePlayer.jsx`). It is not drawn on the student's live board:
+  that board keeps the student's own equation throughout.
+- **The faded example:** on the second Classwork question on a skill the
+  example opens by itself with its first steps only (`fade.handOverAfter`, or
+  the steps before `fade.fromStep`; a built-in replay fades after one move)
+  and no answer. A question that names no example takes the one the first
+  question on its skill named. Asked for, the whole example plays. Like any
+  example that opens by itself it is recorded as `workedExampleShown: 'auto'`.
+  A faded replay stops before its solving move (`fadeLimit`), whatever the
+  lesson's `fade` says, and the validator refuses a `fade` that reaches it.
+- **Conditional moves:** multiplying or dividing by an expression with a
+  letter in it carries the engine's `assumption` (for example `x ≠ 0`). The
+  live board shows it; a slide cannot yet, so such a move is refused.
+- **Tests:** `tests/platform/stepAlgebraReplay.test.mjs` and
+  `tests/browser/stepAlgebraReplay.mjs`.
+
+A built-in step is a full sentence that carries its own reason; only a
+lesson's step card has a separate "why" line.
 
 ## 1. The goal
 

@@ -19,10 +19,14 @@
  * question's `example` and a lesson's step cards
  * (supports/workedExample/examplePlayer.js), and the graders and screens
  * read a part's `followThrough` (SP-3, functions/shared/followThrough.mjs).
- * Tool replays, reference cards and checkpoints are later packages (WE-C to
- * WE-E, WE-H, SP-4) that read these fields as they stand here. So an
- * assignment that carries none of the fields is judged and compiled exactly
- * as before.
+ * A Step Algebra replay (`moves`) and `fade` are played too (WE-C); whether
+ * a replay's moves reach its answer is the tool engine's to say, so that
+ * check lives with the replay (supports/workedExample/stepAlgebraReplay.js,
+ * stepAlgebraReplayErrors), and the compiler and Pre-Flight run it beside
+ * this one. The other replays, reference cards and checkpoints are later
+ * packages (WE-D, WE-E, WE-H, SP-4) that read these fields as they stand
+ * here. So an assignment that carries none of the fields is judged and
+ * compiled exactly as before.
  *
  * The messages lead with "Section S Question Q <field path>", the locator
  * Pre-Flight's diagnostics read (preflightDiagnostics.js), so each lands on

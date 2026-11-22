@@ -1,13 +1,14 @@
 import { useMemo, useState } from 'react';
 import {
+  EXAMPLE_FADED_OPENED_TEXT,
   EXAMPLE_OPENED_BY_ITSELF_TEXT,
   EXAMPLE_SLIDE,
   EXAMPLE_YOUR_TURN_LABEL,
-  EXAMPLE_YOUR_TURN_TEXT,
   exampleSlideAt,
   exampleSlides,
   slideReadingText,
   slideTranslationText,
+  slideTurnText,
 } from './exampleSlides.js';
 
 /*
@@ -29,6 +30,13 @@ import {
  * and Translate take the slide through the pipeline Solution Review uses
  * (SupportedTextActions).
  *
+ * A TOOL REPLAY (WE-C). A step that carries a `board` is one move of the
+ * tool, drawn as the board shows it: the equation, the operation on both
+ * sides, the equation once the cancelling terms are gone, and the next
+ * equation. Every line is the tool's own engine's (stepAlgebraReplay.js); this
+ * file only lays them out, each with its name in words. A faded example plays
+ * its first moves and ends on "Your turn" with the rest left to the student.
+ *
  * Loaded on demand (HintPanel.jsx): nothing here is in a page that shows no
  * example. This chunk imports only React and its own slides (exampleSlides.js)
  * and shares no module with the question's chunk, so opening an example adds
@@ -47,6 +55,42 @@ const button = {
 };
 const primaryButton = { ...button, border: '2px solid var(--mm-primary-text)' };
 const muted = { margin: 0, color: 'var(--mm-text-muted)' };
+
+const boardLine = { display: 'grid', gap: 2, minWidth: 0 };
+const boardName = { margin: 0, fontSize: 'calc(12 * var(--mm-px))', fontWeight: 800, color: 'var(--mm-text-muted)' };
+const boardMath = { margin: 0, fontWeight: 700, lineHeight: 1.6, overflowWrap: 'anywhere' };
+
+const sidesNamed = (sides) => (sides.length === 2 ? 'both sides' : `the ${sides[0]} side`);
+const asMath = (latex) => ['$', latex, '$'].join('');
+
+// One move of the tool as its board shows it. The lines come from the engine;
+// the names beside them say what each one is, so nothing rests on position.
+function ReplayBoard({ MathText, board }) {
+  const check = board.kind === 'check';
+  const lines = [
+    { id: 'before', name: check ? 'The first equation' : 'Start with', latex: board.before },
+    { id: 'applied', name: check ? 'With the value put in' : 'The same move on both sides', latex: board.applied },
+    board.cancelled ? { id: 'cancelled', name: `Cancel on ${sidesNamed(board.cancels)}`, latex: board.cancelled } : null,
+    { id: 'after', name: check ? 'Both sides' : 'Simplify', latex: board.after },
+  ].filter(Boolean);
+  return (
+    <div data-example-board={board.kind} data-example-board-operation={board.operation || ''} style={{ display: 'grid', gap: 8, minWidth: 0 }}>
+      <p data-example-board-label="" style={{ margin: 0, fontWeight: 800, lineHeight: 1.55 }}><MathText>{board.label}</MathText></p>
+      <ol data-example-board-lines="" style={{ margin: 0, padding: 0, listStyle: 'none', display: 'grid', gap: 8, minWidth: 0 }}>
+        {lines.map((line) => (
+          <li
+            key={line.id}
+            data-example-board-line={line.id}
+            style={{ ...boardLine, padding: '6px 10px', borderLeft: line.id === 'after' ? '3px solid var(--mm-primary-border)' : '3px dashed var(--mm-primary-border)' }}
+          >
+            <p style={boardName}>{line.name}</p>
+            <p style={boardMath}><MathText>{asMath(line.latex)}</MathText></p>
+          </li>
+        ))}
+      </ol>
+    </div>
+  );
+}
 
 export default function WorkedExamplePlayer({
   // The two components every slide is drawn with, handed over by the panel
@@ -81,9 +125,15 @@ export default function WorkedExamplePlayer({
       data-example-slide-number={at + 1}
       data-example-slide-count={slides.length}
       data-example-slide-kind={slide.kind}
+      data-example-format={example?.format || ''}
+      data-example-faded={example?.faded === true ? '' : undefined}
       style={{ display: 'grid', gap: 10, minWidth: 0 }}
     >
-      {openedByItself ? <p data-example-opened-by-itself="" style={{ ...muted, fontWeight: 700 }}>{EXAMPLE_OPENED_BY_ITSELF_TEXT}</p> : null}
+      {openedByItself ? (
+        <p data-example-opened-by-itself="" style={{ ...muted, fontWeight: 700 }}>
+          {example?.faded === true ? EXAMPLE_FADED_OPENED_TEXT : EXAMPLE_OPENED_BY_ITSELF_TEXT}
+        </p>
+      ) : null}
       {/* The problem stays in sight while its steps play. */}
       {slide.kind !== EXAMPLE_SLIDE.PROBLEM ? (
         <p data-example-problem="" style={{ ...muted, overflowWrap: 'anywhere' }}><MathText>{example.prompt}</MathText></p>
@@ -95,14 +145,16 @@ export default function WorkedExamplePlayer({
         style={{ display: 'grid', gap: 6, padding: '10px 12px', borderRadius: 10, border: '1px solid var(--mm-tint-border)', background: 'var(--mm-surface)', minWidth: 0, overflowWrap: 'anywhere' }}
       >
         <p data-example-slide-label="" style={{ margin: 0, fontWeight: 800, color: 'var(--mm-primary-text)' }}>{slide.label}</p>
-        <p data-example-show="" style={{ margin: 0, fontWeight: 700, lineHeight: 1.55 }}>
-          {slide.kind === EXAMPLE_SLIDE.ANSWER ? 'Answer: ' : null}<MathText>{slide.show}</MathText>
-        </p>
+        {slide.board ? <ReplayBoard MathText={MathText} board={slide.board} /> : (
+          <p data-example-show="" style={{ margin: 0, fontWeight: 700, lineHeight: 1.55 }}>
+            {slide.kind === EXAMPLE_SLIDE.ANSWER ? 'Answer: ' : null}<MathText>{slide.show}</MathText>
+          </p>
+        )}
         {slide.why ? (
           <p data-example-why="" style={{ margin: 0, lineHeight: 1.55 }}><strong>Why: </strong><MathText>{slide.why}</MathText></p>
         ) : null}
         {slide.note ? <p data-example-note="" style={muted}>{slide.note}</p> : null}
-        {slide.last ? <p data-example-your-turn-note="" style={muted}>{EXAMPLE_YOUR_TURN_TEXT}</p> : null}
+        {slide.last ? <p data-example-your-turn-note="" style={muted}>{slideTurnText(slide)}</p> : null}
       </div>
       {/* Keyed by slide: a translation shown for one step is not the next step's. */}
       <SupportedTextActions

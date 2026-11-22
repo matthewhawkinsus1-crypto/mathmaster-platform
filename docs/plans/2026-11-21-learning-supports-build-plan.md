@@ -53,6 +53,7 @@ gate, and merges with a merge commit when CI is green.
 | SP-2b: signals as evidence (assignment results, Case Review, review note, class time, supports) | #597 |
 | WE-A: the example player and the section rules | #594 |
 | WE-G: the teacher's view of worked examples, by skill | #599 |
+| WE-C: the Step Algebra replay | #600 |
 | SP-3: follow-through parts (the student's earlier value in the label and the key) | #601 |
 
 ## Track SP: showing the process

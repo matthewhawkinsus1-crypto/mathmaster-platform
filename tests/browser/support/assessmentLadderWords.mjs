@@ -17,6 +17,8 @@ import { PENDING_RUNG_TEXT } from '../../../src/platform/supports/hints/hintCopy
 import { EXAMPLE_COULD_NOT_LOAD_TEXT } from '../../../src/platform/supports/hints/hintCopy.js';
 import { EXAMPLE_OPENED_ANNOUNCEMENT } from '../../../src/platform/supports/workedExample/examplePlayer.js';
 import {
+  EXAMPLE_FADED_OPENED_TEXT,
+  EXAMPLE_FADED_TURN_TEXT,
   EXAMPLE_OPENED_BY_ITSELF_TEXT,
   EXAMPLE_PROBLEM_NOTE,
   EXAMPLE_YOUR_TURN_TEXT,
@@ -39,7 +41,10 @@ export const LADDER_WORDS = Object.freeze(['LEAKCHECK', 'A hint is ready', 'Show
   // and its last button ("Your turn") are words real prompts use too, so the
   // gate looks for the player itself instead (EXAMPLE_CONTROL_SELECTORS).
   EXAMPLE_YOUR_TURN_TEXT, EXAMPLE_OPENED_BY_ITSELF_TEXT, EXAMPLE_PROBLEM_NOTE, 'Loading the example',
-  EXAMPLE_OPENED_ANNOUNCEMENT, EXAMPLE_COULD_NOT_LOAD_TEXT]);
+  EXAMPLE_OPENED_ANNOUNCEMENT, EXAMPLE_COULD_NOT_LOAD_TEXT,
+  // The tool replay and the faded example (WE-C): what a faded example opens
+  // and ends with, and the name of the line every replayed move has.
+  EXAMPLE_FADED_OPENED_TEXT, EXAMPLE_FADED_TURN_TEXT, 'The same move on both sides']);
 
 /**
  * Every control of the worked example: the open example, the player inside
@@ -49,6 +54,8 @@ export const LADDER_WORDS = Object.freeze(['LEAKCHECK', 'A hint is ready', 'Show
 export const EXAMPLE_CONTROL_SELECTORS = Object.freeze([
   '[data-similar-example]', '[data-worked-example-player]', '[data-similar-offer]', '[data-example-opened-by-itself]', '[data-example-next]', '[data-example-your-turn]',
   '[data-example-announcement]', '[data-example-whole]',
+  // WE-C: a replayed move's board, and a faded example.
+  '[data-example-board]', '[data-example-board-line]', '[data-example-faded]',
 ]);
 
 // Every misconception and generic miss message.
