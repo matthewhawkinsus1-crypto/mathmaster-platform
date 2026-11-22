@@ -20,6 +20,7 @@ import { isValidLogBase } from '../../../functions/shared/toolMath/exponentialLo
 import { asksSingularReasonByDefault } from '../../../functions/shared/toolMath/matrixLab/matrixLabModel.mjs';
 import { radicalEquationOpensRelationWorkspace } from './radicalEquationIntent.js';
 import { lessonSupportsPassThroughErrors, validateLessonSupportsV5 } from './lessonSupportsV5.js';
+import { stepAlgebraReplayErrors } from '../supports/workedExample/stepAlgebraReplay.js';
 
 const asArray = (value) => Array.isArray(value) ? value : value == null ? [] : [value];
 const isObject = (value) => value && typeof value === 'object' && !Array.isArray(value);
@@ -2367,6 +2368,13 @@ export const compileAuthoringIntentV5 = (input = {}) => {
   const supports = validateLessonSupportsV5(input);
   if (supports.errors.length) {
     throw new Error(`Assignment V5 validation failed:\n- ${supports.errors.join('\n- ')}`);
+  }
+  // A Step Algebra replay is played by the tool's own engine, so a script
+  // that does not reach its answer is refused here, before it can be saved
+  // (WE-C; stepAlgebraReplay.js). No replay, no check.
+  const replayErrors = stepAlgebraReplayErrors(input);
+  if (replayErrors.length) {
+    throw new Error(`Assignment V5 validation failed:\n- ${replayErrors.join('\n- ')}`);
   }
 
   const repairs = [];

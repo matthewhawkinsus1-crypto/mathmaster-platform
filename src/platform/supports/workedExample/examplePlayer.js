@@ -46,11 +46,12 @@
 import { buildSimilarWorkedExample, similarExampleIsSafe } from './similarProblem.js';
 import { exampleSkillOf } from './exampleSkill.js';
 import { familyFor } from '../families/index.js';
+import { isStepAlgebraReplayEntry, replayStepAlgebra, stepAlgebraMovesFor } from './stepAlgebraReplay.js';
 
 // A step as { show, why } (the same reading exampleSlides.js gives it; that
 // module is the player's own, and is not imported here: see its header).
 const stepOf = (step) => (step && typeof step === 'object' && !Array.isArray(step)
-  ? { show: typeof step.show === 'string' ? step.show.trim() : '', why: typeof step.why === 'string' ? step.why.trim() : '' }
+  ? { show: typeof step.show === 'string' ? step.show.trim() : '', why: typeof step.why === 'string' ? step.why.trim() : '', ...(step.board && typeof step.board === 'object' ? { board: step.board } : {}) }
   : { show: typeof step === 'string' ? step.trim() : '', why: '' });
 
 /** Said to a screen reader when Classwork opens an example by itself. */
@@ -114,24 +115,88 @@ const isAssignmentItem = (prompt, assignmentProblems) => Boolean(
   assignmentProblems && typeof assignmentProblems.has === 'function' && assignmentProblems.has(problemKey(prompt)),
 );
 
-/**
- * The step card a lesson wrote for this question, or null: the entry of
- * `lessonSupports.examples` its `example` names, with `steps`. An entry kept
- * to other sections (`roles`) is not this section's.
- */
-export const authoredStepCard = (question, lessonSupports = null, { sectionRole = null } = {}) => {
-  const id = typeof question?.example === 'string' ? text(question.example) : '';
-  if (!id) return null;
+// Where a faded example hands over: after `handOverAfter` steps, or before
+// step `fromStep`. Zero where nothing is left for the student to do.
+const handOverOf = (fade, stepCount) => {
+  if (!isObject(fade)) return 0;
+  const after = Number.isInteger(fade.handOverAfter) ? fade.handOverAfter : Number.isInteger(fade.fromStep) ? fade.fromStep - 1 : 0;
+  return after >= 1 && after < stepCount ? after : 0;
+};
+
+const lessonExampleEntry = (id, lessonSupports, sectionRole) => {
   const entry = list(lessonSupports?.examples).find((example) => isObject(example) && text(example.id) === id);
   if (!entry) return null;
   const roles = list(entry.roles).map(lower).filter(Boolean);
   if (roles.length && lower(sectionRole) && !roles.includes(lower(sectionRole))) return null;
+  return entry;
+};
+
+/**
+ * The step card a lesson wrote for this question, or null: the entry of
+ * `lessonSupports.examples` its `example` names, with `steps`. An entry kept
+ * to other sections (`roles`) is not this section's. `exampleId` names the
+ * entry for a question covered by an earlier question's example.
+ */
+export const authoredStepCard = (question, lessonSupports = null, { sectionRole = null, exampleId = null } = {}) => {
+  const id = typeof question?.example === 'string' ? text(question.example) : text(exampleId);
+  if (!id) return null;
+  const entry = lessonExampleEntry(id, lessonSupports, sectionRole);
+  if (!entry) return null;
   const steps = list(entry.steps).map(stepOf).filter((step) => step.show);
   const prompt = text(entry.problem)
     || (isObject(entry.sibling) ? Object.values(entry.sibling).map(text).filter(Boolean).join(', ') : '');
   if (!steps.length || !prompt) return null;
   // A step card ends on its answer: its last step is what the guard reads as the answer.
-  return { id, source: 'authored', prompt, steps, answer: steps[steps.length - 1].show };
+  return { id, source: 'authored', format: 'steps', prompt, steps, answer: steps[steps.length - 1].show, handOverAfter: handOverOf(entry.fade, steps.length) };
+};
+
+/**
+ * The tool replay a lesson wrote for this question, or null: an entry with
+ * `moves` for Step Algebra, played through the tool's own engine
+ * (stepAlgebraReplay.js). A script the engine cannot play to its answer is
+ * refused there, and so is not this question's example.
+ */
+export const authoredReplay = (question, lessonSupports = null, { sectionRole = null, exampleId = null } = {}) => {
+  const id = typeof question?.example === 'string' ? text(question.example) : text(exampleId);
+  if (!id) return null;
+  const entry = lessonExampleEntry(id, lessonSupports, sectionRole);
+  if (!isStepAlgebraReplayEntry(entry)) return null;
+  const replay = replayStepAlgebra({ sibling: entry.sibling, moves: entry.moves });
+  if (!replay.ok) return null;
+  return {
+    id,
+    source: 'authored',
+    format: 'replay',
+    prompt: replay.prompt,
+    steps: replay.steps,
+    answer: replay.answer,
+    handOverAfter: handOverOf(entry.fade, replay.steps.length),
+  };
+};
+
+// The family's sibling for a Step Algebra question, as a replay: its equation
+// is read out of "Solve $…$ for $x$." and played with the built-in moves.
+// Null where the equation is not one the built-in moves cover; the sibling's
+// text steps are then the example, as before.
+const SOLVE_PROMPT = /^Solve \$([^$]+)\$ for \$([A-Za-z])\$\.$/;
+const familyReplay = (question, sibling) => {
+  if (lower(question?.type) !== 'stepalgebra') return null;
+  const match = SOLVE_PROMPT.exec(text(sibling?.prompt));
+  if (!match) return null;
+  const source = { equation: match[1], variable: match[2] };
+  const moves = stepAlgebraMovesFor(source);
+  if (!moves) return null;
+  const replay = replayStepAlgebra({ sibling: source, moves });
+  if (!replay.ok) return null;
+  return {
+    source: 'family',
+    format: 'replay',
+    prompt: replay.prompt,
+    steps: replay.steps,
+    answer: replay.answer,
+    // A built-in replay fades after its first move.
+    handOverAfter: replay.moveCount >= 2 ? 1 : 0,
+  };
 };
 
 const safeFor = (question, example) => similarExampleIsSafe(question, {
@@ -142,26 +207,42 @@ const safeFor = (question, example) => similarExampleIsSafe(question, {
 
 /**
  * The example this question plays, or null:
- *   { source: 'authored' | 'family', prompt, steps: [{ show, why }], answer }
+ *   { source: 'authored' | 'family', format: 'steps' | 'replay', prompt,
+ *     steps: [{ show, why, board? }], answer, handOverAfter }
  * `assignmentProblems` (assignmentProblemKeys) keeps out an example that is an
- * item on the same assignment.
+ * item on the same assignment. `coveringExample` is the id of the example an
+ * earlier question on the same skill named, for a question that names none.
  */
-export const workedExampleFor = (question, { seed = 0, lessonSupports = null, sectionRole = null, assignmentProblems = null } = {}) => {
+export const workedExampleFor = (question, { seed = 0, lessonSupports = null, sectionRole = null, assignmentProblems = null, coveringExample = null } = {}) => {
   try {
-    const authored = authoredStepCard(question, lessonSupports, { sectionRole });
+    const authoredOptions = { sectionRole, exampleId: coveringExample };
+    const authored = authoredReplay(question, lessonSupports, authoredOptions) || authoredStepCard(question, lessonSupports, authoredOptions);
     if (authored && !isAssignmentItem(authored.prompt, assignmentProblems) && safeFor(question, authored)) return authored;
     // The family tries six seeds from the one it is given, so each pass here is six new ones.
     for (let pass = 0; pass < 3; pass += 1) {
       const sibling = buildSimilarWorkedExample(question, { seed: (Number(seed) || 0) + pass * 6 });
       if (!sibling) return null;
       if (!isAssignmentItem(sibling.prompt, assignmentProblems)) {
-        return { source: 'family', prompt: sibling.prompt, steps: sibling.steps.map(stepOf), answer: sibling.answer };
+        const replay = familyReplay(question, sibling);
+        if (replay && !isAssignmentItem(replay.prompt, assignmentProblems) && safeFor(question, replay)) return replay;
+        return { source: 'family', format: 'steps', prompt: sibling.prompt, steps: sibling.steps.map(stepOf), answer: sibling.answer, handOverAfter: 0 };
       }
     }
     return null;
   } catch {
     return null;
   }
+};
+
+/**
+ * The example as a faded one: its first steps only (`handOverAfter`), with no
+ * answer, for the second Classwork question on a skill. The example itself
+ * where it has nothing to fade.
+ */
+export const fadedExample = (example) => {
+  const after = Number(example?.handOverAfter);
+  if (!isObject(example) || !(after >= 1) || after >= list(example.steps).length) return example;
+  return { ...example, steps: example.steps.slice(0, after), answer: '', faded: true, stepCount: example.steps.length };
 };
 
 /* --------------------------------------- before the first question on a skill */
@@ -198,21 +279,30 @@ export const lessonExampleContext = ({ questions = [], index = -1, sectionRole =
   const supports = isObject(lessonSupports) ? lessonSupports : null;
   const all = list(questions);
   const assignmentProblems = assignmentProblemKeys(Array.isArray(assignmentQuestions) ? assignmentQuestions : all);
-  const context = { sectionRole: lower(sectionRole) || null, lessonSupports: supports, assignmentProblems, newSkill: false };
+  const context = { sectionRole: lower(sectionRole) || null, lessonSupports: supports, assignmentProblems, newSkill: false, fadeTurn: false, coveringExample: null };
   const question = all[index];
   if (!isObject(question) || context.sectionRole !== 'classwork' || questionExampleExemption(question)) return context;
   const skill = lessonSkillOf(question);
   // No skill to name: nothing says this is a new one, so nothing opens by itself.
   if (!skill) return context;
   const role = (candidate) => lower(typeof roleOf === 'function' ? roleOf(candidate) : candidate?.activityRole);
-  const taughtEarlier = all.slice(0, index).some((earlier) => (
+  const taughtEarlier = all.slice(0, index).filter((earlier) => (
     isObject(earlier)
       && role(earlier) === 'classwork'
       && !questionExampleExemption(earlier)
       && lessonSkillOf(earlier) === skill
       && (claimedFamilySlot(earlier) || Boolean(workedExampleFor(earlier, { lessonSupports: supports, sectionRole: 'classwork', assignmentProblems })))
   ));
-  return { ...context, newSkill: !taughtEarlier };
+  // One example can cover several questions on a skill: a question that names
+  // none takes the one the first question on its skill named.
+  const named = taughtEarlier.map((earlier) => (typeof earlier.example === 'string' ? text(earlier.example) : '')).find(Boolean) || null;
+  return {
+    ...context,
+    newSkill: taughtEarlier.length === 0,
+    // The second question on the skill: its example plays faded.
+    fadeTurn: taughtEarlier.length === 1,
+    coveringExample: question.example === undefined ? named : null,
+  };
 };
 
 /**
@@ -220,9 +310,9 @@ export const lessonExampleContext = ({ questions = [], index = -1, sectionRole =
  * new skill, an example to open, and a question the student has not started.
  * One they have opened, tried or closed is theirs: it never opens again.
  */
-export const exampleOpensByItself = ({ rule = null, newSkill = false, example = null, alreadyUsed = false, alreadyShown = false, attemptCount = 0, totalAttempts = 0, locked = false } = {}) => Boolean(
+export const exampleOpensByItself = ({ rule = null, newSkill = false, fadeTurn = false, example = null, alreadyUsed = false, alreadyShown = false, attemptCount = 0, totalAttempts = 0, locked = false } = {}) => Boolean(
   rule?.opensByItself === true
-    && newSkill === true
+    && (newSkill === true || (fadeTurn === true && Number(example?.handOverAfter) >= 1))
     && example
     && alreadyUsed !== true
     && alreadyShown !== true
