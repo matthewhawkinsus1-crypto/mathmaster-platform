@@ -1,8 +1,9 @@
 # Showing the process: answer boxes one screenshot cannot answer
 
 Status: **decided by the owner on 2026-11-20. Slices P1 (part by part, Review all
-parts, See every part at once) and P2 (teacher signals, as evidence) are built.
-P3 to P5 are not built.** This page pairs with `docs/platform/WORKED_EXAMPLES.md`.
+parts, See every part at once), P2 (teacher signals, as evidence), P3
+(follow-through parts), P4 (show the step, on the assignment's own runner) and
+P5 (the Pre-Flight authoring rules) are built.** This page pairs with `docs/platform/WORKED_EXAMPLES.md`.
 
 Where P1 lives: `src/MultiAnswerGrader.jsx` (`partByPart`), asked for by the
 student's assignment (`assignmentWorkspaceView.jsx`, not a teacher preview),
@@ -133,20 +134,49 @@ How to write `followThrough` and `checkpoint`, with an example lesson: `docs/ass
 ## 5. Show the step (new assignments)
 
 A part may carry one `checkpoint`, a step the student does in a tool before the
-part's answer is accepted. The checkpoint is recorded with the attempt, so the
-teacher sees the student's own points, pair or moves.
+part's answer box opens. The checkpoint is recorded with the attempt, so the
+teacher sees the student's own points, pair, rows or moves.
 
-| `kind` | Where | What is checked |
-|---|---|---|
-| `pickPoints` | the plane | `count` points that lie on the line or curve. Rise and run are checked from the student's own points. |
-| `factorPair` | factoring | the pair that multiplies to the constant (or to a·c) and adds to the middle coefficient |
-| `stepMoves` | Step Algebra | the student's recorded moves reach the answer. The tool already records them. |
-| `tableRow` | tables | a row the student fills in that satisfies the relation |
+| `kind` | Where | `of`: what the student works on | What is checked |
+|---|---|---|---|
+| `pickPoints` | the plane | a line as two of its points, `"(0, -2) and (2, 4)"`; or a graph, `"y = x^2 - 4"`; or `"x = 3"` | `count` points that lie on the line or curve. For two points on a slanted line, the rise and run between the student's own points. |
+| `factorPair` | factoring | the trinomial, `"x^2 + 5x + 6"` | the pair that multiplies to the constant (or to a·c) and adds to the middle coefficient |
+| `stepMoves` | Step Algebra | the equation, `"4x + 7 = x - 8"` | the student's recorded moves start on the equation, each line follows, and the last is solved |
+| `tableRow` | tables | the rule, `"y = 2x + 1"` | `count` rows the student fills in that satisfy the rule, with a different input in each |
 
 ```jsonc
 { "id": "slope", "label": "Slope of the boundary line", "answer": "-2",
-  "checkpoint": { "kind": "pickPoints", "count": 2 } }
+  "checkpoint": { "kind": "pickPoints", "count": 2, "of": "(0, 3) and (1, 1)" } }
 ```
+
+Built (SP-4), on the assignment's own runner (Classwork, Practice, DOL, an
+ordinary quiz or test):
+- **The step is the tool.** The plane is the platform's plane, the moves are
+  made in the Step Algebra workspace, and each check is that tool's engine
+  (`src/platform/supports/showTheStep/checkpointEngine.js`). `of` is what the
+  step works on; the compiler and Pre-Flight refuse one its tool cannot read.
+- **`of` is never a key.** It is stimulus the student already sees. The
+  validator refuses an `of` that is the part's answer or any other answer of
+  the question, the answer-key split leaves it public, and the key-exposure
+  report does not count it.
+- **A checkpoint never changes a score.** No grader, attempt record or mastery
+  path reads it. The part is graded on its answer.
+- **Classwork and Practice.** The answer box opens once the engine accepts
+  the step. "Check my step" says in words what is off and never the answer.
+  After two refusals the student may choose "Answer without this step": the
+  box opens, and the step is recorded as skipped, with no penalty.
+- **DOL, quiz and test.** The answer box opens once the step is done (for
+  Step Algebra, once a move is made). Nothing says right or wrong.
+- **See every part at once.** For a student with that support the answer box
+  is open from the start, and any step work is still recorded.
+- **What is recorded.** The step is one line of text beside the part's answer
+  (`slope::step`: `(0, 3) (1, 1); rise -2; run 1`), in the draft and in the
+  submitted response (`functions/shared/showTheStepFields.mjs`). It holds the
+  work and no verdict. The teacher's view of a response shows it in a row
+  after its part, and the engine reads the line again there.
+- **Not yet.** A secure Test's field items, Corrections and My Math Path draw
+  a part with a checkpoint as its answer box, with no step, and mark it as
+  before.
 
 ## 6. Tool first (new assignments)
 

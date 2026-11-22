@@ -11,7 +11,7 @@
  *   question.example          an id of a lessonSupports.examples entry, or
  *                             { none: "setup" | "explain" }
  *   part.followThrough        on a responses[] part: { from: [ids], answer }
- *   part.checkpoint           on a responses[] part: { kind, count? }
+ *   part.checkpoint           on a responses[] part: { kind, count?, of }
  *
  * WHAT THIS FILE DOES AND DOES NOT DO. It checks the shapes and the owner's
  * rules, and nothing else: the compiler carries the fields through unchanged
@@ -23,9 +23,11 @@
  * a replay's moves reach its answer is the tool engine's to say, so that
  * check lives with the replay (supports/workedExample/stepAlgebraReplay.js,
  * stepAlgebraReplayErrors), and the compiler and Pre-Flight run it beside
- * this one. The other replays, reference cards and checkpoints are later
- * packages (WE-D, WE-E, WE-H, SP-4) that read these fields as they stand
- * here. So an assignment that carries none of the fields is judged and
+ * this one. A part's `checkpoint` opens its step in the tool (SP-4); whether
+ * that tool can read `of`, and that `of` is never an answer, is checked with
+ * the step (supports/showTheStep/checkpointEngine.js checkpointSourceErrors),
+ * beside this one too. Reference cards are a later package (WE-H) that reads
+ * its fields as they stand here. So an assignment that carries none of the fields is judged and
  * compiled exactly as before.
  *
  * The messages lead with "Section S Question Q <field path>", the locator
