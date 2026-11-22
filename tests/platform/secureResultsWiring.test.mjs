@@ -231,7 +231,7 @@ test('the score is the model\'s sentence, not "correct of answered"', () => {
 
 test('an answer typed in the math editor is drawn as mathematics, not as LaTeX', () => {
   assert.match(reviewScreen, /import MathDisplay from '\.\.\/\.\.\/MathDisplay\.jsx';/);
-  const rows = region(reviewScreen, 'const responseRows = (item) => {', '\n};', 'response rows');
+  const rows = region(reviewScreen, 'const responseRows = (item, followThrough = null) => {', '\n};', 'response rows');
   assert.match(rows, /return \{ id: fieldId, label: field\?\.label \|\| 'Your response', value, math: answerIsLatex\(value\) \};/);
   const answerRows = region(reviewScreen, 'const AnswerRows = ', '));', 'answer rows');
   assert.match(answerRows, /\{row\.math\s*\? <span style=\{answerValueStyle\}><MathDisplay value=\{row\.value\} format="latex" inline \/><\/span>\s*: <MathText style=\{answerValueStyle\}>\{row\.value\}<\/MathText>\}/);

@@ -21,7 +21,9 @@ const fieldsResponse = (responses) => ({
 
 export const lightRecoveryKeyCheck = (question = {}, instance = {}) => {
   const answer = instance?.answer || {};
-  if (question?.type !== 'multiAnswer' || answer.kind !== 'fields' || !answer.value || typeof answer.value !== 'object') {
+  // A follow-through part (SP-3) needs rules this light check does not load: unchecked, never passed.
+  if (question?.type !== 'multiAnswer' || answer.kind !== 'fields' || !answer.value || typeof answer.value !== 'object'
+    || question.answerFields?.some((field) => field?.followThrough)) {
     return { checked: false };
   }
   const first = Array.isArray(question.answerFields) ? question.answerFields[0] : null;

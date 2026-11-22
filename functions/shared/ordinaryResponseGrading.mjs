@@ -274,14 +274,28 @@ export const gradeNumberLineResponse = (question = {}, selectedPoint) => {
 /** The authored fields of a multi-answer question, in authored order. */
 export const multiAnswerFields = (question = {}) => list(question.answerFields).filter((field) => field?.id);
 
-export const gradeMultiAnswerResponse = (question = {}, responsesById = {}) => {
-  const fields = multiAnswerFields(question);
+/*
+ * SP-3: a part that builds on an earlier one (followThrough) also takes the
+ * answer keyed to the student's own earlier value. The rules that key it are
+ * in followThrough.mjs, which the caller hands in as `followThrough` (the
+ * server's graders import them; a screen loads them only for a question that
+ * has such a part): they return the fields with that key among each part's
+ * accepted answers, and the label the student read. Without them such a part
+ * is never marked and the question is not complete, so it cannot be submitted
+ * and gradeOrdinaryResponse does not mark it (incomplete-response): the screen
+ * and the server cannot disagree. Any other question is marked exactly as
+ * before.
+ */
+export const gradeMultiAnswerResponse = (question = {}, responsesById = {}, { followThrough } = {}) => {
+  const authored = multiAnswerFields(question);
+  const pending = !followThrough && authored.some((field) => field.followThrough);
+  const fields = followThrough ? followThrough.withFollowThroughKeys(authored, responsesById, numericSetCredit) : authored;
   const parts = fields.map((field) => {
     const response = text(responsesById?.[field.id]);
     // GR03: a line field whose question asks for no form takes any equation
     // of its line, read from the question's own words (lineFormPolicy.mjs).
     // The screen hands this the whole question too, so both agree.
-    const isCorrect = response.trim() !== '' && matchesFieldAnswer(response, withLineFormPolicy(question, field));
+    const isCorrect = response.trim() !== '' && !(pending && field.followThrough) && matchesFieldAnswer(response, withLineFormPolicy(question, field));
     return {
       id: field.id,
       label: field.label || field.id,
@@ -298,7 +312,7 @@ export const gradeMultiAnswerResponse = (question = {}, responsesById = {}) => {
       response,
     };
   });
-  const isComplete = parts.length > 0 && parts.every((part) => part.isComplete);
+  const isComplete = !pending && parts.length > 0 && parts.every((part) => part.isComplete);
   return { isComplete, isCorrect: isComplete && parts.every((part) => part.isCorrect), parts };
 };
 
@@ -405,7 +419,7 @@ export const responseIsBlank = (response) => {
  * The single entry point the deadline finalizer uses. It never consults any
  * field the student could have written other than the response itself.
  */
-export const gradeOrdinaryResponse = ({ question, response } = {}) => {
+export const gradeOrdinaryResponse = ({ question, response, followThrough } = {}) => {
   const support = serverGradingSupport(question);
   if (!support.supported) return { graded: false, reason: support.reason, isComplete: false, isCorrect: false, parts: [] };
   if (responseIsBlank(response)) return { graded: false, reason: 'blank-response', isComplete: false, isCorrect: false, parts: [] };
@@ -415,7 +429,7 @@ export const gradeOrdinaryResponse = ({ question, response } = {}) => {
   if (type === 'literal') outcome = gradeLiteralResponse(question, response.value);
   else if (type === 'orderedPair') outcome = gradeOrderedPairResponse(question, response.value);
   else if (type === 'system') outcome = gradeSystemResponse(question, response.value);
-  else if (type === 'multiAnswer') outcome = gradeMultiAnswerResponse(question, responsesFromFields(response));
+  else if (type === 'multiAnswer') outcome = gradeMultiAnswerResponse(question, responsesFromFields(response), { followThrough });
   else if (type === 'table') outcome = gradeTableResponse(question, responsesFromFields(response));
   else return { graded: false, reason: `unsupported-type:${type}`, isComplete: false, isCorrect: false, parts: [] };
 

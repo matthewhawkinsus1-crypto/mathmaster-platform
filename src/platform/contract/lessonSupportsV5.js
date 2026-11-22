@@ -17,20 +17,23 @@
  * rules, and nothing else: the compiler carries the fields through unchanged
  * (authoringIntentV5Core.js). The worked-example player (WE-A) reads a
  * question's `example` and a lesson's step cards
- * (supports/workedExample/examplePlayer.js); no grader reads any of them.
+ * (supports/workedExample/examplePlayer.js), and the graders and screens
+ * read a part's `followThrough` (SP-3, functions/shared/followThrough.mjs).
  * A Step Algebra replay (`moves`) and `fade` are played too (WE-C); whether
  * a replay's moves reach its answer is the tool engine's to say, so that
  * check lives with the replay (supports/workedExample/stepAlgebraReplay.js,
  * stepAlgebraReplayErrors), and the compiler and Pre-Flight run it beside
- * this one. The other replays, reference cards, follow-through grading and
- * checkpoints are later packages (WE-D, WE-E, WE-H, SP-3, SP-4) that read
- * these fields as they stand here. So an assignment that carries none of the fields is judged
- * and compiled exactly as before.
+ * this one. The other replays, reference cards and checkpoints are later
+ * packages (WE-D, WE-E, WE-H, SP-4) that read these fields as they stand
+ * here. So an assignment that carries none of the fields is judged and
+ * compiled exactly as before.
  *
  * The messages lead with "Section S Question Q <field path>", the locator
  * Pre-Flight's diagnostics read (preflightDiagnostics.js), so each lands on
  * the question it is about.
  */
+
+import { followThroughPlaceholders } from '../../../functions/shared/followThroughNames.mjs';
 
 const isObject = (value) => Boolean(value) && typeof value === 'object' && !Array.isArray(value);
 const clean = (value) => String(value ?? '').trim();
@@ -70,15 +73,13 @@ const ROLE_NAMES = Object.freeze({ dol: 'DOL', quiz: 'quiz', test: 'test' });
 
 /*
  * A follow-through placeholder is {name}: a part id in single braces, written
- * as words write it ("Using your slope of {slope}, …"). Braces that belong to
- * mathematics or to a Question Family template are not placeholders: a brace
- * group right after a letter, digit, backslash, ^, _, $ or another brace
- * (\sqrt{x}, \frac{a}{b}, x^{2}, {{k}}).
+ * as words write it ("Using your slope of {slope}, …"); braces that belong to
+ * mathematics or a Question Family template are not. One definition, shared
+ * with the screens and graders that replace the names
+ * (functions/shared/followThroughNames.mjs), so what is checked here is what
+ * they replace.
  */
-const PLACEHOLDER = /(?<![A-Za-z0-9\\^_{}$])\{([A-Za-z][A-Za-z0-9_-]*)\}(?!\})/g;
-export const followThroughPlaceholders = (text) => (
-  typeof text === 'string' ? [...new Set([...text.matchAll(PLACEHOLDER)].map((match) => match[1]))] : []
-);
+export { followThroughPlaceholders };
 
 /*
  * A question's answer parts, under the name the compiler reads them by

@@ -29,6 +29,7 @@ import {
   buildPrivateToolGrading, buildPublicToolPayload, gradePathResponse,
 } from '../../../functions/shared/pathToolContracts.mjs';
 import { buildFieldGradingDefinition, hasFieldGradableDefinition } from '../../../functions/shared/legacyFieldGrading.mjs';
+import { followThroughKeys, publicFollowThrough } from '../../../functions/shared/followThrough.mjs';
 import { withLineFormGrading } from '../../../functions/shared/lineFormPolicy.mjs';
 import { buildAttemptSupportPayload, buildPrivateSupport } from '../../../functions/shared/pathSolutionSupport.mjs';
 import { buildPathRecapEntry, buildPathSessionRecap } from '../../../functions/shared/pathSessionRecap.mjs';
@@ -163,6 +164,8 @@ const publicFieldPayload = (question = {}) => ({
     responseHint: field?.responseHint ? String(field.responseHint) : null,
     placeholder: field?.placeholder ? String(field.placeholder) : null,
     ...(Array.isArray(field?.choices) ? { choices: publicChoices(field.choices) } : {}),
+    // As production: the parts a follow-through label builds on, never its answer.
+    ...(publicFollowThrough(field) ? { followThrough: publicFollowThrough(field) } : {}),
   })),
 });
 
@@ -220,12 +223,19 @@ export const gradeFieldResponse = (privateGrading, responsePayload = {}) => {
     : {};
   const fields = list(privateGrading?.fields);
   if (!fields.length) return { isCorrect: false, score: 0, parts: [] };
+  // As production (SP-3): a follow-through field is keyed to the student's
+  // own earlier value too (functions/shared/followThrough.mjs).
+  const keys = followThroughKeys(fields, responses);
   // Each field's weight and a numeric set's matched-elements credit count in
   // the score, as production's gradeResponse counts them.
   const results = fields.map((field) => {
-    const isCorrect = fieldValuesEquivalent(responses[field.id], field);
+    const keyed = keys.has(field.id) ? { ...field, expected: keys.get(field.id)[0], accepted: keys.get(field.id).slice(1) } : null;
+    const isCorrect = fieldValuesEquivalent(responses[field.id], field) || (keyed !== null && fieldValuesEquivalent(responses[field.id], keyed));
     const credit = field.equivalence === 'numericSet' && field.partialCredit === 'matchedElements'
-      ? numericSetCredit(responses[field.id], field.expected, field.numericTolerance)
+      ? Math.max(
+        numericSetCredit(responses[field.id], field.expected, field.numericTolerance),
+        ...(keyed ? [keyed.expected, ...keyed.accepted] : []).map((set) => numericSetCredit(responses[field.id], set, field.numericTolerance)),
+      )
       : (isCorrect ? 1 : 0);
     return { id: field.id, isCorrect, credit, weight: Number(field.weight) > 0 ? Number(field.weight) : 1 };
   });

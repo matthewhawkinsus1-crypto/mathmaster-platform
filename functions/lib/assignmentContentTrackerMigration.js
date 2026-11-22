@@ -72,7 +72,18 @@ function dataModelingFitIsCorrect(question = {}, response = {}) {
  * An ES module, so the caller loads it (loadServerGrading, once per upgrade)
  * and passes it in; without it a multi-answer expansion is not provable.
  */
-const loadServerGrading = () => import("../shared/ordinaryResponseGrading.mjs");
+// With the follow-through rules (SP-3), without which the grader marks no
+// follow-through question.
+const loadServerGrading = async () => {
+  const [ordinary, followThrough] = await Promise.all([
+    import("../shared/ordinaryResponseGrading.mjs"),
+    import("../shared/followThrough.mjs"),
+  ]);
+  return {
+    ...ordinary,
+    gradeMultiAnswerResponse: (question, responses) => ordinary.gradeMultiAnswerResponse(question, responses, { followThrough }),
+  };
+};
 
 function recalcPartCredit(record, partGrades) {
   const scorable = partGrades.filter((part) => part?.graded !== false);
