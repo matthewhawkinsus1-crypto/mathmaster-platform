@@ -510,7 +510,8 @@ export default function TeacherWorkspace({
         { ...salvageResult.parsed, authoringWarnings: salvageResult.warnings },
         sourceName,
         {},
-        { incompleteDraftId },
+        // Imported now: Review gives SP-5's new-assignment warnings.
+        { incompleteDraftId, authoredNow: true },
       );
       if (previewOpenResult !== true) {
         return {
@@ -521,7 +522,7 @@ export default function TeacherWorkspace({
       }
       return { ...salvageResult, previewOpened: true, ccmrAudit };
     }
-    const opened = openAssignmentPreflight({ ...result.parsed, authoringWarnings: warnings }, sourceName, {}, { incompleteDraftId });
+    const opened = openAssignmentPreflight({ ...result.parsed, authoringWarnings: warnings }, sourceName, {}, { incompleteDraftId, authoredNow: true });
     if (opened !== true) {
       return { ok: false, errors: [opened?.error || 'Could not build Assignment Review from this assignment.'], warnings, sourceSchemaVersion: result.sourceSchemaVersion, compilerDefect: false };
     }
@@ -2321,6 +2322,8 @@ export default function TeacherWorkspace({
             onConfirmPublish={confirmAssignmentPreflight}
             busy={assignmentPreflightBusy}
             reviewMode={assignmentPreflight.mode || 'create'}
+            // Imported or authored now, not a stored Library assignment reused (SP-5).
+            authoredNow={assignmentPreflight.authoredNow === true}
             allowQuestionRepair={assignmentPreflight.allowQuestionRepair !== false}
             rosterSizesByClassId={preflightRosterSizesByClassId}
             // So Review can say a reused assignmentKey is taken before Create does (TT10).

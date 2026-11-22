@@ -55,6 +55,7 @@ gate, and merges with a merge commit when CI is green.
 | WE-G: the teacher's view of worked examples, by skill | #599 |
 | WE-C: the Step Algebra replay | #600 |
 | SP-3: follow-through parts (the student's earlier value in the label and the key) | #601 |
+| SP-5: Pre-Flight authoring rules (tool first, show the step), new assignments only | this PR |
 
 ## Track SP: showing the process
 

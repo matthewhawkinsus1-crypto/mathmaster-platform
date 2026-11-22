@@ -207,7 +207,11 @@ test('the Pre-Flight modal shows the panel, uses the runtime default mode and pa
   assert.match(modeFallback, /\|\| 'personalized'\s*$/);
   assert.doesNotMatch(modeFallback, /'shared'/);
   assert.match(modal, /data-question-generation-panel="true"/);
-  assert.match(modal, /buildAssignmentV5PreflightModel\(reviewedAssignmentV5, \{ classSize: preflightClassSize \}\)/);
+  // The review's model is given the class size (beside any other option, such
+  // as SP-5's isNewAssignment), and recomputed when it changes.
+  const reviewModel = region(modal, 'const preflightModel = useMemo(', ');', 'the review\'s model');
+  assert.match(reviewModel, /buildAssignmentV5PreflightModel\(reviewedAssignmentV5, \{ classSize: preflightClassSize[,\s}]/);
+  assert.match(reviewModel, /\[reviewedAssignmentV5, preflightClassSize\b/);
   const app = componentSource('src/App.jsx');
   // The modal is mounted by the teacher's screen (its own module since G2),
   // given App's memo by name.

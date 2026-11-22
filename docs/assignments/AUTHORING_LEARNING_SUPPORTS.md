@@ -13,6 +13,10 @@ The rules are checked by `src/platform/contract/lessonSupportsV5.js`.
 into the compiled assignment unchanged, and the validator refuses a malformed
 one with a message that names the field.
 
+Pre-Flight warns, on a new assignment only, when an answer box asks for what a
+tool produces (rule 5) and when three or more answer boxes have no `checkpoint`
+or `followThrough` (rule 6); the warnings never stop you creating it.
+
 The example player (WE-A) reads a question's `example` and
 `lessonSupports.examples`, which are stored with the assignment:
 - a **step card** (`steps`) plays for the question that names it, one step at

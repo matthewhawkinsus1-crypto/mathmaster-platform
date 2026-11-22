@@ -159,6 +159,11 @@ Pre-Flight warns when a new answer-box question asks for one of these in a box.
 It also warns when a new multi-part answer-box question with three or more
 parts has neither a `checkpoint` nor a `followThrough`.
 
+Both warnings are in Pre-Flight's Check step today (SP-5,
+`newAssignmentRulesPreflight.js`): only for an assignment being imported or
+authored now, never for an existing one (one re-assigned from the Library
+included), and neither stops the assignment being created.
+
 ## 7. Teacher signals
 
 Each signal is a fact about one attempt, never a verdict. It is shown to the
