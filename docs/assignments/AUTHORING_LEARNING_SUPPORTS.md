@@ -336,11 +336,14 @@ What to know when you write one:
   another order, or without the check, is an error:
 
   > lessonSupports.examples[2] is a radical equation replay the tool cannot play: its moves stop before the equation is solved. The next move is { "op": "zeroProduct" }.
-- `detail` is `factor.trinomial` (x² + bx + c) or `factor.trinomialAC`
-  (ax² + bx + c). It must be the quadratic's own; you can leave it out.
-- Write the radical on the left. Choose an equation whose quadratic is a
-  trinomial with two different roots, neither of them 0 (no common factor,
-  not a perfect square).
+- `detail` is `factor.trinomial` (x² + bx + c), `factor.trinomialAC`
+  (ax² + bx + c) or `factor.commonFactor` (ax² + bx: three slides, the
+  common factor x taken out). It must be the quadratic's own; you can leave
+  it out.
+- Write the radical on the left. Choose a sibling whose quadratic factors the
+  way the question's does (rule 7): a trinomial for a trinomial, a common
+  factor for a common factor. A perfect square, or a quadratic with a number
+  as a common factor (4x² + 4x), is not played.
 - Every candidate gets a check slide. One that fails is rejected there.
 - A root equal to a number (`sqrt(2x + 8) = 4`) has no quadratic: its moves
   are `square`, then the moves that solve the linear equation, then the check.

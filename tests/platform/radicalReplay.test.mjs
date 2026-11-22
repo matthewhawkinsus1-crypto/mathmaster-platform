@@ -226,10 +226,52 @@ test('factoring ax² + bx + c takes six slides: a·c, the pairs, split the middl
   assert.deepEqual(binomial.board.lines.map((line) => line.name), ['Start with', 'The common binomial taken out', 'Multiplied back']);
   assert.equal(binomial.board.lines[0].latex, latexOf(groupState), 'in the sequence it starts from the grouped line');
   assert.match(resultLine(zero), /x-3 = 0\\quad\\text\{OR\}\\quad4 x-1 = 0/);
-  // A quadratic the slides do not factor (a common factor) is not played at all.
-  const common = play('sqrt(x + 4) + 2 = x');
-  assert.equal(common.ok, false);
-  assert.match(common.error, /is not a trinomial the factoring slides factor/);
+  // A quadratic the slides do not factor (a number is a common factor too, a perfect square) is not played at all.
+  const numberToo = play('sqrt(4x + 4) = 2x + 2');
+  assert.equal(numberToo.ok, false);
+  assert.match(numberToo.error, /has a number as a common factor too/);
+  assert.match(play('sqrt(4x - 4) = x').error, /is not a trinomial the factoring slides factor/);
+});
+
+test('a quadratic with no number term is factored by a common factor, in three slides: the item\'s own method', () => {
+  // The lesson's first radical item, √(x + 4) + 2 = x, gives 0 = x² − 5x: x(x − 5), not a trinomial.
+  const item = play('sqrt(x + 4) + 2 = x');
+  assert.equal(item.ok, true, item.error);
+  assert.equal(item.factorSkill, FACTOR_SKILL.COMMON);
+  assert.equal(FACTOR_SLIDE_COUNT[FACTOR_SKILL.COMMON], 3);
+  const slides = item.steps.filter((step) => step.subSkill);
+  assert.deepEqual(slides.map((step) => [step.subSkill.index, step.subSkill.count, step.subSkill.optional]), [[1, 3, true], [2, 3, false], [3, 3, false]]);
+  const [lookFor, factor, zero] = slides;
+  assert.equal(lookFor.show, 'Factor ${ x}^{2}-5 x$. There is no number term, and both terms have $x$ in them: $x$ is a common factor.');
+  assert.deepEqual(factor.board.lines.map((line) => line.name), ['Start with', 'The common factor taken out', 'Multiplied back']);
+  const collected = parseRelationSource('0 = x^2 - 5 x', 'x');
+  const factored = parseRelationSource('0 = x*(x - 5)', 'x');
+  assert.equal(validateRelationTransition(collected, factored, { kind: 'factor', branchIndex: 0 }).valid, true);
+  assert.equal(resultLine(factor), latexOf(factored));
+  assert.match(resultLine(zero), /^x = 0\\quad\\text\{OR\}\\quad x-5 = 0$/);
+  assert.deepEqual(item.candidates, ['0', '5']);
+  assert.deepEqual(item.extraneous, ['0']);
+  // Its sibling, and what the question is handed, factor the same way: never by a trinomial.
+  const questions = lessonQuestions();
+  const first = questions.find((question) => question.questionId === 'srh-cw-1');
+  assert.equal(first.equationLatex.replace(/\s+/g, ''), 'sqrt(x+4)+2=x');
+  for (const seed of [0, 1, 2, 3, 4, 5]) {
+    const sibling = replayRadicalEquation({ sibling: radicalSiblingEquation(first.equationLatex, { seed }) });
+    assert.equal(sibling.factorSkill, FACTOR_SKILL.COMMON, `seed ${seed}`);
+    assert.equal(sibling.candidates[0], '0');
+    assert.ok(!sibling.candidates.includes('5') && sibling.answer !== item.answer, `seed ${seed}: ${sibling.answer}`);
+  }
+  const example = workedExampleFor(first, { sectionRole: 'classwork', assignmentProblems: assignmentProblemKeys(questions) });
+  const factoring = exampleSlides(example).filter((slide) => slide.subSkill);
+  assert.deepEqual(factoring.map((slide) => slide.label.replace(/^Step \d+ of \d+: /, '')), ['factoring, 1 of 3', 'factoring, 2 of 3', 'factoring, 3 of 3']);
+  assert.ok(factoring.every((slide) => slide.subSkill.skill === FACTOR_SKILL.COMMON));
+  assert.doesNotMatch(JSON.stringify(example.steps), /factor pairs|two numbers that multiply/);
+  // On Practice its one optional slide is behind Show how.
+  const practice = { ...example, subSkills: 'onRequest' };
+  assert.equal(exampleSlides(practice).length, exampleSlides(example).length - 1);
+  assert.equal(exampleSlides(practice).filter((slide) => slide.showHow).length, 1);
+  // An item whose quadratic IS a trinomial keeps the trinomial slides.
+  assert.equal(replayRadicalEquation({ sibling: radicalSiblingEquation(SIMPLE, { seed: 0 }) }).factorSkill, FACTOR_SKILL.SIMPLE);
 });
 
 // ------------------------------------- 4. in the sequence, or behind Show how
@@ -322,7 +364,7 @@ test('an authored script must be the tool\'s own path: the replay, the compiler 
   assert.match(refusal([{ op: 'subtract', operand: '3' }], SIMPLE), /moves\[0\] is not the tool's move here\. On this equation the next move is \{ "op": "subtract", "operand": "2" \}\./);
   // Equations the tool does not verify, or whose quadratic the slides do not factor.
   assert.match(refusal(SPEC_SCRIPT, 'x + 2 = 5'), /is not a radical equation the tool verifies/);
-  assert.match(refusal(SPEC_SCRIPT, 'sqrt(x + 4) + 2 = x'), /is not a trinomial the factoring slides factor/);
+  assert.match(refusal(SPEC_SCRIPT, 'sqrt(4x - 4) = x'), /is not a trinomial the factoring slides factor/);
   assert.match(refusal(SPEC_SCRIPT, 'sqrt(x + 1) = -3'), /no solution by its structure|cannot solve/);
 
   // The compiler and Pre-Flight raise it on a lesson.
@@ -379,9 +421,13 @@ test('a radical item\'s example is another equation of the same kind, never the 
       assert.equal(siblingShape.index, itemShape.index, question.questionId);
       assert.equal(siblingShape.isolated.r.n === 0, itemShape.isolated.r.n === 0, question.questionId);
       if (siblingShape.isolated.r.n !== 0) assert.equal(solved.extraneous.length, Math.min(item.extraneous.length, 1), question.questionId);
-      // None of its candidates is one of the item's.
+      // None of its candidates is one of the item's (0 apart: every common-factor equation has it), and no answer is.
       const itemValues = item.candidates.map(rationalToText);
-      assert.ok(solved.candidates.every((value) => !itemValues.includes(rationalToText(value))), `${question.questionId}: ${sibling.equation}`);
+      assert.ok(solved.candidates.every((value) => rationalToText(value) === '0' || !itemValues.includes(rationalToText(value))), `${question.questionId}: ${sibling.equation}`);
+      assert.ok(solved.genuine.every((value) => !item.genuine.map(rationalToText).includes(rationalToText(value))), `${question.questionId}: ${sibling.equation}`);
+      // The same method: where the item's own equation can be played, the sibling factors the way it does.
+      const own = replayRadicalEquation({ sibling: { equation: question.equationLatex, variable: question.solveFor } });
+      if (own.ok) assert.equal(replayRadicalEquation({ sibling }).factorSkill, own.factorSkill, `${question.questionId}: ${sibling.equation}`);
       assert.deepEqual(radicalSiblingEquation(question.equationLatex, { seed, variable: question.solveFor }), sibling, 'the same seed gives the same sibling');
     }
     // What the question is handed: not an item of the assignment, and safe beside the item.

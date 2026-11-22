@@ -121,7 +121,10 @@ Where slice D lives, and what it plays:
   shown unequal) and is not in the answer.
 - **The factoring slides** (decision 3), with the numbers the lesson's own
   factoring method finds (`factorQuadraticByMethod`, `factoringVariant.js`):
-  four for x² + bx + c, six for ax² + bx + c. The split and group lines are
+  four for x² + bx + c, six for ax² + bx + c. A quadratic with no number
+  term (ax² + bx) is factored by its common factor instead, in three slides:
+  what to look for, the common factor taken out and multiplied back, the
+  zero product property. The split and group lines are
   rewrites the workspace accepts, and the factored line is one its Factor
   tool accepts. Classwork plays them in the sequence. On Practice the factor
   step is one line with **Show how**, which opens them
@@ -129,9 +132,12 @@ Where slice D lives, and what it plays:
 - **The sibling** (`radicalSiblingEquation`): the same kind of equation with
   other numbers. It keeps the root's index, whether a number stands outside
   the radical, whether the leading coefficient is 1 or more, and how many
-  candidates are rejected. Its quadratic is always a trinomial with two
-  different non-zero roots, so the slides above apply. A root equal to a
-  number has no quadratic and no factoring slides.
+  candidates are rejected. It is the same **method** as the item (the
+  authoring guide's rule 7): an item whose quadratic factors by a common
+  factor (√(x + 4) + 2 = x gives x² − 5x) gets a sibling that does too, and an
+  item whose quadratic is a trinomial gets a trinomial with two different
+  non-zero roots. A root equal to a number has no quadratic and no factoring
+  slides.
 - **A lesson's own** (`tool: "radicalEquation"`, `sibling.equation`,
   `moves`): the moves must be the tool's own path for that equation, in
   order; each supplies its `why`, and a factor move's `detail` must be the
@@ -140,9 +146,9 @@ Where slice D lives, and what it plays:
 - **Faded:** a faded radical example stops before the zero product property,
   so no candidate is shown.
 - **Not played:** an equation the tool does not verify, one with the radical
-  on the right, and one whose quadratic is not such a trinomial (a common
-  factor, a perfect square). Such an authored example is refused; a built-in
-  sibling is never one.
+  on the right, and one whose quadratic the slides do not factor (a perfect
+  square, or a number as a common factor: 4x² + 4x). Such an authored example
+  is refused; a built-in sibling is never one.
 - **Tests:** `tests/platform/radicalReplay.test.mjs` and
   `tests/browser/radicalReplay.mjs`.
 

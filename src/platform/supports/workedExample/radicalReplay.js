@@ -27,6 +27,11 @@
  *   ax² + bx + c   6 slides: a·c; the factor pairs; split the middle term;
  *                  group; factor out the common binomial; the zero product
  *                  property.
+ *   ax² + bx       3 slides: what to look for (no number term, so the
+ *                  variable is a common factor); the common factor taken out,
+ *                  multiplied back; the zero product property. An example
+ *                  is the same METHOD as the item: an item whose quadratic
+ *                  factors by a common factor gets a sibling that does too.
  *
  * Each such step carries `subSkill: { skill, index, count, optional }`.
  * Classwork plays them all in the sequence; on Practice the optional ones
@@ -66,8 +71,8 @@ import { factorQuadraticByMethod } from './factoringVariant.js';
 
 export const RADICAL_REPLAY_TOOL = 'radicalEquation';
 export const RADICAL_REPLAY_OPERATIONS = Object.freeze(['add', 'subtract', 'multiply', 'divide', 'square', 'raise', 'collectToZero', 'factor', 'zeroProduct']);
-export const FACTOR_SKILL = Object.freeze({ SIMPLE: 'factor.trinomial', AC: 'factor.trinomialAC' });
-export const FACTOR_SLIDE_COUNT = Object.freeze({ [FACTOR_SKILL.SIMPLE]: 4, [FACTOR_SKILL.AC]: 6 });
+export const FACTOR_SKILL = Object.freeze({ SIMPLE: 'factor.trinomial', AC: 'factor.trinomialAC', COMMON: 'factor.commonFactor' });
+export const FACTOR_SLIDE_COUNT = Object.freeze({ [FACTOR_SKILL.SIMPLE]: 4, [FACTOR_SKILL.AC]: 6, [FACTOR_SKILL.COMMON]: 3 });
 export const RADICAL_BOARD = Object.freeze({ MOVE: 'move', CHECK: 'check', REJECT: 'reject' });
 
 const text = (value) => (typeof value === 'string' ? value.trim() : '');
@@ -140,6 +145,8 @@ export const RADICAL_WHY = Object.freeze({
   pairs: 'Only one pair of numbers has both the product and the sum.',
   factors: 'Multiplying the factors back gives the trinomial, so the factoring is right.',
   ac: 'The two numbers that split the middle term multiply to a times c.',
+  commonLook: 'A common factor comes out first, before any other factoring.',
+  commonFactor: 'Multiplying the factor back through the bracket gives the two terms, so the factoring is right.',
   split: 'The two terms add back to the middle term, so the equation is unchanged.',
   group: 'Each pair of terms has its own common factor, and what is left is the same binomial.',
   binomial: 'The same binomial is in both groups, so it comes out as a common factor.',
@@ -151,6 +158,7 @@ export const RADICAL_WHY = Object.freeze({
 
 /* ------------------------------------------------------------- the path */
 
+const gcd = (a, b) => (b ? gcd(b, a % b) : Math.abs(a));
 const pairsWithSums = (product) => {
   const pairs = [];
   const size = Math.abs(product);
@@ -299,29 +307,36 @@ export const radicalPath = (source, variable = null) => {
 
       // 4. Factor, with the factoring skill's own slides.
       if (![A, B, C].every(isWhole)) throw new Error('its quadratic does not have whole-number coefficients');
-      const found = factorQuadraticByMethod(A.n, B.n, C.n, v);
+      // No number term: the variable is a common factor, x(ax + b).
+      const common = isZero(C) && !isZero(B);
+      if (common && gcd(A.n, B.n) !== 1) throw new Error(`its quadratic ${quadraticText(A, B, C, v)} has a number as a common factor too, which the factoring slides do not take out`);
+      const found = common ? { m: 0, n: B.n, split: { p: 1, q: 0, r: A.n, s: B.n } } : factorQuadraticByMethod(A.n, B.n, C.n, v);
       if (!found) throw new Error(`its quadratic ${collected} is not a trinomial the factoring slides factor (a common factor, a perfect square, or no whole-number pair)`);
       const { p, q, r: fr, s: fs } = found.split;
       const ac = A.n * C.n;
-      const skill = A.n === 1 ? FACTOR_SKILL.SIMPLE : FACTOR_SKILL.AC;
+      const skill = common ? FACTOR_SKILL.COMMON : A.n === 1 ? FACTOR_SKILL.SIMPLE : FACTOR_SKILL.AC;
       const count = FACTOR_SLIDE_COUNT[skill];
       const collectedState = state;
       const collectedLatex = expressionLatex(collected);
       const factors = [[p, q], [fr, fs]];
-      const factored = `(${wholeLinear(p, q, v)})*(${wholeLinear(fr, fs, v)})`;
+      const factored = common ? `${v}*(${wholeLinear(fr, fs, v)})` : `(${wholeLinear(p, q, v)})*(${wholeLinear(fr, fs, v)})`;
       if (!relationExpressionsEquivalent(factored, collected, v)) fail('Factor');
       const said = (index, optional, label, why, show) => steps.push({
         op: 'factor', auto: true, label, why, show, lines: null, state, subSkill: { skill, index, count, optional },
       });
-      const pairs = pairsWithSums(ac);
+      const pairs = common ? [] : pairsWithSums(ac);
       const pairLine = `The factor pairs of $${ac}$: ${pairsSentence(pairs)}. The pair $${found.m}$ and $${found.n}$ adds to $${B.n}$.`;
       const factorLines = (before, name) => [
         line('before', 'Start with', before),
         line('after', name, stateLatex(single('0', factored)), true),
         line('multiplied', 'Multiplied back', `${expressionLatex(factored)} = ${collectedLatex}`),
       ];
-      const alone = { lines: factorLines(stateLatex(collectedState), 'Factored') };
-      if (skill === FACTOR_SKILL.SIMPLE) {
+      const alone = { lines: factorLines(stateLatex(collectedState), common ? 'The common factor taken out' : 'Factored') };
+      if (skill === FACTOR_SKILL.COMMON) {
+        said(1, true, 'Factoring: what to look for', RADICAL_WHY.commonLook, `Factor $${collectedLatex}$. There is no number term, and both terms have $${v}$ in them: $${v}$ is a common factor.`);
+        commit('Factor', single('0', factored), { kind: 'factor', branchIndex: 0 });
+        push({ op: 'factor', label: 'Take out the common factor', why: RADICAL_WHY.commonFactor, subSkill: { skill, index: 2, count, optional: false }, alone: { label: 'Factor', lines: alone.lines }, lines: alone.lines }, single('0', factored));
+      } else if (skill === FACTOR_SKILL.SIMPLE) {
         said(1, true, 'Factoring: what to look for', RADICAL_WHY.lookFor, `Factor $${collectedLatex}$. Look for two numbers that multiply to $${C.n}$ and add to $${B.n}$.`);
         said(2, true, 'Factoring: the factor pairs and their sums', RADICAL_WHY.pairs, pairLine);
         commit('Factor', single('0', factored), { kind: 'factor', branchIndex: 0 });
@@ -546,15 +561,14 @@ export const radicalItemIsVerified = (equation, variable = null) => {
 
 /* ------------------------------------------------------------ the sibling */
 
-const gcd = (a, b) => (b ? gcd(b, a % b) : Math.abs(a));
-
 /**
  * A sibling for a radical equation item: the same kind of equation with other
  * numbers, or null. A square root with the variable on the other side keeps
  * its leading coefficient's size (1, or more than 1), whether a number stands
- * outside the radical, and how many of its candidates are extraneous; its
- * quadratic is a trinomial with two different non-zero roots, so the
- * factoring slides apply. A root equal to a number keeps its index.
+ * outside the radical, how many of its candidates are extraneous, and its
+ * METHOD: an item whose quadratic has no number term gets one that factors
+ * by a common factor too; any other gets a trinomial with two different
+ * non-zero roots. A root equal to a number keeps its index.
  */
 export const radicalSiblingEquation = (itemEquation, { seed = 0, variable = null } = {}) => {
   const parsed = parseRadicalEquation(text(itemEquation), { variable: text(variable) || null });
@@ -574,22 +588,34 @@ export const radicalSiblingEquation = (itemEquation, { seed = 0, variable = null
   if (shape.index === 2 && !isZero(shape.isolated.r)) {
     const lead = isWhole(shape.isolated.r) && Math.abs(shape.isolated.r.n) > 1 ? 2 : 1;
     const wantExtraneous = Math.min(list(solved.extraneous).length, 1);
+    // The same METHOD: an item whose quadratic has no number term (0 is a
+    // candidate) factors by a common factor, and so does its sibling.
+    const commonFactor = itemValues.has('0');
+    const itemGenuine = new Set(list(solved.genuine).map(num));
     // (d1·x − n1)(d2·x − n2) with d1·d2 = lead²: the candidates n1/d1 and n2/d2.
     const shapes = lead === 1 ? [[1, 1]] : [[4, 1], [1, 4]];
     for (const [d1, d2] of shapes) {
       for (let n1 = -9; n1 <= 9; n1 += 1) {
         for (let n2 = -9; n2 <= 9; n2 += 1) {
-          if (!n1 || !n2 || n1 * d2 === n2 * d1 || gcd(n1, d1) !== 1 || gcd(n2, d2) !== 1) continue;
-          if (d1 === d2 && n1 > n2) continue;
+          if (commonFactor ? (n1 !== 0 || d1 !== 1 || !n2 || gcd(n2, d2) !== 1) : (!n1 || !n2 || n1 * d2 === n2 * d1 || gcd(n1, d1) !== 1 || gcd(n2, d2) !== 1)) continue;
+          if (!commonFactor && d1 === d2 && n1 > n2) continue;
           for (let s = -6; s <= 6; s += 1) {
             // (lead·x + s)² − (m·x + b) = (d1·x − n1)(d2·x − n2)
             const m = 2 * lead * s + (d1 * n2 + d2 * n1);
             const b = s * s - n1 * n2;
-            if (m < 1 || m > 9 || Math.abs(b) > 30) continue;
+            if (m < 1 || m > 9 || Math.abs(b) > 30 || (commonFactor && !s)) continue;
             const roots = [Q(n1, d1), Q(n2, d2)];
             const extraneous = roots.filter((root) => isNeg(Q(lead * root.n + s * root.d, root.d))).length;
-            if (extraneous !== wantExtraneous) continue;
-            if (roots.some((root) => itemValues.has(num(root)))) continue;
+            // 0 is a candidate of every common-factor equation; it may be the sibling's too, as long
+            // as the sibling's answer is not the item's.
+            if (commonFactor) {
+              const kept = roots.filter((root) => !isNeg(Q(lead * root.n + s * root.d, root.d)));
+              if (kept.some((root) => itemGenuine.has(num(root))) || itemValues.has(num(roots[1])) || !kept.length) continue;
+              if (extraneous !== wantExtraneous && !(itemGenuine.has('0') && extraneous === 1)) continue;
+            } else {
+              if (extraneous !== wantExtraneous) continue;
+              if (roots.some((root) => itemValues.has(num(root)))) continue;
+            }
             // Nicest first: a whole, positive solution and small numbers.
             const genuine = roots.filter((root) => !isNeg(Q(lead * root.n + s * root.d, root.d)));
             const cost = genuine.reduce((sum, root) => sum + (isWhole(root) ? 0 : 6) + (isNeg(root) ? 6 : 0), 0) + Math.abs(s + shift) + Math.abs(b) / 4 + m / 2 + (b === 0 ? 8 : 0);

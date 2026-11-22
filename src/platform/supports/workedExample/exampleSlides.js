@@ -36,7 +36,7 @@ export const stepOf = (step) => (isObject(step)
 // How a step that uses another skill is played (examplePlayer.js exampleSectionRule).
 export const EXAMPLE_SUB_SKILL_MODE = Object.freeze({ IN_SEQUENCE: 'inSequence', ON_REQUEST: 'onRequest' });
 export const EXAMPLE_SHOW_HOW_LABEL = 'Show how';
-const SUB_SKILL_NAMES = Object.freeze({ 'factor.trinomial': 'factoring', 'factor.trinomialAC': 'factoring' });
+const SUB_SKILL_NAMES = Object.freeze({ 'factor.trinomial': 'factoring', 'factor.trinomialAC': 'factoring', 'factor.commonFactor': 'factoring' });
 const subSkillName = (skill) => SUB_SKILL_NAMES[skill] || 'the skill inside this step';
 
 /** Where "Show how" lands: the first of the slides it opens. */

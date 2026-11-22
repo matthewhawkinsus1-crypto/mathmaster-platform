@@ -11,9 +11,10 @@
 //   classwork   Classwork 1 is a radical equation on the relation workspace.
 //               A sibling equation opens by itself, above the student's own
 //               board, one move per slide: isolate, square, multiply out,
-//               collect to zero, the four factoring slides in the sequence,
-//               each branch, then every candidate checked in the first
-//               equation. The extraneous one is rejected on a slide of its
+//               collect to zero, the factoring slides in the sequence (its
+//               quadratic has no number term, so the sibling's has none
+//               either: three slides, by a common factor), each branch, then
+//               every candidate checked in the first equation. The extraneous one is rejected on a slide of its
 //               own. Then the answer and "Your turn";
 //   faded       Classwork 2 is the next on the skill: the first move only;
 //   practice    nothing opens by itself. On request the factor step is one
@@ -159,14 +160,14 @@ for (const device of DEVICES) {
   check(/Check each candidate/.test(first.text) && !/x\s*\+\s*4/.test(first.text), where + ': the problem is a sibling, not the student\'s equation', first.text.slice(0, 90));
   check((await ownBoard(page)).length > 20, where + ': the student\'s own board is on the same screen');
   check(await page.locator('[data-example-show-how]').count() === 0, where + ': nothing is folded on Classwork');
-  const seen = await walk(page, where, { shots: { reject: device.name + '-extraneous.png', 'Step 5 of 12: factoring, 1 of 4': device.name + '-factoring.png' } });
-  check(first.count === 14 && seen.length === 13, where + ': the problem, twelve steps and the answer', first.count + ' / ' + seen.length);
-  check(factoringLabels(seen).join(' ') === '1/4 2/4 3/4 4/4', where + ': the four factoring slides are in the sequence, in order', factoringLabels(seen).join(' '));
+  const seen = await walk(page, where, { shots: { reject: device.name + '-extraneous.png', 'Step 5 of 10: factoring, 1 of 3': device.name + '-factoring.png' } });
+  check(first.count === 12 && seen.length === 11, where + ': the problem, ten steps and the answer', first.count + ' / ' + seen.length);
+  // The student's quadratic is x² − 5x: the same method is a common factor, so the sibling's is too.
+  check(factoringLabels(seen).join(' ') === '1/3 2/3 3/3', where + ': the three common-factor slides are in the sequence, in order', factoringLabels(seen).join(' '));
   const factoring = seen.filter((state) => /factoring/.test(state.label));
-  check(/Look for two numbers that multiply to/.test(factoring[0]?.text || ''), where + ': factoring 1 says what to look for', (factoring[0]?.text || '').slice(0, 90));
-  check(/The factor pairs of/.test(factoring[1]?.text || '') && /add to/.test(factoring[1]?.text || ''), where + ': factoring 2 lists the pairs and their sums');
-  check(factoring[2]?.board?.lines.map((line) => line.name).join(' | ') === 'Start with | Factored | Multiplied back', where + ': factoring 3 is the factors, multiplied back', factoring[2]?.board?.lines.map((line) => line.name).join(' | '));
-  check(factoring[3]?.board?.lines.map((line) => line.name).join(' | ') === 'Start with | Each factor equal to 0', where + ': factoring 4 is the zero product property', factoring[3]?.board?.lines.map((line) => line.name).join(' | '));
+  check(/no number term/.test(factoring[0]?.text || '') && /common factor/.test(factoring[0]?.text || ''), where + ': factoring 1 says what to look for', (factoring[0]?.text || '').slice(0, 110));
+  check(factoring[1]?.board?.lines.map((line) => line.name).join(' | ') === 'Start with | The common factor taken out | Multiplied back', where + ': factoring 2 is the common factor taken out, multiplied back', factoring[1]?.board?.lines.map((line) => line.name).join(' | '));
+  check(factoring[2]?.board?.lines.map((line) => line.name).join(' | ') === 'Start with | Each factor equal to 0', where + ': factoring 3 is the zero product property', factoring[2]?.board?.lines.map((line) => line.name).join(' | '));
   const kinds = seen.filter((state) => state.board).map((state) => state.board.kind);
   check(kinds.filter((kind) => kind === 'reject').length === 1 && kinds.filter((kind) => kind === 'check').length === 1, where + ': one candidate is rejected and one checks', kinds.join(' '));
   const reject = seen.find((state) => state.board?.kind === 'reject');
@@ -201,6 +202,18 @@ for (const device of DEVICES) {
     check(state.board?.kind === 'move' && /The rest is yours/.test(state.text) && state.next === 'Your turn', where + ': the first move, and the rest is the student\'s', state.label);
     const whole = await player(page).first().innerText();
     check(!/Answer:|Extraneous|A solution/.test(whole), where + ': a faded example shows no candidate and no answer');
+    // Asked for, the whole example plays. Its quadratic is ax² + bx + c, like the student's: six slides, in the sequence.
+    await player(page).locator('[data-example-your-turn]').click();
+    await page.waitForTimeout(500);
+    await page.locator('[data-hint-control]').first().click();
+    await page.waitForTimeout(300);
+    await page.locator('.mathmaster-hint-panel button', { hasText: 'Try a similar one' }).first().click();
+    await player(page).first().waitFor();
+    state = await slideState(page);
+    check(!state.faded && state.kind === 'problem', where + ': asked for, the whole example plays', JSON.stringify({ faded: state.faded, count: state.count }));
+    const seen = await walk(page, where + ', whole');
+    check(factoringLabels(seen).join(' ') === '1/6 2/6 3/6 4/6 5/6 6/6', where + ': the six factoring slides are in the sequence, in order', factoringLabels(seen).join(' '));
+    check(seen.every((entry) => !entry.showHow), where + ': nothing is folded on Classwork');
   }
   await context.close();
 }
@@ -301,12 +314,12 @@ for (const device of DEVICES) {
   const read = player(page).locator('button', { hasText: 'Read' });
   check(await read.count() === 1, `${where}: a move has Read aloud`);
   const name = await read.first().getAttribute('aria-label').catch(() => null);
-  check(name === 'Read the worked example, step 1 of 12 aloud', `${where}: its name says which move`, String(name));
+  check(name === 'Read the worked example, step 1 of 10 aloud', `${where}: its name says which move`, String(name));
   if (await read.count()) {
     await read.first().click();
     await page.waitForTimeout(250);
     const spoken = (await page.evaluate(() => window.__mmSpoken)).join(' ').replace(/\s+/g, ' ');
-    if (spoken) check(/Step 1 of 12/.test(spoken) && /on both sides/.test(spoken) && /Why:/.test(spoken), `${where}: it reads the move as a sentence, then its why`, spoken.slice(0, 140));
+    if (spoken) check(/Step 1 of 10/.test(spoken) && /on both sides/.test(spoken) && /Why:/.test(spoken), `${where}: it reads the move as a sentence, then its why`, spoken.slice(0, 140));
   }
   await context.close();
 }
@@ -318,7 +331,7 @@ for (const device of [DESKTOP, PHONE, { name: 'narrow', viewport: { width: 320, 
   await player(page).first().waitFor();
   const rootFont = await page.evaluate(() => parseFloat(getComputedStyle(document.documentElement).fontSize));
   check(rootFont >= 31, `${where}: the browser's text did grow`, `${rootFont}px`);
-  for (let slide = 2; slide <= 14; slide += 1) {
+  for (let slide = 2; slide <= 12; slide += 1) {
     await next(page);
     await noSidewaysScroll(page, `${where}, slide ${slide}`);
     await fitsItsBox(page, `${where}, slide ${slide}`);
