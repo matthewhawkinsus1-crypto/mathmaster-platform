@@ -21,6 +21,7 @@ import { asksSingularReasonByDefault } from '../../../functions/shared/toolMath/
 import { radicalEquationOpensRelationWorkspace } from './radicalEquationIntent.js';
 import { lessonSupportsPassThroughErrors, validateLessonSupportsV5 } from './lessonSupportsV5.js';
 import { stepAlgebraReplayErrors } from '../supports/workedExample/stepAlgebraReplay.js';
+import { radicalReplayErrors } from '../supports/workedExample/radicalReplay.js';
 
 const asArray = (value) => Array.isArray(value) ? value : value == null ? [] : [value];
 const isObject = (value) => value && typeof value === 'object' && !Array.isArray(value);
@@ -2372,7 +2373,7 @@ export const compileAuthoringIntentV5 = (input = {}) => {
   // A Step Algebra replay is played by the tool's own engine, so a script
   // that does not reach its answer is refused here, before it can be saved
   // (WE-C; stepAlgebraReplay.js). No replay, no check.
-  const replayErrors = stepAlgebraReplayErrors(input);
+  const replayErrors = [...stepAlgebraReplayErrors(input), ...radicalReplayErrors(input)];
   if (replayErrors.length) {
     throw new Error(`Assignment V5 validation failed:\n- ${replayErrors.join('\n- ')}`);
   }

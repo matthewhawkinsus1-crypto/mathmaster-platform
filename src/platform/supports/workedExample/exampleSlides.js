@@ -20,10 +20,30 @@ const list = (value) => (Array.isArray(value) ? value : []);
  * lines the tool's engine gave for it (stepAlgebraReplay.js, WE-C).
  */
 export const stepOf = (step) => (isObject(step)
-  ? { show: text(step.show), why: text(step.why), ...(isObject(step.board) ? { board: step.board } : {}) }
+  ? {
+    show: text(step.show),
+    why: text(step.why),
+    ...(isObject(step.board) ? { board: step.board } : {}),
+    // A step of another skill's own slides (the factoring inside a radical
+    // equation, radicalReplay.js), and the step as it reads without them.
+    ...(isObject(step.subSkill) ? { subSkill: step.subSkill } : {}),
+    ...(isObject(step.alone) ? { alone: step.alone } : {}),
+  }
   : { show: text(step), why: '' });
 
 /* ---------------------------------------------------------------- the slides */
+
+// How a step that uses another skill is played (examplePlayer.js exampleSectionRule).
+export const EXAMPLE_SUB_SKILL_MODE = Object.freeze({ IN_SEQUENCE: 'inSequence', ON_REQUEST: 'onRequest' });
+export const EXAMPLE_SHOW_HOW_LABEL = 'Show how';
+const SUB_SKILL_NAMES = Object.freeze({ 'factor.trinomial': 'factoring', 'factor.trinomialAC': 'factoring' });
+const subSkillName = (skill) => SUB_SKILL_NAMES[skill] || 'the skill inside this step';
+
+/** Where "Show how" lands: the first of the slides it opens. */
+export const shownHowSlideIndex = (example, skill) => {
+  const index = exampleSlides(example, { shownHow: true }).findIndex((slide) => slide.subSkill?.skill === skill);
+  return index < 0 ? 0 : index;
+};
 
 export const EXAMPLE_SLIDE = Object.freeze({ PROBLEM: 'problem', STEP: 'step', ANSWER: 'answer' });
 export const EXAMPLE_PROBLEM_NOTE = 'This problem is like yours, with different numbers. Go through each step, then do yours.';
@@ -40,10 +60,16 @@ export const EXAMPLE_FADED_TURN_TEXT = 'The rest is yours. Make the same start o
  * do with it), each step with its why, and the answer. The last slide carries "Your turn". A step card ends on its
  * own last step, so it gets no separate answer slide.
  */
-export const exampleSlides = (example) => {
+export const exampleSlides = (example, { shownHow = false } = {}) => {
   if (!isObject(example)) return [];
   const prompt = text(example.prompt);
-  const steps = list(example.steps).map(stepOf).filter((step) => step.show);
+  // Sub-skill slides: Classwork plays them in the sequence. On Practice
+  // (`subSkills: 'onRequest'`) the step stays one line with "Show how", and
+  // they join the sequence once the student asks.
+  const folded = example.subSkills === EXAMPLE_SUB_SKILL_MODE.ON_REQUEST && shownHow !== true;
+  const steps = list(example.steps).map(stepOf).filter((step) => step.show)
+    .filter((step) => !(folded && step.subSkill?.optional === true))
+    .map((step) => (folded && step.alone ? { ...step, show: text(step.alone.show) || step.show, why: text(step.alone.why) || step.why, board: step.alone.board || step.board, showHow: true } : step));
   if (!prompt || !steps.length) return [];
   // A faded example plays its first steps only, and says how many there are.
   const faded = example.faded === true;
@@ -52,10 +78,12 @@ export const exampleSlides = (example) => {
   steps.forEach((step, index) => {
     slides.push({
       kind: EXAMPLE_SLIDE.STEP,
-      label: `Step ${index + 1} of ${stepCount}`,
+      label: `Step ${index + 1} of ${stepCount}${step.subSkill && !folded ? `: ${subSkillName(step.subSkill.skill)}, ${step.subSkill.index} of ${step.subSkill.count}` : ''}`,
       show: step.show,
       why: step.why,
       ...(step.board ? { board: step.board } : {}),
+      ...(step.subSkill ? { subSkill: step.subSkill } : {}),
+      ...(step.showHow ? { showHow: true } : {}),
     });
   });
   // A step card ends on its own last step; a replay ends on its check, so its

@@ -263,8 +263,12 @@ test('a faded replay never shows the solved line: the validator refuses the fade
   assert.equal(builtIn('3x = -12').fadeLimit, 0);
   assert.equal(builtIn('x + 5 = 2').fadeLimit, 0);
   assert.equal(builtIn('5x + 3 = 2x - 9').fadeLimit, 2);
-  const playerSource = executableSource(read('src/platform/supports/workedExample/examplePlayer.js'));
-  assert.match(region(playerSource, 'const familyReplay', 'const safeFor'), /handOverAfter: Math\.min\(1, replay\.fadeLimit\)/);
+  // What a question is handed: its family's replay hands over after one move, and never past its limit.
+  const family = workedExampleFor(receivedAt(storedLesson(), 'ls-cw-3'), { sectionRole: 'classwork' });
+  assert.deepEqual([family.source, family.format], ['family', 'replay']);
+  assert.ok(family.fadeLimit >= 1);
+  assert.equal(family.handOverAfter, 1);
+  assert.equal(fadedExample({ ...family, handOverAfter: family.steps.length }).steps.length, family.fadeLimit);
 });
 
 test('a move that multiplies or divides by an expression with a letter in it is refused: its condition cannot be shown', () => {

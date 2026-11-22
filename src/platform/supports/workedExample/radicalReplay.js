@@ -133,6 +133,7 @@ export const RADICAL_WHY = Object.freeze({
   isolate: 'Get the radical alone on its side before raising, so the power undoes the root.',
   raise: 'Raising both sides to the index of the root undoes it. It can add a candidate that is not a solution, so every candidate is checked at the end.',
   expand: 'Multiply the binomial by itself: every term times every term.',
+  power: 'The power is a number: multiply it out before going on.',
   collect: 'A quadratic is solved with 0 on one side.',
   linear: 'Undo what is done to the variable, the same on both sides.',
   lookFor: 'Multiplying two binomials back gives the sum in the middle term and the product in the last term.',
@@ -377,6 +378,7 @@ export const radicalPath = (source, variable = null) => {
       // A root equal to a number: a linear equation after raising.
       const { m, b } = shape.radicand;
       let right = pow(s, shape.index);
+      rewrite({ label: 'Work out the power', why: RADICAL_WHY.power, name: 'The power worked out', after: single(radicandText, num(right)) });
       if (!isZero(b)) {
         right = sub(right, b);
         const op = isNeg(b) ? 'add' : 'subtract';
@@ -536,6 +538,12 @@ export const replayRadicalEquation = ({ sibling = null, equation: equationText =
   };
 };
 
+/** Whether an item's equation is a radical equation the tool verifies (and so has a replay). */
+export const radicalItemIsVerified = (equation, variable = null) => {
+  const parsed = parseRadicalEquation(text(equation), { variable: text(variable) || null });
+  return parsed.ok === true && solveRadicalShape(parsed.shape).ok === true;
+};
+
 /* ------------------------------------------------------------ the sibling */
 
 const gcd = (a, b) => (b ? gcd(b, a % b) : Math.abs(a));
@@ -584,7 +592,7 @@ export const radicalSiblingEquation = (itemEquation, { seed = 0, variable = null
             if (roots.some((root) => itemValues.has(num(root)))) continue;
             // Nicest first: a whole, positive solution and small numbers.
             const genuine = roots.filter((root) => !isNeg(Q(lead * root.n + s * root.d, root.d)));
-            const cost = genuine.reduce((sum, root) => sum + (isWhole(root) ? 0 : 6) + (isNeg(root) ? 6 : 0), 0) + Math.abs(s + shift) + Math.abs(b) / 4 + m / 2;
+            const cost = genuine.reduce((sum, root) => sum + (isWhole(root) ? 0 : 6) + (isNeg(root) ? 6 : 0), 0) + Math.abs(s + shift) + Math.abs(b) / 4 + m / 2 + (b === 0 ? 8 : 0);
             options.push({ cost, equation: written({ radicand: linearText(Q(m), Q(b), v), k: 2, right: linearText(Q(lead), Q(s + shift), v) }) });
           }
         }
