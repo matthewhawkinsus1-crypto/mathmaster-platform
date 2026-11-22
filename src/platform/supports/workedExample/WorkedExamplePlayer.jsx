@@ -1,10 +1,20 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import {
   EXAMPLE_FADED_OPENED_TEXT,
   EXAMPLE_OPENED_BY_ITSELF_TEXT,
   EXAMPLE_SHOW_HOW_LABEL,
   EXAMPLE_SLIDE,
   EXAMPLE_YOUR_TURN_LABEL,
+  SPOT_THE_MISTAKE_CHOSEN,
+  SPOT_THE_MISTAKE_HEADING,
+  SPOT_THE_MISTAKE_INTRO,
+  SPOT_THE_MISTAKE_NOTE,
+  SPOT_THE_MISTAKE_QUESTION,
+  WHY_THIS_STEP_OTHER,
+  WHY_THIS_STEP_NEXT,
+  WHY_THIS_STEP_PROMPT,
+  WHY_THIS_STEP_RIGHT,
+  WHY_THIS_STEP_SKIP_LABEL,
   exampleSlideAt,
   exampleSlides,
   planeSummary,
@@ -12,6 +22,12 @@ import {
   slideReadingText,
   slideTranslationText,
   slideTurnText,
+  spotTheMistakeFeedback,
+  spotTheMistakeReadingText,
+  spotTheMistakeTranslationText,
+  whyThisStepFor,
+  whyThisStepReadingText,
+  whyThisStepTranslationText,
 } from './exampleSlides.js';
 
 /*
@@ -40,6 +56,21 @@ import {
  * file only lays them out, each with its name in words. A faded example plays
  * its first moves and ends on "Your turn" with the rest left to the student.
  *
+ * WHY THIS STEP? AND SPOT THE MISTAKE (WE-F). On Classwork (`whyThisStep`)
+ * the slide before one step names that step's move and asks for its reason:
+ * three choices, all of them the example's own whys, and Skip. A choice is
+ * answered in a polite region and the choices go (focus goes to Next); Skip
+ * and Next go on without one; the step then plays with its reason, as every
+ * step does, and the example never asks again. Not scored and not recorded.
+ * After the last slide of a whole example (`spotTheMistake`, Classwork and
+ * Practice; a faded example has none) comes a step with the question's
+ * common error in it and three choices for what is wrong with it: the first
+ * choice made is the student's (aria-pressed, and "Your choice" in words), the
+ * answer and the whole common error follow in a polite region, and
+ * `onSpotTheMistake` is told, so the caller can record the fact. Neither
+ * touches a score. Both read aloud and translate like the slide, and every
+ * choice is a button of 44px or more with an edge of its own.
+ *
  * Loaded on demand (HintPanel.jsx): nothing here is in a page that shows no
  * example. This chunk imports only React and its own slides (exampleSlides.js)
  * and shares no module with the question's chunk, so opening an example adds
@@ -58,6 +89,120 @@ const button = {
 };
 const primaryButton = { ...button, border: '2px solid var(--mm-primary-text)' };
 const muted = { margin: 0, color: 'var(--mm-text-muted)' };
+
+// A choice is a sentence: a full-width button that wraps, with an edge of its
+// own (forced colours keep it), and a heavier edge once it is the one chosen.
+const choiceButton = {
+  ...button,
+  display: 'block',
+  width: '100%',
+  minWidth: 0,
+  textAlign: 'left',
+  borderRadius: 12,
+  fontWeight: 700,
+  lineHeight: 1.45,
+  whiteSpace: 'normal',
+  overflowWrap: 'anywhere',
+  background: 'var(--mm-surface)',
+};
+// Chosen: a heavier edge and "Your choice" in words, on the same background
+// (in forced colours a background is not kept, so it cannot carry the state).
+const chosenButton = { ...choiceButton, border: '2px solid var(--mm-primary-text)' };
+const checkBox = { display: 'grid', gap: 8, padding: '10px 12px', borderRadius: 10, border: '1px solid var(--mm-tint-border)', background: 'var(--mm-surface)', minWidth: 0, margin: 0 };
+const choiceList = { margin: 0, padding: 0, listStyle: 'none', display: 'grid', gap: 8, minWidth: 0 };
+
+// Each example asks "Why this step?" once: Back to that step, or the example
+// opened again (the player drawn anew), keeps the answer it was given. Kept by
+// the example's own words, so a redrawn example is the same example.
+const whyAnswers = new Map();
+const exampleKey = (example) => [example?.prompt, ...(Array.isArray(example?.steps) ? example.steps : []).map((step) => (step && typeof step === 'object' ? step.show : step))].join('\n');
+
+/*
+ * WHY THIS STEP? The step's move is on the slide above; its reason is held
+ * back until a choice is made or the question is skipped. The choices are
+ * buttons, so the keyboard reaches them like Next; the caller moves focus to
+ * Next once they go.
+ */
+export function WhyThisStep({ MathText, check, answer, onChoose, onSkip }) {
+  const feedback = answer?.choice ? (answer.choice.right ? WHY_THIS_STEP_RIGHT : WHY_THIS_STEP_OTHER) : '';
+  return (
+    <fieldset data-why-this-step="" data-why-answered={answer ? '' : undefined} style={checkBox}>
+      <legend style={{ padding: 0, fontWeight: 800, color: 'var(--mm-primary-text)' }}>{WHY_THIS_STEP_PROMPT}</legend>
+      <p data-why-next-step="" style={{ margin: 0, lineHeight: 1.55, overflowWrap: 'anywhere' }}><strong>{WHY_THIS_STEP_NEXT}: </strong><MathText>{check.nextStep}</MathText></p>
+      {answer ? null : (
+        <>
+          <ul style={choiceList}>
+            {check.choices.map((choice) => (
+              <li key={choice.id}>
+                <button type="button" data-why-choice={choice.id} onClick={() => onChoose(choice)} style={choiceButton}><MathText>{choice.text}</MathText></button>
+              </li>
+            ))}
+          </ul>
+          <div>
+            <button type="button" data-why-skip="" onClick={onSkip} style={button}>{WHY_THIS_STEP_SKIP_LABEL}</button>
+          </div>
+        </>
+      )}
+      {/* In the page, empty, before a choice: what it says is announced once it is there. */}
+      <p role="status" aria-live="polite" data-why-feedback={answer?.choice ? (answer.choice.right ? 'right' : 'other') : ''} style={{ margin: 0, fontWeight: 700 }}>{feedback}</p>
+    </fieldset>
+  );
+}
+
+/*
+ * SPOT THE MISTAKE. A step with the question's common error in it, and three
+ * choices for what is wrong with it. The first choice made is kept: it shows
+ * as "Your choice" in words and aria-pressed, the other two say they are not
+ * available, and focus stays on the button pressed. What went wrong is then
+ * said in a polite region, which is in the page, empty, before anything is
+ * chosen.
+ */
+export function SpotTheMistake({ MathText, SupportedTextActions, spot, chosen, onChoose, readAloud, translation, onSupportEvidence }) {
+  const choose = (choice) => { if (!chosen) onChoose(choice); };
+  const feedback = chosen ? spotTheMistakeFeedback(spot, chosen) : '';
+  return (
+    <section aria-label={SPOT_THE_MISTAKE_HEADING} data-spot-the-mistake="" data-spot-answered={chosen ? '' : undefined} style={checkBox}>
+      <p style={{ margin: 0, fontWeight: 800, color: 'var(--mm-primary-text)' }}>{SPOT_THE_MISTAKE_HEADING}</p>
+      <p style={{ margin: 0 }}>{SPOT_THE_MISTAKE_INTRO}</p>
+      <p data-spot-line="" style={{ margin: 0, padding: '6px 10px', borderLeft: '3px dashed var(--mm-primary-border)', fontWeight: 700, lineHeight: 1.55, overflowWrap: 'anywhere' }}><MathText>{spot.line}</MathText></p>
+      <fieldset style={{ border: 0, padding: 0, margin: 0, minWidth: 0, display: 'grid', gap: 8 }}>
+        <legend style={{ padding: 0, fontWeight: 800 }}>{SPOT_THE_MISTAKE_QUESTION}</legend>
+        <ul style={choiceList}>
+          {spot.choices.map((choice) => {
+            const mine = chosen === choice.id;
+            return (
+              <li key={choice.id}>
+                <button
+                  type="button"
+                  data-spot-choice={choice.id}
+                  aria-pressed={mine ? 'true' : 'false'}
+                  aria-disabled={chosen && !mine ? 'true' : undefined}
+                  onClick={() => choose(choice)}
+                  style={mine ? chosenButton : chosen ? { ...choiceButton, borderStyle: 'dashed', cursor: 'default' } : choiceButton}
+                >
+                  {mine ? <span style={{ display: 'block', fontSize: 'calc(12 * var(--mm-px))', fontWeight: 800 }}>{SPOT_THE_MISTAKE_CHOSEN}</span> : null}
+                  <MathText>{choice.text}</MathText>
+                </button>
+              </li>
+            );
+          })}
+        </ul>
+      </fieldset>
+      <p role="status" aria-live="polite" data-spot-feedback="" style={{ margin: 0, fontWeight: 700, lineHeight: 1.55, overflowWrap: 'anywhere' }}>{feedback ? <MathText>{feedback}</MathText> : null}</p>
+      <p style={muted}>{SPOT_THE_MISTAKE_NOTE}</p>
+      {/* Keyed by the choice: what is read and translated grows once the answer is there. */}
+      <SupportedTextActions
+        key={chosen || 'open'}
+        text={spotTheMistakeReadingText(spot, chosen)}
+        translationText={spotTheMistakeTranslationText(spot, chosen)}
+        readAloud={readAloud}
+        translation={translation}
+        label="spot the mistake"
+        onEvidence={onSupportEvidence}
+      />
+    </section>
+  );
+}
 
 const boardLine = { display: 'grid', gap: 2, minWidth: 0 };
 const boardName = { margin: 0, fontSize: 'calc(12 * var(--mm-px))', fontWeight: 800, color: 'var(--mm-text-muted)' };
@@ -159,6 +304,12 @@ export default function WorkedExamplePlayer({
   readAloud = null,
   translation = null,
   onSupportEvidence = null,
+  // WE-F: "Why this step?" (the section rule's `whyThisStep`: Classwork), and
+  // "Spot the mistake" ({ line, choices, explanation }, spotTheMistake.js),
+  // with what to call once the student answers it.
+  whyThisStep = false,
+  spotTheMistake = null,
+  onSpotTheMistake = null,
   onYourTurn = null,
   openedByItself = false,
 }) {
@@ -166,16 +317,46 @@ export default function WorkedExamplePlayer({
   const [shownHow, setShownHow] = useState(false);
   const slides = useMemo(() => exampleSlides(example, { shownHow }), [example, shownHow]);
   const [position, setPosition] = useState(0);
+  // Why this step? The question for this example's slides, and how it was answered.
+  const whyCheck = useMemo(() => (whyThisStep === true ? whyThisStepFor(slides) : null), [whyThisStep, slides]);
+  const [whyAnswer, setWhyAnswer] = useState(() => whyAnswers.get(exampleKey(example)) || null);
+  const [spotChosen, setSpotChosen] = useState(null);
+  const nextRef = useRef(null);
   if (!slides.length) return null;
   const at = exampleSlideAt(slides, position);
   const slide = slides[at];
   const first = at === 0;
+  // Asked on the slide before its step, once: open until a choice, Skip or
+  // Next; a choice stays to say whether it was the reason.
+  const whyHere = Boolean(whyCheck) && at === whyCheck.askAt;
+  const whyPending = whyHere && !whyAnswer && !whyAnswers.has(exampleKey(example));
+  const whyShown = whyPending || (whyHere && Boolean(whyAnswer?.choice));
+  const whyFeedback = whyHere && whyAnswer?.choice ? (whyAnswer.choice.right ? WHY_THIS_STEP_RIGHT : WHY_THIS_STEP_OTHER) : '';
+  const settleWhy = (answer) => {
+    if (example) whyAnswers.set(exampleKey(example), answer);
+    setWhyAnswer(answer);
+  };
+  // A choice, or Skip: the choices go, so focus goes to Next.
+  const answerWhy = (answer) => {
+    settleWhy(answer);
+    nextRef.current?.focus();
+  };
+  const spotShown = Boolean(spotTheMistake) && slide.last && example?.faded !== true;
+  const chooseMistake = (choice) => {
+    setSpotChosen(choice.id);
+    onSpotTheMistake?.();
+  };
+  // Read aloud and Translate take the question with the slide it is on.
+  const readingText = [slideReadingText(slide), whyPending ? whyThisStepReadingText(whyCheck) : '', whyFeedback].filter(Boolean).join(' ');
+  const translationText = [slideTranslationText(slide), whyPending ? whyThisStepTranslationText(whyCheck) : '', whyFeedback].filter(Boolean).join('\n');
   const back = () => { if (!first) setPosition(at - 1); };
   const showHow = () => {
     setPosition(shownHowSlideIndex(example, slide.subSkill?.skill));
     setShownHow(true);
   };
   const next = () => {
+    // Next past an open "Why this step?" skips it.
+    if (whyPending) settleWhy({ skipped: true });
     if (slide.last) onYourTurn?.();
     else setPosition(at + 1);
   };
@@ -224,16 +405,32 @@ export default function WorkedExamplePlayer({
         {slide.note ? <p data-example-note="" style={muted}>{slide.note}</p> : null}
         {slide.last ? <p data-example-your-turn-note="" style={muted}>{slideTurnText(slide)}</p> : null}
       </div>
+      {/* Outside the slide's live region: the slide is announced as ever, and the answer in a region of its own. */}
+      {whyShown ? (
+        <WhyThisStep MathText={MathText} check={whyCheck} answer={whyHere ? whyAnswer : null} onChoose={(choice) => answerWhy({ choice })} onSkip={() => answerWhy({ skipped: true })} />
+      ) : null}
       {/* Keyed by slide: a translation shown for one step is not the next step's. */}
       <SupportedTextActions
-        key={at}
-        text={slideReadingText(slide)}
-        translationText={slideTranslationText(slide)}
+        key={`${at}${whyPending ? '-asking' : whyFeedback ? '-answered' : ''}`}
+        text={readingText}
+        translationText={translationText}
         readAloud={readAloud}
         translation={translation}
         label={`the worked example, ${slide.label.toLowerCase()}`}
         onEvidence={onSupportEvidence}
       />
+      {spotShown ? (
+        <SpotTheMistake
+          MathText={MathText}
+          SupportedTextActions={SupportedTextActions}
+          spot={spotTheMistake}
+          chosen={spotChosen}
+          onChoose={chooseMistake}
+          readAloud={readAloud}
+          translation={translation}
+          onSupportEvidence={onSupportEvidence}
+        />
+      ) : null}
       <div data-example-controls="" style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center' }}>
         <button
           type="button"
@@ -245,7 +442,7 @@ export default function WorkedExamplePlayer({
           Back
         </button>
         <span data-example-progress="" style={{ ...muted, fontWeight: 700 }}>{at + 1} of {slides.length}</span>
-        <button type="button" data-example-next="" data-example-your-turn={slide.last ? '' : undefined} onClick={next} style={primaryButton}>
+        <button ref={nextRef} type="button" data-example-next="" data-example-your-turn={slide.last ? '' : undefined} onClick={next} style={primaryButton}>
           {slide.last ? EXAMPLE_YOUR_TURN_LABEL : 'Next'}
         </button>
       </div>

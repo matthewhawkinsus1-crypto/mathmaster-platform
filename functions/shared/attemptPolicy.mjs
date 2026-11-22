@@ -7,6 +7,11 @@ export const MAX_ATTEMPTS_PER_QUESTION = 3;
 // it is absent from every independence test below, and a record without it
 // keeps exactly the shape it had.
 const shownExample = (supportUsage) => (supportUsage?.workedExampleShown === 'auto' ? { workedExampleShown: 'auto' } : {});
+// "Spot the mistake" answered after a worked example (WE-F), kept the same
+// way: a fact for the teacher, never a grade. Whether the choice was right is
+// not recorded, it is absent from every independence test, and a record
+// without it keeps exactly the shape it had.
+const spotTheMistake = (supportUsage) => (supportUsage?.spotTheMistakeUsed === true ? { spotTheMistakeUsed: true } : {});
 const MAX_STORED_STEP_GRADES = 80;
 
 const SIMPLE_CHOICE_TYPES = new Set([
@@ -364,6 +369,7 @@ export const normalizeQuestionRecord = (record) => {
       remediationUsed: Boolean(record.supportUsage?.remediationUsed),
       workedExampleUsed: Boolean(record.supportUsage?.workedExampleUsed),
       ...shownExample(record.supportUsage),
+      ...spotTheMistake(record.supportUsage),
       calculatorUsed: Boolean(record.supportUsage?.calculatorUsed),
       isMathematicallyIndependent: record.supportUsage?.isMathematicallyIndependent !== false
         && !record.supportUsage?.hintUsed
@@ -468,6 +474,7 @@ export const recordQuestionStep = ({
       remediationUsed: Boolean(supportUsage.remediationUsed),
       workedExampleUsed: Boolean(supportUsage.workedExampleUsed),
       ...shownExample(supportUsage),
+      ...spotTheMistake(supportUsage),
       calculatorUsed: Boolean(supportUsage.calculatorUsed),
       isMathematicallyIndependent: supportUsage.isMathematicallyIndependent !== false
         && !supportUsage.hintUsed
@@ -606,6 +613,7 @@ export const recordQuestionAttempt = ({
       remediationUsed: Boolean(supportUsage.remediationUsed),
       workedExampleUsed: Boolean(supportUsage.workedExampleUsed),
       ...shownExample(supportUsage),
+      ...spotTheMistake(supportUsage),
       calculatorUsed: Boolean(supportUsage.calculatorUsed),
       isMathematicallyIndependent: supportUsage.isMathematicallyIndependent !== false
         && !supportUsage.hintUsed

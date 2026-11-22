@@ -82,10 +82,18 @@ export const NO_EXAMPLE_SECTION_ROLES = Object.freeze(['dol', 'quiz', 'test']);
 /** How a step that uses an earlier skill is shown: its own slides in the sequence (Classwork), or one tap away. */
 export const EXAMPLE_SUB_SKILLS = Object.freeze({ IN_SEQUENCE: 'inSequence', ON_REQUEST: 'onRequest' });
 
-const NO_EXAMPLE = Object.freeze({ offered: false, opensByItself: false, subSkills: null });
+const NO_EXAMPLE = Object.freeze({ offered: false, opensByItself: false, subSkills: null, whyThisStep: false, spotTheMistake: false });
 
 /**
  * What a section does with worked examples.
+ *   offered        an example on request;
+ *   opensByItself  before the first question on a new skill (Classwork);
+ *   subSkills      a step's other skill in the sequence, or one tap away;
+ *   whyThisStep    "Why this step?" on one step of each example (WE-F:
+ *                  Classwork only);
+ *   spotTheMistake "Spot the mistake" after the example (WE-F: wherever an
+ *                  example is, so Classwork and Practice).
+ * Read from:
  *   sectionRole   the section's own role, where the host knows it;
  *   activityRole  the role the question runs under (its activity policy);
  *   hintsAllowed  whether this question offers hints at all.
@@ -102,6 +110,8 @@ export const exampleSectionRule = ({ sectionRole = null, activityRole = null, hi
     offered: true,
     opensByItself: classwork,
     subSkills: classwork ? EXAMPLE_SUB_SKILLS.IN_SEQUENCE : EXAMPLE_SUB_SKILLS.ON_REQUEST,
+    whyThisStep: classwork,
+    spotTheMistake: true,
   });
 };
 

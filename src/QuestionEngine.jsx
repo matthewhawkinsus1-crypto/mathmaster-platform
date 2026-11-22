@@ -30,6 +30,7 @@ import { hintCostSentence } from './platform/supports/hints/hintCopy.js';
 import { hintPanelFocusTarget, keepHintPanelInView, requestedHintPanelPlace } from './platform/supports/hints/hintPanelReveal.js';
 import { EXAMPLE_OPENED_ANNOUNCEMENT, exampleOpensByItself, exampleSectionRule, fadedExample, lessonExampleContext, workedExampleFor } from './platform/supports/workedExample/examplePlayer.js';
 import { focusAfterYourTurn } from './platform/supports/workedExample/yourTurnFocus.js';
+import { spotTheMistakeFor } from './platform/supports/workedExample/spotTheMistake.js';
 import { SR_ONLY_STYLE } from './ui/srOnly.js';
 import PracticeLikeThis from './platform/supports/workedExample/PracticeLikeThis.jsx';
 import { chosenOptionReasons, oneTryNotice } from './platform/supports/feedback/oneTryChoice.js';
@@ -716,6 +717,9 @@ function QuestionEngineBody({
   // An example Classwork opened by itself (examplePlayer.js): recorded apart
   // from one the student asked for, and never counted as help.
   const [workedExampleShown, setWorkedExampleShown] = useState(restoredSupport.workedExampleShown);
+  // "Spot the mistake" answered after the example (WE-F): a fact for the
+  // teacher, never a grade (spotTheMistake.js).
+  const [spotTheMistakeUsed, setSpotTheMistakeUsed] = useState(restoredSupport.spotTheMistakeUsed);
   const [similarOpen, setSimilarOpen] = useState(false);
   // The graded work behind the feedback on screen, kept beside it for the
   // display-only miss message (missDiagnosis.js). Never sent anywhere.
@@ -882,6 +886,7 @@ function QuestionEngineBody({
     setHintPanelOpen(false);
     setWorkedExampleUsed(restored.workedExampleUsed);
     setWorkedExampleShown(restored.workedExampleShown);
+    setSpotTheMistakeUsed(restored.spotTheMistakeUsed);
     setSimilarOpen(false);
     setGradedForDisplay(null);
     setWorkflowSubmissionReview(null);
@@ -1373,6 +1378,7 @@ function QuestionEngineBody({
     hintUsed,
     workedExampleUsed,
     workedExampleShown,
+    spotTheMistakeUsed,
     backUpStepDone: scaffoldComplete,
     backUpStepSource: scaffold.source,
     scaffoldUsed: specificStepUsed,
@@ -1384,9 +1390,9 @@ function QuestionEngineBody({
   // help actually had is written; memory never shrinks.
   useEffect(() => {
     const backUpSpecific = specificStepUsed || (scaffoldComplete && scaffold.source !== 'platform');
-    if (!hintUsed && !hintsRevealed && !workedExampleUsed && !workedExampleShown && !scaffoldComplete && !feedbackAssisted) return;
-    rememberSupportUse(draftKey, { hintUsed, hintsRevealed, workedExampleUsed, workedExampleShown, backUpStepUsed: scaffoldComplete, scaffoldUsed: backUpSpecific, feedbackAssisted });
-  }, [draftKey, hintUsed, hintsRevealed, workedExampleUsed, workedExampleShown, scaffoldComplete, specificStepUsed, scaffold.source, feedbackAssisted]);
+    if (!hintUsed && !hintsRevealed && !workedExampleUsed && !workedExampleShown && !spotTheMistakeUsed && !scaffoldComplete && !feedbackAssisted) return;
+    rememberSupportUse(draftKey, { hintUsed, hintsRevealed, workedExampleUsed, workedExampleShown, spotTheMistakeUsed, backUpStepUsed: scaffoldComplete, scaffoldUsed: backUpSpecific, feedbackAssisted });
+  }, [draftKey, hintUsed, hintsRevealed, workedExampleUsed, workedExampleShown, spotTheMistakeUsed, scaffoldComplete, specificStepUsed, scaffold.source, feedbackAssisted]);
 
   // Secure callers sometimes need to finalize the work already on screen
   // (for example, at a synchronized round deadline). Publish only the same
@@ -2071,6 +2077,13 @@ function QuestionEngineBody({
     }) : null),
     [exampleRule.offered, exampleRule.subSkills, processedQuestion, record.variantIndex, workedExampleContext],
   );
+  // SPOT THE MISTAKE (WE-F): after an example, wherever the section shows one
+  // (so never on a DOL, quiz or test), built from this question's own common
+  // error and held to the same guard as the example (spotTheMistake.js).
+  const spotTheMistake = useMemo(
+    () => (exampleRule.spotTheMistake && similarExample ? spotTheMistakeFor(processedQuestion, { seed: Number(record.variantIndex) || 0 }) : null),
+    [exampleRule.spotTheMistake, similarExample, processedQuestion, record.variantIndex],
+  );
   const askTeacher = typeof onAskTeacher === 'function' && !locked && !serverGrading
     ? { ...askTeacherContext, requested: Boolean(helpRequested), onToggle: () => onAskTeacher(!helpRequested) }
     : null;
@@ -2224,6 +2237,9 @@ function QuestionEngineBody({
       onOpenSimilar={openSimilarExample}
       onYourTurn={exampleYourTurn}
       similarOpenedByItself={exampleOpenedByItself}
+      whyThisStep={exampleRule.whyThisStep}
+      spotTheMistake={shownExample?.faded === true ? null : spotTheMistake}
+      onSpotTheMistake={() => setSpotTheMistakeUsed(true)}
       exampleFailure={exampleFailure}
       askTeacher={askTeacher}
       readAloud={supportedTextReadAloud}

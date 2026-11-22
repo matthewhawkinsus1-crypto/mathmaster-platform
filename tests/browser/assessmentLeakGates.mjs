@@ -796,6 +796,35 @@ const feedbackLadder = async () => {
       }
     });
   }
+  // WE-F: in practice the example ends with Spot the mistake, built from the
+  // item's own common error; answering it is recorded as a fact and the
+  // grade is the grade. (The DOL and test pages above carry the same common
+  // error: ladderLeaks finds none of its controls or words there.)
+  await scenario('practice feedback-ladder spot the mistake', async () => {
+    const page = await open('practice', 'feedback-ladder');
+    await page.locator('[data-hint-control]').click();
+    await page.locator('.mathmaster-hint-panel button', { hasText: 'Try a similar one' }).click();
+    const player = page.locator('.mathmaster-hint-panel [data-worked-example-player]').first();
+    await player.waitFor();
+    check(await player.locator('[data-spot-the-mistake]').count() === 0, 'practice feedback-ladder: Spot the mistake waits for the last slide');
+    const count = Number(await player.getAttribute('data-example-slide-count'));
+    for (let step = 1; step < count; step += 1) { await player.locator('[data-example-next]').click(); await settle(page, 80); }
+    const spot = player.locator('[data-spot-the-mistake]');
+    check(await spot.count() === 1, 'practice feedback-ladder: Spot the mistake follows the last slide');
+    check(/Dividing the change in x by the change in y/.test(await spot.locator('[data-spot-line]').innerText().catch(() => '')), 'practice feedback-ladder: its step is the item\'s own common error');
+    check(await spot.locator('[data-spot-choice]').count() === 3, 'practice feedback-ladder: three choices');
+    const right = spot.locator('[data-spot-choice]', { hasText: 'LEAKCHECK-ERROR' });
+    await right.click();
+    await settle(page, 150);
+    check((await spot.locator('[data-spot-feedback]').innerText()).trim().startsWith('Yes, that is what went wrong.'), 'practice feedback-ladder: the choice is answered in its polite region');
+    await player.locator('[data-example-your-turn]').click();
+    await settle(page, 300);
+    await typeAnswer(page, '\\frac{3}{4}');
+    await submitAnswer(page);
+    const grade = await lastGrade(page);
+    check(grade?.isCorrect === true, 'practice feedback-ladder: after Spot the mistake the right answer is graded right', brief(grade));
+    check(grade?.supportUsage?.spotTheMistakeUsed === true && grade?.supportUsage?.workedExampleUsed === true, 'practice feedback-ladder: Spot the mistake is recorded as a fact beside the example', JSON.stringify(grade?.supportUsage));
+  });
   // PR #462 review B2 / M6c: help had on a question is recorded with the
   // attempts that follow it — across a remount (the same draft key), and a
   // miss message on screen makes the next attempt feedback-assisted.

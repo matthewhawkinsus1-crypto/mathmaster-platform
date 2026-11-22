@@ -1,0 +1,121 @@
+/*
+ * SPOT THE MISTAKE (WE-F; docs/platform/WORKED_EXAMPLES.md sections 4 and 5).
+ *
+ *   spotTheMistakeFor(question, { seed }) → { line, choices, explanation } | null
+ *
+ * After the example's last slide, a step with the question's own common error
+ * in it, and three choices for what is wrong with it. Everything it says is
+ * read from the question; it writes no mathematics of its own:
+ *
+ *   the step      the first part of `solutionReview.commonError`, the part
+ *                 that says what was done ("Keeping < after dividing by −1");
+ *   the right     the rest of it, the part that says what is wrong with that
+ *   choice        ("That shades the wrong half-plane."). A common error that
+ *                 does not say both is not used: the step and the reason
+ *                 would be the same words;
+ *   two others    SPOT_THE_MISTAKE_GENERIC, two fixed choices that are never
+ *                 true of a step that holds a known mistake;
+ *   afterwards    the whole common error (`explanation`).
+ *
+ * WHY NOT THE QUESTION'S OTHER FIELDS FOR THE WRONG CHOICES. The only text a
+ * question holds that reads like a reason is its wrong-answer messages
+ * (`misconceptions[].message`), measured over every Classwork and Practice
+ * question with a common error in teacher-import-jsons (2026-11-22). Most of
+ * them state a true fact ("Exactly 800 pounds is allowed."), which is no wrong
+ * answer; the rest name a mistake on the same question, and that can be the
+ * common error in other words ("Using ≥." beside "The symbol points the wrong
+ * way."): a wrong choice that is right. So none is used. A choice offered as
+ * wrong is always wrong.
+ *
+ * WHAT IT MAY NOT SAY. The common error is written about THIS question, and
+ * some of them name its answer ("…so the domain is {0, 1, 2, 3, 4, 5}"). So
+ * every word it would show, the step, the choices and the explanation, goes
+ * through similarExampleIsSafe, the guard every worked sibling passes: none of
+ * it may state an answer of the question, and the step may not be the
+ * question's prompt. Anything that fails is not shown at all. A common error
+ * still holding a Question Family slot ({{m}}) is not shown either.
+ *
+ * WHERE. Wherever an example is (Classwork and Practice; examplePlayer.js
+ * exampleSectionRule), and so never on a DOL, quiz or test: the caller builds
+ * it only where the section's rule offers it. It never changes a score; that
+ * the student answered it is recorded as `spotTheMistakeUsed`, a fact, never
+ * whether the choice was right (supportUseMemory.js).
+ */
+import { similarExampleIsSafe } from './similarProblem.js';
+
+const text = (value) => (typeof value === 'string' ? value.trim().replace(/\s+/g, ' ') : '');
+const words = (value) => text(value).split(' ').filter(Boolean);
+
+/** Two choices that are never what went wrong in a step that holds a known mistake. */
+export const SPOT_THE_MISTAKE_GENERIC = Object.freeze([
+  'Nothing is wrong: the step is correct.',
+  'The step is right; it is only written in an untidy way.',
+]);
+
+// Where a common error turns from what was done to what is wrong with it, and
+// how the second part starts once it stands as a sentence of its own.
+const TURNS = Object.freeze([
+  { mark: ': ', lead: '' },
+  { mark: ' — ', lead: '' },
+  { mark: ' – ', lead: '' },
+  { mark: '; ', lead: '' },
+  { mark: ', which ', lead: 'That ' },
+  { mark: ', so ', lead: 'So ' },
+  { mark: ', because ', lead: 'Because ' },
+  { mark: '. ', lead: '' },
+]);
+
+// Outside $…$ only: a colon in mathematics is not a turn in the sentence.
+const insideMath = (value, index) => (value.slice(0, index).match(/\$/g) || []).length % 2 === 1;
+const sentence = (value) => {
+  const body = text(value).replace(/[\s.;:,—–]+$/u, '');
+  if (!body) return '';
+  return `${body.charAt(0).toUpperCase()}${body.slice(1)}.`;
+};
+
+/** The common error as { line, reason }, or null where it does not say both. */
+export const splitCommonError = (commonError) => {
+  const value = text(commonError);
+  if (!value || /\{\{|\}\}/.test(value)) return null;
+  let best = null;
+  for (const turn of TURNS) {
+    let index = value.indexOf(turn.mark);
+    while (index >= 0 && insideMath(value, index)) index = value.indexOf(turn.mark, index + 1);
+    if (index > 0 && (!best || index < best.index)) best = { index, turn };
+  }
+  if (!best) return null;
+  const line = sentence(value.slice(0, best.index));
+  const rest = text(value.slice(best.index + best.turn.mark.length));
+  const reason = sentence(best.turn.lead ? `${best.turn.lead}${rest}` : rest);
+  if (words(line).length < 2 || words(reason).length < 3) return null;
+  return { line, reason };
+};
+
+// A fixed place for the right choice, read from the question's own words: the
+// same question asks the same way every time, and the right one is not always first.
+const placeOf = (value, seed, count) => ([...value].reduce((sum, character) => (sum * 31 + character.charCodeAt(0)) % 9973, 7) + (Number(seed) || 0)) % count;
+
+/**
+ * Spot the mistake for this question, or null. `question` is the question as
+ * the student is given it (a family instance with its numbers filled in).
+ */
+export const spotTheMistakeFor = (question, { seed = 0 } = {}) => {
+  try {
+    const explanation = text(question?.solutionReview?.commonError);
+    const parts = splitCommonError(explanation);
+    if (!parts) return null;
+    const texts = [...SPOT_THE_MISTAKE_GENERIC];
+    texts.splice(placeOf(explanation, seed, 3), 0, parts.reason);
+    const choices = texts.map((choice, index) => ({ id: `mistake-${index + 1}`, text: choice, right: choice === parts.reason }));
+    // Every word it would show, held to the guard every worked sibling passes.
+    const safe = similarExampleIsSafe(question, {
+      prompt: parts.line,
+      steps: [parts.line, ...choices.map((choice) => choice.text), explanation],
+      answer: parts.reason,
+    });
+    if (!safe) return null;
+    return { source: 'commonError', line: parts.line, choices, explanation };
+  } catch {
+    return null;
+  }
+};

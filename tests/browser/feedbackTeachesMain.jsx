@@ -3,6 +3,7 @@
 //
 //   ?role=practice|dol      the activity policy
 //   ?q=multi|family|system  the fixture
+//   ?q=mistake              multi with a common error: Spot the mistake (WE-F)
 //   ?support=translate      give the student Read aloud + Translate (Spanish)
 //   ?support=translatereadout  the same, and the graph read-out (AX03)
 //   ?support=read           give the student Read aloud only (a plan's text-to-speech)
@@ -113,6 +114,20 @@ const QUESTIONS = {
       headline: 'Slope compares the change in y with the change in x.',
       reasoning: ['Change in y: 5 − 2 = 3.', 'Change in x: 5 − 1 = 4.', 'Slope = 3/4.'],
       answerSummary: 'The slope is 3/4.',
+    },
+  },
+  // `multi` with a common error, for Spot the mistake (WE-F;
+  // tests/browser/workedExamplePlayer.mjs).
+  mistake: {
+    questionId: 'feedback-mistake',
+    type: 'multiAnswer',
+    prompt: 'A line passes through (1, 2) and (5, 5). Find its slope.',
+    answerFields: [{ id: 'slope', label: 'Slope', answer: '3/4', inputProfile: 'text' }],
+    solutionReview: {
+      headline: 'Slope compares the change in y with the change in x.',
+      reasoning: ['Change in y: 5 − 2 = 3.', 'Change in x: 5 − 1 = 4.', 'Slope = 3/4.'],
+      answerSummary: 'The slope is 3/4.',
+      commonError: 'Dividing the change in x by the change in y: slope is the change in y over the change in x.',
     },
   },
   family: {

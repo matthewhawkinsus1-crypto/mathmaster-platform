@@ -36,7 +36,11 @@
 // `workedExampleShown`: Classwork opened an example by itself before a new
 // skill (examplePlayer.js). Remembered so it opens once; it is NOT help the
 // student asked for, and never makes an attempt a supported one.
-const FLAGS = Object.freeze(['hintUsed', 'workedExampleUsed', 'workedExampleShown', 'backUpStepUsed', 'scaffoldUsed', 'feedbackAssisted']);
+// `spotTheMistakeUsed`: the student answered "Spot the mistake" after an
+// example (WE-F; spotTheMistake.js). A fact for the teacher, the way
+// `workedExampleUsed` is one: never a grade, never whether the choice was
+// right, and it leaves independence to the example's own flags.
+const FLAGS = Object.freeze(['hintUsed', 'workedExampleUsed', 'workedExampleShown', 'spotTheMistakeUsed', 'backUpStepUsed', 'scaffoldUsed', 'feedbackAssisted']);
 
 /** What an attempt records for an example that opened by itself. */
 export const WORKED_EXAMPLE_SHOWN_AUTO = 'auto';
@@ -48,6 +52,7 @@ export const emptySupportUse = () => ({
   hintsRevealed: 0,
   workedExampleUsed: false,
   workedExampleShown: false,
+  spotTheMistakeUsed: false,
   backUpStepUsed: false,
   scaffoldUsed: false,
   feedbackAssisted: false,
@@ -73,6 +78,7 @@ export const supportUseFromRecord = (record = {}) => {
     hintUsed: usage.hintUsed === true,
     workedExampleUsed: usage.workedExampleUsed === true,
     workedExampleShown: usage.workedExampleShown === WORKED_EXAMPLE_SHOWN_AUTO,
+    spotTheMistakeUsed: usage.spotTheMistakeUsed === true,
     backUpStepUsed: usage.backUpStepUsed === true,
     scaffoldUsed: usage.scaffoldUsed === true,
     feedbackAssisted: usage.feedbackAssisted === true,
@@ -119,6 +125,9 @@ export const attemptSupportUsageFrom = ({
   // Classwork opened an example by itself: recorded apart, as a fact for the
   // teacher. Only one the student asked for (workedExampleUsed) is help.
   workedExampleShown = false,
+  // "Spot the mistake" answered (WE-F): a fact, kept only when true, so an
+  // attempt without it records exactly what it did before.
+  spotTheMistakeUsed = false,
   backUpStepDone = false,
   backUpStepSource = 'platform',
   scaffoldUsed = false,
@@ -136,6 +145,7 @@ export const attemptSupportUsageFrom = ({
     contextScaffoldUsed: Boolean(contextScaffoldUsed),
     workedExampleUsed: Boolean(workedExampleUsed),
     ...(workedExampleShown ? { workedExampleShown: WORKED_EXAMPLE_SHOWN_AUTO } : {}),
+    ...(spotTheMistakeUsed ? { spotTheMistakeUsed: true } : {}),
     feedbackAssisted: Boolean(feedbackAssisted),
     calculatorUsed: Boolean(calculatorUsed),
     // The host's own "not independent" (a teacher's help, a modification) stands.
