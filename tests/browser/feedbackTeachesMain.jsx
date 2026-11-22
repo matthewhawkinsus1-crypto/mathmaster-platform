@@ -301,6 +301,8 @@ const SUPPORT_PROFILES = {
   // The same, with the graph read-out (AX03): a graph is read in full while it can be answered.
   translatereadout: { accommodations: ['text-to-speech', 'translation', 'graph-read-out'], translationLanguage: 'es' },
   read: { accommodations: ['text-to-speech'] },
+  // See every part at once (SHOW THE STEP, SP-4: a part's step never holds its box shut).
+  everypart: { accommodations: ['every-part-at-once'] },
   // An inclusion student with a plan's Read aloud: the "Let's back up" step (HELP-19).
   inclusion: { inclusionStatus: true, accommodations: ['text-to-speech'] },
 };
