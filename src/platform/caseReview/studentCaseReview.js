@@ -20,7 +20,7 @@
  */
 import { buildSupportEvidenceReport, exportStatusFor } from '../supportEvidence/supportEvidenceReport.js';
 import { EVIDENCE_LEGEND, REPORT_LIMITATIONS } from '../../../functions/shared/supportEvidenceModel.mjs';
-import { zonedDateKey } from '../../../functions/shared/instructionalCalendar.mjs';
+import { parseInstant, zonedDateKey } from '../../../functions/shared/instructionalCalendar.mjs';
 import { staffOverrideEntryFor } from '../../../functions/shared/studentAssignmentOverrides.mjs';
 import {
   canonicalPresentedAssignmentGrade, canonicalPresentedSectionGrade, projectedAssignmentTrackerFor, assignmentGradeOverrideFor,
@@ -460,8 +460,11 @@ export const buildStudentCaseReview = ({
     signalsMeta: attemptSignalsMeta,
     questions: allQuestions,
     assignments: entries,
-    fromMs: Number.isFinite(support.meta?.fromMs) ? support.meta.fromMs : null,
-    toMs: Number.isFinite(support.meta?.toMs) ? support.meta.toMs : null,
+    // The case's window, as the support report bounds it: its two school days
+    // in the school's zone, the last one to its end (supportEvidenceReport.js).
+    // The report's meta carries the days, not the instants.
+    fromMs: parseInstant(support.meta?.fromDateKey, { timeZone: SCHOOL_TIME_ZONE }),
+    toMs: parseInstant(support.meta?.toDateKey, { endOfDay: true, timeZone: SCHOOL_TIME_ZONE }),
   });
 
   const timeline = buildCaseTimeline({

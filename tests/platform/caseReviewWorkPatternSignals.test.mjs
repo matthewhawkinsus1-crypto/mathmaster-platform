@@ -373,3 +373,30 @@ test("the case review reads the student's signals itself, reviewed ones included
   assert.match(executableSource(read('src/components/teacher/caseReview/StudentCaseReviewView.jsx')), /attemptSignalsMeta: records\.attemptSignalsMeta,/);
   assert.match(executableSource(read('src/components/teacher/caseReview/StudentCaseReviewView.jsx')), /attemptSignals: records\.attemptSignals,/);
 });
+
+test('through the case review itself: the window the teacher chose bounds the answers counted and the signals shown', () => {
+  // The teacher ends the case on 22 Sep. L1 and L2 are in it, and one L2
+  // Practice question was last answered on the 23rd, after the window. The
+  // signals are handed over unbounded, as a read that ignored the window would.
+  const selection = { gradingPeriodId: 'mp2', gradingPeriodLabel: '2nd Marking Period', fromDateKey: '2026-09-01', toDateKey: '2026-09-22' };
+  const at = (text) => Date.parse(text);
+  const lateAnswer = buildStudentCaseReview({ ...caseInputs(), selection }).questions.find((row) => row.assignmentId === 'L2' && row.lastAttemptAtMs > at('2026-09-23T00:00:00-05:00'));
+  assert.ok(lateAnswer, 'the fixture has an L2 answer after the window');
+  const inside = signal('L2', 1, 'pasted', { partIndex: 0, activityRole: 'classwork', recordedAt: at('2026-09-22T09:14:00-05:00') });
+  // The last day runs to its end in the school's zone; the next morning is outside.
+  const lastEvening = signal('L2', 2, 'pasted', { partIndex: 0, activityRole: 'classwork', recordedAt: at('2026-09-22T21:30:00-05:00') });
+  const nextMorning = signal('L2', lateAnswer.storageIndex, 'pasted', { partIndex: 0, activityRole: 'practice', recordedAt: at('2026-09-23T00:30:00-05:00') });
+  const narrowed = buildStudentCaseReview({ ...caseInputs(), selection, attemptSignals: [inside, lastEvening, nextMorning], attemptSignalsMeta: { firstRecordedAtMs: RECORDED_SINCE, capped: false, max: 500 } });
+  assert.deepEqual([narrowed.meta.fromDateKey, narrowed.meta.toDateKey], ['2026-09-01', '2026-09-22']);
+  const patterns = narrowed.workPatterns;
+  const answered = narrowed.questions.filter((row) => row.totalAttempts > 0);
+  assert.equal(answered.length, 16);
+  // A signal outside the window is not counted or shown.
+  assert.deepEqual(patterns.entries.map((entry) => entry.id), [inside.id, lastEvening.id]);
+  assert.equal(patterns.total, 2);
+  // An answer outside the window is counted as left out, not as an answer with no signal.
+  assert.deepEqual([patterns.denominator.answered, patterns.denominator.leftOut.outsideWindow], [15, 1]);
+  assert.match(patterns.denominator.words, /Left out: 1 answered outside this window\.$/);
+  assert.equal(patterns.frequency.find((row) => row.kind === 'pasted').line, 'Pasted into a math box on 2 of 15 answered questions.');
+  assert.deepEqual([patterns.comparison.withSignal.answered, patterns.comparison.withoutSignal.answered], [2, 13]);
+});
