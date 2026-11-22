@@ -138,6 +138,7 @@ const picture = (page) => player(page).first().evaluate((root) => {
     points: svg.querySelectorAll('[data-example-plane-point]').length,
     lines: [...svg.querySelectorAll('[data-example-plane-line]')].map((line) => ({ style: line.dataset.examplePlaneLine, dashed: Boolean(line.getAttribute('stroke-dasharray')), width: parseFloat(getComputedStyle(line).strokeWidth) })),
     regions: svg.querySelectorAll('[data-example-plane-region]').length,
+    regionEdges: [...svg.querySelectorAll('[data-example-plane-region]')].filter((region) => getComputedStyle(region).stroke !== 'none').length,
     moves: svg.querySelectorAll('[data-example-plane-move]').length,
     width: Math.round(box.width),
     height: Math.round(box.height),
@@ -190,6 +191,9 @@ for (const device of DEVICES) {
   check(drawn.board.lines.at(-1).name === 'The line, dashed' && /does not include/.test(drawn.text), where + ': and the slide says it is dashed, and why', drawn.board.lines.at(-1).name);
   check(/^(True|False)$/.test(at('testPoint').board.lines.at(-1).name) && at('testPoint').picture.regions === 0, where + ': the test point is put in before anything is shaded', at('testPoint').board.lines.at(-1).name);
   check(at('shade').picture.regions === 1 && /Shaded/.test(at('shade').board.lines.at(-1).name), where + ': then one side is shaded', JSON.stringify({ regions: at('shade').picture.regions }));
+  // The shading has no edge of its own: along the boundary it would close the gaps of the dashed line.
+  check(at('shade').picture.regionEdges === 0 && at('check').picture.regionEdges === 0, where + ': the shading is fill only', JSON.stringify({ shade: at('shade').picture.regionEdges, check: at('check').picture.regionEdges }));
+  check(['shade', 'check'].every((operation) => at(operation).picture.lines.length === 1 && at(operation).picture.lines[0].dashed), where + ': so the dashed line stays dashed once the side is shaded', JSON.stringify(at('shade').picture.lines));
   check(/^(A solution|Not a solution)$/.test(at('check').board.lines.at(-1).name), where + ': the marked point is checked', at('check').board.lines.at(-1).name);
   const last = seen.at(-1);
   check(last.kind === 'answer' && /Answer:/.test(last.text) && last.next === 'Your turn', where + ': then the answer and "Your turn"', last.text.slice(0, 80));

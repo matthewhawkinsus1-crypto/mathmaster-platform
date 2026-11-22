@@ -372,6 +372,11 @@ test('what the player is handed: a picture with a name in words, and the same mo
   assert.match(source, /\{board\.plane \? <PlaneFigure plane=\{board\.plane\} \/> : null\}/);
   assert.match(source, /role="img"\s+aria-label=\{planeSummary\(plane\)\}/);
   assert.match(source, /strokeDasharray=\{drawn\.style === 'dashed' \? '7 5' : undefined\}/);
+  // A shaded region has no edge of its own: along the boundary it would close the gaps of a dashed line.
+  const regionAt = source.indexOf('data-example-plane-region=""');
+  const region = source.slice(source.lastIndexOf('<polygon', regionAt), source.indexOf('/>', regionAt));
+  assert.match(region, /stroke="none"/);
+  assert.doesNotMatch(region, /strokeWidth|strokeOpacity|stroke="currentColor"/);
   const imports = [...source.matchAll(/^import [^;]*? from '([^']+)';/gms)].map((match) => match[1]);
   assert.deepEqual(imports, ['react', './exampleSlides.js']);
   assert.deepEqual([...read('src/platform/supports/workedExample/exampleSlides.js').matchAll(/^import /gm)], []);

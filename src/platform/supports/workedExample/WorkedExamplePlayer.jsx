@@ -90,8 +90,9 @@ function PlaneFigure({ plane }) {
     >
       {ticks(xMin, xMax).map((x) => <line key={`x${x}`} x1={px(x)} y1={0} x2={px(x)} y2={SIZE} stroke="currentColor" strokeOpacity={x === 0 ? 0.9 : 0.14} strokeWidth={x === 0 ? 1.5 : 1} />)}
       {ticks(yMin, yMax).map((y) => <line key={`y${y}`} x1={0} y1={py(y)} x2={SIZE} y2={py(y)} stroke="currentColor" strokeOpacity={y === 0 ? 0.9 : 0.14} strokeWidth={y === 0 ? 1.5 : 1} />)}
+      {/* A shaded region is fill only: an edge of its own would lie along the boundary and close the gaps of a dashed line. */}
       {plane.regions.map((region, index) => (
-        <polygon key={`r${index}`} data-example-plane-region="" points={region.points.map(([x, y]) => `${px(x)},${py(y)}`).join(' ')} fill="currentColor" fillOpacity={0.16} stroke="currentColor" strokeOpacity={0.35} strokeWidth={1} />
+        <polygon key={`r${index}`} data-example-plane-region="" points={region.points.map(([x, y]) => `${px(x)},${py(y)}`).join(' ')} fill="currentColor" fillOpacity={0.16} stroke="none" />
       ))}
       {plane.lines.map((drawn, index) => (
         <line
