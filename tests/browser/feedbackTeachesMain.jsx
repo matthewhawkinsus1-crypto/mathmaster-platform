@@ -78,6 +78,8 @@ import linearRepresentationsLesson from '../../docs/assignments/Algebra1_Linear_
 import inequalitiesLesson from '../../teacher-import-jsons/algebra1-module3/T2_L4_Graphing_Inequalities_in_Two_Variables.json';
 import learningSupportsLesson from '../platform/fixtures/learningSupportsLessonFragment.json';
 import radicalEquationsLesson from '../../teacher-import-jsons/algebra2-polynomials-radicals-honors/5_Solving_Radical_Equations_Honors_Step_Algebra.json';
+import graphingInequalitiesLesson from '../../teacher-import-jsons/algebra1-module3/T2_L4_Graphing_Inequalities_in_Two_Variables.json';
+import graphingSystemsLesson from '../../teacher-import-jsons/algebra1-module3/T2_L1_Solving_Systems_by_Graphing.json';
 import { parseAssignmentBlueprintText } from '../../src/assignmentBlueprint.js';
 import { canonicalV5PersistencePatch, getStoredAssignmentQuestions } from '../../src/platform/contract/storedAssignmentV5.js';
 import '../../src/index.css';
@@ -227,9 +229,24 @@ const QUESTIONS = {
 //   ?q=radicalac   Practice 4, a leading coefficient of 3    (srh-p-4)
 //   ?q=radicaldol  the DOL                                   (srh-dol-1)
 const RADICAL_QUESTIONS = { radical: 'srh-cw-1', radical2: 'srh-cw-2', radicalpr: 'srh-p-1', radicalac: 'srh-p-4', radicaldol: 'srh-dol-1' };
-const REPLAY_QUESTIONS = { replay: 'ls-cw-2', replay2: 'ls-cw-3', replaypr: 'ls-pr-1', replaydol: 'ls-dol-1', ...RADICAL_QUESTIONS };
+// Two published Algebra I lessons answered on the plane, for the plane and
+// inequality replay (WE-E).
+//   ?q=plane      Classwork, graph y > 4x − 6 and test a point   (m3t2l4-cw-6)
+//   ?q=plane2     Classwork, the next inequality on the skill    (m3t2l4-cw-8)
+//   ?q=planerw    Practice, an inequality in standard form       (m3t2l4-p-3)
+//   ?q=planepr    Practice 1                                     (m3t2l4-p-1)
+//   ?q=planedol   the DOL                                        (m3t2l4-dol-1)
+//   ?q=planesys   Classwork, graph a system of two lines         (m3t2l1-cw-7)
+//   ?q=planeline  the warm-up, graph a line                      (m3t2l1-wu-2)
+const INEQUALITY_QUESTIONS = { plane: 'm3t2l4-cw-6', plane2: 'm3t2l4-cw-8', planerw: 'm3t2l4-p-3', planepr: 'm3t2l4-p-1', planedol: 'm3t2l4-dol-1' };
+const SYSTEM_QUESTIONS = { planesys: 'm3t2l1-cw-7', planeline: 'm3t2l1-wu-2' };
+const REPLAY_QUESTIONS = { replay: 'ls-cw-2', replay2: 'ls-cw-3', replaypr: 'ls-pr-1', replaydol: 'ls-dol-1', ...RADICAL_QUESTIONS, ...INEQUALITY_QUESTIONS, ...SYSTEM_QUESTIONS };
+const replayLessonSource = RADICAL_QUESTIONS[which] ? radicalEquationsLesson
+  : INEQUALITY_QUESTIONS[which] ? graphingInequalitiesLesson
+    : SYSTEM_QUESTIONS[which] ? graphingSystemsLesson
+      : learningSupportsLesson;
 const replayLesson = REPLAY_QUESTIONS[which]
-  ? { id: 'replay-lesson', ...canonicalV5PersistencePatch(parseAssignmentBlueprintText(JSON.stringify(RADICAL_QUESTIONS[which] ? radicalEquationsLesson : learningSupportsLesson)).assignmentV5) }
+  ? { id: 'replay-lesson', ...canonicalV5PersistencePatch(parseAssignmentBlueprintText(JSON.stringify(replayLessonSource)).assignmentV5) }
   : null;
 const replayQuestions = replayLesson ? getStoredAssignmentQuestions(replayLesson) : null;
 const question = replayQuestions

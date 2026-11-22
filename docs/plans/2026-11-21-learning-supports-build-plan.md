@@ -57,6 +57,7 @@ gate, and merges with a merge commit when CI is green.
 | SP-3: follow-through parts (the student's earlier value in the label and the key) | #601 |
 | SP-5: Pre-Flight authoring rules (tool first, show the step), new assignments only | #603 |
 | WE-D: the radical replay with factoring slides | #602 |
+| WE-E: the plane and inequality replay | #607 |
 
 ## Track SP: showing the process
 

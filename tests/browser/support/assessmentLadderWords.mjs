@@ -48,7 +48,11 @@ export const LADDER_WORDS = Object.freeze(['LEAKCHECK', 'A hint is ready', 'Show
   // The radical replay (WE-D): the names of its rejected candidate and its zero
   // product line. "Show how" is a phrase real prompts use, so the gate looks
   // for the button itself (EXAMPLE_CONTROL_SELECTORS).
-  'Extraneous: rejected', 'Each factor equal to 0']);
+  'Extraneous: rejected', 'Each factor equal to 0',
+  // The plane replay (WE-E): the names of its drawn line and its test point.
+  // "Rise and run" is a phrase real prompts use, so the gate looks for the
+  // picture itself (EXAMPLE_CONTROL_SELECTORS).
+  'The line, dashed', 'The line, solid', 'With the point put in']);
 
 /**
  * Every control of the worked example: the open example, the player inside
@@ -59,7 +63,7 @@ export const EXAMPLE_CONTROL_SELECTORS = Object.freeze([
   '[data-similar-example]', '[data-worked-example-player]', '[data-similar-offer]', '[data-example-opened-by-itself]', '[data-example-next]', '[data-example-your-turn]',
   '[data-example-announcement]', '[data-example-whole]',
   // WE-C: a replayed move's board, and a faded example.
-  '[data-example-board]', '[data-example-board-line]', '[data-example-faded]', '[data-example-show-how]',
+  '[data-example-board]', '[data-example-board-line]', '[data-example-faded]', '[data-example-show-how]', '[data-example-plane]',
 ]);
 
 // Every misconception and generic miss message.

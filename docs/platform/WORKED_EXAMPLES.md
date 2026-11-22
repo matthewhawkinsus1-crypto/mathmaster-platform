@@ -2,8 +2,9 @@
 
 Status: **decided by the owner on 2026-11-20. Slice A (the player and the
 section rules), slice B (the coverage report), slice C (the Step Algebra
-replay), slice D (the radical replay with its factoring slides) and slice G
-(the teacher's view) are built; E, F and H are not.**
+replay), slice D (the radical replay with its factoring slides), slice E (the
+plane and inequality replay) and slice G (the teacher's view) are built; F and
+H are not.**
 This page is the spec. The build is split into slices that can ship in any
 order (section 9). Its companion, `docs/platform/SHOWING_THE_PROCESS.md`,
 covers answer boxes that one screenshot cannot answer.
@@ -61,10 +62,9 @@ Where slice G lives:
   of `tests/browser/teacherWorkflow/teacherSignalsJourneys.mjs`.
 
 What slice A plays: the question family's sibling, or the step card a lesson
-wrote (`steps`), when it passes `similarExampleIsSafe`. Not yet: a replay on
-the plane or the inequality builder (slice E; such a question gets its
-family's sibling meanwhile), and a sibling for a question no family claims
-(an authored step card, or the generators of WE-I in the build plan).
+wrote (`steps`), when it passes `similarExampleIsSafe`. Not yet: a sibling for
+a question no family claims (an authored step card, or the generators of WE-I
+in the build plan).
 
 Where slice C lives, and what it plays:
 - **The replay:** `src/platform/supports/workedExample/stepAlgebraReplay.js`.
@@ -151,6 +151,50 @@ Where slice D lives, and what it plays:
   is refused; a built-in sibling is never one.
 - **Tests:** `tests/platform/radicalReplay.test.mjs` and
   `tests/browser/radicalReplay.mjs`.
+
+Where slice E lives, and what it plays:
+- **The replay:** `src/platform/supports/workedExample/planeReplay.js`. A
+  question answered on the plane gets a sibling played as what its own tool
+  records, one move per slide:
+  - `constructLine` (Graphing, y = mx + b): the y-intercept, rise and run to a
+    second point, the line, a check;
+  - `graphSystem` (Systems Workspace, two lines the student draws): each line
+    the same way, where they cross, the check in both equations;
+  - `solveInequalitySystem` (the inequality builder, one or two inequalities):
+    the y-intercept, rise and run, the boundary line **solid or dashed**, a
+    test point, the shading; for two, the overlap; then the marked point
+    checked. An inequality given in standard form is solved for y first, on a
+    slide of its own, the sign turning around where the y-term is negative.
+  These inequality questions had no example at all before.
+- **The example draws what the student's tool records.** Each replay builds
+  the record the tool itself holds (the plotted points, the style, the shading
+  point, the classification, the marked point's answers) and hands it to that
+  tool's own grader, the one the browser, the question and the server run
+  (`serverGrading/tools/graphing2.mjs`, `systemsWorkspace.mjs`). A record the
+  grader does not mark correct is not played. What a slide draws is the
+  engine's too: the line through two plotted points, the crossing point
+  (`solveTwoLines`), a test point's verdict (`satisfiesBoundary`) and the
+  shaded region (`feasibleRegionPolygon`).
+- **Every move is a picture and words.** The player draws the plane so far
+  (`board.plane`: points, the rise and the run, each line solid or dashed, the
+  shading) and, under it, the same move as named lines. The picture has a name
+  in words (`planeSummary`); nothing rests on it alone.
+- **The sibling** (`planeSiblingFor`), on a plain −10 to 10 plane: a line
+  keeps its slope's sign and whether it is whole or a fraction; an inequality
+  keeps its sign (so solid or dashed, above or below), whether it is in
+  standard form and the sign of its y-term, and whether a point is marked to
+  check. **A system's example always crosses once:** how many solutions the
+  student's own system has is part of its answer, so the example never says
+  (the family's own text example does the same).
+- **Faded:** the first move only (the y-intercept); a faded example stops
+  before the line is drawn.
+- **Not played** (such a question keeps what it had): a line in point-slope,
+  standard or vertical and horizontal form; a system the student does not
+  draw; an inequality with a vertical or horizontal boundary, three or more
+  inequalities, a model to write first, or no boundary to build. The example
+  does not classify the region or list its vertices, where the item asks that.
+- **Tests:** `tests/platform/planeReplay.test.mjs` and
+  `tests/browser/planeReplay.mjs`.
 
 A built-in step is a full sentence that carries its own reason; only a
 lesson's step card has a separate "why" line.

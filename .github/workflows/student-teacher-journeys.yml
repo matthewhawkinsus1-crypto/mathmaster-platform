@@ -724,6 +724,15 @@ jobs:
           PLAYWRIGHT_MODULE: playwright
           AUDIT_ORIGIN: "http://127.0.0.1:5199"
         run: node tests/browser/radicalReplay.mjs
+      # WE-E: a question answered on the plane gets an example drawn as its own
+      # tool's record: the intercept, rise and run, the line solid or dashed,
+      # a test point, the shading, the check.
+      - name: Plane and inequality replay (what the student's tool records)
+        if: ${{ !cancelled() }}
+        env:
+          PLAYWRIGHT_MODULE: playwright
+          AUDIT_ORIGIN: "http://127.0.0.1:5199"
+        run: node tests/browser/planeReplay.mjs
       # Read aloud says the whole question (choices, matrices, parts heard
       # again) and Translate shows Spanish or says why not (student pass 3, batch 6).
       - name: Read aloud and Translate (heard and seen)

@@ -58,6 +58,7 @@ import { exampleSkillOf } from './exampleSkill.js';
 import { familyFor } from '../families/index.js';
 import { isStepAlgebraReplayEntry, replayHandOver, replayStepAlgebra, stepAlgebraMovesFor } from './stepAlgebraReplay.js';
 import { RADICAL_REPLAY_TOOL, isRadicalReplayEntry, radicalItemIsVerified, radicalSiblingEquation, replayRadicalEquation } from './radicalReplay.js';
+import { planeSiblingFor, replayPlaneExample } from './planeReplay.js';
 
 // A step as { show, why } (the same reading exampleSlides.js gives it; that
 // module is the player's own, and is not imported here: see its header).
@@ -264,6 +265,34 @@ const radicalFamilyReplay = (question, { seed = 0, assignmentProblems = null, as
   return null;
 };
 
+// A question answered on the plane (a line to graph, a system to graph, an
+// inequality to build): its example is a sibling played as the record its own
+// tool holds, graded by that tool's grader (planeReplay.js). Null where the
+// question is not one of these, or no sibling of it can be played.
+const planeFamilyReplay = (question, { seed = 0, assignmentProblems = null, asReplay = true } = {}) => {
+  for (let turn = 0; turn < 4; turn += 1) {
+    const sibling = planeSiblingFor(question, { seed: (Number(seed) || 0) + turn });
+    if (!sibling) return null;
+    // Asked only whether the question has an example: it has, and nothing is drawn.
+    if (!asReplay) return { source: 'family', format: 'steps', prompt: 'A question like this one, on the plane.', steps: [{ show: 'Played on request.', why: '' }], answer: '', handOverAfter: 0 };
+    const replay = replayPlaneExample(sibling);
+    if (!replay.ok) continue;
+    const example = {
+      source: 'family',
+      format: 'replay',
+      tool: replay.tool,
+      prompt: replay.prompt,
+      steps: replay.steps,
+      answer: replay.answer,
+      // A built-in replay fades after its first move.
+      handOverAfter: Math.min(1, replay.fadeLimit),
+      fadeLimit: replay.fadeLimit,
+    };
+    if (!isAssignmentItem(example.prompt, assignmentProblems) && safeFor(question, example)) return example;
+  }
+  return null;
+};
+
 function safeFor(question, example) {
   return similarExampleIsSafe(question, {
   prompt: example.prompt,
@@ -299,6 +328,8 @@ export const workedExampleFor = (question, { seed = 0, lessonSupports = null, se
     if (authored && !isAssignmentItem(authored.prompt, assignmentProblems) && safeFor(question, authored)) return withSubSkillMode(authored, subSkills, sectionRole);
     const radical = radicalFamilyReplay(question, { seed, assignmentProblems, asReplay });
     if (radical) return withSubSkillMode(radical, subSkills, sectionRole);
+    const plane = planeFamilyReplay(question, { seed, assignmentProblems, asReplay });
+    if (plane) return plane;
     // The family tries six seeds from the one it is given, so each pass here is six new ones.
     for (let pass = 0; pass < 3; pass += 1) {
       const sibling = buildSimilarWorkedExample(question, { seed: (Number(seed) || 0) + pass * 6 });
