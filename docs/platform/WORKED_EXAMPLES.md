@@ -3,8 +3,9 @@
 Status: **decided by the owner on 2026-11-20. Slice A (the player and the
 section rules), slice B (the coverage report), slice C (the Step Algebra
 replay), slice D (the radical replay with its factoring slides), slice E (the
-plane and inequality replay) and slice G (the teacher's view) are built; F and
-H are not.**
+plane and inequality replay) and slice G (the teacher's view) are built. Of
+slice F, Spot the mistake and Why this step? are built; the model answer is
+not, because no field holds one yet (below). H is not built.**
 This page is the spec. The build is split into slices that can ship in any
 order (section 9). Its companion, `docs/platform/SHOWING_THE_PROCESS.md`,
 covers answer boxes that one screenshot cannot answer.
@@ -195,6 +196,91 @@ Where slice E lives, and what it plays:
   does not classify the region or list its vertices, where the item asks that.
 - **Tests:** `tests/platform/planeReplay.test.mjs` and
   `tests/browser/planeReplay.mjs`.
+
+Where slice F lives, and what it does:
+- **The section rules:** `exampleSectionRule` (`examplePlayer.js`) says
+  `spotTheMistake` wherever an example is offered (Classwork and Practice) and
+  `whyThisStep` on Classwork running as Classwork only. On a DOL, quiz or test,
+  and wherever `hintsAllowed` is false, both are false: nothing is built and
+  nothing is drawn.
+- **Spot the mistake:** `spotTheMistake.js` (built in `QuestionEngine.jsx`,
+  drawn by the player on the last slide of a whole example; a faded example
+  has none).
+  - The step is the first part of the question's own
+    `solutionReview.commonError`, the part that says what was done; the right
+    choice is the rest, the part that says what is wrong with it (the turn is
+    the first `: `, ` — `, `; `, `, which`, `, so`, `, because` or `. `
+    outside `$…$`). A common error that says only what was done is not used:
+    the step and its reason would be the same words.
+  - The two wrong choices are fixed (`SPOT_THE_MISTAKE_GENERIC`): both say the
+    step is correct, which a step holding a known mistake never is. The
+    question's other fields were measured as a source (below) and are not used.
+  - Nothing else is written: no mathematics of its own. Every word it would
+    show (the step, the choices, the whole common error shown after a choice)
+    goes through `similarExampleIsSafe`; one that states an answer of the
+    question, or whose step is the question's prompt, is not shown at all, nor
+    is one still holding a Question Family slot (`{{m}}`).
+  - Over the Classwork and Practice questions in `teacher-import-jsons` with a
+    common error (824 on 2026-11-22), 561 say both parts, and 450 of those pass
+    the guard and are shown; the guard holds back the other 111.
+  - **Recorded as a fact, not a grade:** answering it sets
+    `supportUsage.spotTheMistakeUsed: true` (absent otherwise, so a record
+    without it keeps its shape), kept by `attemptPolicy.mjs` and
+    `supportUseMemory.js` like `workedExampleShown`. Whether the choice was
+    right is never recorded. It changes no score, uses no attempt and leaves
+    independence to the example's own flags. The teacher's attempt analysis
+    names it "Spot the mistake answered".
+- **Why the wrong choices are not the question's own text.** The only fields
+  that read like a reason are the wrong-answer messages
+  (`misconceptions[].message`). Most state a true fact ("Exactly 800 pounds is
+  allowed."), which is no wrong answer; the rest name a mistake on the same
+  question, and can be the common error in other words ("Using ≥." beside "The
+  symbol points the wrong way."). A choice offered as wrong has to be wrong.
+- **Why this step?:** `whyThisStepFor` (`exampleSlides.js`), drawn by the
+  player. The slide before the example's first step with a why names that
+  step's move (a replayed move's name, or a step card's line) and asks for its
+  reason: that step's own `why` and the first two other `why` lines of the same
+  example, nothing written for it. An example with fewer than three different
+  whys asks nothing (a family's text steps have none). Skip, or Next, goes on
+  without a choice; the step then plays with its reason like every step; the
+  example never asks again (Back, or opened again). Not scored, not recorded.
+- **Accessibility**, as WE-A and WE-E do it: every choice is a button of 44px or
+  more with its own edge (the chosen Spot the mistake choice a heavier edge and
+  "Your choice" in words, the others dashed and `aria-disabled`); each answer
+  is said in a polite region that is in the page, empty, before a choice; the
+  Why this step? choices sit outside the slide's live region, and focus goes
+  to Next once they go; Read aloud and Translate read the question and its
+  choices with the slide, and Spot the mistake has its own (its fixed
+  sentences are in the Spanish pack, `esSupport.js`; a teacher's common error
+  stays English until translated).
+- **The leak gate:** their sentences, the two fixed choices and their controls
+  (`[data-spot-the-mistake]`, `[data-why-this-step]` and their choices) are in
+  `tests/browser/support/assessmentLadderWords.mjs`, and the gate's DOL and
+  test page carries a common error.
+- **Tests:** `tests/platform/workedExampleChecks.test.mjs`, the WE-F sections
+  of `tests/browser/workedExamplePlayer.mjs`, and the practice Spot the mistake
+  scenario in `tests/browser/assessmentLeakGates.mjs`.
+
+**The model answer is not built.** AG-1 defines `"example": { "none":
+"explain" }` and nothing else: the validator refuses any other key in it, and
+no question field holds a model answer and its checklist. (`sampleAnswer`
+exists only on a `contextInterpretation` item and is answer-key material in
+`functions/shared/assignmentKeySplit.mjs`.) The contract it needs is an owner
+or lead decision. What was proposed (2026-11-22, not decided):
+- a question field `modelAnswer: { "text": "...", "checklist": ["...", ...] }`,
+  beside `"example": { "none": "explain" }`, on Classwork and Practice only;
+- `text` a short strong answer in full sentences; `checklist` two to five short
+  lines, each one thing the answer includes;
+- the validator refusing: a `modelAnswer` that is not that shape or has other
+  keys; an empty `text`; a checklist outside two to five lines; one on a DOL,
+  quiz or test question; one on a question that is not `"none": "explain"`.
+  Pre-Flight warning on a new assignment's `"none": "explain"` with none;
+- `modelAnswer` matches the key split's `[a-z]Answers?$` family, so it is
+  answer-key material (shown after the item closes, as Solution Review is). A
+  checklist shown before the student answers would need a field of its own,
+  outside that family;
+- `translations.es.modelAnswer` for the teacher's Spanish, as for
+  `solutionReview`.
 
 A built-in step is a full sentence that carries its own reason; only a
 lesson's step card has a separate "why" line.

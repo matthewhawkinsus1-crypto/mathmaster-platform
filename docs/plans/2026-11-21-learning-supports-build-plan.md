@@ -58,6 +58,7 @@ gate, and merges with a merge commit when CI is green.
 | SP-5: Pre-Flight authoring rules (tool first, show the step), new assignments only | #603 |
 | WE-D: the radical replay with factoring slides | #602 |
 | WE-E: the plane and inequality replay | #607 |
+| WE-F: Spot the mistake and Why this step? (the model answer waits for its contract: no field holds one) | this PR |
 
 ## Track SP: showing the process
 
