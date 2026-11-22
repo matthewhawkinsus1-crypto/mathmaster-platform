@@ -39,6 +39,24 @@ export const EXAMPLE_SHOW_HOW_LABEL = 'Show how';
 const SUB_SKILL_NAMES = Object.freeze({ 'factor.trinomial': 'factoring', 'factor.trinomialAC': 'factoring', 'factor.commonFactor': 'factoring' });
 const subSkillName = (skill) => SUB_SKILL_NAMES[skill] || 'the skill inside this step';
 
+/**
+ * A plane picture in words (planeReplay.js): what is plotted, drawn and
+ * shaded so far. The picture's name for a screen reader; the step's own lines
+ * say the same move in full.
+ */
+export const planeSummary = (plane) => {
+  if (!isObject(plane)) return '';
+  const points = list(plane.points).map((point) => text(point?.label)).filter(Boolean);
+  const lines = list(plane.lines);
+  const regions = list(plane.regions).length;
+  return [
+    'Coordinate plane.',
+    points.length ? `${points.length === 1 ? 'Point' : 'Points'} ${points.join(', ')}.` : '',
+    lines.length ? `${lines.length === 1 ? 'One line' : `${lines.length} lines`}: ${lines.map((drawn) => (drawn?.style === 'dashed' ? 'dashed' : 'solid')).join(', ')}.` : '',
+    regions ? `${regions === 1 ? 'One shaded region' : `${regions} shaded regions`}.` : '',
+  ].filter(Boolean).join(' ');
+};
+
 /** Where "Show how" lands: the first of the slides it opens. */
 export const shownHowSlideIndex = (example, skill) => {
   const index = exampleSlides(example, { shownHow: true }).findIndex((slide) => slide.subSkill?.skill === skill);

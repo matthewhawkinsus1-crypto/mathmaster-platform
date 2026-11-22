@@ -63,7 +63,8 @@ const near = (a, b) => Math.abs(a - b) <= 1e-6;
 
 /* ------------------------------------------------------------------ slopes */
 
-const SLOPES = Object.freeze([[1, 1], [2, 1], [3, 1], [1, 2], [3, 2], [1, 3], [2, 3]]);
+// Tried in this order: a slope of 1 is the plainest, so it comes last among the whole ones.
+const SLOPES = Object.freeze([[2, 1], [3, 1], [1, 1], [1, 2], [3, 2], [1, 3], [2, 3]]);
 const gcd = (a, b) => (b ? gcd(b, a % b) : Math.abs(a));
 /** A slope as rise over run in lowest terms (run > 0), or null where it is not a small fraction. */
 export const riseAndRun = (m) => {
@@ -260,8 +261,8 @@ const systemReplay = (question) => {
       op: 'intersection',
       label: 'Find where the lines cross',
       why: PLANE_WHY.cross,
-      show: `The two lines cross at $${pointLatex(at)}$. They cross once, so the system has exactly one solution.`,
-      lines: [line('before', 'The lines', `${equations[0]} \\text{ and } ${equations[1]}`), line('after', 'They cross at', pointLatex(at), true), line('count', 'Number of solutions', '\\text{exactly one}')],
+      show: `The slopes are different, so the lines cross at a single point: $${pointLatex(at)}$.`,
+      lines: [line('before', 'The lines', `${equations[0]} \\text{ and } ${equations[1]}`), line('after', 'They cross at', pointLatex(at), true)],
       plane: { ...picture, points: [{ x: at[0], y: at[1], label: pointLatex(at), mark: 'cross' }] },
     }));
     steps.push(stepOf({
@@ -277,7 +278,8 @@ const systemReplay = (question) => {
       plane: { ...picture, points: [{ x: at[0], y: at[1], label: pointLatex(at), mark: 'cross' }] },
     }));
     if (!targets.every((target) => near(valueOf(target, at[0]), at[1]))) return refused('its crossing point does not check in both equations.');
-    answer = `${SOLUTION_WORDS.one}: $${pointLatex(at)}$.`;
+    // The crossing point only: how many solutions the student's own system has is theirs to decide.
+    answer = `$${pointLatex(at)}$`;
   } else {
     const none = solution.type === 'none';
     steps.push(stepOf({
@@ -299,7 +301,7 @@ const systemReplay = (question) => {
   return {
     ok: true,
     tool: PLANE_REPLAY_TOOL.SYSTEM,
-    prompt: `Graph the system $${equations[0]}$ and $${equations[1]}$. Decide how many solutions it has, and give the solution if there is one.`,
+    prompt: `Graph the system $${equations[0]}$ and $${equations[1]}$, and find where the lines cross.`,
     steps,
     answer,
     record: work,
@@ -547,15 +549,18 @@ const lineSibling = (question, seed) => {
 
 const systemSibling = (question, seed) => {
   const item = question.system;
-  const type = solveTwoLines(item).type;
+  // Always two lines that cross once, as the family's own example is: an
+  // example that kept the item's number of solutions would give that part of
+  // its answer away (similarExampleIsSafe reads the case names as answers).
+  const type = 'one';
   const first = slopesLike(item.m1);
   const second = slopesLike(item.m2);
   for (let turn = 0; turn < 40; turn += 1) {
     const one = pickFrom(first, seed, turn);
     if (!one) return null;
     let system = null;
-    if (type === 'one') {
-      const two = pickFrom(second.filter((candidate) => !near(candidate.m, one.m)), seed + turn, Math.floor(turn / 3));
+    {
+      const two = pickFrom((second.length ? second : first).filter((candidate) => !near(candidate.m, one.m)), seed + turn, Math.floor(turn / 3));
       if (!two) continue;
       // The lines cross at a grid point: its x is a multiple of both runs.
       const step = one.run * two.run;
@@ -567,11 +572,6 @@ const systemSibling = (question, seed) => {
       system = { m1: one.m, b1: Math.round(b1), m2: two.m, b2: Math.round(b2) };
       const solved = solveTwoLines(item);
       if (near(x0, Number(solved.x)) && near(y0, Number(solved.y))) continue;
-    } else {
-      const b1 = pickFrom(INTERCEPTS, seed, turn);
-      if (type !== 'none') return null;
-      const b2 = pickFrom(INTERCEPTS.filter((value) => value !== b1), seed + 3, turn);
-      system = { m1: one.m, b1, m2: one.m, b2 };
     }
     const sibling = { type: 'systemsWorkspace', mode: 'linear', interaction: 'construct', system, graph: { ...PLANE_BOUNDS, xStep: 1, yStep: 1 } };
     if (replayPlaneExample(sibling).ok) return sibling;
@@ -652,8 +652,9 @@ const inequalitySibling = (question, seed) => {
 /**
  * A sibling for a question answered on the plane: the same tool and the same
  * kind of problem with other numbers, or null. A line keeps its slope's sign
- * and whether it is whole or a fraction; a system keeps how many solutions it
- * has; an inequality keeps its sign (so solid or dashed, above or below),
+ * and whether it is whole or a fraction; a system is always two lines that
+ * cross once (its number of solutions is part of the item's answer, so the
+ * example does not say the item's); an inequality keeps its sign (so solid or dashed, above or below),
  * whether it is given in standard form (and the sign of its y-term, so the
  * sign turns around where the item's does), and whether a point is marked to
  * check. It is drawn on a plain −10 to 10 plane.
