@@ -133,6 +133,43 @@ test('no later question on the skill, and a "next" question answered earlier, ar
   assert.ok(view.limitations.some((line) => /does not hold when an example was opened/.test(line)));
 });
 
+test('the next question is one the gradebook shows: a question the teacher left out is passed over', () => {
+  // Classwork question 2 (factoring) is left out of the assignment. For a
+  // student shown the example on question 1, the next factoring question is
+  // Practice question 4, the one after it.
+  const sections = ASSIGNMENT.sections.map((section, position) => (position === 0 ? { ...section, questions: [section.questions[0], { ...section.questions[1], teacherExcluded: true }, section.questions[2]] } : section));
+  const leftOut = buildWorkedExampleView({ assignment: { ...ASSIGNMENT, sections }, students: [{ id: 'S1', name: 'Ana Ruiz', tracker: { 0: answer('correct', 1, SHOWN, 1), 3: answer('correct', 1, {}, 12) } }] });
+  assert.deepEqual(leftOut.skills[0].questionNumbers, [1, 4, 6]);
+  const entry = leftOut.skills[0].students[0].opened[0];
+  assert.deepEqual([entry.next.questionIndex, entry.next.roleLabel, entry.next.outcome], [3, 'Practice', EXAMPLE_NEXT.RIGHT_FIRST]);
+  assert.equal(leftOut.skills[0].next.notAnswered, 0);
+  // The rule is the gradebook's own, not a second one.
+  const model = executableSource(read('src/platform/teacher/workedExampleView.js'));
+  assert.match(model, /\.filter\(\(\{ question \}\) => question && questionIsIncluded\(question\)\)/);
+  assert.match(executableSource(read('src/app/teacher/TeacherWorkspace.jsx')), /if \(!questionIsIncluded\(question\)\) return null;/);
+});
+
+test('a question not required for a student is never their next question', () => {
+  // A reduced workload leaves Classwork question 2 out for Ana only
+  // ("Not required for this student" in her results). Her next factoring
+  // question is Practice question 4; Ben, who has every question, keeps question 2.
+  const tracker = { 0: answer('correct', 1, SHOWN, 1), 3: answer('attempted', 2, {}, 12) };
+  const both = buildWorkedExampleView({ assignment: ASSIGNMENT, students: [
+    { id: 'S1', name: 'Ana Ruiz', tracker, omitted: [1] },
+    { id: 'S2', name: 'Ben Ortiz', tracker },
+  ] });
+  const [ana, ben] = both.skills[0].students;
+  assert.deepEqual([ana.opened[0].next.questionIndex, ana.opened[0].next.outcome], [3, EXAMPLE_NEXT.NOT_RIGHT]);
+  assert.deepEqual([ben.opened[0].next.questionIndex, ben.opened[0].next.outcome], [1, EXAMPLE_NEXT.NOT_ANSWERED]);
+  // The class totals count what each student was asked to answer.
+  assert.deepEqual([both.skills[0].next.notRight, both.skills[0].next.notAnswered], [1, 1]);
+  // Every later question on the skill left out for her: there is no next one.
+  const allOmitted = buildWorkedExampleView({ assignment: ASSIGNMENT, students: [{ id: 'S1', name: 'Ana Ruiz', tracker, omitted: [1, 3, 5] }] });
+  assert.deepEqual([allOmitted.skills[0].students[0].opened[0].next.questionIndex, allOmitted.skills[0].students[0].opened[0].next.outcome], [null, EXAMPLE_NEXT.NONE]);
+  // The gradebook hands the view each student's own omitted questions; the view does not work them out.
+  assert.doesNotMatch(executableSource(read('src/platform/teacher/workedExampleView.js')), /studentRequiredQuestions/);
+});
+
 test('none opened is said as none; a support record that has not loaded is not "opened none"', () => {
   const none = buildWorkedExampleView({ assignment: ASSIGNMENT, students: [STUDENTS[3]] });
   assert.deepEqual([none.none, none.opened.length, none.examplesOpened], [WORKED_EXAMPLES_NONE, 0, 0]);
@@ -161,7 +198,7 @@ test('it says what was recorded, never why, and that no score changes', () => {
   const model = executableSource(read('src/platform/teacher/workedExampleView.js'));
   assert.doesNotMatch(model, /firebase|setDoc|updateDoc|getDoc|httpsCallable|onSnapshot/);
   const imports = [...model.matchAll(/from '([^']+)'/g)].map((match) => match[1]);
-  assert.deepEqual(imports, ['../supports/workedExample/exampleSkill.js', '../contract/storedAssignmentV5.js', '../policies/activityPolicies.js', '../../../functions/shared/gradeEntryStorage.mjs']);
+  assert.deepEqual(imports, ['../supports/workedExample/exampleSkill.js', '../contract/storedAssignmentV5.js', '../policies/activityPolicies.js', '../../assignmentLifecycle.js', '../../../functions/shared/gradeEntryStorage.mjs']);
   // The tracker it is handed is not changed.
   const before = JSON.stringify(STUDENTS);
   buildWorkedExampleView({ assignment: ASSIGNMENT, students: STUDENTS });
@@ -197,10 +234,10 @@ test('no grade, attempt or mastery path, and nothing on the student\'s side, rea
 test('in the teacher\'s results: the class view per skill, and the student\'s view beside the worth-a-conversation notes', () => {
   const workspace = executableSource(read('src/app/teacher/TeacherWorkspace.jsx'));
   // The class: every visible student's records for the assignment; a name opens that student's results.
-  assert.match(workspace, /\{selectedGradebookPeriod && selectedAssignment && !gradebookFilter\.student && \(\s*<WorkedExamplesBySkill assignment=\{selectedAssignment\} students=\{gradebookVisibleStudents\.map\(\(student\) => \(\{ id: student\.id, name: formatStudentName\(student\), tracker: projectedAssignmentTrackerFor\(\{ student, assignment: selectedAssignment \}\) \|\| \{\} \}\)\)\} onOpenStudent=\{/);
+  assert.match(workspace, /\{selectedGradebookPeriod && selectedAssignment && !gradebookFilter\.student && \(\s*<WorkedExamplesBySkill assignment=\{selectedAssignment\} students=\{gradebookVisibleStudents\.map\(\(student\) => \(\{ id: student\.id, name: formatStudentName\(student\), tracker: projectedAssignmentTrackerFor\(\{ student, assignment: selectedAssignment \}\) \|\| \{\}, omitted: studentRequiredQuestions\(\{ assignment: selectedAssignment, profile: student\.profile \|\| null, tracker: student\.gradesByAssignment\?\.\[selectedAssignment\.id\] \|\| null \}\)\.omitted \}\)\)\} onOpenStudent=\{/);
   assert.match(workspace, /onOpenStudent=\{\(studentId\) => \{ const student = gradebookVisibleStudents\.find\(\(entry\) => entry\.id === studentId\); if \(student\) setGradebookFilter\(\(current\) => \(\{ \.\.\.current, student \}\)\); \}\}/);
   // The student: above the question cards, each of which carries its signals (QuestionSignalNotes).
-  const single = workspace.indexOf('<WorkedExamplesBySkill single assignment={selectedAssignment} students={[{ id: student.id, name: formatStudentName(student), tracker: studentGrades }]} />');
+  const single = workspace.indexOf('<WorkedExamplesBySkill single assignment={selectedAssignment} students={[{ id: student.id, name: formatStudentName(student), tracker: studentGrades, omitted: drillRequired.omitted }]} />');
   assert.ok(single !== -1, 'the student view draws the panel for that student');
   assert.ok(single < workspace.indexOf('<QuestionSignalNotes studentId={student.id}'), 'beside the worth-a-conversation notes');
   const panels = executableSource(read('src/app/teacher/teacherPanels.js'));

@@ -34,6 +34,7 @@
 import { exampleSkillOf, exampleKindOf, primaryStandardOf } from '../supports/workedExample/exampleSkill.js';
 import { getStoredAssignmentQuestions } from '../contract/storedAssignmentV5.js';
 import { resolveQuestionActivityRole } from '../policies/activityPolicies.js';
+import { questionIsIncluded } from '../../assignmentLifecycle.js';
 import { DETAIL_FIELDS, isSplitSummary } from '../../../functions/shared/gradeEntryStorage.mjs';
 
 export const WORKED_EXAMPLES_TITLE = 'Worked examples, by skill';
@@ -128,8 +129,12 @@ const detailMissing = (record) => isSplitSummary(record)
 
 /**
  * @param assignment the stored assignment (its questions, in order).
- * @param students   `[{ id, name, tracker }]`: each student's records for this
- *                   assignment, by question position, joined to their detail.
+ * @param students   `[{ id, name, tracker, omitted }]`: each student's records
+ *                   for this assignment, by question position, joined to their
+ *                   detail; `omitted` is the positions not required for that
+ *                   student (a reduced workload: studentRequiredQuestions, as
+ *                   the gradebook computes it). A question not required for a
+ *                   student is never their "next question".
  * @param questions  the assignment's questions, when the caller already has them.
  */
 export const buildWorkedExampleView = ({ assignment = null, students = [], questions = null } = {}) => {
@@ -137,7 +142,8 @@ export const buildWorkedExampleView = ({ assignment = null, students = [], quest
   // Each question that teaches or tests a skill, in the assignment's order.
   const placed = stored
     .map((question, index) => ({ question, index }))
-    .filter(({ question }) => question && question.teacherExcluded !== true)
+    // The gradebook's own rule for which questions it shows (assignmentLifecycle.js).
+    .filter(({ question }) => question && questionIsIncluded(question))
     .map(({ question, index }) => {
       const role = clean(resolveQuestionActivityRole({ question, assignment: assignment || {} })).toLowerCase();
       const skill = exampleSkillOf(question);
@@ -163,6 +169,7 @@ export const buildWorkedExampleView = ({ assignment = null, students = [], quest
     if (!id) return;
     const name = clean(student?.name) || 'Name unavailable';
     const tracker = student?.tracker && typeof student.tracker === 'object' ? student.tracker : {};
+    const omitted = new Set(list(student?.omitted).map(Number));
     if (Object.values(tracker).some(detailMissing)) notLoaded.push({ studentId: id, name });
     order.forEach((skillKey) => {
       const skill = bySkill.get(skillKey);
@@ -171,7 +178,8 @@ export const buildWorkedExampleView = ({ assignment = null, students = [], quest
         const record = tracker[place.questionIndex];
         const how = exampleOpenedOn(record);
         if (!how) return;
-        const next = skill.questions[position + 1] || null;
+        // The next question on the skill that this student is asked to answer.
+        const next = skill.questions.slice(position + 1).find((later) => !omitted.has(later.questionIndex)) || null;
         const nextRecord = next ? tracker[next.questionIndex] : null;
         let nextOutcome = next ? exampleOutcomeOf(nextRecord) : EXAMPLE_NEXT.NONE;
         // What was answered before this question is not what happened next.
