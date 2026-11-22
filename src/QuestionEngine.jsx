@@ -141,6 +141,7 @@ import { seenHelpText } from './platform/language/seenHelpText.js';
 import { useFocusReturnAfterLock } from './components/common/useFocusReturnAfterLock.js';
 import { speakAloud, speechAvailable } from './platform/language/speechText.js';
 import { backUpQuestionText, questionReadingParts, questionReadingText, readingPartsShown } from './platform/language/questionReading.js';
+import { hasFollowThrough } from '../functions/shared/followThrough.mjs';
 import { KeypadConstantsProvider, keypadConstantsFor } from './platform/interaction/keypadConstants.js';
 
 // The graphing calculator (pass 3, PR-26) loads only for a question whose
@@ -1329,6 +1330,15 @@ function QuestionEngineBody({
     return () => { current = false; };
   }, [readAloudLanguage]);
   const figurePack = loadedFigureWords?.language === readAloudLanguage ? loadedFigureWords.pack : null;
+  // SP-3: a part that builds on an earlier one (followThrough) is read with
+  // the student's own value in its label, as the screen shows it. Only for a
+  // question that has one: any other question is read as before, and is not
+  // read again on every keystroke.
+  const followThroughQuestion = useMemo(() => hasFollowThrough(processedQuestion?.answerFields), [processedQuestion]);
+  const readingAnswersKey = followThroughQuestion
+    ? JSON.stringify(Object.fromEntries((answerState.parts || []).map((part) => [String(part?.id ?? ''), String(part?.response ?? '')])))
+    : '';
+  const readingAnswers = useMemo(() => (readingAnswersKey ? JSON.parse(readingAnswersKey) : null), [readingAnswersKey]);
   const everyReadingPart = useMemo(
     () => questionReadingParts(processedQuestion, {
       referenceInfo,
@@ -1337,8 +1347,9 @@ function QuestionEngineBody({
       language: readAloudLanguage,
       figures: figureReadings,
       figurePack,
+      answers: readingAnswers,
     }),
-    [processedQuestion, referenceInfo, scaffoldRequired, scaffold, readingStage, readAloudLanguage, figureReadings, figurePack],
+    [processedQuestion, referenceInfo, scaffoldRequired, scaffold, readingStage, readAloudLanguage, figureReadings, figurePack, readingAnswers],
   );
   // PART BY PART (SP-1c): Read aloud reads the open part and the answered
   // lines, never a part the screen does not show yet.

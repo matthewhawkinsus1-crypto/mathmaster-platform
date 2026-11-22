@@ -19,6 +19,7 @@ import { keypadProfileForResponseField } from './platform/interaction/interactio
 import { declaredKeypadProfile, withheldVerdictKeys } from './platform/interaction/withheldVerdictKeypad.js';
 import { formatProblemForResponse } from './platform/interaction/answerShapeGuard.js';
 import { typedEntryNotice } from '../functions/shared/typedEntryGuard.mjs';
+import { withFollowThroughLabels } from '../functions/shared/followThrough.mjs';
 import TypedEntryNotice from './components/common/TypedEntryNotice.jsx';
 import useUndoHistory from './useUndoHistory';
 import { draftNormalizer, draftShape } from './tools/shared/toolDraftShape.js';
@@ -215,6 +216,16 @@ function MultiAnswerGrader({ question, onStateChange, onUndoStateChange, feedbac
   );
   const history = useUndoHistory({}, 60, draftKey ? `${draftKey}:multi-answer` : null, { normalize: ANSWERS_DRAFT });
   const answers = history.value;
+  // SP-3: a part that builds on an earlier one (followThrough) shows the
+  // student's own value in its label ("Using your slope of −3, …"), or "your
+  // slope …" before there is one: on its box, its answered line, Review all
+  // parts and what a screen reader says (followThrough.mjs). With no
+  // followThrough these are the fields themselves.
+  const labelledFields = useMemo(
+    () => withFollowThroughLabels(safeFields, answers, { latexOf: (field) => field.labelLatex === true || field.labelFormat === 'latex' }),
+    [safeFields, answers],
+  );
+  const shown = (field) => labelledFields[safeFields.indexOf(field)] || field;
   // Each graded field says so in words under it, and its control is described
   // by that sentence and aria-invalid when wrong (GradedEntryMark.jsx): the
   // border colour was the only sign (VH-13, WCAG 1.4.1 and 3.3.1).
@@ -248,7 +259,7 @@ function MultiAnswerGrader({ question, onStateChange, onUndoStateChange, feedbac
   const isComplete = graded.isComplete && !Object.values(formatProblems).some(Boolean) && !Object.values(entryProblems).some(Boolean);
 
   useEffect(() => {
-    const responseDetails = safeFields.map((field) => `${field.label || field.id}=${answers[field.id] ?? ''}`).join(', ');
+    const responseDetails = labelledFields.map((field) => `${field.label || field.id}=${answers[field.id] ?? ''}`).join(', ');
     onStateChange({
       isComplete,
       isCorrect,
@@ -256,7 +267,7 @@ function MultiAnswerGrader({ question, onStateChange, onUndoStateChange, feedbac
       questionDetails: `${prompt || 'Complete all answer fields.'}${question.mathDisplay?.value ? ` Expression: ${question.mathDisplay.value}.` : ''} Responses: ${responseDetails}`,
       parts,
     });
-  }, [answers, safeFields, prompt, question.mathDisplay, isComplete, isCorrect, onStateChange]);
+  }, [answers, labelledFields, prompt, question.mathDisplay, isComplete, isCorrect, onStateChange]);
 
   // Read in the render the history changed in (useUndoHistory updates it with
   // the value), so Undo is handed to the engine when what it can do changes:
@@ -402,7 +413,7 @@ function MultiAnswerGrader({ question, onStateChange, onUndoStateChange, feedbac
     return (
       <div key={field.id} data-answer-box-index={safeFields.indexOf(field)} data-answer-box-kind={shouldUsePlainTextInput(field) ? 'text' : undefined} style={{ padding: '16px', border: `2px solid ${grade ? (grade.isCorrect ? '#188038' : '#d93025') : 'var(--mm-border)'}`, borderRadius: '10px', background: grade && !grade.isCorrect ? 'var(--mm-error-subtle)' : 'var(--mm-surface)' }}>
         <label style={{ display: 'block', marginBottom: '10px', fontWeight: 'bold', color: 'var(--mm-text)' }}>
-          {fieldLabelContent(field)}
+          {fieldLabelContent(shown(field))}
         </label>
         {(answerShape.hint || box.example) && !choiceOptions && (
           <p style={{ margin: '-4px 0 10px', fontSize: 'calc(13 * var(--mm-px))', lineHeight: 1.4, color: 'var(--mm-text-muted)', fontWeight: 600 }}>
@@ -418,7 +429,7 @@ function MultiAnswerGrader({ question, onStateChange, onUndoStateChange, feedbac
         <TypedEntryNotice message={entryProblems[field.id]} entry={answers[field.id]} style={{ margin: '0 0 10px' }} />
         {choiceOptions ? (
           <ChoiceFieldOptions
-            label={accessibleFieldLabel(field)}
+            label={accessibleFieldLabel(shown(field))}
             dimensions={choiceFieldAsksDimensions(field.label, question.prompt)}
             options={choiceOptions}
             value={String(answers[field.id] || '')}
@@ -432,7 +443,7 @@ function MultiAnswerGrader({ question, onStateChange, onUndoStateChange, feedbac
             value={answers[field.id] || ''}
             onChange={(event) => history.setValue((current) => ({ ...current, [field.id]: event.target.value }))}
             placeholder={box.placeholder}
-            aria-label={accessibleFieldLabel(field)}
+            aria-label={accessibleFieldLabel(shown(field))}
             {...gradedEntryInputProps(grade, markId)}
             autoComplete="off"
             spellCheck={false}
@@ -454,7 +465,7 @@ function MultiAnswerGrader({ question, onStateChange, onUndoStateChange, feedbac
             value={answers[field.id] || ''}
             onChange={(value) => history.setValue((current) => ({ ...current, [field.id]: value }))}
             placeholder={box.placeholder}
-            ariaLabel={accessibleFieldLabel(field)}
+            ariaLabel={accessibleFieldLabel(shown(field))}
             toolProfile={toolProfile}
             answerFormat={field.answerFormat || field.inputContract?.format || field.notation || field.inputMode || (shouldUseInequalityInput(field) ? 'inequality' : '')}
             requiredSymbols={withheldKeys ? NO_SYMBOLS : requiredSymbols}
@@ -551,7 +562,7 @@ function MultiAnswerGrader({ question, onStateChange, onUndoStateChange, feedbac
               const { choiceOptions } = fieldPresentation.get(field.id);
               return (
                 <div key={field.id} data-part-state="answered" data-part-id={field.id} data-part-index={index} data-part-value={value} style={{ ...PART_LINE, border: `2px solid ${grade?.isCorrect ? 'var(--mm-success-border)' : 'var(--mm-border)'}` }}>
-                  <span style={{ fontWeight: 800 }}>{fieldLabelContent(field)}</span>
+                  <span style={{ fontWeight: 800 }}>{fieldLabelContent(shown(field))}</span>
                   <span style={{ color: 'var(--mm-text-strong)', fontSize: 'calc(17 * var(--mm-px))', minWidth: 0, overflowWrap: 'anywhere' }}>
                     {choiceOptions
                       ? renderChoiceText(value, { dimensions: choiceFieldAsksDimensions(field.label, question.prompt) })
@@ -561,7 +572,7 @@ function MultiAnswerGrader({ question, onStateChange, onUndoStateChange, feedbac
                     type="button"
                     onClick={() => changePart(field.id)}
                     // Named by the part, and starting with what it says (WCAG 2.5.3).
-                    aria-label={`Change part ${index + 1}, ${accessibleFieldLabel(field)}`}
+                    aria-label={`Change part ${index + 1}, ${accessibleFieldLabel(shown(field))}`}
                     style={{ ...partButton(true, true), marginLeft: 'auto' }}
                   >
                     Change

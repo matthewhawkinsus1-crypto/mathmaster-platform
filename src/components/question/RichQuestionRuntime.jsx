@@ -10,6 +10,7 @@ import SecureItemAccessSupports from '../assessment/SecureItemAccessSupports.jsx
 import SecureMathAnswerField from '../assessment/SecureMathAnswerField.jsx';
 import TypedEntryNotice from '../common/TypedEntryNotice.jsx';
 import { typedEntryNotice } from '../../../functions/shared/typedEntryGuard.mjs';
+import { withFollowThroughLabels } from '../../../functions/shared/followThrough.mjs';
 import { normalizeInteractionInputProfile } from '../../platform/interaction/interactionContract.js';
 import { SECURE_ACTIVITY_ROLE, secureAccessEntitlement, secureFigureLanguage } from '../../platform/assessment/secureItemAccess.js';
 import { FigureWordsProvider } from '../../platform/language/figureReadings.js';
@@ -220,7 +221,16 @@ const FieldItem = ({ question, policy, calculatorPolicy, studentSupportProfile, 
     return () => { current = false; };
   }, [figureLanguage]);
   const figurePack = loadedFigureWords?.language === figureLanguage ? loadedFigureWords.pack : null;
-  const fields = question?.responseFields?.length ? question.responseFields : [{ id: 'answer', label: 'Answer', inputProfile: 'text' }];
+  const authoredFields = useMemo(
+    () => (question?.responseFields?.length ? question.responseFields : [{ id: 'answer', label: 'Answer', inputProfile: 'text' }]),
+    [question?.responseFields],
+  );
+  // SP-3: a field that builds on an earlier one (its public `followThrough`
+  // names which) shows the student's own value in its label, or "your slope …"
+  // before there is one, on its box, its line and Review all parts
+  // (followThrough.mjs). Only the student's own responses are read, never a
+  // key: the item has none. With no followThrough, the fields themselves.
+  const fields = useMemo(() => withFollowThroughLabels(authoredFields, responses), [authoredFields, responses]);
   const choices = Array.isArray(question?.choices) ? question.choices : [];
   // An entry left unfinished (`12 +`, `4*`) or longer than an answer may be
   // (typedEntryGuard.mjs; #557, #558) is said at its box. Where this item has

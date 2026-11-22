@@ -5,6 +5,7 @@ import TypedEntryNotice from '../common/TypedEntryNotice.jsx';
 import { pathEntryProblem, pathResponseComplete } from '../../platform/path/pathResponseEntry.js';
 import { ChoiceMark, useChoiceGroup } from '../../platform/interaction/choiceGroup.js';
 import { normalizeInteractionInputProfile, toolProfileForInputProfile } from '../../platform/interaction/interactionContract.js';
+import { withFollowThroughLabels } from '../../../functions/shared/followThrough.mjs';
 
 // The generic secure Path response.
 //
@@ -258,7 +259,9 @@ export const PathResponseFields = ({
   onSubmit,
   disabled = false,
 }) => {
-  const resolved = fields.length ? fields : [{ id: 'answer', label: 'Answer', inputProfile: 'text' }];
+  // SP-3: a field that builds on an earlier one shows the student's own value
+  // in its label (followThrough.mjs), as the server keys it.
+  const resolved = withFollowThroughLabels(fields.length ? fields : [{ id: 'answer', label: 'Answer', inputProfile: 'text' }], values || {});
   return (
     <div style={{ display: 'grid', gap: 18 }}>
       {resolved.map((field, index) => {
