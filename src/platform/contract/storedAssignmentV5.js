@@ -45,6 +45,21 @@ export const testCycleContractFields = (source = {}) => {
   return fields;
 };
 
+/*
+ * A LESSON'S LEARNING SUPPORTS TRAVEL WITH THE ASSIGNMENT TOO.
+ *
+ * `lessonSupports` (the lesson's own worked examples and reference cards;
+ * lessonSupportsV5.js) sits beside `sections`, so the same save paths dropped
+ * it: a question could name its `example`, and the student's assignment had no
+ * example of that name to play. Carried as the lesson wrote it (the validator
+ * has already judged its shape), and only when the lesson has one, so an
+ * assignment without it is stored exactly as before. Kept to one line on
+ * purpose: this module is in the first load.
+ */
+export const lessonSupportsFields = (source) => (
+  isObject(source?.lessonSupports) ? { lessonSupports: source.lessonSupports } : {}
+);
+
 /**
  * Canonical runtime readers.
  *
@@ -278,6 +293,7 @@ export const storedAssignmentToV5 = (assignment = {}, {
     provenance: assignment.provenance,
     preflight: assignment.preflight,
     ...testCycleContractFields(assignment),
+    ...lessonSupportsFields(assignment),
     ...(runtimeCompatibility ? { runtimeCompatibility } : {}),
   });
 };
@@ -309,6 +325,7 @@ export const canonicalV5PersistencePatch = (assignmentV5 = {}) => {
     classroomIntegration: safeAssignmentV5.classroomIntegration || null,
     provenance: safeAssignmentV5.provenance || null,
     preflight: safeAssignmentV5.preflight || { required: true },
+    ...lessonSupportsFields(safeAssignmentV5),
     ...(runtimeCompatibility ? { runtimeCompatibility } : {}),
   };
 };

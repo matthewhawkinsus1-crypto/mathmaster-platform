@@ -1,6 +1,12 @@
 import { resolveStudentDolExtraAttempts } from './studentAssignmentOverrides.mjs';
 
 export const MAX_ATTEMPTS_PER_QUESTION = 3;
+
+// An example Classwork opened by itself before a new skill, kept as the fact
+// it is (`workedExampleShown: 'auto'`). It is not help the student asked for:
+// it is absent from every independence test below, and a record without it
+// keeps exactly the shape it had.
+const shownExample = (supportUsage) => (supportUsage?.workedExampleShown === 'auto' ? { workedExampleShown: 'auto' } : {});
 const MAX_STORED_STEP_GRADES = 80;
 
 const SIMPLE_CHOICE_TYPES = new Set([
@@ -357,6 +363,7 @@ export const normalizeQuestionRecord = (record) => {
       feedbackAssisted: Boolean(record.supportUsage?.feedbackAssisted),
       remediationUsed: Boolean(record.supportUsage?.remediationUsed),
       workedExampleUsed: Boolean(record.supportUsage?.workedExampleUsed),
+      ...shownExample(record.supportUsage),
       calculatorUsed: Boolean(record.supportUsage?.calculatorUsed),
       isMathematicallyIndependent: record.supportUsage?.isMathematicallyIndependent !== false
         && !record.supportUsage?.hintUsed
@@ -460,6 +467,7 @@ export const recordQuestionStep = ({
       feedbackAssisted: Boolean(supportUsage.feedbackAssisted),
       remediationUsed: Boolean(supportUsage.remediationUsed),
       workedExampleUsed: Boolean(supportUsage.workedExampleUsed),
+      ...shownExample(supportUsage),
       calculatorUsed: Boolean(supportUsage.calculatorUsed),
       isMathematicallyIndependent: supportUsage.isMathematicallyIndependent !== false
         && !supportUsage.hintUsed
@@ -597,6 +605,7 @@ export const recordQuestionAttempt = ({
       feedbackAssisted: Boolean(supportUsage.feedbackAssisted),
       remediationUsed: Boolean(supportUsage.remediationUsed),
       workedExampleUsed: Boolean(supportUsage.workedExampleUsed),
+      ...shownExample(supportUsage),
       calculatorUsed: Boolean(supportUsage.calculatorUsed),
       isMathematicallyIndependent: supportUsage.isMathematicallyIndependent !== false
         && !supportUsage.hintUsed

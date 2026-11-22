@@ -285,7 +285,11 @@ test('3. no feedback, diagnosis or review while an assessment item can still be 
   assert.match(engine, /const hintControlAllowed = toolHintsAllowed && !serverGrading && ladderRoleKnown;/);
   assert.match(engine, /const toolHintsAllowed = resolvedActivityPolicy\?\.hintsAllowed !== false;/);
   assert.match(engine, /const ladderRoleKnown = Boolean\(activityPolicy\) \|\| isActivityRole\(String\(activityRole \?\? ''\)\.trim\(\)\.toLowerCase\(\)\);/);
-  assert.match(engine, /import \{ getEffectiveActivityPolicy, isActivityRole \} from '\.\/platform\/policies\/activityPolicies';/);
+  // Both names the lines above call come from the activity policies, whatever else that import brings
+  // (the worked example's section rule reads resolveQuestionActivityRole from it too).
+  for (const name of ['getEffectiveActivityPolicy', 'isActivityRole']) {
+    assert.match(engine, new RegExp(`import \\{[^}]*\\b${name}\\b[^}]*\\} from '\\./platform/policies/activityPolicies';`), `${name} is imported from the activity policies`);
+  }
 });
 
 test('3. a DOL\'s per-item right/wrong release never opens the worked solution (PR #462 review B1)', () => {
@@ -530,7 +534,12 @@ test('5. help had on a question survives leaving it and coming back (PR #462 rev
   assert.match(engine, /const \[workedExampleUsed, setWorkedExampleUsed\] = useState\(restoredSupport\.workedExampleUsed\);/);
   assert.match(engine, /const \[scaffoldComplete, setScaffoldComplete\] = useState\(restoredSupport\.backUpStepUsed\);/);
   assert.match(engine, /const \[feedbackAssisted, setFeedbackAssisted\] = useState\(restoredSupport\.feedbackAssisted\);/);
-  assert.match(engine, /rememberSupportUse\(draftKey, \{ hintUsed, hintsRevealed, workedExampleUsed, backUpStepUsed: scaffoldComplete, scaffoldUsed: backUpSpecific, feedbackAssisted \}\);/);
+  // Every kind of help had is written to the memory, whatever else is remembered beside it (an example
+  // Classwork opened by itself is remembered too, so it opens once: workedExampleShown).
+  const remembered = engine.match(/rememberSupportUse\(draftKey, \{([^}]*)\}\);/)?.[1] || '';
+  for (const kept of [/\bhintUsed\b/, /\bhintsRevealed\b/, /\bworkedExampleUsed\b/, /backUpStepUsed: scaffoldComplete/, /scaffoldUsed: backUpSpecific/, /\bfeedbackAssisted\b/]) {
+    assert.match(remembered, kept, `the memory is written ${kept}`);
+  }
   assert.match(engine, /import \{ attemptSupportUsageFrom, rememberSupportUse, restoredSupportUse \} from '\.\/platform\/supports\/supportUseMemory\.js';/);
 });
 

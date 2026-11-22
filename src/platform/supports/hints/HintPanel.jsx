@@ -1,9 +1,14 @@
-import { useEffect, useState } from 'react';
+import { Suspense, lazy, useEffect, useState } from 'react';
 import MathText from '../../../components/common/MathText.jsx';
 import { SupportedTextActions } from '../SupportedText.jsx';
 import { useAskTeacherControl } from '../AskTeacherControl.jsx';
 import { authoredLineFor } from '../../language/authoredSupportText.js';
-import { PENDING_RUNG_TEXT, hintCostSentence } from './hintCopy.js';
+import { EXAMPLE_COULD_NOT_LOAD_TEXT, EXAMPLE_USE_THE_STEPS_TEXT, PENDING_RUNG_TEXT, hintCostSentence } from './hintCopy.js';
+import QuestionSupplementBoundary from '../../../QuestionSupplementBoundary.jsx';
+
+// The step-through player, loaded when an example is opened: a page that
+// shows none (Home, a DOL, a quiz, a test) never fetches it.
+const WorkedExamplePlayer = lazy(() => import('../workedExample/WorkedExamplePlayer.jsx'));
 
 /*
  * THE PLATFORM HINT PANEL — opened from the work bar's Hint control (and the
@@ -15,6 +20,14 @@ import { PENDING_RUNG_TEXT, hintCostSentence } from './hintCopy.js';
  * "Ask my teacher". Revealing a hint or opening the worked example is
  * recorded by the caller (QuestionEngine) as hintUsed / workedExampleUsed.
  * Rendered only where hints are allowed and the question is still open.
+ *
+ * THE WORKED EXAMPLE IS A STEP-THROUGH (WE-A, WORKED_EXAMPLES.md). Once
+ * opened it plays one slide at a time in WorkedExamplePlayer (Next, Back, a
+ * why, "Your turn"). `similar` is the example to play ({ prompt, steps,
+ * answer }; examplePlayer.js workedExampleFor), or null wherever the section
+ * shows none: the caller decides, and with null nothing of it is drawn.
+ * `onYourTurn` hands the student their own question; `similarOpenedByItself`
+ * says Classwork opened it before the first question on a new skill.
  *
  * WHAT IT COSTS, SAID ONCE (HELP-17): "Hints never lower your grade. Your
  * teacher can see you used one." — or the host's own sentence where a hint
@@ -62,6 +75,25 @@ const button = {
   cursor: 'pointer',
 };
 
+// The example as one list, for when the step-through player cannot load.
+const stepText = (step) => (step && typeof step === 'object' ? [step.show, step.why].filter(Boolean).join(' ') : String(step ?? ''));
+function WholeExample({ example, readAloud, translation, onSupportEvidence }) {
+  const steps = (Array.isArray(example?.steps) ? example.steps : []).map(stepText).filter(Boolean);
+  const answer = example?.source === 'authored' ? '' : String(example?.answer ?? '');
+  return (
+    <div data-example-whole="" style={{ display: 'grid', gap: 8 }}>
+      <p role="status" style={{ margin: 0, color: 'var(--mm-text-muted)' }}>{EXAMPLE_COULD_NOT_LOAD_TEXT}</p>
+      <MathText as="p" style={{ margin: 0, fontWeight: 700 }}>{example?.prompt}</MathText>
+      <ol style={{ margin: 0, paddingLeft: 22, display: 'grid', gap: 6 }}>
+        {steps.map((step, index) => <li key={`ex-${index}`} style={{ lineHeight: 1.55 }}><MathText>{step}</MathText></li>)}
+      </ol>
+      {answer ? <p style={{ margin: 0, fontWeight: 800 }}>Answer: <MathText>{answer}</MathText></p> : null}
+      <p style={{ margin: 0, color: 'var(--mm-text-muted)' }}>{EXAMPLE_USE_THE_STEPS_TEXT}</p>
+      <SupportedTextActions text={[example?.prompt, ...steps, answer ? `Answer: ${answer}` : ''].filter(Boolean).join(' ')} readAloud={readAloud} translation={translation} label="the worked example" onEvidence={onSupportEvidence} />
+    </div>
+  );
+}
+
 export default function HintPanel({
   hints = [],
   revealed = 0,
@@ -70,6 +102,11 @@ export default function HintPanel({
   similar = null,
   similarOpen = false,
   onOpenSimilar = null,
+  onYourTurn = null,
+  similarOpenedByItself = false,
+  // { context, draftKey, resetKey } for the record of a player that could not
+  // load (QuestionSupplementBoundary); the question goes on either way.
+  exampleFailure = null,
   askTeacher = null,
   readAloud = null,
   translation = null,
@@ -186,13 +223,29 @@ export default function HintPanel({
       {similar && similarOpen && (
         <details open data-similar-example="" style={{ padding: '12px 14px', borderRadius: 10, border: '1px solid var(--mm-tint-border)', background: 'var(--mm-surface-tint)' }}>
           <summary style={{ ...summaryStyle, marginBottom: 6 }}>A similar problem, worked out</summary>
-          <MathText as="p" style={{ margin: '0 0 8px', fontWeight: 700 }}>{similar.prompt}</MathText>
-          <ol style={{ margin: 0, paddingLeft: 22, display: 'grid', gap: 6 }}>
-            {similar.steps.map((step, index) => <li key={`ex-${index}`} style={{ lineHeight: 1.55 }}><MathText>{step}</MathText></li>)}
-          </ol>
-          <p style={{ margin: '8px 0 0', fontWeight: 800 }}>Answer: <MathText>{similar.answer}</MathText></p>
-          <p style={{ margin: '8px 0 0', color: 'var(--mm-text-muted)' }}>Your question uses different numbers — use the same steps on it.</p>
-          <SupportedTextActions text={[similar.prompt, ...similar.steps, `Answer: ${similar.answer}`].join(' ')} readAloud={readAloud} translation={translation} label="the worked example" onEvidence={onSupportEvidence} />
+          {/* The player is a chunk of its own. If it cannot be fetched, or
+              cannot render, only it is replaced: the whole example as a list,
+              and the question stays as it is. */}
+          <QuestionSupplementBoundary
+            stage="worked-example"
+            context={exampleFailure?.context}
+            draftKey={exampleFailure?.draftKey}
+            resetKey={exampleFailure?.resetKey}
+            fallback={<WholeExample example={similar} readAloud={readAloud} translation={translation} onSupportEvidence={onSupportEvidence} />}
+          >
+            <Suspense fallback={<p role="status" style={{ margin: 0, color: 'var(--mm-text-muted)' }}>Loading the example…</p>}>
+              <WorkedExamplePlayer
+                MathText={MathText}
+                SupportedTextActions={SupportedTextActions}
+                example={similar}
+                readAloud={readAloud}
+                translation={translation}
+                onSupportEvidence={onSupportEvidence}
+                onYourTurn={onYourTurn}
+                openedByItself={similarOpenedByItself}
+              />
+            </Suspense>
+          </QuestionSupplementBoundary>
         </details>
       )}
     </section>

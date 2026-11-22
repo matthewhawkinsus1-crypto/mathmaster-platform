@@ -50,7 +50,8 @@ gate, and merges with a merge commit when CI is green.
 | SP-1c: Read aloud reads only the parts on the screen | #595 |
 | SP-1b: a secure Test's field item goes part by part | #596 |
 | SP-2: teacher signals, "worth a conversation" | #591 |
-| SP-2b: signals as evidence (assignment results, Case Review, review note, class time, supports) | build session F's second PR |
+| SP-2b: signals as evidence (assignment results, Case Review, review note, class time, supports) | #597 |
+| WE-A: the example player and the section rules | #594 |
 
 ## Track SP: showing the process
 

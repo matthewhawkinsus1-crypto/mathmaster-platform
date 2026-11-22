@@ -119,7 +119,13 @@ const percent = (part, whole) => (whole > 0 ? Math.round((part / whole) * 100) :
 
 const questionType = (question) => clean(question?.type || question?.toolId || question?.questionType) || 'question';
 
-const flagsOf = (usage) => SUPPORT_FLAGS.filter(([key]) => usage?.[key] === true).map(([, label]) => label);
+// An example Classwork opened by itself is a fact, not help the student asked
+// for: it is named apart from "Worked example" (one they asked for).
+export const EXAMPLE_SHOWN_LABEL = 'Example shown by Classwork (not asked for)';
+const flagsOf = (usage) => [
+  ...SUPPORT_FLAGS.filter(([key]) => usage?.[key] === true).map(([, label]) => label),
+  ...(usage?.workedExampleShown === 'auto' ? [EXAMPLE_SHOWN_LABEL] : []),
+];
 
 // --- Per-attempt server events ------------------------------------------------------------
 

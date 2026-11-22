@@ -1349,6 +1349,16 @@ export function createAssignmentWorkspaceView(
               // Practice sections only, by the section's own role (a DOL in
               // post-due practice runs as 'practice' but is still a DOL).
               practiceLikeThisAllowed={['classwork', 'practice'].includes(activeQuestionRole)}
+              // The lesson around this question, for its worked example (WE-A;
+              // examplePlayer.js): its questions, which of them this student
+              // is given, in order (a retired or omitted one taught them
+              // nothing), and the lesson's own examples. Three plain values
+              // that stay the same between renders; QuestionEngine works the
+              // rest out, so none of the example's code loads with Home. The
+              // section's OWN role is each stored question's activityRole.
+              lessonQuestions={questions}
+              lessonGiven={includedQuestionIndices.join()}
+              lessonSupports={assignment.lessonSupports}
               activityPolicy={runtimeQuestionActivityPolicy}
               // The assignment's calculator setting (e.g. "graphing"), above the
               // question's own: calculatorPolicy.js resolveCalculatorPolicy.

@@ -35,7 +35,8 @@
 //   composed-algebra   a composed question's algebra step: its strategic hint is a platform ladder rung in practice, absent on a DOL or test
 //   three-plane-reveal the three-plane model's author-allowed "Reveal" button
 //   feedback-ladder    the classroom feedback ladder (Hint control, miss message,
-//                      hint offer, worked solution, similar problem, back-up step)
+//                      hint offer, worked solution, similar problem and its
+//                      step-through player, back-up step)
 //                      on a plain key, a Question Family instance and a registry
 //                      tool: none of its text anywhere in the document on a DOL
 //                      or test, before or after Submit; and the partial-credit
@@ -61,7 +62,7 @@ import path from 'node:path';
 import { chooseVariable, choosePair, combineRound, scaleEquation } from './day2NonuniqueDriver.mjs';
 import { setMathField, settle } from './stepAlgebraDriver.mjs';
 import { screenshotKeepingTouch } from './support/touchEmulation.mjs';
-import { ASSESSMENT_LEAK_TEXTS } from './support/assessmentLadderWords.mjs';
+import { ASSESSMENT_LEAK_TEXTS, EXAMPLE_CONTROL_SELECTORS } from './support/assessmentLadderWords.mjs';
 
 const ORIGIN = process.env.AUDIT_ORIGIN || 'http://127.0.0.1:5199';
 // Screenshots of any journey that could not be completed.
@@ -755,7 +756,10 @@ const threePlaneReveal = async () => {
 // still be answered, nor after a submission whose outcome is held.
 const ladderLeaks = async (page) => {
   const html = await page.evaluate(() => document.documentElement.outerHTML);
-  return ASSESSMENT_LEAK_TEXTS.filter((text) => html.includes(text.replace(/&/g, '&amp;')));
+  // And no control of the worked example (WE-A): a DOL, quiz or test never
+  // shows one, opened, offered or hidden.
+  const exampleControls = await page.evaluate((selectors) => selectors.filter((selector) => document.querySelector(selector)), EXAMPLE_CONTROL_SELECTORS);
+  return [...ASSESSMENT_LEAK_TEXTS.filter((text) => html.includes(text.replace(/&/g, '&amp;'))), ...exampleControls];
 };
 const typeAnswer = async (page, value) => {
   await setMathField(page, page.locator('.mathmaster-question-tool-workspace math-field').first(), value);

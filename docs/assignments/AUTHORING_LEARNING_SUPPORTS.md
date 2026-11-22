@@ -11,9 +11,27 @@ The rules are checked by `src/platform/contract/lessonSupportsV5.js`.
 
 **What works today.** Every field is optional. The compiler carries each one
 into the compiled assignment unchanged, and the validator refuses a malformed
-one with a message that names the field. Nothing a student sees reads them yet.
-They are read by the packages being built on them:
-- the example player (WE-A, with tool replays in WE-C to WE-E);
+one with a message that names the field.
+
+The example player (WE-A) reads a question's `example` and
+`lessonSupports.examples`, which are stored with the assignment:
+- a **step card** (`steps`) plays for the question that names it, one step at
+  a time with its `why`. On Classwork it opens by itself before the first
+  question on a new skill; on Practice it plays when the student asks;
+- it plays only if it passes the guard every built-in example passes: its
+  problem, steps and whys may not state any answer of the question it covers.
+  A short answer such as `3` counts wherever it stands alone as a number, so
+  choose sibling numbers that share none of the question's answers. A card
+  that fails is not shown, and the question falls back to its built-in
+  example, if it has one;
+- `{ "none": ... }` opens no example by itself, and neither does a question
+  with no skill to name (no `familyId`, no `studentActions`);
+- an example that opens by itself is recorded as shown, not as help the
+  student asked for, so it does not make the attempt a supported one;
+- a **tool replay** (`moves`) and `fade` are not played yet (WE-C to WE-E).
+  Until then such a question gets its built-in example.
+
+The other fields are read by the packages being built on them:
 - reference cards (WE-H);
 - follow-through grading (SP-3);
 - checkpoints (SP-4).

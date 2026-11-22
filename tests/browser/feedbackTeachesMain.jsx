@@ -47,6 +47,11 @@
 //   ?q=explog               an Exponential ↔ Log Bridge item (2^(2x − 1) = 16) the
 //                           dataAndModels family claims: its hints, its worked
 //                           sibling and its "Let's back up" step (CI02, A1-69)
+//   ?section=<role>         the section's OWN role, as the assignment gives it
+//                           (workedExampleContext): ?role=practice&section=dol is a
+//                           DOL practised after its due date
+//   ?newskill=1             this is the first Classwork question on a new skill
+//                           (tests/browser/workedExamplePlayer.mjs)
 //   ?run=<id>               a fresh draft namespace
 //   ?secure=1               mount it the way a secure Test item is mounted:
 //                           server-graded (RichQuestionRuntime), and still
@@ -218,6 +223,18 @@ const SUPPORT_PROFILES = {
   inclusion: { inclusionStatus: true, accommodations: ['text-to-speech'] },
 };
 const studentProfile = SUPPORT_PROFILES[params.get('support')] || {};
+// The lesson around the question, as the assignment hands it over (WE-A):
+// alone it is the first question on its skill; without ?newskill=1 an earlier
+// question on the same skill stands before it, so its example was shown there.
+// A stored question carries its section's role, and its skill is its student
+// action with its standard (exampleSkill.js).
+const onTheSkill = (entry) => ({ studentActions: ['multipleResponses'], standard: 'A.3A', ...entry, activityRole: params.get('section') });
+const lessonQuestions = params.get('section')
+  ? (params.get('newskill') === '1'
+    ? [question]
+    : [onTheSkill({ ...question, questionId: 'earlier-on-the-skill' }), question])
+  : null;
+if (lessonQuestions) Object.assign(question, onTheSkill(question));
 
 window.__mmGrades = [];
 window.__mmHelp = [];
@@ -263,6 +280,8 @@ function Harness() {
           assignmentId={assignmentId}
           executionScope="student"
           studentProfile={studentProfile}
+          lessonQuestions={lessonQuestions}
+          lessonGiven={lessonQuestions ? lessonQuestions.map((_, index) => index).join() : null}
           onGrade={onGrade}
           serverGrading={serverGrading}
           // The delivered family instance's own prompt, as plain text: the page
