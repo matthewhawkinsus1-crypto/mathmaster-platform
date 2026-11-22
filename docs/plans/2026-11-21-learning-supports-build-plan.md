@@ -54,6 +54,7 @@ gate, and merges with a merge commit when CI is green.
 | WE-A: the example player and the section rules | #594 |
 | WE-G: the teacher's view of worked examples, by skill | #599 |
 | WE-C: the Step Algebra replay | #600 |
+| WE-D: the radical replay with factoring slides | #602 |
 
 ## Track SP: showing the process
 
