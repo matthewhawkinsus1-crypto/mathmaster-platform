@@ -124,6 +124,10 @@ into its prompt. The grader keys the later part to the student's earlier value
 Pre-Flight checks that every `{name}` in a label or answer names an earlier
 part.
 
+Built (SP-3): the label shows the student's value, and every grader (the
+screen, the server, a secure Test, Corrections and Path) keys the part to it
+from `functions/shared/followThrough.mjs`, still accepting the part's own answer.
+
 How to write `followThrough` and `checkpoint`, with an example lesson: `docs/assignments/AUTHORING_LEARNING_SUPPORTS.md`.
 
 ## 5. Show the step (new assignments)
