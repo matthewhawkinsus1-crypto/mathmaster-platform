@@ -17,8 +17,10 @@
  * time zone reads the same bell schedule (SCHOOL_TIME_ZONE).
  *
  * What the schedule does answer: a weekend with no bell schedule of its own,
- * and a day the district calendar marks closed, are days no class meets
- * (false); otherwise the period's own window (true inside it, false outside).
+ * a day the district calendar marks closed, and a day outside the school year
+ * (the summer, pre-service days) are days no class meets (false); otherwise
+ * the period's own window (true inside it, false outside). A date no school
+ * calendar covers at all is not known.
  *
  * Pure, and loaded with the recorder (attemptSignalWriter.js), outside the
  * student's first load.
@@ -26,7 +28,7 @@
 import { normalizeSchedule, resolvePeriodWindow, resolveScheduleDayType } from '../../../functions/shared/classSchedule.mjs';
 import { zonedDateKey } from '../../../functions/shared/instructionalCalendar.mjs';
 import { buildNonInstructionalSet } from '../path/curriculumCalendar.js';
-import { schoolYearNonInstructionalRanges } from '../../curriculum/calendars/schoolYear2026-2027.js';
+import { SCHOOL_YEAR_2026_27, schoolYearNonInstructionalRanges } from '../../curriculum/calendars/schoolYear2026-2027.js';
 
 export const SCHOOL_TIME_ZONE = 'America/Chicago';
 
@@ -36,7 +38,27 @@ export const CLASS_TIME_UNKNOWN = Object.freeze({
   DAY_TYPE_NOT_SET: 'day-type-not-set',
   PERIOD_NOT_ON_SCHEDULE: 'period-not-on-schedule',
   NO_PERIOD: 'no-period',
+  NO_CALENDAR: 'no-calendar',
 });
+
+/*
+ * THE SCHOOL YEAR. The bell schedule's weekly pattern says "Monday is an A
+ * day" for every Monday there will ever be; only the district calendar knows
+ * which Mondays are school. So:
+ *   - a date the calendar covers but outside its first and last day of school
+ *     (the summer either side, pre-service days included) is a day no class
+ *     meets: "outside";
+ *   - a date no calendar covers at all (a later school year, before its
+ *     calendar is added) is not known.
+ * A calendar covers the twelve months around its school year: 1 July of the
+ * year school starts to 30 June of the year it ends.
+ */
+export const schoolYearCoverage = (year = SCHOOL_YEAR_2026_27) => {
+  const start = String(year?.startDate || '');
+  const end = String(year?.endDate || '');
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(start) || !/^\d{4}-\d{2}-\d{2}$/.test(end) || end < start) return null;
+  return { from: `${start.slice(0, 4)}-07-01`, to: `${end.slice(0, 4)}-06-30`, firstDay: start, lastDay: end };
+};
 
 let closedDays = null;
 const schoolClosedDays = () => (closedDays ||= buildNonInstructionalSet(schoolYearNonInstructionalRanges()));
@@ -59,6 +81,7 @@ export const scheduleHasPeriods = (scheduleValue) => {
  */
 export const classTimeFact = ({
   schedule = null, classPeriod = null, nowValue = Date.now(), timeZone = SCHOOL_TIME_ZONE, nonInstructionalKeys = undefined,
+  schoolYear = SCHOOL_YEAR_2026_27,
 } = {}) => {
   const unknown = (reason) => ({ duringClass: null, reason });
   const period = String(classPeriod ?? '').trim();
@@ -69,6 +92,10 @@ export const classTimeFact = ({
   const dateKey = zonedDateKey(now, timeZone);
   const ownDay = normalized.modifiedSchedules?.[dateKey]?.periods || null;
   if (!ownDay) {
+    // Which days are school at all is the district calendar's to say.
+    const year = schoolYearCoverage(schoolYear);
+    if (!year || dateKey < year.from || dateKey > year.to) return unknown(CLASS_TIME_UNKNOWN.NO_CALENDAR);
+    if (dateKey < year.firstDay || dateKey > year.lastDay) return { duringClass: false, reason: '' };
     // A day no class meets is an answer, not a gap in the schedule.
     const weekday = new Date(`${dateKey}T00:00:00Z`).getUTCDay();
     const closed = (nonInstructionalKeys === undefined ? schoolClosedDays() : nonInstructionalKeys)?.has?.(dateKey);

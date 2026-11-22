@@ -14,6 +14,7 @@ import assert from 'node:assert/strict';
 
 import {
   ATTEMPT_SIGNAL_KIND,
+  ATTEMPT_SIGNAL_ROLES,
   ATTEMPT_SIGNAL_SUPPORT_IDS,
   MAX_AWAY_MS,
   MAX_SIGNAL_SUPPORTS,
@@ -29,7 +30,9 @@ import {
   exemptAttemptSignalKinds,
   questionDifficultyBand,
 } from '../../src/platform/signals/attemptSignalFacts.js';
-import { CLASS_TIME_UNKNOWN, SCHOOL_TIME_ZONE, classTimeFact, scheduleHasPeriods } from '../../src/platform/signals/classTimeFact.js';
+import { CLASS_TIME_UNKNOWN, SCHOOL_TIME_ZONE, classTimeFact, scheduleHasPeriods, schoolYearCoverage } from '../../src/platform/signals/classTimeFact.js';
+import { SCHOOL_YEAR_2026_27 } from '../../functions/shared/schoolYearCalendar.mjs';
+import { SIGNAL_RECORDED_SECTIONS } from '../../src/platform/caseReview/workPatternSignals.js';
 import { DEFAULT_CLASS_SCHEDULE } from '../../functions/shared/classSchedule.mjs';
 import { INCLUSION_IMPLIED_SUPPORT_IDS } from '../../functions/shared/supportCatalog.mjs';
 import { factsAfterSavedWork, pastedPartIndex } from '../../src/platform/signals/useAttemptSignals.js';
@@ -243,11 +246,38 @@ test('the stored record is positions and counts: no response, no pasted text, no
 
 test('a record needs a known kind, a student and an assignment; numbers are clamped', () => {
   const fact = { kind: ATTEMPT_SIGNAL_KIND.PASTED, partIndex: 4000, attemptNumber: -3 };
-  assert.equal(buildAttemptSignalRecord({ studentId: 'S1', assignmentId: 'a-1', questionIndex: 0, fact: { kind: 'keystrokes' } }), null);
-  assert.equal(buildAttemptSignalRecord({ studentId: '', assignmentId: 'a-1', questionIndex: 0, fact }), null);
-  assert.equal(buildAttemptSignalRecord({ studentId: 'S1', assignmentId: '', questionIndex: 0, fact }), null);
-  const record = buildAttemptSignalRecord({ studentId: 'S1', assignmentId: 'a-1', questionIndex: 5000, activityRole: 'free text here', fact });
-  assert.deepEqual(record, { schemaVersion: 1, studentId: 'S1', assignmentId: 'a-1', questionIndex: 999, kind: 'pasted', attemptNumber: 1, partIndex: 49 });
+  assert.equal(buildAttemptSignalRecord({ studentId: 'S1', assignmentId: 'a-1', questionIndex: 0, activityRole: 'dol', fact: { kind: 'keystrokes' } }), null);
+  assert.equal(buildAttemptSignalRecord({ studentId: '', assignmentId: 'a-1', questionIndex: 0, activityRole: 'dol', fact }), null);
+  assert.equal(buildAttemptSignalRecord({ studentId: 'S1', assignmentId: '', questionIndex: 0, activityRole: 'dol', fact }), null);
+  const record = buildAttemptSignalRecord({ studentId: 'S1', assignmentId: 'a-1', questionIndex: 5000, activityRole: ' DOL ', fact });
+  assert.deepEqual(record, { schemaVersion: 1, studentId: 'S1', assignmentId: 'a-1', questionIndex: 999, kind: 'pasted', attemptNumber: 1, activityRole: 'dol', partIndex: 49 });
+});
+
+test('a signal is recorded on the four sections the case review counts, and nowhere else', async () => {
+  assert.deepEqual([...ATTEMPT_SIGNAL_ROLES], ['warmup', 'classwork', 'practice', 'dol']);
+  // One list: the case review's denominator is the recorder's own sections.
+  assert.equal(SIGNAL_RECORDED_SECTIONS, ATTEMPT_SIGNAL_ROLES);
+  const fact = { kind: ATTEMPT_SIGNAL_KIND.PASTED, partIndex: 0, attemptNumber: 1 };
+  const place = { studentId: 'S1', assignmentId: 'a-1', questionIndex: 0, fact };
+  for (const activityRole of ATTEMPT_SIGNAL_ROLES) assert.equal(buildAttemptSignalRecord({ ...place, activityRole }).activityRole, activityRole);
+  // A Quiz, a Test, Review, Corrections, anything else, or no section at all: no record.
+  for (const activityRole of ['quiz', 'test', 'review', 'corrections', 'free text here', '', null, undefined]) {
+    assert.equal(buildAttemptSignalRecord({ ...place, activityRole }), null, `no record on ${activityRole}`);
+  }
+  // So nothing is written, and the Live count does not move.
+  const writes = [];
+  const store = { doc: (_db, ...segments) => segments.join('/'), serverTimestamp: () => 'T', setDoc: async (path, data) => { writes.push(data); } };
+  resetAttemptSignalWriter();
+  assert.equal(await recordAttemptSignal({ db: {}, studentId: 'S_Q', assignmentId: 'a-q', questionIndex: 0, activityRole: 'corrections', fact, store }), false);
+  assert.equal(await recordAttemptSignal({ db: {}, studentId: 'S_Q', assignmentId: 'a-q', questionIndex: 1, fact, store }), false);
+  assert.equal(await recordAttemptSignal({ db: {}, studentId: 'S_Q', assignmentId: 'a-q', questionIndex: 2, activityRole: 'classwork', fact, store }), true);
+  assert.deepEqual(writes.map((write) => write.activityRole), ['classwork']);
+  resetAttemptSignalWriter();
+  // The create rule names the same four, and requires one.
+  const rules = readFileSync(new URL('../../firestore.rules', import.meta.url), 'utf8');
+  const context = region(rules, 'function attemptSignalContextValid(d) {', '\n    }\n', 'attemptSignalContextValid');
+  assert.match(context, /return d\.keys\(\)\.hasAny\(\['activityRole'\]\)\s*&& d\.activityRole in \['warmup', 'classwork', 'practice', 'dol'\]/);
+  assert.doesNotMatch(context, /'quiz'|'test'|'review'|'corrections'/);
 });
 
 test('one document per fact: a question holds each kind once, a paste once per part', () => {
@@ -326,7 +356,7 @@ test('a locked screen or a tab left open is not the pattern: an absence over fiv
   assert.deepEqual(burstAfter(() => {}, MAX_AWAY_MS + 1), []);
   assert.deepEqual(burstAfter(() => {}, 15 * 3600_000), [], 'overnight');
   // No record can say more than five minutes.
-  const record = buildAttemptSignalRecord({ studentId: 'S1', assignmentId: 'a-1', questionIndex: 0, fact: { kind: ATTEMPT_SIGNAL_KIND.LEFT_THEN_RIGHT, partCount: 2, awaySeconds: 54_000, attemptNumber: 1 } });
+  const record = buildAttemptSignalRecord({ studentId: 'S1', assignmentId: 'a-1', questionIndex: 0, activityRole: 'classwork', fact: { kind: ATTEMPT_SIGNAL_KIND.LEFT_THEN_RIGHT, partCount: 2, awaySeconds: 54_000, attemptNumber: 1 } });
   assert.equal(record.awaySeconds, 300);
 });
 
@@ -422,7 +452,7 @@ test('the writer counts a fact when its write lands, sends it once, and tries ag
 
 test('beside each fact: in the class\'s scheduled time or not, and the supports in effect, and nothing else about the student', () => {
   const fact = { kind: ATTEMPT_SIGNAL_KIND.PASTED, partIndex: 0, attemptNumber: 1 };
-  const base = { studentId: 'S1', assignmentId: 'a-1', questionIndex: 0, fact };
+  const base = { studentId: 'S1', assignmentId: 'a-1', questionIndex: 0, activityRole: 'classwork', fact };
   assert.equal(buildAttemptSignalRecord({ ...base, duringClass: true }).duringClass, true);
   assert.equal(buildAttemptSignalRecord({ ...base, duringClass: false }).duringClass, false);
   // The schedule could not say: the key is left out, never guessed.
@@ -459,7 +489,7 @@ test('the supports in effect are the plan\'s own answer: for this activity, with
   const everything = { accommodations: [...ATTEMPT_SIGNAL_SUPPORT_IDS] };
   assert.equal(supportsInEffect(everything, { nowValue }).length, ATTEMPT_SIGNAL_SUPPORT_IDS.length);
   assert.equal(MAX_SIGNAL_SUPPORTS, ATTEMPT_SIGNAL_SUPPORT_IDS.length);
-  const record = buildAttemptSignalRecord({ studentId: 'S1', assignmentId: 'a-1', questionIndex: 0, fact: { kind: ATTEMPT_SIGNAL_KIND.PASTED, partIndex: 0, attemptNumber: 1 }, supports: supportsInEffect(everything, { nowValue }) });
+  const record = buildAttemptSignalRecord({ studentId: 'S1', assignmentId: 'a-1', questionIndex: 0, activityRole: 'classwork', fact: { kind: ATTEMPT_SIGNAL_KIND.PASTED, partIndex: 0, attemptNumber: 1 }, supports: supportsInEffect(everything, { nowValue }) });
   assert.equal(record.supports.length, ATTEMPT_SIGNAL_SUPPORT_IDS.length);
   const rules = readFileSync(new URL('../../firestore.rules', import.meta.url), 'utf8');
   const cap = Number(/d\.supports is list && d\.supports\.size\(\) <= (\d+)/.exec(rules)?.[1]);
@@ -496,6 +526,33 @@ test('class time, where the schedule answers: inside the period, outside it, a w
   assert.deepEqual(inClass({ nowValue: chicago('2026-11-19', '13:10') }), { duringClass: true, reason: '' }, 'the B day\'s own times');
   assert.deepEqual(inClass({ nowValue: chicago('2026-11-21', '10:20') }), { duringClass: false, reason: '' }, 'a Saturday: no class meets');
   assert.deepEqual(inClass({ nowValue: chicago('2026-11-18', '10:20'), nonInstructionalKeys: new Set(['2026-11-18']) }), { duringClass: false, reason: '' }, 'a day the calendar marks closed');
+});
+
+test('outside the school year no class meets; a date no calendar covers is not known', () => {
+  // The real calendar: school runs 10 Aug 2026 to 21 May 2027. The weekly
+  // pattern alone would call each of these Mondays to Thursdays a school day.
+  const real = (nowValue) => classTimeFact({ schedule: SAVED_SCHEDULE, classPeriod: 'Period 3', nowValue });
+  const cdt = (date, time) => Date.parse(`${date}T${time}:00-05:00`);
+  assert.deepEqual([SCHOOL_YEAR_2026_27.startDate, SCHOOL_YEAR_2026_27.endDate], ['2026-08-10', '2027-05-21']);
+  // In the year, in the period: in class (the calendar is consulted, and says school).
+  assert.deepEqual(real(chicago('2026-11-18', '10:20')), { duringClass: true, reason: '' });
+  // A summer Monday at the period's own time: no class meets.
+  assert.deepEqual(real(cdt('2027-06-07', '10:20')), { duringClass: false, reason: '' });
+  // Pre-service week, before the first day; and the first and last days themselves.
+  assert.deepEqual(real(cdt('2026-08-05', '10:20')), { duringClass: false, reason: '' });
+  assert.deepEqual(real(cdt('2026-07-01', '10:20')), { duringClass: false, reason: '' });
+  assert.equal(real(cdt('2026-08-10', '10:20')).duringClass, true, 'the first day of school');
+  assert.equal(real(cdt('2027-05-19', '10:20')).duringClass, true, 'the last Wednesday of school');
+  assert.deepEqual(real(cdt('2027-05-24', '10:20')), { duringClass: false, reason: '' }, 'the Monday after the last day');
+  // No calendar covers the date at all: a later school year, or an earlier one.
+  assert.deepEqual(schoolYearCoverage(SCHOOL_YEAR_2026_27), { from: '2026-07-01', to: '2027-06-30', firstDay: '2026-08-10', lastDay: '2027-05-21' });
+  for (const nowValue of [cdt('2027-09-15', '10:20'), cdt('2027-07-01', '10:20'), cdt('2026-06-30', '10:20'), chicago('2028-01-12', '10:20')]) {
+    assert.deepEqual(real(nowValue), { duringClass: null, reason: CLASS_TIME_UNKNOWN.NO_CALENDAR });
+  }
+  assert.deepEqual(classTimeFact({ schedule: SAVED_SCHEDULE, classPeriod: 'Period 3', nowValue: chicago('2026-11-18', '10:20'), schoolYear: null }), { duringClass: null, reason: CLASS_TIME_UNKNOWN.NO_CALENDAR });
+  // A date given its own bell schedule is school, wherever it falls: the more specific word.
+  const summerSchool = { ...SAVED_SCHEDULE, modifiedSchedules: { '2027-06-07': { periods: PERIODS_ON({ 'Period 3': ['10:00', '10:50'] }) } } };
+  assert.equal(classTimeFact({ schedule: summerSchool, classPeriod: 'Period 3', nowValue: cdt('2027-06-07', '10:20') }).duringClass, true);
 });
 
 test('class time not known (a): no schedule has been loaded or saved', () => {
@@ -549,7 +606,7 @@ test('the writer stores in class or outside it only when the schedule answers; o
   const store = { doc: (_db, ...segments) => segments.join('/'), serverTimestamp: () => 'T', setDoc: async (path, data) => { writes.push(data); } };
   resetAttemptSignalWriter();
   const fact = { kind: ATTEMPT_SIGNAL_KIND.PASTED, partIndex: 0, attemptNumber: 1 };
-  const send = (questionIndex, classTime) => recordAttemptSignal({ db: {}, studentId: 'S_T', assignmentId: 'a-t', questionIndex, fact, classTime, profile: null, store });
+  const send = (questionIndex, classTime) => recordAttemptSignal({ db: {}, studentId: 'S_T', assignmentId: 'a-t', questionIndex, activityRole: 'classwork', fact, classTime, profile: null, store });
   await send(0, { schedule: SAVED_SCHEDULE, classPeriod: 'Period 3', at: chicago('2026-11-18', '10:20') });
   await send(1, { schedule: SAVED_SCHEDULE, classPeriod: 'Period 3', at: chicago('2026-11-18', '19:30') });
   await send(2, { schedule: DEFAULT_CLASS_SCHEDULE, classPeriod: 'Period 3', at: chicago('2026-11-18', '19:30') });
@@ -607,11 +664,11 @@ test('the writer records the supports in effect from the profile it is handed', 
   const store = { doc: (_db, ...segments) => segments.join('/'), serverTimestamp: () => 'T', setDoc: async (path, data) => { writes.push(data); } };
   resetAttemptSignalWriter();
   const fact = { kind: ATTEMPT_SIGNAL_KIND.PASTED, partIndex: 0, attemptNumber: 1 };
-  await recordAttemptSignal({ db: {}, studentId: 'S_P', assignmentId: 'a-p', questionIndex: 0, fact, duringClass: false, profile: { accommodations: ['extra-time', 'large-text'] }, store });
+  await recordAttemptSignal({ db: {}, studentId: 'S_P', assignmentId: 'a-p', questionIndex: 0, activityRole: 'classwork', fact, duringClass: false, profile: { accommodations: ['extra-time', 'large-text'] }, store });
   assert.deepEqual([writes[0].supports, writes[0].duringClass], [['extra-time', 'large-text'], false]);
-  await recordAttemptSignal({ db: {}, studentId: 'S_P', assignmentId: 'a-p', questionIndex: 1, fact, profile: null, store });
+  await recordAttemptSignal({ db: {}, studentId: 'S_P', assignmentId: 'a-p', questionIndex: 1, activityRole: 'classwork', fact, profile: null, store });
   assert.deepEqual(writes[1].supports, [], 'a student with no profile has none in effect');
-  await recordAttemptSignal({ db: {}, studentId: 'S_P', assignmentId: 'a-p', questionIndex: 2, fact, store });
+  await recordAttemptSignal({ db: {}, studentId: 'S_P', assignmentId: 'a-p', questionIndex: 2, activityRole: 'classwork', fact, store });
   assert.ok(!('supports' in writes[2]) && !('duringClass' in writes[2]), 'not handed either: neither is recorded');
   resetAttemptSignalWriter();
 });

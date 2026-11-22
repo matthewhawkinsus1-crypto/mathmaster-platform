@@ -100,10 +100,17 @@ test('a student records each kind of fact about their own attempt, as the app bu
     const { id, data } = recordFor(kind);
     await assertSucceeds(setDoc(signalRef(studentA(), 'S_A', id), data));
   }
-  // Without the optional section name too.
+  // The section is part of the fact: a record without one is refused.
   const { id, data } = recordFor('hardFirstTry', { questionIndex: 9 });
   const { activityRole: _role, ...withoutRole } = data;
-  await assertSucceeds(setDoc(signalRef(studentA(), 'S_A', id), withoutRole));
+  await assertFails(setDoc(signalRef(studentA(), 'S_A', id), withoutRole));
+  // On the four sections the case review counts, and on no other.
+  for (const [index, activityRole] of ['warmup', 'classwork', 'practice', 'dol'].entries()) {
+    await assertSucceeds(setDoc(signalRef(studentA(), 'S_A', id.replace('__9__', `__${12 + index}__`)), { ...data, questionIndex: 12 + index, activityRole }));
+  }
+  for (const activityRole of ['quiz', 'test', 'review', 'corrections']) {
+    await assertFails(setDoc(signalRef(studentA(), 'S_A', id), { ...data, activityRole }));
+  }
 });
 
 test('the first record of a fact stands: the student cannot write it again, change it or delete it', async () => {

@@ -35,7 +35,6 @@ export default function CaseSignalsTab({ model, onOpenQuestion = null }) {
         ) : (
           <EmptyNote>No signal is recorded in this window. {section.denominator.words}</EmptyNote>
         )}
-        {section.capped && <p className="cr-note" role="status" data-case-signals-capped>{section.cappedNote}</p>}
       </section>
 
       {section.total > 0 && (
@@ -63,7 +62,7 @@ export default function CaseSignalsTab({ model, onOpenQuestion = null }) {
           {section.byMonth.length > 0 && (
             <section className="cr-section" aria-labelledby="cr-signals-months">
               <h2 id="cr-signals-months">Month by month</h2>
-              <div className="cr-scroll-x" role="region" aria-label="Signals by month" tabIndex={0}>
+              <div className="cr-scroll-x" role="region" aria-label="Month by month, scrollable" tabIndex={0}>
                 <table className="cr-table" aria-label="Signals by month" data-case-signal-months>
                   <thead><tr><th>Month</th><th>Answers counted</th><th>Answers with a signal</th>{KIND_COLUMNS.map((column) => <th key={column.kind}>{column.label}</th>)}</tr></thead>
                   <tbody>

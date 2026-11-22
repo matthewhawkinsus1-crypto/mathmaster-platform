@@ -60,7 +60,13 @@ export const MAX_ATTEMPT_NUMBER = 99;
 // more of them than the catalog holds (firestore.rules lists the same ids).
 export const ATTEMPT_SIGNAL_SUPPORT_IDS = Object.freeze(SUPPORT_CATALOG.map((entry) => entry.id));
 export const MAX_SIGNAL_SUPPORTS = ATTEMPT_SIGNAL_SUPPORT_IDS.length;
-export const ATTEMPT_SIGNAL_ROLES = Object.freeze(['warmup', 'classwork', 'dol', 'practice', 'quiz', 'test', 'review', 'corrections']);
+// WHERE A SIGNAL IS RECORDED: the four sections of a classroom assignment.
+// The case review counts signals out of the answers in these sections
+// (caseReview/workPatternSignals.js), so a fact anywhere else (a Quiz, a Test,
+// Review, Corrections, or a question with no section) is not recorded at all:
+// a signal that no count could hold would read as "2 signals, 0 of 1 answers".
+// firestore.rules refuses any other section, and a record with none.
+export const ATTEMPT_SIGNAL_ROLES = Object.freeze(['warmup', 'classwork', 'practice', 'dol']);
 
 const list = (value) => (Array.isArray(value) ? value : []);
 const clean = (value) => String(value ?? '').trim();
@@ -369,6 +375,9 @@ export const buildAttemptSignalRecord = ({ studentId, assignmentId, questionInde
   const student = clean(studentId);
   const assignment = clean(assignmentId);
   if (!ATTEMPT_SIGNAL_KINDS.includes(kind) || !student || !assignment || assignment.length > 200) return null;
+  // No record outside the sections signals are recorded on.
+  const role = clean(activityRole).toLowerCase();
+  if (!ATTEMPT_SIGNAL_ROLES.includes(role)) return null;
   const record = {
     schemaVersion: ATTEMPT_SIGNAL_SCHEMA_VERSION,
     studentId: student,
@@ -377,8 +386,7 @@ export const buildAttemptSignalRecord = ({ studentId, assignmentId, questionInde
     kind,
     attemptNumber: clampInt(fact.attemptNumber, 1, MAX_ATTEMPT_NUMBER),
   };
-  const role = clean(activityRole).toLowerCase();
-  if (ATTEMPT_SIGNAL_ROLES.includes(role)) record.activityRole = role;
+  record.activityRole = role;
   // In the class's scheduled time or outside it, from the bell schedule; left
   // out when the schedule could not say. Nothing else about where the student
   // was is recorded or inferred.

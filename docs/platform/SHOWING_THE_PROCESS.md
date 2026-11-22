@@ -248,16 +248,21 @@ As built (SP-2 and SP-2b):
   a fact stands. A paste in a part past the fiftieth is not recorded, rather
   than filed under another part; a table's boxes are numbered among the boxes
   the student fills.
+- **Where.** Only on the Warm-Up, Classwork, Practice and DOL questions of a
+  classroom assignment. A fact on a Quiz, a Test, Review or Corrections is not
+  recorded, and the create rule refuses one: these are the sections the case
+  review counts signals out of, and the two lists are one.
 - **Context stored with it.**
   - `duringClass`: whether the fact happened in the class's scheduled time
     (`classTimeFact.js`). It has three answers. True or false is stored only
     when the bell schedule answers, read on the school's clock
     (America/Chicago), never the device's. A weekend with no bell schedule of
-    its own and a day the calendar marks closed are "outside". The field is
+    its own, a day the calendar marks closed, and a day outside the school
+    year (the summer, pre-service days) are "outside". The field is
     left out, and every screen and export reads "Class time not known", when
     no schedule has been saved or loaded, when the day's A/B type has not been
-    chosen (a Friday not yet set), or when the student's period is missing or
-    not switched on that day. Nothing else about where the student was is
+    chosen (a Friday not yet set), when the student's period is missing or
+    not switched on that day, or when no school calendar covers the date. Nothing else about where the student was is
     recorded.
   - `supports`: the catalog ids of the supports in effect that day for that
     kind of activity, by the support plan's own rules: a support limited to

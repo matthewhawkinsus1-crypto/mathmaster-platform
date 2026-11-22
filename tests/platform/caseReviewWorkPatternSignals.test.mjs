@@ -12,7 +12,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 
 import { buildStudentCaseReview } from '../../src/platform/caseReview/studentCaseReview.js';
-import { buildWorkPatternSignals, workPatternTimelineEntries } from '../../src/platform/caseReview/workPatternSignals.js';
+import { SIGNAL_RECORDED_SECTIONS, buildWorkPatternSignals, workPatternTimelineEntries } from '../../src/platform/caseReview/workPatternSignals.js';
 import { PRINT_SECTIONS, caseReviewJson, caseSignalsCsv } from '../../src/platform/caseReview/caseReviewExport.js';
 import { FORBIDDEN_CONCLUSIONS, narrativeViolations, renderNarrativeTemplate } from '../../src/platform/caseReview/narrativeGuard.js';
 import { fetchAttemptSignals } from '../../src/platform/caseReview/caseReviewStore.js';
@@ -213,7 +213,7 @@ test('not loaded is said as not loaded, and no signals as none: neither is a fin
 test('the denominator is only the answers where a signal could have been recorded, and it says so', () => {
   // With an earlier signal on record, all 33 dated classroom answers count.
   assert.deepEqual([section.denominator.answered, section.denominator.allAnswered, section.denominator.recordedSinceMs], [33, 33, RECORDED_SINCE]);
-  assert.deepEqual(section.denominator.leftOut, { otherSections: 0, beforeRecording: 0, noTime: 0 });
+  assert.deepEqual(section.denominator.leftOut, { otherSections: 0, beforeRecording: 0, noTime: 0, outsideWindow: 0 });
   assert.equal(section.denominator.words, 'Counted out of 33 answered Warm-Up, Classwork, Practice and DOL questions, last answered on or after Sep 1, 2026 (the first signal on record for this student).');
   assert.ok(section.lines.includes(section.denominator.words), 'the lines say what the counts are out of');
 
@@ -240,8 +240,8 @@ test('the denominator is only the answers where a signal could have been recorde
   ];
   const mixed = buildWorkPatternSignals({ signals: SIGNALS, questions: rows, assignments: model.assignments, signalsMeta: { firstRecordedAtMs: RECORDED_SINCE } });
   assert.deepEqual([mixed.denominator.answered, mixed.denominator.allAnswered], [33, 37]);
-  assert.deepEqual(mixed.denominator.leftOut, { otherSections: 3, beforeRecording: 0, noTime: 1 });
-  assert.match(mixed.denominator.words, /Left out: 3 in Tests, Review, Corrections or Recovery; 1 with no recorded time\.$/);
+  assert.deepEqual(mixed.denominator.leftOut, { otherSections: 3, beforeRecording: 0, noTime: 1, outsideWindow: 0 });
+  assert.match(mixed.denominator.words, /Left out: 3 in Quizzes, Tests, Review, Corrections or Recovery; 1 with no recorded time\.$/);
   assert.ok(section.limitations.some((line) => /Counts are out of the answered questions where a signal could have been recorded/.test(line)));
 });
 
@@ -275,7 +275,64 @@ test('when the window held more signals than were loaded, the section says so', 
   assert.equal(capped.cappedNote, 'Only the newest 500 signals in this window were loaded; older ones in the window are not counted here.');
   assert.equal(capped.lines[0], capped.cappedNote);
   assert.deepEqual([section.capped, section.cappedNote], [false, '']);
-  assert.match(executableSource(read('src/components/teacher/caseReview/CaseSignalsTab.jsx')), /\{section\.capped && <p className="cr-note" role="status" data-case-signals-capped>\{section\.cappedNote\}<\/p>\}/);
+  // Said once: it is the first of the section's lines, which the tab and the
+  // print both draw, and the tab does not draw it a second time.
+  assert.equal(capped.lines.filter((line) => line === capped.cappedNote).length, 1);
+  const tab = executableSource(read('src/components/teacher/caseReview/CaseSignalsTab.jsx'));
+  assert.doesNotMatch(tab, /cappedNote/);
+  assert.match(tab, /\{section\.lines\.map\(\(line\) => <li key=\{line\}>\{line\}<\/li>\)\}/);
+});
+
+test('every signal the section shows is one its counts can hold: the recorder and the denominator share their sections', () => {
+  // A paste on a Corrections question and a hard first try on Classwork. The
+  // recorder writes only the second (attemptSignalFacts.test.mjs); a record
+  // from another section, however it got there, is not shown beside counts
+  // that cannot hold it ("2 signals", "pasted on 0 of 1 answers").
+  const classwork = model.questions.find((row) => row.assignmentId === 'L3' && row.storageIndex === 1);
+  const corrections = { ...classwork, storageIndex: 80, section: 'corrections', sectionLabel: 'Corrections' };
+  const two = buildWorkPatternSignals({
+    signals: [
+      signal('L3', 80, 'pasted', { partIndex: 0, activityRole: 'corrections' }),
+      signal('L3', 1, 'hardFirstTry', { partCount: 1, difficultyBand: 3, activityRole: 'classwork' }),
+    ],
+    questions: [classwork, corrections],
+    assignments: model.assignments,
+    signalsMeta: { firstRecordedAtMs: RECORDED_SINCE },
+  });
+  assert.equal(two.total, 1);
+  assert.deepEqual(two.entries.map((entry) => entry.kind), ['hardFirstTry']);
+  assert.deepEqual([two.denominator.answered, two.denominator.leftOut.otherSections], [1, 1]);
+  assert.equal(two.frequency.find((row) => row.kind === 'pasted').signals, 0);
+  assert.ok(two.lines.includes('Right first time on a hard question with no tool work on 1 of 1 answered question.'));
+  assert.ok(!two.lines.some((line) => /on 0 of 1/.test(line)), two.lines.join('\n'));
+  // Every entry of the fixture's section is on a counted section.
+  assert.ok(section.entries.every((entry) => SIGNAL_RECORDED_SECTIONS.includes(entry.section)));
+});
+
+test('the answers counted are the window\'s, as the signals are', () => {
+  // Pasted into and answered on 2 Nov; the window starts on 15 Nov. Neither
+  // the signal nor the answer is in the window, so the answer is not counted
+  // as "an answer without a signal".
+  const base = model.questions.find((row) => row.assignmentId === 'L3' && row.storageIndex === 1);
+  const before = { ...base, storageIndex: 1, lastAttemptAtMs: Date.UTC(2026, 10, 2, 15) };
+  const inside = { ...base, storageIndex: 2, lastAttemptAtMs: Date.UTC(2026, 10, 17, 15) };
+  const after = { ...base, storageIndex: 3, lastAttemptAtMs: Date.UTC(2026, 11, 3, 15) };
+  const windowed = buildWorkPatternSignals({
+    signals: [
+      signal('L3', 1, 'pasted', { partIndex: 0, activityRole: 'classwork', recordedAt: Date.UTC(2026, 10, 2, 14, 55) }),
+      signal('L3', 2, 'pasted', { partIndex: 0, activityRole: 'classwork', recordedAt: Date.UTC(2026, 10, 17, 14, 55) }),
+    ],
+    questions: [before, inside, after],
+    assignments: model.assignments,
+    fromMs: Date.UTC(2026, 10, 15),
+    toMs: Date.UTC(2026, 10, 30),
+    signalsMeta: { firstRecordedAtMs: Date.UTC(2026, 10, 2, 14, 55) },
+  });
+  assert.deepEqual([windowed.total, windowed.denominator.answered, windowed.denominator.leftOut.outsideWindow], [1, 1, 2]);
+  assert.deepEqual([windowed.comparison.withSignal.answered, windowed.comparison.withoutSignal.answered], [1, 0]);
+  assert.equal(windowed.frequency.find((row) => row.kind === 'pasted').line, 'Pasted into a math box on 1 of 1 answered question.');
+  assert.match(windowed.denominator.words, /Left out: 2 answered outside this window\.$/);
+  assert.deepEqual(windowed.byMonth.map((row) => [row.key, row.answered]), [['2026-11', 1]]);
 });
 
 test('the loader asks for the case\'s own window, one past the cap, and the earliest signal on record', async () => {
@@ -283,7 +340,7 @@ test('the loader asks for the case\'s own window, one past the cap, and the earl
   const stamp = (ms) => ({ toMillis: () => ms });
   const docs = (rows) => ({ docs: rows.map((row) => ({ id: row.id, data: () => row })) });
   const store = {
-    collection: (db, ...segments) => segments.join('/'),
+    collection: (...segments) => segments.slice(1).join('/'),
     where: (field, op, value) => ['where', field, op, value.getTime()],
     orderBy: (field, direction) => ['orderBy', field, direction],
     limit: (count) => ['limit', count],

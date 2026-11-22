@@ -238,8 +238,9 @@ question rows. The section holds counts only:
 - how often each kind occurs, out of the answered questions where a signal
   could have been recorded: Warm-Up, Classwork, Practice and DOL questions of
   classroom assignments, last answered on or after the student's first signal
-  on record. Answers before that date, in other sections, in Recovery, or with
-  no recorded time are left out and counted as left out. The section states
+  on record, inside the case's window. Answers before that date, outside the
+  window, in other sections, in Recovery, or with no recorded time are left
+  out and counted as left out. The section states
   the denominator in words;
 - the same count month by month, on the school's calendar;
 - first-attempt and final accuracy on answered questions with a signal, beside

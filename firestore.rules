@@ -168,9 +168,10 @@ service cloud.firestore {
     // attempt was in the class's scheduled time (a yes or a no, nothing else
     // about where the student was), and the supports in effect (catalog ids).
     function attemptSignalContextValid(d) {
-      return (!d.keys().hasAny(['activityRole']) || d.activityRole in [
-          'warmup', 'classwork', 'dol', 'practice', 'quiz', 'test', 'review', 'corrections'
-        ])
+      // Recorded on the four sections of a classroom assignment and nowhere
+      // else: the sections the case review counts signals out of.
+      return d.keys().hasAny(['activityRole'])
+        && d.activityRole in ['warmup', 'classwork', 'practice', 'dol']
         && (!d.keys().hasAny(['duringClass']) || d.duringClass is bool)
         && (!d.keys().hasAny(['supports']) || (d.supports is list && d.supports.size() <= 50
           && d.supports.toSet().hasOnly(attemptSignalSupportIds())));

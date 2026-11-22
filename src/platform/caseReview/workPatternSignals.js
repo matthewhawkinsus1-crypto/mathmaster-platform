@@ -22,14 +22,14 @@
 import {
   ATTEMPT_SIGNAL_PHRASE, ATTEMPT_SIGNAL_TITLE, CLASS_TIME_NOT_KNOWN, NOT_CONCLUSIVE, TEACHER_NOTE_HEADING, TEACHER_NOTE_LABEL, describeAttemptSignal,
 } from '../teacher/attemptSignalsView.js';
-import { ATTEMPT_SIGNAL_KINDS } from '../signals/attemptSignalFacts.js';
+import { ATTEMPT_SIGNAL_KINDS, ATTEMPT_SIGNAL_ROLES } from '../signals/attemptSignalFacts.js';
 import { CASE_PROVENANCE } from './caseProvenance.js';
 import { QUESTION_OUTCOME, SECTION_ROLE_LABEL } from './attemptAnalysis.js';
 
 export const WORK_PATTERN_TITLE = 'Work-pattern signals';
 export const WORK_PATTERN_NOTE = 'Facts recorded about attempts: not findings, and not conclusive on their own. They never change a score, an attempt or mastery, and no narrative fact is written from them.';
 export const WORK_PATTERN_LIMITATIONS = Object.freeze([
-  'Signals are recorded on the student\'s classroom assignments (credit work) from the date the feature was released. Earlier work, post-deadline practice, Recovery, My Math Path and secure Tests have none, so a question with no signal is not a question where nothing happened.',
+  'Signals are recorded on the Warm-Up, Classwork, Practice and DOL questions of the student\'s classroom assignments (credit work) from the date the feature was released. Earlier work, post-deadline practice, Quizzes, Review, Corrections, Recovery, My Math Path and secure Tests have none, so a question with no signal is not a question where nothing happened.',
   'A signal records a position and counts. What was typed or pasted, and what the student did while the page was hidden, are not recorded and cannot be known from it.',
   '"During the class\'s scheduled time" is the bell schedule, not attendance or a location. Where the schedule could not say (no schedule saved yet, a Friday whose A/B day was not chosen, a period not on that day\'s schedule) the record reads "Class time not known", never "outside".',
   'Counts are out of the answered questions where a signal could have been recorded: the Warm-Up, Classwork, Practice and DOL questions of classroom assignments, last answered on or after the first signal on record for this student. Answers before that date, and answers with no recorded time, are left out of the count rather than read as "no signal".',
@@ -43,8 +43,9 @@ const key = (assignmentId, questionIndex) => `${clean(assignmentId)}|${Number(qu
 const share = (count, of) => (of > 0 ? Math.round((count / of) * 100) : null);
 
 // Where the recorder runs: the sections of a classroom assignment worked for
-// credit. Tests, Review, Corrections, Recovery and My Math Path record none.
-export const SIGNAL_RECORDED_SECTIONS = Object.freeze(['warmup', 'classwork', 'practice', 'dol']);
+// credit. One list, the recorder's own (attemptSignalFacts.js, and the create
+// rule): Quizzes, Tests, Review, Corrections, Recovery and My Math Path record none.
+export const SIGNAL_RECORDED_SECTIONS = ATTEMPT_SIGNAL_ROLES;
 export const SIGNAL_LIST_CAP_NOTE = (max) => `Only the newest ${max} signals in this window were loaded; older ones in the window are not counted here.`;
 
 const ANSWERED = (row) => Number(row?.totalAttempts) > 0
@@ -104,6 +105,9 @@ export const buildWorkPatternSignals = ({
         provenance: CASE_PROVENANCE.DIRECT,
       };
     })
+    // Only a signal its counts can hold: one on a section signals are recorded
+    // on. The recorder and the create rule write no other (attemptSignalFacts.js).
+    .filter((entry) => SIGNAL_RECORDED_SECTIONS.includes(entry.section))
     .sort((a, b) => a.recordedAtMs - b.recordedAtMs || a.assignmentId.localeCompare(b.assignmentId) || a.questionIndex - b.questionIndex || a.kind.localeCompare(b.kind));
 
   // THE DENOMINATOR. Only an answer where a signal could have been recorded
@@ -115,18 +119,21 @@ export const buildWorkPatternSignals = ({
   const firstKnown = [Number(signalsMeta?.firstRecordedAtMs) || 0, ...earliestLoaded].filter((ms) => ms > 0);
   const recordedSinceMs = firstKnown.length ? Math.min(...firstKnown) : null;
   const allAnswered = list(questions).filter(ANSWERED);
-  const left = { otherSections: 0, beforeRecording: 0, noTime: 0 };
+  const left = { otherSections: 0, beforeRecording: 0, noTime: 0, outsideWindow: 0 };
   const answeredRows = allAnswered.filter((row) => {
     if (!SIGNAL_RECORDED_SECTIONS.includes(row.section) || row.recoveredLate === true) { left.otherSections += 1; return false; }
     if (recordedSinceMs === null) { left.beforeRecording += 1; return false; }
     if (!Number.isFinite(row.lastAttemptAtMs) || row.lastAttemptAtMs === null) { left.noTime += 1; return false; }
     if (row.lastAttemptAtMs < recordedSinceMs) { left.beforeRecording += 1; return false; }
+    // The signals are the window's; so are the answers they are counted out of.
+    if ((fromMs !== null && row.lastAttemptAtMs < fromMs) || (toMs !== null && row.lastAttemptAtMs > toMs)) { left.outsideWindow += 1; return false; }
     return true;
   });
   const formatDay = (ms) => new Date(ms).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', timeZone });
   const leftOutWords = [
     left.beforeRecording ? `${left.beforeRecording} answered before then` : '',
-    left.otherSections ? `${left.otherSections} in Tests, Review, Corrections or Recovery` : '',
+    left.outsideWindow ? `${left.outsideWindow} answered outside this window` : '',
+    left.otherSections ? `${left.otherSections} in Quizzes, Tests, Review, Corrections or Recovery` : '',
     left.noTime ? `${left.noTime} with no recorded time` : '',
   ].filter(Boolean);
   const denominator = {
