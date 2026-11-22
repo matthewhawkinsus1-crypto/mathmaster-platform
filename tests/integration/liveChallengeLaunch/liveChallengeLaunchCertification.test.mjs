@@ -736,6 +736,20 @@ test(`endurance: ${ENDURANCE_MATCHES} matches in a row for ${ENDURANCE_CLASS} st
     // Every screen follows its student's invite pointer from match to match,
     // never refreshed, as a class does when the teacher plays again.
     await Promise.all(entry.students.map((studentId) => farm.device(studentId).followInvites()));
+    // A class's screens are open before the teacher creates the game: each
+    // invite listener has heard its first snapshot. Creating the first match
+    // while the listeners were still being registered lost the new invite on
+    // 2 of 20 screens in CI (match 1 only, #177: one snapshot, naming no
+    // room, ~330 ms after attaching, then nothing for 20 s). The server
+    // writes every invite in one batch, so the write was there; the listener
+    // most likely missed a write that landed while it was still being
+    // registered. Matches 2 to 4 never failed: their listeners were long
+    // established, as a classroom's are.
+    await waitUntil(
+      async () => `every screen's invite listener heard its first snapshot. Not yet: ${describeScreens([...(await farm.views()).values()].filter((view) => !(view.inviteHeard?.snapshots >= 1)))}`,
+      async () => [...(await farm.views()).values()].every((view) => view.inviteHeard?.snapshots >= 1),
+      20_000,
+    );
     for (let match = 0; match < ENDURANCE_MATCHES; match += 1) {
       // Each match ranks a different way — total points, round placements
       // (Grand Prix, its comeback curve included), correct answers — so every
