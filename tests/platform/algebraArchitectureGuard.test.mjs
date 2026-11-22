@@ -34,6 +34,12 @@ test('the mature equation engine is mounted only by its known hosts', () => {
   assert.deepEqual(mounts('StepByStepAlgebraCore'), [
     'src/LinearInterceptsOrchestrator.jsx',
     'src/StepByStepAlgebra.jsx',
+    // SHOW THE STEP (SP-4): a part's `stepMoves` checkpoint is one step done in
+    // the workspace itself, embedded as the other tools embed it, before the
+    // part's answer box opens. The question engine hands the workspace in
+    // (it holds it already). It routes nothing: the question stays a
+    // multi-part answer, graded on its answers.
+    'src/platform/supports/showTheStep/ShowTheStep.jsx',
     'src/tools/representationBridge/process/ProcessAlgebraMethods.jsx',
     'src/tools/stepAlgebra2/RewriteLinearForm.jsx',
     'src/tools/systemsWorkspace/AlgebraicSystemMode.jsx',

@@ -26,6 +26,7 @@
  *
  * Pure: no Firestore, no clock, no React.
  */
+import { checkpointParts, partIdOfStepField, stepRowLabel, withStepsAfterParts } from './showTheStepFields.mjs';
 import { answerCandidatesForField, isChoiceAnswerField, orderedPairKey } from './answerUtils.mjs';
 import { multiAnswerFields, systemSolutionKey } from './ordinaryResponseGrading.mjs';
 import { resolveGradingSurfaceId } from './serverGrading/gradingManifest.mjs';
@@ -317,8 +318,33 @@ const multiAnswerRows = ({ question, response, result, workspace, expected, trac
   const values = submittedFields(response);
   const traces = new Map(list(trace?.fields).map((field) => [viewText(field?.id), field]));
   const authored = multiAnswerFields(question);
-  const ids = [...new Set([...authored.map((field) => viewText(field.id)), ...values.keys(), ...parts.keys()])].slice(0, MAX_ROWS);
+  const stepParts = checkpointParts(question);
+  const ids = withStepsAfterParts([...new Set([...authored.map((field) => viewText(field.id)), ...values.keys(), ...parts.keys()])], question).slice(0, MAX_ROWS);
   return ids.map((id) => {
+    // SP-4: the step a part's checkpoint asked for, as the student left it.
+    // It is their work, not an answer: no grader read it, so the row has no
+    // reading, no expected answer and no result. `step` says what it was
+    // done on, and the screen has the tool's engine check it
+    // (ResponseInspectorFieldView.jsx).
+    const stepPart = stepParts.get(partIdOfStepField(id) ?? '');
+    if (stepPart) {
+      const checkpoint = stepPart.checkpoint;
+      return {
+        id,
+        label: viewText(stepRowLabel(checkpoint.kind, stepPart.label)),
+        kind: 'step',
+        step: {
+          kind: viewText(checkpoint.kind),
+          ...(Number.isInteger(checkpoint.count) ? { count: checkpoint.count } : {}),
+          of: viewText(checkpoint.of ?? ''),
+        },
+        saved: cell(savedFieldValue(workspace, id)),
+        submitted: cell(values.get(id)),
+        read: null,
+        expected: null,
+        result: null,
+      };
+    }
     const authoredField = authored.find((entry) => viewText(entry.id) === id) || {};
     // A template's options may not be the instance's: an option is written by
     // its text only from the question the student was shown.

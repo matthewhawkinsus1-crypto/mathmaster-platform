@@ -103,6 +103,45 @@ const lessonItem = (lesson, questionId) => compileAuthoringIntentV5(lesson).pack
 const withSpanishPrompt = (question, prompt) => ({ ...question, translations: { es: { prompt } } });
 
 const QUESTIONS = {
+  // SHOW THE STEP (SP-4, tests/browser/showTheStep.mjs): a part whose
+  // checkpoint asks for one step in a tool before its answer box opens.
+  //   ?q=stepPoints|stepMoves|stepPair|stepRows   &parts=1 opens one part at a time
+  stepPoints: {
+    questionId: 'step-points',
+    type: 'multiAnswer',
+    prompt: 'A line passes through (0, -2) and (2, 4).',
+    answerFields: [
+      { id: 'slope', label: 'Slope of the line', answer: '3', inputProfile: 'number', checkpoint: { kind: 'pickPoints', count: 2, of: '(0, -2) and (2, 4)' } },
+      { id: 'intercept', label: 'The y-intercept', answer: '-2', inputProfile: 'number' },
+    ],
+  },
+  stepMoves: {
+    questionId: 'step-moves',
+    type: 'multiAnswer',
+    prompt: 'Solve 2x + 3 = 11, then check your solution.',
+    answerFields: [
+      { id: 'x', label: 'The solution, x', answer: '4', inputProfile: 'number', checkpoint: { kind: 'stepMoves', of: '2x + 3 = 11' } },
+      { id: 'check', label: 'The value of 2x + 3 at your solution', answer: '11', inputProfile: 'number' },
+    ],
+  },
+  stepPair: {
+    questionId: 'step-pair',
+    type: 'multiAnswer',
+    prompt: 'Factor x^2 + 5x + 6.',
+    answerFields: [
+      { id: 'factored', label: 'The factored form', answer: '(x + 2)(x + 3)', checkpoint: { kind: 'factorPair', of: 'x^2 + 5x + 6' } },
+      { id: 'zero', label: 'The smaller zero', answer: '-3', inputProfile: 'number' },
+    ],
+  },
+  stepRows: {
+    questionId: 'step-rows',
+    type: 'multiAnswer',
+    prompt: 'A rule is y = 2x + 1.',
+    answerFields: [
+      { id: 'rate', label: 'The rate of change', answer: '2', inputProfile: 'number', checkpoint: { kind: 'tableRow', count: 2, of: 'y = 2x + 1' } },
+      { id: 'start', label: 'The value of y when x is 0', answer: '1', inputProfile: 'number' },
+    ],
+  },
   multi: {
     questionId: 'feedback-multi',
     type: 'multiAnswer',
@@ -262,6 +301,8 @@ const SUPPORT_PROFILES = {
   // The same, with the graph read-out (AX03): a graph is read in full while it can be answered.
   translatereadout: { accommodations: ['text-to-speech', 'translation', 'graph-read-out'], translationLanguage: 'es' },
   read: { accommodations: ['text-to-speech'] },
+  // See every part at once (SHOW THE STEP, SP-4: a part's step never holds its box shut).
+  everypart: { accommodations: ['every-part-at-once'] },
   // An inclusion student with a plan's Read aloud: the "Let's back up" step (HELP-19).
   inclusion: { inclusionStatus: true, accommodations: ['text-to-speech'] },
 };
@@ -326,6 +367,7 @@ function Harness() {
           lessonQuestions={lessonQuestions}
           lessonGiven={lessonQuestions ? lessonQuestions.map((_, index) => index).join() : null}
           lessonSupports={replayLesson?.lessonSupports || null}
+          partByPart={params.get('parts') === '1'}
           onGrade={onGrade}
           serverGrading={serverGrading}
           // The delivered family instance's own prompt, as plain text: the page

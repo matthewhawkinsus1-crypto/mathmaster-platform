@@ -16,11 +16,16 @@
  * A server that predates the view sends none: the rows are then built here
  * from the parts, snapshot and trace it does send (`viewFromOlderModel`).
  */
+import { Suspense, lazy } from 'react';
 import MathDisplay from '../../MathDisplay.jsx';
 import { typedLatex } from '../../platform/math/typedMathLatex.js';
 import { readableStoredResponse } from '../../tools/graphing2/storedLineText.js';
 import { SR_ONLY_STYLE } from '../../ui/srOnly.js';
 import { asText } from './ResponseInspectorReasons.jsx';
+
+// SP-4: a part's recorded step is checked by its tool's engine where it is
+// shown (StepVerdict.jsx); the engine loads only for a response that has one.
+const StepVerdict = lazy(() => import('../../platform/supports/showTheStep/StepVerdict.jsx'));
 
 const LATEX_COMMAND = /\\[A-Za-z]/;
 const valueStyle = {
@@ -180,7 +185,11 @@ export default function ResponseInspectorFieldView({ model }) {
                   <td style={cellStyle}><ValueCell value={row.submitted} question={question} readable /></td>
                   {shows.read && <td style={cellStyle}><ValueCell value={row.read} question={question} empty="—" /></td>}
                   {shows.expected && <td style={cellStyle}><ValueCell value={row.expected} question={question} empty="—" /></td>}
-                  <td style={cellStyle}><ResultCell result={row.result} /></td>
+                  <td style={cellStyle}>
+                    {row.step && typeof row.step === 'object'
+                      ? <Suspense fallback={<span style={mutedStyle}>Checking the step…</span>}><StepVerdict step={row.step} line={row.submitted?.text} /></Suspense>
+                      : <ResultCell result={row.result} />}
+                  </td>
                 </tr>
               ))}
             </tbody>

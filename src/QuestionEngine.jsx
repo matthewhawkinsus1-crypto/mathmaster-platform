@@ -11,6 +11,7 @@ import MultiAnswerGrader from './MultiAnswerGrader';
 import FunctionGraphBuilder from './FunctionGraphBuilder';
 import GraphAnalysis from './GraphAnalysis';
 import StepByStepAlgebra from './StepByStepAlgebra';
+import StepByStepAlgebraCore from './StepByStepAlgebraCore';
 import LinearInterceptsOrchestrator from './LinearInterceptsOrchestrator';
 import MultiRelationAlgebra from './MultiRelationAlgebra';
 import {
@@ -151,6 +152,13 @@ const GraphingCalculatorUnavailable = ({ fallback = null, onUnavailable = null }
   useEffect(() => { onUnavailable?.(); }, [onUnavailable]);
   return fallback;
 };
+// SHOW THE STEP (SP-4): a part's checkpoint, drawn above its answer box by the
+// answer boxes (MultiAnswerGrader's StepComponent). Loaded from here, where
+// the tools it draws with are already loaded, and only for such a part.
+const LazyShowTheStep = lazy(() => import('./platform/supports/showTheStep/ShowTheStep.jsx'));
+// The Step Algebra workspace a `stepMoves` step is done in is the one this
+// engine already holds; it is handed in, so the step's chunk brings none.
+const ShowTheStep = (props) => <LazyShowTheStep {...props} StepByStepAlgebraCore={StepByStepAlgebraCore} />;
 const AssignmentGraphingCalculator = lazy(() => import('./components/calculator/AssignmentGraphingCalculator.jsx')
   .catch(() => ({ default: GraphingCalculatorUnavailable })));
 // A question's reference sheet (TL07) loads only for a question that names one
@@ -2711,7 +2719,7 @@ function QuestionEngineBody({
       case 'multiAnswer':
         // An exit ticket, a quiz or a test before its release: the keypad says
         // nothing about the answer (N56, withheldVerdictKeypad.js).
-        return <MultiAnswerGrader {...commonModuleProps} verdictsWithheld={!showOutcomeFeedback} partByPart={walkAnswerParts} onShownPartsChange={setShownAnswerParts} />;
+        return <MultiAnswerGrader {...commonModuleProps} verdictsWithheld={!showOutcomeFeedback} partByPart={walkAnswerParts} onShownPartsChange={setShownAnswerParts} stepsOptional={supportPresentation.everyPartAtOnce === true} StepComponent={ShowTheStep} />;
       case 'relationshipModel':
         return <RelationshipModel {...commonModuleProps} />;
       case 'graphScenarioMatch':

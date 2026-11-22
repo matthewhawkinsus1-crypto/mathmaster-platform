@@ -27,7 +27,11 @@
 
 export const DEFAULT_ROOT = '.mathmaster-question-stage';
 const NEXT_NAME = /^(Next part|Review all parts)$/;
-const BOX = 'math-field, input[type="text"], textarea';
+// An answer box, never a box of a part's step (SHOW THE STEP, SP-4: a part
+// with a checkpoint draws its tool above its answer box, and the tool has
+// boxes of its own).
+const NOT_STEP = ':not([data-show-the-step] *)';
+const BOX = `math-field${NOT_STEP}, input[type="text"]${NOT_STEP}, textarea${NOT_STEP}`;
 
 /** True when the question on screen walks its parts (a part is drawn as one). */
 export const walksParts = (page, { root = DEFAULT_ROOT } = {}) => page.evaluate(
@@ -120,8 +124,12 @@ export const typeIntoPart = async (page, index, text, { root = DEFAULT_ROOT, typ
  * press Next part, the last one included (it goes to Review all parts) unless
  * `review: false`. A value that is null leaves that part as it is and moves on.
  * On a question drawn all at once, fills its boxes in order.
+ *
+ * `step` (optional): (index) => …, run on each open part before its answer is
+ * typed. A part with a checkpoint keeps its answer box shut until its step is
+ * done (SP-4), so a driver does the step there.
  */
-export const answerParts = async (page, values, { root = DEFAULT_ROOT, type = null, review = true } = {}) => {
+export const answerParts = async (page, values, { root = DEFAULT_ROOT, type = null, review = true, step = null } = {}) => {
   const fill = type || ((box, text) => typeAnswer(page, box, text));
   if (!(await walksParts(page, { root }))) {
     const boxes = page.locator(root).locator(BOX);
@@ -131,6 +139,7 @@ export const answerParts = async (page, values, { root = DEFAULT_ROOT, type = nu
   for (const [offset, text] of values.entries()) {
     const index = await openPartIndex(page, { root });
     if (index === null) return;
+    if (step) await step(index);
     if (text != null) await fill(partBox(page, index, { root }), text, index);
     if (offset < values.length - 1 || review) await pressNextPart(page, { root });
   }

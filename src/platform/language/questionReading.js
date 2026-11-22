@@ -32,6 +32,7 @@ import { sayFigure } from './figureSay.js';
 import { figureName as platformName } from './figureNames.js';
 import { definedFunctionNames, lineBreaksAsPauses } from './speechText.js';
 import { withFollowThroughLabels } from '../../../functions/shared/followThroughNames.mjs';
+import { checkpointOf } from '../supports/showTheStep/checkpointShape.js';
 
 const WORDS = {
   en: {
@@ -41,6 +42,13 @@ const WORDS = {
     information: 'Information you need',
     step: (index, total) => (index && total ? `Step ${index} of ${total}` : 'This step'),
     answerBox: 'Answer box',
+    // SP-4: the step a part asks for before its answer box opens.
+    showStep: ({ kind, count, of }) => `First, show the step: ${({
+      pickPoints: `pick ${count} ${count === 1 ? 'point' : 'points'} on the ${of.startsWith('(') ? 'line through' : 'graph of'} ${of}`,
+      stepMoves: `solve ${of} one move at a time`,
+      factorPair: `enter the pair of numbers you will use to factor ${of}`,
+      tableRow: `fill in ${count} ${count === 1 ? 'row' : 'rows'} of the table for ${of}`,
+    })[kind]}.`,
     system: 'The system',
     matrix: (name, rows, columns) => `${name ? `Matrix ${name}` : 'A matrix'}, ${rows} by ${columns}.`,
     row: (index) => `Row ${index}`,
@@ -60,6 +68,12 @@ const WORDS = {
     information: 'Información que necesitas',
     step: (index, total) => (index && total ? `Paso ${index} de ${total}` : 'Este paso'),
     answerBox: 'Casilla de respuesta',
+    showStep: ({ kind, count, of }) => `Primero, muestra el paso: ${({
+      pickPoints: `elige ${count} ${count === 1 ? 'punto' : 'puntos'} en la ${of.startsWith('(') ? 'recta que pasa por' : 'gráfica de'} ${of}`,
+      stepMoves: `resuelve ${of} un movimiento a la vez`,
+      factorPair: `escribe el par de números que usarás para factorizar ${of}`,
+      tableRow: `completa ${count} ${count === 1 ? 'fila' : 'filas'} de la tabla para ${of}`,
+    })[kind]}.`,
     system: 'El sistema',
     matrix: (name, rows, columns) => `${name ? `Matriz ${name}` : 'Una matriz'}, de ${rows} por ${columns}.`,
     row: (index) => `Fila ${index}`,
@@ -278,9 +292,12 @@ export const questionReadingParts = (question, { referenceInfo = null, backUp = 
   fields.forEach((field, index) => {
     const label = clean(field.label || field.id);
     const options = choiceOptionsForField(field, multiAnswerChoiceSeed(question, field));
-    const text = options
+    // SP-4: a part with a checkpoint says the step it asks for first.
+    const step = checkpointOf(field);
+    const answer = options
       ? [sentence(label), choicesSentence(options, { language })].join(' ')
       : `${w.answerBox}: ${sentence(label)}`;
+    const text = step?.of ? `${answer} ${w.showStep(step)}` : answer;
     add(`part-${field.id}`, 'part', fields.length > 1 ? w.labels.part(index + 1) : label, text);
   });
 

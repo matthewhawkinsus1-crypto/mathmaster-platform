@@ -733,6 +733,16 @@ jobs:
           PLAYWRIGHT_MODULE: playwright
           AUDIT_ORIGIN: "http://127.0.0.1:5199"
         run: node tests/browser/planeReplay.mjs
+      # SP-4: a part's checkpoint opens one step in a tool (the plane, Step
+      # Algebra, a factor pair, a table's rows) before its answer box. The
+      # engine checks it; the DOL says nothing of right or wrong; the grade is
+      # the answers' alone.
+      - name: Show the step (a part's checkpoint, before its answer box)
+        if: ${{ !cancelled() }}
+        env:
+          PLAYWRIGHT_MODULE: playwright
+          AUDIT_ORIGIN: "http://127.0.0.1:5199"
+        run: node tests/browser/showTheStep.mjs
       # Read aloud says the whole question (choices, matrices, parts heard
       # again) and Translate shows Spanish or says why not (student pass 3, batch 6).
       - name: Read aloud and Translate (heard and seen)

@@ -67,9 +67,12 @@ A part's `followThrough` works (SP-3): its label shows the student's own
 earlier value ("your slope …" before there is one), and every grader accepts
 the answer keyed to that value as well as the part's own `answer`.
 
+A part's `checkpoint` works (SP-4, section 7): on an assignment's Classwork,
+Practice, DOL, quiz or test the part opens on its step, in the tool, and its
+answer box opens after it.
+
 The other fields are read by the packages being built on them:
-- reference cards (WE-H);
-- checkpoints (SP-4).
+- reference cards (WE-H).
 
 **Scope.** These are rules for new and newly imported assignments. Existing
 assignments (`teacher-import-jsons/`) are not rewritten or back-filled, and
@@ -118,7 +121,7 @@ compile exactly as before.
 | `lessonSupports` | the top level of the file, beside `sections` (not inside `assignment`) | `{ "referenceCards": [...], "examples": [...] }` |
 | `example` | a question | an example's `id`, or `{ "none": "setup" }` or `{ "none": "explain" }` |
 | `followThrough` | one entry of a question's `responses` | `{ "from": ["slope"], "answer": "y > {slope}x + 3" }` |
-| `checkpoint` | one entry of a question's `responses` | `{ "kind": "pickPoints", "count": 2 }` |
+| `checkpoint` | one entry of a question's `responses` | `{ "kind": "pickPoints", "count": 2, "of": "(0, -2) and (2, 4)" }` |
 
 ## 3. Examples: `lessonSupports.examples`
 
@@ -262,22 +265,46 @@ The rules:
 ## 7. Show the step: `checkpoint`
 
 A part can require one step that the student does in a tool, before the part's
-answer is accepted. Once SP-4 ships, the step is recorded with the attempt, so
-the teacher sees the student's own points, pair or moves.
+answer box opens. The step is recorded with the attempt, so the teacher sees
+the student's own points, pair, rows or moves, checked by the tool's engine.
 
-| `kind` | Where | What is checked |
-|---|---|---|
-| `pickPoints` | the plane | `count` points that lie on the line or curve. Rise and run are read from the student's own points. |
-| `factorPair` | factoring | the pair that multiplies to the constant (or to a·c) and adds to the middle coefficient |
-| `stepMoves` | Step Algebra | the student's recorded moves reach the answer |
-| `tableRow` | tables | `count` rows the student fills in that satisfy the relation |
-
-`count` is a whole number of 1 or more. Only `pickPoints` and `tableRow` take
-one.
+| `kind` | Where | `of`: what the student works on | What is checked |
+|---|---|---|---|
+| `pickPoints` | the plane | a line as two of its points, `"(0, -2) and (2, 4)"`; or a graph, `"y = x^2 - 4"`; or `"x = 3"` | `count` points that lie on the line or curve. For two points on a slanted line, the rise and run between the student's own points. |
+| `factorPair` | factoring | the trinomial, `"x^2 + 5x + 6"` | the pair that multiplies to the constant (or to a·c) and adds to the middle coefficient |
+| `stepMoves` | Step Algebra | the equation, `"4x + 7 = x - 8"` | the student's recorded moves start on the equation, each line follows, and the last is solved |
+| `tableRow` | tables | the rule, `"y = 2x + 1"` | `count` rows the student fills in that satisfy the rule, with a different input in each |
 
 ```json
-{ "id": "slope", "label": "Slope of the line", "answer": "3", "checkpoint": { "kind": "pickPoints", "count": 2 } }
+{ "id": "slope", "label": "Slope of the line", "answer": "3", "checkpoint": { "kind": "pickPoints", "count": 2, "of": "(0, -2) and (2, 4)" } }
 ```
+
+- **`count`** is a whole number of 1 or more. Only `pickPoints` and
+  `tableRow` take one.
+- **`of` is what the student already sees**, written as text. The tool reads
+  it, so the compiler and Pre-Flight refuse an `of` its tool cannot read
+  (section "What the validator refuses").
+- **`of` is never an answer.** It is shown before the student answers, and it
+  stays with the question when answer keys are kept on the server. The
+  validator refuses an `of` that is the part's own answer, or any other
+  answer of the question. A question that asks for a line's equation gives
+  its step the line as two points, as its prompt does.
+- **The step never changes a score.** The part is graded on its answer. The
+  step is the student's work, for the teacher.
+
+What the student meets:
+- **Classwork and Practice.** The part opens on its step. "Check my step"
+  says in words what is off, never the answer, and the answer box opens once
+  the engine accepts the step. Step Algebra checks each move itself. After
+  two refusals the student may choose "Answer without this step": the box
+  opens, the step is recorded as skipped, and nothing is lost.
+- **DOL, quiz and test.** The answer box opens once the step is done. Nothing
+  says whether it is right.
+- **See every part at once** (a student's support). The answer box is open
+  from the start, and any step work is still recorded.
+- **A secure Test, Corrections and My Math Path** do not open a step yet. A
+  part with a checkpoint is drawn there as its answer box, and marked as
+  before.
 
 `followThrough` and `checkpoint` go on a `responses` part of an answer-box
 question (`"studentActions": ["multipleResponses"]`). A tool that keeps no
@@ -476,7 +503,7 @@ How it follows the rules:
               "id": "slope",
               "label": "Slope of the line",
               "answer": "3",
-              "checkpoint": { "kind": "pickPoints", "count": 2 }
+              "checkpoint": { "kind": "pickPoints", "count": 2, "of": "(0, -2) and (2, 4)" }
             },
             {
               "id": "intercept",
@@ -600,6 +627,17 @@ stored assignment. The message leads with the question it is about.
 - **An unknown checkpoint kind.** `"checkpoint": { "kind": "plotPoints", "count": 2 }`:
 
   > Section 1 Question 4 responses[0].checkpoint.kind "plotPoints" is not a checkpoint. Use "pickPoints", "factorPair", "stepMoves" or "tableRow".
+- **A checkpoint that does not say what the step works on.** CW 4's
+  checkpoint without `of`:
+
+  > Section 1 Question 4 responses[0].checkpoint.of is missing: say what the student works on (the graph on the plane, such as "(0, -2) and (2, 4)" for the line through two points).
+- **An `of` its tool cannot read.** `"of": "slope 3"` on CW 4's checkpoint:
+
+  > Section 1 Question 4 responses[0].checkpoint.of "slope 3" is not a graph the plane can draw. Write two points of a line, as the question gives them ((0, -2) and (2, 4)), or y = an expression in x (y = x^2 - 4), or x = a whole number.
+- **An `of` that is an answer.** `"of": "y = 3x - 2"` on CW 4's checkpoint,
+  which is the answer to its third part:
+
+  > Section 1 Question 4 responses[0].checkpoint.of "y = 3x - 2" is the answer to part "equation". "of" is shown to the student before they answer, so it can never be an answer. Write what the question already gives (for a line, two of its points), or move the step to a question that does not ask for it.
 - **A checkpoint on a tool that keeps no answer parts.** A `responses` part
   with a `stepMoves` checkpoint on the Step Algebra question CW 2:
 

@@ -11,7 +11,7 @@
  *   question.example          an id of a lessonSupports.examples entry, or
  *                             { none: "setup" | "explain" }
  *   part.followThrough        on a responses[] part: { from: [ids], answer }
- *   part.checkpoint           on a responses[] part: { kind, count? }
+ *   part.checkpoint           on a responses[] part: { kind, count?, of }
  *
  * WHAT THIS FILE DOES AND DOES NOT DO. It checks the shapes and the owner's
  * rules, and nothing else: the compiler carries the fields through unchanged
@@ -23,9 +23,11 @@
  * a replay's moves reach its answer is the tool engine's to say, so that
  * check lives with the replay (supports/workedExample/stepAlgebraReplay.js,
  * stepAlgebraReplayErrors), and the compiler and Pre-Flight run it beside
- * this one. The other replays, reference cards and checkpoints are later
- * packages (WE-D, WE-E, WE-H, SP-4) that read these fields as they stand
- * here. So an assignment that carries none of the fields is judged and
+ * this one. A part's `checkpoint` opens its step in the tool (SP-4); whether
+ * that tool can read `of`, and that `of` is never an answer, is checked with
+ * the step (supports/showTheStep/checkpointSource.js checkpointSourceErrors),
+ * beside this one too. Reference cards are a later package (WE-H) that reads
+ * its fields as they stand here. So an assignment that carries none of the fields is judged and
  * compiled exactly as before.
  *
  * The messages lead with "Section S Question Q <field path>", the locator
@@ -57,7 +59,7 @@ export const EXAMPLE_FADE_KEYS = Object.freeze(['fromStep', 'handOverAfter']);
 export const QUESTION_EXAMPLE_EXEMPTIONS = Object.freeze(['setup', 'explain']);
 export const FOLLOW_THROUGH_KEYS = Object.freeze(['from', 'answer']);
 export const CHECKPOINT_KINDS = Object.freeze(['pickPoints', 'factorPair', 'stepMoves', 'tableRow']);
-export const CHECKPOINT_KEYS = Object.freeze(['kind', 'count']);
+export const CHECKPOINT_KEYS = Object.freeze(['kind', 'count', 'of']);
 // Only these kinds count something the student does: points picked, rows filled.
 export const CHECKPOINT_KINDS_WITH_COUNT = Object.freeze(['pickPoints', 'tableRow']);
 
@@ -366,11 +368,11 @@ const validateFollowThrough = ({ part, partIndex, at, ids, errors }) => {
 const validateCheckpoint = ({ part, at, errors }) => {
   const value = part.checkpoint;
   if (!isObject(value)) {
-    errors.push(`${at}.checkpoint must be an object { "kind": "pickPoints", "count": 2 }.`);
+    errors.push(`${at}.checkpoint must be an object { "kind": "pickPoints", "count": 2, "of": "y = 3x - 2" }.`);
     return;
   }
   unknownKeys(value, CHECKPOINT_KEYS).forEach((key) => {
-    errors.push(`${at}.checkpoint.${key} is not a checkpoint field. Use kind and count.`);
+    errors.push(`${at}.checkpoint.${key} is not a checkpoint field. Use kind, count and of.`);
   });
   if (!CHECKPOINT_KINDS.includes(value.kind)) {
     errors.push(`${at}.checkpoint.kind ${value.kind === undefined ? 'is missing' : `${shown(value.kind)} is not a checkpoint`}. Use ${quotedList(CHECKPOINT_KINDS)}.`);
@@ -380,6 +382,12 @@ const validateCheckpoint = ({ part, at, errors }) => {
     else if (CHECKPOINT_KINDS.includes(value.kind) && !CHECKPOINT_KINDS_WITH_COUNT.includes(value.kind)) {
       errors.push(`${at}.checkpoint.count applies to ${quotedList(CHECKPOINT_KINDS_WITH_COUNT)} only, not "${value.kind}".`);
     }
+  }
+  // What the step works on. Whether its tool can read it is the tool's own
+  // engine's to say (checkpointSource.js checkpointSourceErrors, run by the
+  // compiler and Pre-Flight beside this).
+  if (value.of !== undefined && !isNonEmptyString(value.of)) {
+    errors.push(`${at}.checkpoint.of must be what the student works on, as text: "y = 3x - 2", "4x + 7 = x - 8", "x^2 + 5x + 6".`);
   }
 };
 
