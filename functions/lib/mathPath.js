@@ -791,14 +791,14 @@ async function gradeResponse(grading, responsePayload = {}) {
     : {};
   const fields = Array.isArray(grading?.fields) ? grading.fields : [];
   if (!fields.length) return { isCorrect: false, score: 0, fieldResults: [] };
-  // SP-3: each follow-through field's key for this student, from the values
+  // SP-3: each follow-through field's keys for this student, from the values
   // they gave the fields it builds on. Empty with no followThrough, so the
   // module is loaded only for an item that has one.
   const keys = fields.some((field) => field?.followThrough)
     ? (await followThrough()).followThroughKeys(fields, responses)
     : new Map();
   const fieldResults = await Promise.all(fields.map(async (field) => {
-    const keyed = keys.has(field.id) ? { ...field, expected: keys.get(field.id), accepted: [] } : null;
+    const keyed = keys.has(field.id) ? { ...field, expected: keys.get(field.id)[0], accepted: keys.get(field.id).slice(1) } : null;
     const isCorrect = await valuesEquivalent(responses[field.id], field)
       || (keyed !== null && await valuesEquivalent(responses[field.id], keyed));
     let credit = isCorrect ? 1 : 0;
@@ -806,7 +806,7 @@ async function gradeResponse(grading, responsePayload = {}) {
       const { numericSetCredit } = await import('../shared/numericSetCredit.mjs');
       credit = Math.max(
         numericSetCredit(responses[field.id], field.expected, field.numericTolerance),
-        keyed ? numericSetCredit(responses[field.id], keyed.expected, field.numericTolerance) : 0,
+        ...(keyed ? [keyed.expected, ...keyed.accepted] : []).map((set) => numericSetCredit(responses[field.id], set, field.numericTolerance)),
       );
     }
     return { id: field.id, isCorrect, credit, weight: Number(field.weight) > 0 ? Number(field.weight) : 1 };

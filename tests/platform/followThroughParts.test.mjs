@@ -38,22 +38,50 @@ const keyFor = (slope) => followThroughKeys(fields, { slope }).get('inequality')
 
 // ------------------------------------------------------------------ 1. the value
 
-test('a signed value, a typed fraction and a sum go into the key in brackets; one unsigned term does not', () => {
-  assert.equal(keyFor('-3'), 'y > (-3)x + 3');
-  assert.equal(keyFor('−3'), 'y > (−3)x + 3');
-  // One \\frac or one \\sqrt, unsigned, is already one term.
-  assert.equal(keyFor('\\frac{1}{2}'), 'y > \\frac{1}{2}x + 3');
-  assert.equal(keyFor('\\dfrac{1}{2}'), 'y > \\dfrac{1}{2}x + 3');
-  assert.equal(keyFor('\\sqrt{2}'), 'y > \\sqrt{2}x + 3');
-  assert.equal(keyFor('2\\sqrt{3}'), 'y > (2\\sqrt{3})x + 3');
-  assert.equal(keyFor('\\frac{1}{2}+1'), 'y > (\\frac{1}{2}+1)x + 3');
-  assert.equal(keyFor('1/2'), 'y > (1/2)x + 3');
-  assert.equal(keyFor('-\\frac{1}{2}'), 'y > (-\\frac{1}{2})x + 3');
-  assert.equal(keyFor('a+b'), 'y > (a+b)x + 3');
-  assert.equal(keyFor('+3'), 'y > (+3)x + 3');
-  assert.equal(keyFor('3'), 'y > 3x + 3');
-  assert.equal(keyFor('2.5'), 'y > 2.5x + 3');
-  assert.equal(keyFor('0'), 'y > 0x + 3');
+test('the first key always brackets the value (bar a plain unsigned number); a monomial also gets the ordinary spelling where it reads the same', () => {
+  // [bracketed, ordinary]
+  assert.deepEqual(keyFor('-3'), ['y > (-3)x + 3', 'y > -3x + 3']);
+  assert.deepEqual(keyFor('−3'), ['y > (−3)x + 3', 'y > −3x + 3']);
+  assert.deepEqual(keyFor('\\frac{1}{2}'), ['y > (\\frac{1}{2})x + 3', 'y > \\frac{1}{2}x + 3']);
+  assert.deepEqual(keyFor('\\dfrac{1}{2}'), ['y > (\\dfrac{1}{2})x + 3', 'y > \\dfrac{1}{2}x + 3']);
+  assert.deepEqual(keyFor('\\sqrt{2}'), ['y > (\\sqrt{2})x + 3', 'y > \\sqrt{2}x + 3']);
+  assert.deepEqual(keyFor('-\\sqrt{2}'), ['y > (-\\sqrt{2})x + 3', 'y > -\\sqrt{2}x + 3']);
+  assert.deepEqual(keyFor('2\\sqrt{3}'), ['y > (2\\sqrt{3})x + 3', 'y > 2\\sqrt{3}x + 3']);
+  assert.deepEqual(keyFor('-\\frac{1}{2}'), ['y > (-\\frac{1}{2})x + 3', 'y > -\\frac{1}{2}x + 3']);
+  // Not one term: brackets only.
+  assert.deepEqual(keyFor('\\frac{1}{2}+1'), ['y > (\\frac{1}{2}+1)x + 3']);
+  assert.deepEqual(keyFor('\\sqrt{2-1}'), ['y > (\\sqrt{2-1})x + 3']);
+  assert.deepEqual(keyFor('1/2'), ['y > (1/2)x + 3']);
+  assert.deepEqual(keyFor('a+b'), ['y > (a+b)x + 3']);
+  assert.deepEqual(keyFor('+3'), ['y > (+3)x + 3']);
+  // A plain unsigned number needs no brackets at all.
+  assert.deepEqual(keyFor('3'), ['y > 3x + 3']);
+  assert.deepEqual(keyFor('2.5'), ['y > 2.5x + 3']);
+  assert.deepEqual(keyFor('0'), ['y > 0x + 3']);
+});
+
+test('the ordinary spelling is built only where it reads as the bracketed key', () => {
+  const keysOf = (answer, slope) => followThroughKeys([
+    { id: 'slope', label: 'Slope', answer: '1' },
+    { id: 'later', label: 'Using {slope}', answer: 'x', followThrough: { from: ['slope'], answer } },
+  ], { slope }).get('later');
+  // After a minus: an unsigned term as it is, a signed one with the signs folded, never 3 - -2x.
+  assert.deepEqual(keysOf('y > 3 - {slope}x', '-2'), ['y > 3 - (-2)x', 'y > 3 + 2x']);
+  assert.deepEqual(keysOf('y > 3 - {slope}x', '-\\sqrt{2}'), ['y > 3 - (-\\sqrt{2})x', 'y > 3 + \\sqrt{2}x']);
+  assert.deepEqual(keysOf('y > 3 + {slope}x', '-\\sqrt{2}'), ['y > 3 + (-\\sqrt{2})x', 'y > 3 - \\sqrt{2}x']);
+  assert.deepEqual(keysOf('y > 3 - {slope}x', '2\\sqrt{2}'), ['y > 3 - (2\\sqrt{2})x', 'y > 3 - 2\\sqrt{2}x']);
+  for (const slope of ['-2', '-\\sqrt{2}', '2\\sqrt{2}', '\\frac{1}{2}']) {
+    for (const answer of ['y = {slope}^2', 'y = {slope}_1', 'y = {slope}/2', 'y = {slope}2', 'y = {slope}.5', 'y = {slope}\\sqrt{x}', 'y = x \\cdot {slope}', 'y = 2*{slope}', 'y = 2^ {slope}', 'y = x {slope}', 'y = 4 / {slope}']) {
+      const keys = keysOf(answer, slope);
+      assert.equal(keys.length, 1, `${answer} with ${slope}: only the bracketed key (${JSON.stringify(keys)})`);
+    }
+  }
+  // A product inside a bracket reads the same either way.
+  assert.deepEqual(keysOf('y = ({slope}x)^2', '-2'), ['y = ((-2)x)^2', 'y = (-2x)^2']);
+  // At the start, after a relation, an opening bracket or a comma.
+  assert.deepEqual(keysOf('{slope}x + 3 < y', '-\\sqrt{2}'), ['(-\\sqrt{2})x + 3 < y', '-\\sqrt{2}x + 3 < y']);
+  assert.deepEqual(keysOf('{ {slope}, 3 }', '-2'), ['{ (-2), 3 }', '{ -2, 3 }']);
+  assert.deepEqual(keysOf('y \\le {slope}x', '-2'), ['y \\le (-2)x', 'y \\le -2x']);
 });
 
 test('a blank, a relation, words, an unfinished entry or anything but mathematics is no value, and builds no key', () => {
@@ -67,10 +95,10 @@ test('a blank, a relation, words, an unfinished entry or anything but mathematic
     assert.equal(keyFor(slope), undefined, JSON.stringify(slope));
   });
   // A number written as a number is one.
-  assert.deepEqual(followThroughValue(' -2 '), { shown: '-2', keyed: '(-2)' });
-  assert.deepEqual(followThroughValue(4), { shown: '4', keyed: '4' });
-  assert.deepEqual(followThroughValue('\\sqrt{2}'), { shown: '\\sqrt{2}', keyed: '\\sqrt{2}' });
-  assert.deepEqual(followThroughValue('-\\sqrt{2}'), { shown: '-\\sqrt{2}', keyed: '(-\\sqrt{2})' });
+  assert.deepEqual(followThroughValue(' -2 '), { shown: '-2', keyed: '(-2)', sign: '-', term: '2' });
+  assert.deepEqual(followThroughValue(4), { shown: '4', keyed: '4', sign: '', term: '4' });
+  assert.deepEqual(followThroughValue('\\sqrt{2}'), { shown: '\\sqrt{2}', keyed: '(\\sqrt{2})', sign: '', term: '\\sqrt{2}' });
+  assert.deepEqual(followThroughValue('a+b'), { shown: 'a+b', keyed: '(a+b)' });
 });
 
 test('a choice part is never a value', () => {

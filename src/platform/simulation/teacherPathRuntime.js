@@ -229,12 +229,12 @@ export const gradeFieldResponse = (privateGrading, responsePayload = {}) => {
   // Each field's weight and a numeric set's matched-elements credit count in
   // the score, as production's gradeResponse counts them.
   const results = fields.map((field) => {
-    const keyed = keys.has(field.id) ? { ...field, expected: keys.get(field.id), accepted: [] } : null;
+    const keyed = keys.has(field.id) ? { ...field, expected: keys.get(field.id)[0], accepted: keys.get(field.id).slice(1) } : null;
     const isCorrect = fieldValuesEquivalent(responses[field.id], field) || (keyed !== null && fieldValuesEquivalent(responses[field.id], keyed));
     const credit = field.equivalence === 'numericSet' && field.partialCredit === 'matchedElements'
       ? Math.max(
         numericSetCredit(responses[field.id], field.expected, field.numericTolerance),
-        keyed ? numericSetCredit(responses[field.id], keyed.expected, field.numericTolerance) : 0,
+        ...(keyed ? [keyed.expected, ...keyed.accepted] : []).map((set) => numericSetCredit(responses[field.id], set, field.numericTolerance)),
       )
       : (isCorrect ? 1 : 0);
     return { id: field.id, isCorrect, credit, weight: Number(field.weight) > 0 ? Number(field.weight) : 1 };

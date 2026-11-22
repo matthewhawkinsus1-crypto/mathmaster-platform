@@ -49,13 +49,45 @@ export const INEQUALITY_SOURCE = Object.freeze({
   ],
 });
 
+// The placeholder after a minus sign: `3 - {slope}x` with a negative slope
+// must read as 3 - (-2)x, never 3 - -2x.
+export const MINUS_SOURCE = Object.freeze({
+  questionId: 'ft-minus',
+  standard: 'A.3D',
+  dok: 2,
+  studentActions: ['multipleResponses'],
+  prompt: 'The boundary line of a linear inequality passes through (0, 3) and (1, -1). The region above it is shaded.',
+  responses: [
+    { id: 'slope', label: 'The slope written as m in y = 3 - mx', answer: '4' },
+    { id: 'inequality', label: 'Using your m of {slope}, write the inequality', answer: 'y > 3 - 4x', followThrough: { from: ['slope'], answer: 'y > 3 - {slope}x' } },
+  ],
+});
+
+// A numeric set marked element by element, keyed to an earlier number.
+export const SET_SOURCE = Object.freeze({
+  questionId: 'ft-set',
+  standard: 'A.2A',
+  dok: 1,
+  studentActions: ['multipleResponses'],
+  prompt: 'Write the set of solutions.',
+  responses: [
+    { id: 'n', label: 'The smaller solution', answer: '2' },
+    {
+      id: 'set', label: 'The set of your {n} and 3', answer: '{2, 3}', equivalence: 'numericSet', partialCredit: 'matchedElements',
+      followThrough: { from: ['n'], answer: '{ {n}, 3 }' },
+    },
+  ],
+});
+
 const compiledQuestions = () => {
   const source = structuredClone(FIXTURE);
-  source.sections.find((section) => section.id === 'classwork').questions.push(structuredClone(INEQUALITY_SOURCE));
+  source.sections.find((section) => section.id === 'classwork').questions.push(...[INEQUALITY_SOURCE, MINUS_SOURCE, SET_SOURCE].map((question) => structuredClone(question)));
   return parseAssignmentBlueprintText(JSON.stringify(source)).questions;
 };
 const QUESTIONS = compiledQuestions();
 export const inequalityQuestion = QUESTIONS.find((question) => question.questionId === 'ft-inequality');
+export const minusQuestion = QUESTIONS.find((question) => question.questionId === 'ft-minus');
+export const setQuestion = QUESTIONS.find((question) => question.questionId === 'ft-set');
 // The guide's example: slope 3, intercept -2, "y = {slope}x + {intercept}".
 export const lineQuestion = QUESTIONS.find((question) => question.questionId === 'ls-cw-4');
 
@@ -72,6 +104,27 @@ export const fieldItem = Object.freeze({
       inputProfile: 'expression',
       expected: 'y > -2x + 3',
       followThrough: { from: ['slope'], answer: 'y > {slope}x + 3' },
+    },
+  ],
+});
+
+// The same two as secure Test, Corrections or Path items.
+export const minusItem = Object.freeze({
+  id: 'ft-minus-item',
+  prompt: MINUS_SOURCE.prompt,
+  responseFields: [
+    { id: 'slope', label: MINUS_SOURCE.responses[0].label, inputProfile: 'number', expected: '4' },
+    { id: 'inequality', label: MINUS_SOURCE.responses[1].label, inputProfile: 'expression', expected: 'y > 3 - 4x', followThrough: { from: ['slope'], answer: 'y > 3 - {slope}x' } },
+  ],
+});
+export const setItem = Object.freeze({
+  id: 'ft-set-item',
+  prompt: SET_SOURCE.prompt,
+  responseFields: [
+    { id: 'n', label: 'The smaller solution', inputProfile: 'number', expected: '2' },
+    {
+      id: 'set', label: 'The set of your {n} and 3', inputProfile: 'set', expected: '{2, 3}', equivalence: 'numericSet', partialCredit: 'matchedElements',
+      followThrough: { from: ['n'], answer: '{ {n}, 3 }' },
     },
   ],
 });
@@ -103,3 +156,20 @@ export const secureGrade = async (item, responses) => {
 };
 
 export const simulatorGrade = (item, responses) => verdicts(gradeFieldResponse(buildFieldGradingDefinition(item), { responses }).parts);
+
+// One part's credit (0 to 1), on each grader. The secure/Path grader and the
+// simulation report the item's score: the other part is wrong in every case
+// these are used for, so the score is that part's weighted credit.
+const partOf = (parts, id) => parts.find((part) => part.id === id);
+export const clientCredit = (question, answers, id) => partOf(gradeMultiAnswerResponse(question, answers, { followThrough }).parts, id).credit;
+export const serverCredit = (question, answers, id) => {
+  const answerState = { parts: gradeMultiAnswerResponse(question, answers, { followThrough }).parts };
+  const result = gradeQuestionResponse({ question, response: normalizeOrdinaryResponse({ question, answerState }) });
+  assert.equal(result.graded, true, `graded: ${result.reason}`);
+  return partOf(result.parts, id).credit;
+};
+export const secureScore = async (item, responses) => {
+  const plan = await mathPath.buildIssuePlan(item);
+  return (await mathPath.gradeResponse(plan.privateGrading, { responses })).score;
+};
+export const simulatorScore = (item, responses) => gradeFieldResponse(buildFieldGradingDefinition(item), { responses }).score;

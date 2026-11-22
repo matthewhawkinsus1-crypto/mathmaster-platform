@@ -22,7 +22,8 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 
 import {
-  clientGrade, fieldItem, inequalityQuestion, lineQuestion, secureGrade, serverGrade, simulatorGrade,
+  clientCredit, clientGrade, fieldItem, inequalityQuestion, lineQuestion, minusItem, minusQuestion, secureGrade, secureScore,
+  serverCredit, serverGrade, setItem, setQuestion, simulatorGrade, simulatorScore,
 } from './helpers/followThroughFixtures.mjs';
 
 const everyGrader = async (answers) => ({
@@ -98,8 +99,8 @@ test('two earlier parts: the guide\'s equation is keyed to the student\'s slope 
 });
 
 test('the browser, the server, the secure item and the simulation agree on every input', async () => {
-  const slopes = ['-2', '-3', '3', '0', '\\frac{1}{2}', '-\\frac{1}{2}', '1/2', '2.5', 'a+b', '', 'hello', 'x=2', '-'];
-  const inequalities = ['y > -2x + 3', 'y > -3x + 3', 'y>3x+3', 'y > 0x + 3', 'y > 3', 'y>\\frac{1}{2}x+3', 'y>-\\frac{1}{2}x+3',
+  const slopes = ['-2', '-3', '3', '0', '\\frac{1}{2}', '-\\frac{1}{2}', '1/2', '2.5', 'a+b', '', 'hello', 'x=2', '-', '-\\sqrt{2}', '2\\sqrt{2}'];
+  const inequalities = ['y > -\\sqrt{2}x + 3', 'y>2\\sqrt{2}x+3', 'y > -2x + 3', 'y > -3x + 3', 'y>3x+3', 'y > 0x + 3', 'y > 3', 'y>\\frac{1}{2}x+3', 'y>-\\frac{1}{2}x+3',
     'y > 2.5x + 3', 'y > (a+b)x + 3', 'y < -2x + 3', 'y >= -3x + 3', ''];
   const plain = structuredClone(inequalityQuestion);
   plain.answerFields.forEach((field) => { delete field.followThrough; });
@@ -132,4 +133,66 @@ test('nothing changes without followThrough: the same question with none grades 
   plainItem.responseFields.forEach((field) => { delete field.followThrough; });
   assert.deepEqual(await secureGrade(plainItem, { slope: '-3', inequality: 'y > -3x + 3' }), { slope: false, inequality: false });
   assert.deepEqual(simulatorGrade(plainItem, { slope: '-3', inequality: 'y > -3x + 3' }), { slope: false, inequality: false });
+});
+
+// ---------------------------------------------------------------- PR #601 review
+
+// Any question and its secure/Path twin, on all four graders.
+const assertOnEvery = async (question, item, answers, expected) => {
+  const graded = {
+    client: clientGrade(question, answers),
+    server: serverGrade(question, answers),
+    secure: await secureGrade(item, answers),
+    simulation: simulatorGrade(item, answers),
+  };
+  Object.entries(graded).forEach(([grader, verdict]) => assert.deepEqual(verdict, expected, `${grader}: ${JSON.stringify(answers)}`));
+};
+
+test('a negative or compound root slope, written the ordinary way, is right; a wrong inequality for it is still wrong', async () => {
+  for (const [slope, inequality] of [
+    ['-\\sqrt{2}', 'y > -\\sqrt{2}x + 3'], ['2\\sqrt{2}', 'y > 2\\sqrt{2}x + 3'], ['-2\\sqrt{3}', 'y>-2\\sqrt{3}x+3'],
+    ['-\\frac{1}{2}', 'y > -\\frac{1}{2}x + 3'], ['2\\sqrt{2}', 'y>2\\sqrt{2}x+3'],
+  ]) {
+    await assertOnEvery(inequalityQuestion, fieldItem, { slope, inequality }, { slope: false, inequality: true });
+  }
+  for (const [slope, inequality] of [
+    ['-\\sqrt{2}', 'y > \\sqrt{2}x + 3'], ['-\\sqrt{2}', 'y > -\\sqrt{2}x - 3'], ['-\\sqrt{2}', 'y < -\\sqrt{2}x + 3'],
+    ['2\\sqrt{2}', 'y > 2x + 3'], ['2\\sqrt{2}', 'y > \\sqrt{2}x + 3'], ['2\\sqrt{2}', 'y > -2\\sqrt{2}x + 3'],
+  ]) {
+    await assertOnEvery(inequalityQuestion, fieldItem, { slope, inequality }, { slope: false, inequality: false });
+  }
+});
+
+test('3 - {slope}x with a negative slope is 3 - (-2)x, never 3 - -2x read another way', async () => {
+  const right = { slope: false, inequality: true };
+  const wrong = { slope: false, inequality: false };
+  await assertOnEvery(minusQuestion, minusItem, { slope: '-2', inequality: 'y > 3 + 2x' }, right);
+  await assertOnEvery(minusQuestion, minusItem, { slope: '-2', inequality: 'y > 3 - (-2)x' }, right);
+  await assertOnEvery(minusQuestion, minusItem, { slope: '-2', inequality: 'y > 3 - 2x' }, wrong);
+  await assertOnEvery(minusQuestion, minusItem, { slope: '-\\sqrt{2}', inequality: 'y > 3 + \\sqrt{2}x' }, right);
+  await assertOnEvery(minusQuestion, minusItem, { slope: '-\\sqrt{2}', inequality: 'y > 3 - \\sqrt{2}x' }, wrong);
+  // An unsigned root after the minus reads the same with or without brackets.
+  await assertOnEvery(minusQuestion, minusItem, { slope: '2\\sqrt{2}', inequality: 'y > 3 - 2\\sqrt{2}x' }, right);
+  await assertOnEvery(minusQuestion, minusItem, { slope: '2\\sqrt{2}', inequality: 'y > 3 + 2\\sqrt{2}x' }, wrong);
+  // The part's own answer is still right.
+  await assertOnEvery(minusQuestion, minusItem, { slope: '-2', inequality: 'y > 3 - 4x' }, right);
+});
+
+test('a numeric set marked element by element takes the better of its own set and the keyed one', async () => {
+  // Authored {2, 3}, followThrough { {n}, 3 }, the student's n is 5.
+  const plain = { ...setQuestion, answerFields: setQuestion.answerFields.map(({ followThrough: _builds, ...own }) => own) };
+  const cases = [['{2, 3}', 1], ['{5, 3}', 1], ['{2}', clientCredit(plain, { n: '5', set: '{2}' }, 'set')], ['{5}', 0.5], ['{3}', 0.5], ['{7}', 0]];
+  assert.equal(cases[2][1], 0.5, 'main gives {2} half credit');
+  for (const [set, credit] of cases) {
+    const answers = { n: '5', set };
+    assert.equal(clientCredit(setQuestion, answers, 'set'), credit, `browser: ${set}`);
+    assert.equal(serverCredit(setQuestion, answers, 'set'), credit, `server: ${set}`);
+    // The item's score: n (5, wrong) earns 0 of its weight, so the score is half the set's credit.
+    assert.equal(await secureScore(setItem, answers), credit / 2, `secure/Path: ${set}`);
+    assert.equal(simulatorScore(setItem, answers), credit / 2, `simulation: ${set}`);
+  }
+  // A whole right set is marked right on every grader, the authored one included.
+  for (const set of ['{2, 3}', '{3, 5}']) {
+    await assertOnEvery(setQuestion, setItem, { n: '5', set }, { n: false, set: true });
+  }
 });
