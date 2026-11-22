@@ -54,5 +54,7 @@ export const promptMath = onDemandCode(() => import('../../components/common/Mat
 export const StudentSpotlightView = drawnPanel(() => import('../../components/teacher/StudentSpotlightView.jsx'), "This device is offline. The Spotlight shows when it is back online.");
 // "Worth a conversation" on a Live tile (components/teacher/LiveClassMonitor.jsx), drawn only for a student whose attempts raised a fact.
 export const WorthAConversationTile = drawnPanel(() => import('../../components/teacher/WorthAConversation.jsx'), "This device is offline. Worth a conversation shows when it is back online.");
+// A student's signals beside each question of an assignment's results (app/teacher/TeacherWorkspace.jsx, the gradebook's student view).
+export const QuestionSignalNotes = drawnPanel(() => import('../../components/teacher/QuestionSignalNotes.jsx'), "");
 // Submission recovery's panel (src/TeacherHome.jsx), mounted again for each class and assignment chosen.
 export const StudentPersistenceRecoveryPanel = drawnPanel(() => import('../../components/teacher/StudentPersistenceRecoveryPanel.jsx'), "This device is offline. Submission recovery shows when it is back online.");

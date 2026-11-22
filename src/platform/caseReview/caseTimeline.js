@@ -100,6 +100,9 @@ export const buildCaseTimeline = ({
   assignments = [],
   supportTimeline = [],
   overrideAudits = [],
+  // Entries another section built (work-pattern signals): each is
+  // { atMs, kind, group, label, detail, provenance, assignmentId, details }.
+  extraEntries = [],
   fromMs = null,
   toMs = null,
 } = {}) => {
@@ -223,6 +226,10 @@ export const buildCaseTimeline = ({
       details: [],
       withdrawn: item.withdrawn === true,
     });
+  });
+
+  list(extraEntries).forEach((item) => {
+    if (Number.isFinite(item?.atMs)) entries.push(entry({ details: [], ...item }));
   });
 
   const all = entries.filter((item) => within(item.atMs)).sort((a, b) => a.atMs - b.atMs);

@@ -1,10 +1,8 @@
 # Showing the process: answer boxes one screenshot cannot answer
 
-Status: **decided by the owner on 2026-11-20. Slice P1 (part by part, Review all
-parts, See every part at once) is built. P2 (teacher signals) is partly built
-(SP-2: recorded, stored beside the attempt, shown in Live Classroom and the
-student's drawer); its evidence items (section 7, "Signals as evidence") are
-not yet. P3 to P5 are not built.** This page pairs with `docs/platform/WORKED_EXAMPLES.md`.
+Status: **decided by the owner on 2026-11-20. Slices P1 (part by part, Review all
+parts, See every part at once) and P2 (teacher signals, as evidence) are built.
+P3 to P5 are not built.** This page pairs with `docs/platform/WORKED_EXAMPLES.md`.
 
 Where P1 lives: `src/MultiAnswerGrader.jsx` (`partByPart`), asked for by the
 student's assignment (`assignmentWorkspaceView.jsx`, not a teacher preview),
@@ -12,7 +10,10 @@ Recovery (`SectionRecoveryRunner.jsx`) and a secure Test's tool item (`RichQuest
 teacher's Test preview); every other host draws every part at once. The support
 is `every-part-at-once` (`functions/shared/supportCatalog.mjs`). A secure Test's
 *field* item (several `responseFields`, drawn by `RichQuestionRuntime`'s
-`FieldItem`, not `MultiAnswerGrader`) still shows every field at once. Drivers
+`FieldItem`, not `MultiAnswerGrader`) goes part by part the same way for the
+student, inside the item, with "Review all parts, then submit" before its
+Record answer (or, in a test the student moves around in, before the test's
+Next; SP-1b). Drivers
 answer part by part through `tests/browser/support/partByPart.mjs`. Read aloud
 (the work bar's Read and the tray's "Read a part") reads the prompt, the open
 part and the answered lines, never a part not yet shown: `MultiAnswerGrader`
@@ -20,14 +21,22 @@ reports the parts on the screen (`onShownPartsChange`) and `QuestionEngine`
 keeps only those (`readingPartsShown`, `questionReading.js`; SP-1c). Translate
 translates the prompt, which every part shows.
 
-Where P2 lives: the facts and the stored record are
-`src/platform/signals/attemptSignalFacts.js`; the question engine raises them
-beside the attempt (`useAttemptSignals.js`), and the student's assignment
-(`assignmentWorkspaceView.jsx`, not a preview and not post-deadline practice)
-writes each once to `grades/{studentId}/attemptSignals` (`firestore.rules`).
-The teacher reads them in **Worth a conversation**
-(`src/components/teacher/WorthAConversation.jsx`): on a Live tile and in the
-student's drawer. Section 7 has the details.
+Where P2 lives:
+- **Recorded:** the facts and the stored record are
+  `src/platform/signals/attemptSignalFacts.js`; the question engine raises them
+  beside the attempt (`useAttemptSignals.js`), and the student's assignment
+  (`assignmentWorkspaceView.jsx`, not a preview and not post-deadline practice)
+  writes each once to `grades/{studentId}/attemptSignals` (`firestore.rules`).
+- **Shown to the teacher,** always labelled not conclusive:
+  - **Worth a conversation** (`src/components/teacher/WorthAConversation.jsx`)
+    on a Live tile and in the student's drawer;
+  - beside each question of the assignment's results
+    (`QuestionSignalNotes.jsx`, in the gradebook's student view);
+  - the case review's **Work-pattern signals**
+    (`src/platform/caseReview/workPatternSignals.js`, `CaseSignalsTab.jsx`),
+    on its timeline and in its export.
+
+Section 7 has the details.
 
 ## 1. The problem
 
@@ -202,7 +211,7 @@ its own, but part of the bigger picture of a student's work.
 - **Unchanged rules.** Signals are for teachers only. No grade, attempt or
   mastery path reads them.
 
-As built so far (SP-2):
+As built (SP-2 and SP-2b):
 
 - **When a fact is raised.**
   - *Left the page*: the page was hidden (another tab or app, or the screen
@@ -212,10 +221,12 @@ As built so far (SP-2):
     absence is a locked screen or a tab left open, and raises nothing. Nor
     does an absence that starts when the platform opens one of its own links
     in a new tab (a teacher's study sheet or reteach resource).
-  - *Pasted*: a paste event in a math box, or in a plain answer box of a part.
-    The clipboard is not read. A paste that follows a copy or cut on the page
-    itself (the prompt's expression, an earlier part's answer) is not raised;
-    the page notes only that a copy happened.
+  - *Pasted*: a paste event in a part's math box, a table's cell, or the one
+    math box of a single-answer question. The clipboard is not read. Not
+    raised: a paste that follows a copy or cut on the page itself (the
+    prompt's expression, an earlier part's answer; the page notes only that a
+    copy happened), a paste into a box that takes words, and a paste into a
+    tool's own boxes (a Step Algebra move is checked by the tool).
   - *Right first time*: the first submitted attempt, every part right, the
     question's `difficultyBand` 3 or higher, and no work to look at. That
     means the engine drew the question as answer boxes and nothing else (by
@@ -228,19 +239,66 @@ As built so far (SP-2):
 - **What is stored.** One document per fact, at
   `grades/{studentId}/attemptSignals/{assignment}__{question}__{kind}` (a paste
   adds the part). Its fields are a closed list, checked by `firestore.rules`:
-  the student, the assignment (which must exist), the question's position, the
-  kind, the section, the attempt number, and for its kind a part position, a
-  part count, seconds away or the difficulty band. The first record of a fact
-  stands.
+  the student, the assignment, the question's position, the kind, the
+  section, the attempt number, and for its kind a part position, a part
+  count, seconds away or the difficulty band. The assignment must be one given
+  to the student and the question one of its own, so made-up places cannot
+  fill a record. "Given to the student" is the server-owned proof an
+  assignment read uses: the roster class is one the assignment is assigned to,
+  or the assignment is in the student's `gradesByAssignment` (work already
+  held, as after a move to another class) or `testCycleGrades` (a Test they
+  were added to on their own). The server stamps the time. The first record of
+  a fact stands. A paste in a part past the fiftieth is not recorded, rather
+  than filed under another part; a table's boxes are numbered among the boxes
+  the student fills.
+- **Where.** Only on the Warm-Up, Classwork, Practice and DOL questions of a
+  classroom assignment. A fact on a Quiz, a Test, Review or Corrections is not
+  recorded, and the create rule refuses one: these are the sections the case
+  review counts signals out of, and the two lists are one.
+- **Context stored with it.**
+  - `duringClass`: whether the fact happened in the class's scheduled time
+    (`classTimeFact.js`). It has three answers. True or false is stored only
+    when the bell schedule answers, read on the school's clock
+    (America/Chicago), never the device's. A weekend with no bell schedule of
+    its own, a day the calendar marks closed, and a day outside the school
+    year (the summer, pre-service days) are "outside". The field is
+    left out, and every screen and export reads "Class time not known", when
+    no schedule has been saved or loaded, when the day's A/B type has not been
+    chosen (a Friday not yet set), when the student's period is missing or
+    not switched on that day, or when no school calendar covers the date. Nothing else about where the student was is
+    recorded.
+  - `supports`: the catalog ids of the supports in effect that day for that
+    kind of activity, by the support plan's own rules: a support limited to
+    some activities is named only on those, and the supports inclusion brings
+    are named for a student whose plan says inclusion. The list is never cut
+    short (it may hold every id in the catalog).
+  - The question is the one the engine was showing when the fact happened,
+    even if the student has opened the next one before it is written.
 - **Who reads it.** The teacher who teaches the student, and the root
   administrator. The student cannot read it back. The Live heartbeat carries
   only how many there are (`attemptSignalCount`), so a tile reads the facts
   only for a student who has some. Both reads are bounded (one assignment's
   facts, or the student's newest 200). The projector's tiles never show them,
   and a student's drawer opened over projected tiles withholds them.
-- **Dismiss.** One dismissal, by that teacher or the root administrator,
-  stamps the fact with who and when. It cannot be re-stamped, and the fact
-  itself cannot be edited or deleted.
+- **Mark reviewed.** One review, by that teacher or the root administrator,
+  stamps the fact with who, when and an optional note of up to 500
+  characters (stored as `dismissedAt`, `dismissedByEmail`, `reviewNote`). It
+  cannot be re-stamped, and the fact cannot be edited or deleted. A reviewed
+  fact leaves what needs attention (the Live tile, the drawer's list, the case
+  review's "not yet reviewed" count) and stays everywhere else: under
+  "Reviewed" in the drawer, beside its question in the assignment's results,
+  and in the case review.
+- **In the assignment's results.** The gradebook's student view shows each
+  question's signals in that question's card: what happened, when, in which
+  part, class time and supports, with Mark reviewed.
+- **In the Student Case Review.** A "Work-pattern signals" tab over the
+  case's window: how often each kind occurs among the answered questions,
+  first-attempt and final accuracy on questions with a signal beside those
+  without, counts by section and by class time, and every signal with its
+  review. The same entries are on the timeline (their own filter), in a
+  Signals CSV, in the printed case review (section 13) and in the JSON. The
+  narrative facts are not written from them, and the narrative guard refuses
+  a template that states a conclusion about integrity.
 - **Exemptions**, from the support profile in effect today:
   - no *left the page* for `text-to-speech`, `translation` (or a translation
     language other than English), `glossary-lookup` or `every-part-at-once`;
@@ -256,6 +314,11 @@ As built so far (SP-2):
   paste into a Step Algebra move box reads as part 1; a plain text box inside
   a part counts as a math box; and a dictation tool that pastes has no
   exemption of its own.
+- **Known gaps.**
+  - A dictation tool that pastes its text has no exemption of its own: the
+    support catalog has no entry for one.
+  - The heartbeat's count is kept per browser tab, so the Live tile shows
+    nothing after the student closes the tab until a new fact is raised.
 
 ## 8. Build slices
 

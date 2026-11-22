@@ -12,10 +12,14 @@ import { assignments, caseInputs } from './helpers/caseReviewFixture.mjs';
 
 const model = buildStudentCaseReview(caseInputs());
 
-test('the print outline is exactly the twelve sections the brief lists, in order', () => {
+test('the print outline is the twelve sections the brief lists, in order, then the work-pattern signals', () => {
   assert.deepEqual(PRINT_SECTIONS.map((section) => section.key), [
     'overview', 'academic', 'grades', 'sections', 'dol', 'skills', 'attempts', 'completion', 'supports', 'gaps', 'facts', 'nextSteps',
+    // Added with the teacher signals (SHOWING_THE_PROCESS.md, section 7), last
+    // so the brief's twelve keep their numbers.
+    'signals',
   ]);
+  assert.equal(PRINT_SECTIONS.at(-1).title, '13. Work-pattern signals (not conclusive)');
 });
 
 test('the assignment CSV has one row per real instance with every contribution column', () => {

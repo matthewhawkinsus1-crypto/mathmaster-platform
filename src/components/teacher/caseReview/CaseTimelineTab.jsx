@@ -11,6 +11,8 @@ const FILTERS = [
   { key: 'all', label: 'Everything' },
   { key: 'academic', label: 'Academic' },
   { key: 'support', label: 'Support records' },
+  // Recorded facts about attempts, labelled not conclusive where they are drawn.
+  { key: 'signals', label: 'Work-pattern signals' },
 ];
 
 const OPEN_DAYS_LIMIT = 20;

@@ -71,6 +71,7 @@ import { mkdirSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { screenshotKeepingTouch } from './support/touchEmulation.mjs';
+import { answerParts, openPart, partValues } from './support/partByPart.mjs';
 
 const { chromium } = await import(process.env.PLAYWRIGHT_MODULE || '/opt/node22/lib/node_modules/playwright/index.mjs');
 
@@ -956,7 +957,6 @@ const backtrackJourney = async (context, device) => {
   const { page, errors } = await openPage(context, 'backtrack', device);
   const label = (name) => `${device.id} backtrack ${name}`;
   const slope = () => typedAnswer(page, 'Slope');
-  const intercept = () => typedAnswer(page, 'Intercept');
   const regressionX = () => page.locator('input[aria-label="Regression row 1 x"]');
   const openRegression = async () => {
     if (!(await regressionX().isVisible())) await page.locator('summary', { hasText: 'Linear regression calculator' }).click();
@@ -1011,17 +1011,35 @@ const backtrackJourney = async (context, device) => {
   // Two parts and the regression calculator.
   await next(page);
   await atQuestion(page, 'Question 3 of 3');
-  await slope().fill('4');
-  await intercept().fill('3');
+  // A secure Test's field item opens one part at a time (SP-1b): the
+  // student answers Slope, presses Next part, answers Intercept, and reviews.
+  const fillPart = async (box, value) => {
+    if (await box.evaluate((element) => element.tagName === 'INPUT')) { await box.fill(value); return; }
+    await box.focus();
+    await box.evaluate((element) => element.executeCommand?.('selectAll'));
+    await page.keyboard.type(value);
+  };
+  const parts = () => partValues(page, { root: 'main' });
+  check(await page.locator('main [data-part-state]').count() === 1 && !(await page.getByRole('button', { name: 'Record answer & continue' }).count()), label('a two-part item opens one part at a time'));
+  // Enter in an answered part is Next part (the math editor routes Enter only
+  // to a handler it is given).
+  await fillPart(page.locator('main [data-part-state="open"] math-field, main [data-part-state="open"] input[type="text"]').first(), '4');
+  await page.keyboard.press('Enter');
+  const enterMoved = await page.waitForFunction(() => document.querySelector('main [data-part-state="open"]')?.getAttribute('data-part-index') === '1', null, { timeout: 5000 }).then(() => true).catch(() => false);
+  check(enterMoved, label('Enter in an answered part opens the next part'));
+  await answerParts(page, ['3'], { root: 'main', type: fillPart });
+  await page.getByRole('heading', { name: 'Review all parts, then submit' }).waitFor();
+  check((await parts()).join('|') === '4|3', label('Review all parts lists both parts'), (await parts()).join('|'));
   await openRegression();
   await regressionX().fill('1');
   await waitSaved(page);
   await reviewAndBack('Question 3 of 3');
   await openRegression();
-  const afterBack = [await slope().inputValue(), await intercept().inputValue(), await regressionX().inputValue()];
+  const afterBack = [...(await parts()), await regressionX().inputValue()];
   check(afterBack.join('|') === '4|3|1', label('Back to questions keeps both parts and the calculator\'s data'), afterBack.join('|'));
   await shot(page, device, 'backtrack-03-two-part-after-back');
   // Change one part only; the other must survive on the server.
+  await openPart(page, 0, { root: 'main' });
   await slope().fill('5');
   await waitSaved(page);
   await previous(page);
@@ -1029,7 +1047,7 @@ const backtrackJourney = async (context, device) => {
   await next(page);
   await atQuestion(page, 'Question 3 of 3');
   await openRegression();
-  const fromServer = [await slope().inputValue(), await intercept().inputValue(), await regressionX().inputValue()];
+  const fromServer = [...(await parts()), await regressionX().inputValue()];
   check(fromServer.join('|') === '5|3|1', label('changing one part keeps the other, reopened from the server'), fromServer.join('|'));
 
   // The question list is a panel on the page: it takes focus, the question it
@@ -1070,7 +1088,7 @@ const backtrackJourney = async (context, device) => {
     };
   });
   check(!listShape.modal && !listShape.inertBehind && listShape.expanded === 'true' && listShape.controls, label('the list is an expanded panel on the page, not a modal'), JSON.stringify(listShape));
-  check(await slope().isVisible() && (await slope().inputValue()) === '5', label('the question stays mounted, with its answer, under the open list'));
+  check((await parts())[0] === '5', label('the question stays mounted, with its answer, under the open list'), (await parts()).join('|'));
   let strayed = 0;
   for (let press = 0; press < 30; press += 1) {
     await page.keyboard.press(press % 7 === 6 ? 'Shift+Tab' : 'Tab');
@@ -1099,9 +1117,11 @@ const backtrackJourney = async (context, device) => {
   await shot(page, device, 'backtrack-04-resume-start');
   await page.getByRole('button', { name: 'Start Test' }).click();
   await atQuestion(page, 'Question 3 of 3');
-  check([await slope().inputValue(), await intercept().inputValue()].join('|') === '5|3', label('resumes on the same question with its answer'));
+  check((await parts()).join('|') === '5|3', label('resumes on the same question with its answer'), (await parts()).join('|'));
 
-  // A teacher's pause while the student is only reading.
+  // A teacher's pause while the student is only reading (with the Slope
+  // part open, so there is an answer box to come back to).
+  await openPart(page, 0, { root: 'main' });
   await slope().focus();
   await page.evaluate(() => window.__secureHarness.proctor('lock'));
   const pausedAt = Date.now();

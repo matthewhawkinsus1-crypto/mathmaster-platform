@@ -20,7 +20,7 @@
  */
 import { buildSupportEvidenceReport, exportStatusFor } from '../supportEvidence/supportEvidenceReport.js';
 import { EVIDENCE_LEGEND, REPORT_LIMITATIONS } from '../../../functions/shared/supportEvidenceModel.mjs';
-import { zonedDateKey } from '../../../functions/shared/instructionalCalendar.mjs';
+import { parseInstant, zonedDateKey } from '../../../functions/shared/instructionalCalendar.mjs';
 import { staffOverrideEntryFor } from '../../../functions/shared/studentAssignmentOverrides.mjs';
 import {
   canonicalPresentedAssignmentGrade, canonicalPresentedSectionGrade, projectedAssignmentTrackerFor, assignmentGradeOverrideFor,
@@ -37,6 +37,7 @@ import { compareSections, describeSectionComparison } from './sectionComparison.
 import { RECOVERY_RECORDS_TRUNCATED, analyzeErrorPatterns } from './errorPatterns.js';
 import { analyzeAssignmentCompletion, summarizeCompletion } from './completionAnalysis.js';
 import { buildCaseTimeline } from './caseTimeline.js';
+import { buildWorkPatternSignals, workPatternTimelineEntries } from './workPatternSignals.js';
 import { analyzeOfficialContribution, reconcileGradebook } from './sisReconciliation.js';
 import { buildNarrativeFacts } from './narrativeFacts.js';
 import { buildAttentionSummary } from './attentionSummary.js';
@@ -188,6 +189,10 @@ export const buildStudentCaseReview = ({
   caseEvidence = null,
   caseEvidenceError = '',
   extensionGrants = undefined,
+  // The student's stored teacher signals (grades/{student}/attemptSignals);
+  // undefined = not loaded.
+  attemptSignals = undefined,
+  attemptSignalsMeta = null,
   sisSnapshot = null,
   sisConfirmedMatches = {},
   nowValue = Date.now(),
@@ -442,10 +447,25 @@ export const buildStudentCaseReview = ({
     receipts: sourceStatus({ label: 'Submission receipts', path: 'studentSubmissionReceipts (via loadStudentCaseEvidence)', loaded: evidenceLoaded, provenance: CASE_PROVENANCE.DIRECT }),
     overrideAudits: sourceStatus({ label: 'Teacher grade-change audits', path: 'grades/{student}/gradeOverrideAudits (via loadStudentCaseEvidence)', loaded: evidenceLoaded, count: evidenceLoaded ? list(caseEvidence.overrideAudits).length : null, provenance: CASE_PROVENANCE.STAFF }),
     extensionGrants: sourceStatus({ label: 'Attendance extension grants', path: 'grades/{student}/attendanceExtensionGrants', loaded: extensionGrants !== undefined, count: extensionGrants === undefined ? null : list(extensionGrants).length, provenance: CASE_PROVENANCE.DIRECT, note: 'One record per grant since the privacy release; earlier grants keep only the latest details.' }),
+    attemptSignals: sourceStatus({ label: 'Work-pattern signals', path: 'grades/{student}/attemptSignals', loaded: attemptSignals !== undefined, count: attemptSignals === undefined ? null : list(attemptSignals).length, provenance: CASE_PROVENANCE.DIRECT }),
     sessionSummaries: sourceStatus({ label: 'Class-session summaries', path: 'studentSessionSummaries', loaded: sessionSummaries !== undefined, count: sessionSummaries === undefined ? null : list(sessionSummaries).length, provenance: CASE_PROVENANCE.LEGACY, note: 'Client-clock times; Practice Mode sessions are not flagged.' }),
     exportHistory: sourceStatus({ label: 'Grade export history', path: 'gradeTransferSnapshots (via listGradeTransferState)', loaded: exportSnapshots !== null, count: Array.isArray(exportSnapshots) ? exportSnapshots.length : null, provenance: CASE_PROVENANCE.DIRECT }),
     sisSnapshot: sourceStatus({ label: 'Official gradebook snapshot', path: sis?.meta.saved ? 'grades/{student}/sisGradebookSnapshots' : 'imported in this session', loaded: Boolean(sis), provenance: CASE_PROVENANCE.SIS }),
   };
+
+  // Work-pattern signals: counts of recorded facts, never a finding, and
+  // never an input to a grade or to the narrative facts below.
+  const workPatterns = buildWorkPatternSignals({
+    signals: attemptSignals,
+    signalsMeta: attemptSignalsMeta,
+    questions: allQuestions,
+    assignments: entries,
+    // The case's window, as the support report bounds it: its two school days
+    // in the school's zone, the last one to its end (supportEvidenceReport.js).
+    // The report's meta carries the days, not the instants.
+    fromMs: parseInstant(support.meta?.fromDateKey, { timeZone: SCHOOL_TIME_ZONE }),
+    toMs: parseInstant(support.meta?.toDateKey, { endOfDay: true, timeZone: SCHOOL_TIME_ZONE }),
+  });
 
   const timeline = buildCaseTimeline({
     assignments: entries.map((entry) => ({
@@ -457,6 +477,7 @@ export const buildStudentCaseReview = ({
     })),
     supportTimeline: support.timeline,
     overrideAudits: evidenceLoaded ? caseEvidence.overrideAudits : [],
+    extraEntries: workPatternTimelineEntries(workPatterns),
   });
 
   const model = {
@@ -490,6 +511,7 @@ export const buildStudentCaseReview = ({
       service: support.service,
       legend: EVIDENCE_LEGEND,
     },
+    workPatterns,
     timeline,
     sis,
     tools: { calculatorAssignments },

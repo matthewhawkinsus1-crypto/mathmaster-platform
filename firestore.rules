@@ -145,37 +145,89 @@ service cloud.firestore {
       return d[key] is int && d[key] >= low && d[key] <= high;
     }
 
+    // The supports a signal may name beside it: the catalog's own ids
+    // (functions/shared/supportCatalog.mjs; held to it by
+    // tests/platform/attemptSignalFacts.test.mjs).
+    function attemptSignalSupportIds() {
+      return [
+        'text-to-speech', 'calculator', 'calculator-override-computation', 'reteach-resources', 'study-sheet',
+        'graph-paper', 'translation', 'glossary-lookup', 'chunked-directions', 'sentence-frames', 'extra-time',
+        'extra-time-written-response', 'visual-chunking', 'declutter-ui', 'no-countdown', 'disable-idle-timer',
+        'high-contrast', 'large-text', 'graph-read-out', 'word-processor-response', 'keyboard-access',
+        'every-part-at-once', 'algebra-auto-apply', 'reduced-item-count-same-rigor', 'graphic-organizer',
+        'reduced-choices', 'extra-attempts', 'repeat-instructions', 'directions-multiple-ways',
+        'check-for-understanding', 'frequent-feedback', 'on-task-prompt', 'reminder-of-expectations',
+        'verbalize-steps', 'whisper-read-aloud', 'planner-communication', 'highlighted-materials',
+        'study-aids-manipulatives', 'adult-reteach', 'inclusion-support', 'co-teaching',
+        'paraprofessional-support', 'small-group-instruction', 'other-service', 'reduce-complexity',
+        'prefill-first-step', 'reduced-coverage', 'modified-assignment', 'modified-standard', 'reduced-dok'
+      ];
+    }
+
+    // The context stored beside every kind of fact: the section, whether the
+    // attempt was in the class's scheduled time (a yes or a no, nothing else
+    // about where the student was), and the supports in effect (catalog ids).
+    function attemptSignalContextValid(d) {
+      // Recorded on the four sections of a classroom assignment and nowhere
+      // else: the sections the case review counts signals out of.
+      return d.keys().hasAny(['activityRole'])
+        && d.activityRole in ['warmup', 'classwork', 'practice', 'dol']
+        && (!d.keys().hasAny(['duringClass']) || d.duringClass is bool)
+        && (!d.keys().hasAny(['supports']) || (d.supports is list && d.supports.size() <= 50
+          && d.supports.toSet().hasOnly(attemptSignalSupportIds())));
+    }
+
+    // The assignment is a real one, given to this student, and the question
+    // is one of its own. A made-up id or position cannot be used to fill a
+    // student's record with facts. "Given to this student" is the same
+    // server-owned proof an assignment read asks for
+    // (studentRosterGrantsAssignment below): their roster class is one the
+    // assignment is assigned to; or the assignment is in their own
+    // `gradesByAssignment` (work they already hold on it, as after a move to
+    // another class); or it is in their `testCycleGrades` (a Test they were
+    // added to on their own). A student writes none of the three. No stored
+    // assignment carries a per-student mark: the device's own
+    // `assignedToStudentIndividually` is display only and is not read here.
+    function attemptSignalAssignmentValid(studentId, d) {
+      let assignment = get(/databases/$(database)/documents/assignments/$(d.assignmentId)).data;
+      let roster = get(/databases/$(database)/documents/grades/$(studentId)).data;
+      return exists(/databases/$(database)/documents/assignments/$(d.assignmentId))
+        && ((roster.get('classId', '') is string && roster.get('classId', '') != ''
+            && assignment.get('assignedClassIds', []).hasAny([roster.get('classId', '')]))
+          || d.assignmentId in roster.get('gradesByAssignment', {})
+          || d.assignmentId in roster.get('testCycleGrades', {}))
+        && d.questionIndex < assignmentQuestionCount(assignment);
+    }
+
     function attemptSignalValid(studentId, signalId) {
       let d = request.resource.data;
       let common = ['schemaVersion', 'studentId', 'assignmentId', 'questionIndex', 'kind', 'attemptNumber', 'recordedAt'];
+      let context = ['activityRole', 'duringClass', 'supports'];
       return d.keys().hasAll(common)
         && d.schemaVersion == 1
         && d.studentId == studentId
         && d.assignmentId is string && d.assignmentId.size() > 0 && d.assignmentId.size() <= 200
         // The document id below names one assignment and one question only if
         // the assignment id has no "_" at either end and no "__" (as for Ask
-        // my teacher, SI04), and the assignment is a real one: a made-up id
-        // cannot be used to fill a student's record with facts.
+        // my teacher, SI04).
         && !d.assignmentId.matches('_.*|.*_|.*__.*')
-        && exists(/databases/$(database)/documents/assignments/$(d.assignmentId))
         && attemptSignalInt(d, 'questionIndex', 0, 999)
+        && attemptSignalAssignmentValid(studentId, d)
         && attemptSignalInt(d, 'attemptNumber', 1, 99)
         && d.recordedAt == request.time
-        && (!d.keys().hasAny(['activityRole']) || d.activityRole in [
-          'warmup', 'classwork', 'dol', 'practice', 'quiz', 'test', 'review', 'corrections'
-        ])
+        && attemptSignalContextValid(d)
         && (
           (d.kind == 'pasted'
-            && d.keys().hasOnly(common.concat(['activityRole', 'partIndex']))
+            && d.keys().hasOnly(common.concat(context).concat(['partIndex']))
             && attemptSignalInt(d, 'partIndex', 0, 49)
             && signalId == d.assignmentId + '__' + string(d.questionIndex) + '__pasted__' + string(d.partIndex))
           || (d.kind == 'leftThenRight'
-            && d.keys().hasOnly(common.concat(['activityRole', 'partCount', 'awaySeconds']))
+            && d.keys().hasOnly(common.concat(context).concat(['partCount', 'awaySeconds']))
             && attemptSignalInt(d, 'partCount', 2, 50)
             && attemptSignalInt(d, 'awaySeconds', 0, 300)
             && signalId == d.assignmentId + '__' + string(d.questionIndex) + '__leftThenRight')
           || (d.kind == 'hardFirstTry'
-            && d.keys().hasOnly(common.concat(['activityRole', 'partCount', 'difficultyBand']))
+            && d.keys().hasOnly(common.concat(context).concat(['partCount', 'difficultyBand']))
             && attemptSignalInt(d, 'partCount', 1, 50)
             && attemptSignalInt(d, 'difficultyBand', 3, 9)
             && d.attemptNumber == 1
@@ -183,14 +235,17 @@ service cloud.firestore {
         );
     }
 
-    // A teacher's dismissal: who and when, and nothing else about the fact.
-    // Once: a later teacher cannot put their own name and time over it.
+    // A teacher's review of a fact ("Mark reviewed"): who, when and, if they
+    // choose, a short note of their own. Once: a later teacher cannot put
+    // their name, time or words over it, and nothing else about the fact
+    // changes. A reviewed fact stays in the record.
     function attemptSignalDismissalValid() {
       let d = request.resource.data;
-      return !resource.data.keys().hasAny(['dismissedAt', 'dismissedByEmail'])
-        && d.diff(resource.data).affectedKeys().hasOnly(['dismissedAt', 'dismissedByEmail'])
+      return !resource.data.keys().hasAny(['dismissedAt', 'dismissedByEmail', 'reviewNote'])
+        && d.diff(resource.data).affectedKeys().hasOnly(['dismissedAt', 'dismissedByEmail', 'reviewNote'])
         && d.dismissedAt == request.time
-        && d.dismissedByEmail == request.auth.token.email;
+        && d.dismissedByEmail == request.auth.token.email
+        && (!d.keys().hasAny(['reviewNote']) || (d.reviewNote is string && d.reviewNote.size() > 0 && d.reviewNote.size() <= 500));
     }
 
     function presenceCarriesNoResponse(data) {
@@ -911,9 +966,11 @@ service cloud.firestore {
        * written once by the student's own client (attemptSignalValid above),
        * read only by the teacher who teaches the student. The student cannot
        * read them back, nobody can edit a fact, and the only later write is
-       * one dismissal, by that teacher or the root administrator (who can
-       * read it too). No grade, attempt or mastery path reads this
-       * collection (tests/platform/attemptSignalsNeverGrade.test.mjs).
+       * one review (who, when, an optional note), by that teacher or the root
+       * administrator (who can read it too). Reviewed is not deleted: the
+       * fact stays for the assignment's results and the case review. No
+       * grade, attempt or mastery path reads this collection
+       * (tests/platform/attemptSignalsNeverGrade.test.mjs).
        */
       match /attemptSignals/{signalId} {
         allow read: if rootAdmin() || teachesPresenceStudent(studentId);

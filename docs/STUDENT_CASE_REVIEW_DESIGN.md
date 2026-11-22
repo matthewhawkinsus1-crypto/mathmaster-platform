@@ -228,6 +228,41 @@ Recovery), support evidence present, evidence missing, and a suggested instructi
 fixed rules (concern standard with the most not-correct items and DOL below instruction first). Never a
 diagnosis.
 
+### 3.10 Work-pattern signals (`workPatternSignals.js`)
+
+Added with the teacher signals (`docs/platform/SHOWING_THE_PROCESS.md`,
+section 7). The inputs are the student's stored signals
+(`grades/{sid}/attemptSignals`, read under its own rule) and the case's
+question rows. The section holds counts only:
+
+- how often each kind occurs, out of the answered questions where a signal
+  could have been recorded: Warm-Up, Classwork, Practice and DOL questions of
+  classroom assignments, last answered on or after the student's first signal
+  on record, inside the case's window. Answers before that date, outside the
+  window, in other sections, in Recovery, or with no recorded time are left
+  out and counted as left out. The section states
+  the denominator in words;
+- the same count month by month, on the school's calendar;
+- first-attempt and final accuracy on answered questions with a signal, beside
+  those without;
+- counts by section, and in the class's scheduled time, outside it, or not
+  known (never folded into "outside");
+- each signal, with its review (who and when). The teacher's note is the
+  teacher's own words: it is shown under its own heading and labelled
+  teacher-authored on screen, in print, in the CSV and in the JSON, and no
+  count, line or narrative fact is written from it.
+
+The signals are read for the case's own window of dates, newest first, up to
+500. When the window holds more, the section says so. A second read finds the
+student's earliest signal on record, for the denominator.
+
+It is labelled "not conclusive" wherever it is drawn. It feeds the timeline
+(kind `work-pattern-signal`, group `signals`), the Signals CSV, print section
+13 and "What needs attention?" (the count not yet reviewed). It does not feed
+the narrative facts: `narrativeFacts.js` never reads it, and
+`narrativeGuard.js` has an `integrity-conclusion` family that refuses a
+template saying a student cheated, copied or used AI.
+
 ## 4. The case review model and exports (`studentCaseReview.js`, `caseReviewExport.js`)
 
 `buildStudentCaseReview(inputs)` calls PR #401's `buildSupportEvidenceReport` once (same selection, rows,

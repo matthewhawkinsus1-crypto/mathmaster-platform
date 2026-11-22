@@ -23,7 +23,9 @@
 // teacher reads is src/platform/teacher/attemptSignalsView.js.
 
 import { normalizeStudentProfile } from '../../studentSupport.js';
-import { translationLanguageOf } from '../../../functions/shared/supportProfileModel.mjs';
+import { derivedSupportIds, resolveEffectiveSupportPlan, supportAppliesToRole, translationLanguageOf } from '../../../functions/shared/supportProfileModel.mjs';
+import { INCLUSION_IMPLIED_SUPPORT_IDS, SUPPORT_CATALOG } from '../../../functions/shared/supportCatalog.mjs';
+import { lastPlatformLinkAt } from './signalPageNotes.js';
 
 export const ATTEMPT_SIGNAL_KIND = Object.freeze({
   LEFT_THEN_RIGHT: 'leftThenRight',
@@ -54,7 +56,17 @@ export const MAX_PART_INDEX = 49;
 export const MAX_PART_COUNT = 50;
 export const MAX_AWAY_SECONDS = 300;
 export const MAX_ATTEMPT_NUMBER = 99;
-export const ATTEMPT_SIGNAL_ROLES = Object.freeze(['warmup', 'classwork', 'dol', 'practice', 'quiz', 'test', 'review', 'corrections']);
+// The supports a signal may name beside it: the catalog's own ids, and no
+// more of them than the catalog holds (firestore.rules lists the same ids).
+export const ATTEMPT_SIGNAL_SUPPORT_IDS = Object.freeze(SUPPORT_CATALOG.map((entry) => entry.id));
+export const MAX_SIGNAL_SUPPORTS = ATTEMPT_SIGNAL_SUPPORT_IDS.length;
+// WHERE A SIGNAL IS RECORDED: the four sections of a classroom assignment.
+// The case review counts signals out of the answers in these sections
+// (caseReview/workPatternSignals.js), so a fact anywhere else (a Quiz, a Test,
+// Review, Corrections, or a question with no section) is not recorded at all:
+// a signal that no count could hold would read as "2 signals, 0 of 1 answers".
+// firestore.rules refuses any other section, and a record with none.
+export const ATTEMPT_SIGNAL_ROLES = Object.freeze(['warmup', 'classwork', 'practice', 'dol']);
 
 const list = (value) => (Array.isArray(value) ? value : []);
 const clean = (value) => String(value ?? '').trim();
@@ -93,6 +105,33 @@ export const exemptAttemptSignalKinds = (profile, { nowValue = Date.now() } = {}
   // or without the catalog entry beside it.
   if (translationLanguageOf(normalized.translationLanguage)) exempt.add(ATTEMPT_SIGNAL_KIND.LEFT_THEN_RIGHT);
   return exempt;
+};
+
+/**
+ * The supports in effect for this student, on this kind of activity, today, as
+ * catalog ids: stored beside each signal, so whoever reads it later reads it
+ * with the supports the attempt was made under.
+ *
+ * "In effect" is the support plan's own answer (supportProfileModel.mjs):
+ *   - a support limited to some activities (`appliesTo`) is named only on
+ *     those: extra time on the DOL alone is not in effect on Classwork;
+ *   - the supports inclusion brings with it are in effect for a student whose
+ *     plan says inclusion, though no entry names them;
+ *   - a translation language on the plan is the translation tool.
+ * With no `activityRole`, every support on the plan is named. The list is
+ * never cut short: it cannot hold more ids than the catalog has
+ * (MAX_SIGNAL_SUPPORTS is the catalog's size, and firestore.rules allows as many).
+ */
+export const supportsInEffect = (profile, { nowValue = Date.now(), activityRole = null } = {}) => {
+  const plan = resolveEffectiveSupportPlan(profile || {}, { nowValue });
+  const known = new Set(ATTEMPT_SIGNAL_SUPPORT_IDS);
+  const entries = [...list(plan.accommodations), ...list(plan.modifications)].map((entry) => clean(typeof entry === 'object' ? entry?.id : entry));
+  const ids = new Set([
+    ...entries,
+    ...derivedSupportIds(plan),
+    ...(plan.inclusionStatus === true ? INCLUSION_IMPLIED_SUPPORT_IDS : []),
+  ].filter((id) => known.has(id) && supportAppliesToRole(plan, id, activityRole)));
+  return [...ids].sort();
 };
 
 /** The question's authored difficulty band, 0 when it has none. */
@@ -137,7 +176,7 @@ const partValuesFrom = (responseKey) => {
  * student who leaves on one question and answers the next on returning is the
  * same pattern.
  */
-export const createPageAwayClock = ({ now = () => Date.now() } = {}) => {
+export const createPageAwayClock = ({ now = () => Date.now(), linkAt = () => 0 } = {}) => {
   let hiddenAt = 0;
   let hiddenByPlatformLink = false;
   let platformLinkAt = 0;
@@ -151,7 +190,10 @@ export const createPageAwayClock = ({ now = () => Date.now() } = {}) => {
     pageHidden() {
       if (hiddenAt) return;
       hiddenAt = now();
-      hiddenByPlatformLink = platformLinkAt > 0 && hiddenAt - platformLinkAt <= PLATFORM_LINK_GRACE_MS;
+      // The link's time: told to this clock, or noted for the page before this
+      // module had loaded (signalPageNotes.js).
+      const opened = Math.max(platformLinkAt, Number(linkAt()) || 0);
+      hiddenByPlatformLink = opened > 0 && hiddenAt >= opened && hiddenAt - opened <= PLATFORM_LINK_GRACE_MS;
       platformLinkAt = 0;
       // What is on the clipboard after time elsewhere is not known to be ours.
       copiedInPage = false;
@@ -193,7 +235,7 @@ let sharedClock = null;
 /** The page's own clock, listening to `visibilitychange` from first use. */
 export const sharedPageAwayClock = () => {
   if (sharedClock) return sharedClock;
-  sharedClock = createPageAwayClock();
+  sharedClock = createPageAwayClock({ linkAt: lastPlatformLinkAt });
   if (typeof document !== 'undefined' && typeof document.addEventListener === 'function') {
     document.addEventListener('visibilitychange', () => {
       if (document.hidden) sharedClock.pageHidden();
@@ -208,13 +250,6 @@ export const sharedPageAwayClock = () => {
   }
   return sharedClock;
 };
-
-/**
- * The platform opened one of its own links in a new tab (a teacher's study
- * sheet or reteach resource): the absence that follows is not the student
- * leaving the page.
- */
-export const notePlatformLinkOpened = () => sharedPageAwayClock().platformLinkOpened();
 
 /**
  * One question's tracker. It is told when the answer changes, when a paste
@@ -257,13 +292,17 @@ export const createAttemptSignalTracker = ({ clock = sharedPageAwayClock(), now 
 
     /**
      * A paste into a math answer field, by the part it landed in. Null when
-     * the clipboard holds what was just copied from this page.
+     * the clipboard holds what was just copied from this page, and null for a
+     * part past the last one a record can name (MAX_PART_INDEX): a fact that
+     * named the wrong part, or two parts filed as one, would not be a fact.
      */
     pasteFact({ partIndex = 0, attemptNumber = 1 } = {}) {
       if (clock.clipboardIsFromPage?.()) return null;
+      const part = Math.floor(Number(partIndex));
+      if (!Number.isFinite(part) || part < 0 || part > MAX_PART_INDEX) return null;
       return {
         kind: ATTEMPT_SIGNAL_KIND.PASTED,
-        partIndex: clampInt(partIndex, 0, MAX_PART_INDEX),
+        partIndex: part,
         attemptNumber: clampInt(attemptNumber, 1, MAX_ATTEMPT_NUMBER),
       };
     },
@@ -329,13 +368,16 @@ export const attemptSignalDocumentId = ({ assignmentId, questionIndex, kind, par
 /**
  * The stored record: positions and counts, and nothing a fact could carry in
  * by another name. Null when the fact names no known kind or no assignment.
- * (`recordedAt` is added by the store, as the server's time.)
+ * (`recordedAt` is added by the store, as the server's time: the "when".)
  */
-export const buildAttemptSignalRecord = ({ studentId, assignmentId, questionIndex, activityRole = null, fact = {} } = {}) => {
+export const buildAttemptSignalRecord = ({ studentId, assignmentId, questionIndex, activityRole = null, fact = {}, duringClass = null, supports = null } = {}) => {
   const kind = clean(fact?.kind);
   const student = clean(studentId);
   const assignment = clean(assignmentId);
   if (!ATTEMPT_SIGNAL_KINDS.includes(kind) || !student || !assignment || assignment.length > 200) return null;
+  // No record outside the sections signals are recorded on.
+  const role = clean(activityRole).toLowerCase();
+  if (!ATTEMPT_SIGNAL_ROLES.includes(role)) return null;
   const record = {
     schemaVersion: ATTEMPT_SIGNAL_SCHEMA_VERSION,
     studentId: student,
@@ -344,8 +386,16 @@ export const buildAttemptSignalRecord = ({ studentId, assignmentId, questionInde
     kind,
     attemptNumber: clampInt(fact.attemptNumber, 1, MAX_ATTEMPT_NUMBER),
   };
-  const role = clean(activityRole).toLowerCase();
-  if (ATTEMPT_SIGNAL_ROLES.includes(role)) record.activityRole = role;
+  record.activityRole = role;
+  // In the class's scheduled time or outside it, from the bell schedule; left
+  // out when the schedule could not say. Nothing else about where the student
+  // was is recorded or inferred.
+  if (typeof duringClass === 'boolean') record.duringClass = duringClass;
+  // The supports in effect for this attempt (catalog ids only).
+  if (Array.isArray(supports)) {
+    const known = new Set(ATTEMPT_SIGNAL_SUPPORT_IDS);
+    record.supports = [...new Set(supports.map(clean).filter((id) => known.has(id)))].sort().slice(0, MAX_SIGNAL_SUPPORTS);
+  }
   if (kind === ATTEMPT_SIGNAL_KIND.PASTED) {
     record.partIndex = clampInt(fact.partIndex, 0, MAX_PART_INDEX);
   }
