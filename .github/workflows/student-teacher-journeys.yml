@@ -715,6 +715,15 @@ jobs:
           PLAYWRIGHT_MODULE: playwright
           AUDIT_ORIGIN: "http://127.0.0.1:5199"
         run: node tests/browser/stepAlgebraReplay.mjs
+      # WE-D: a radical equation example plays on the relation workspace's own
+      # engine, with the factoring slides (in the sequence on Classwork, behind
+      # "Show how" on Practice); an extraneous root is rejected on its own slide.
+      - name: Radical equation replay (factoring slides, extraneous roots rejected)
+        if: ${{ !cancelled() }}
+        env:
+          PLAYWRIGHT_MODULE: playwright
+          AUDIT_ORIGIN: "http://127.0.0.1:5199"
+        run: node tests/browser/radicalReplay.mjs
       # Read aloud says the whole question (choices, matrices, parts heard
       # again) and Translate shows Spanish or says why not (student pass 3, batch 6).
       - name: Read aloud and Translate (heard and seen)

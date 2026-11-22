@@ -77,6 +77,7 @@ import dol3Review from '../../teacher-import-jsons/algebra1-dol3/Algebra1_DOL3_R
 import linearRepresentationsLesson from '../../docs/assignments/Algebra1_Linear_Multiple_Representations_V5_FAMILY_UPDATED.json';
 import inequalitiesLesson from '../../teacher-import-jsons/algebra1-module3/T2_L4_Graphing_Inequalities_in_Two_Variables.json';
 import learningSupportsLesson from '../platform/fixtures/learningSupportsLessonFragment.json';
+import radicalEquationsLesson from '../../teacher-import-jsons/algebra2-polynomials-radicals-honors/5_Solving_Radical_Equations_Honors_Step_Algebra.json';
 import { parseAssignmentBlueprintText } from '../../src/assignmentBlueprint.js';
 import { canonicalV5PersistencePatch, getStoredAssignmentQuestions } from '../../src/platform/contract/storedAssignmentV5.js';
 import '../../src/index.css';
@@ -218,9 +219,17 @@ const QUESTIONS = {
 //   ?q=replay2    CW 3, the next question on the skill   (ls-cw-3)
 //   ?q=replaypr   Practice 1                             (ls-pr-1)
 //   ?q=replaydol  the DOL                                (ls-dol-1)
-const REPLAY_QUESTIONS = { replay: 'ls-cw-2', replay2: 'ls-cw-3', replaypr: 'ls-pr-1', replaydol: 'ls-dol-1' };
+// A published radical equations lesson, for the radical replay (WE-D): its
+// items are solved on the relation workspace and have no example of their own.
+//   ?q=radical     Classwork 1 (√(x + 4) + 2 = x)           (srh-cw-1)
+//   ?q=radical2    Classwork 2, the next on the skill, a·c   (srh-cw-2)
+//   ?q=radicalpr   Practice 1                                (srh-p-1)
+//   ?q=radicalac   Practice 4, a leading coefficient of 3    (srh-p-4)
+//   ?q=radicaldol  the DOL                                   (srh-dol-1)
+const RADICAL_QUESTIONS = { radical: 'srh-cw-1', radical2: 'srh-cw-2', radicalpr: 'srh-p-1', radicalac: 'srh-p-4', radicaldol: 'srh-dol-1' };
+const REPLAY_QUESTIONS = { replay: 'ls-cw-2', replay2: 'ls-cw-3', replaypr: 'ls-pr-1', replaydol: 'ls-dol-1', ...RADICAL_QUESTIONS };
 const replayLesson = REPLAY_QUESTIONS[which]
-  ? { id: 'replay-lesson', ...canonicalV5PersistencePatch(parseAssignmentBlueprintText(JSON.stringify(learningSupportsLesson)).assignmentV5) }
+  ? { id: 'replay-lesson', ...canonicalV5PersistencePatch(parseAssignmentBlueprintText(JSON.stringify(RADICAL_QUESTIONS[which] ? radicalEquationsLesson : learningSupportsLesson)).assignmentV5) }
   : null;
 const replayQuestions = replayLesson ? getStoredAssignmentQuestions(replayLesson) : null;
 const question = replayQuestions

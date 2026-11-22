@@ -47,9 +47,11 @@ The example player (WE-A) reads a question's `example` and
   example takes the one the first question on its skill named. A built-in
   replay fades after its first move. When the student asks for the example,
   the whole of it plays;
-- a replay for another tool (radical equations, the plane, the inequality
-  builder, division) is not played yet (WE-D, WE-E). Until then such a
-  question gets its built-in example.
+- **A radical equation replay** (`"tool": "radicalEquation"`, section 9) is
+  played on the relation workspace's own engine, with the factoring slides. A
+  radical equation item with no example of its own gets a built-in one;
+- a replay for another tool (the plane, the inequality builder, division) is
+  not played yet (WE-E). Until then such a question gets its built-in example.
 
 The other fields are read by the packages being built on them:
 - reference cards (WE-H);
@@ -324,6 +326,24 @@ The factoring slides come from the platform (WE-D):
   6. the zero product property.
 
 On Practice the step stays one line, with **Show how**.
+
+What to know when you write one:
+- The moves must be the tool's own path for that equation, in order: the
+  moves that isolate the radical (`{ "op": "subtract", "operand": "2" }`),
+  then `square` (or `raise` for a cube root or higher), `collectToZero`,
+  `factor`, `zeroProduct`, and the check last. The platform adds the lines in
+  between itself (multiplying out, each branch's own solve). A script in
+  another order, or without the check, is an error:
+
+  > lessonSupports.examples[2] is a radical equation replay the tool cannot play: its moves stop before the equation is solved. The next move is { "op": "zeroProduct" }.
+- `detail` is `factor.trinomial` (x² + bx + c) or `factor.trinomialAC`
+  (ax² + bx + c). It must be the quadratic's own; you can leave it out.
+- Write the radical on the left. Choose an equation whose quadratic is a
+  trinomial with two different roots, neither of them 0 (no common factor,
+  not a perfect square).
+- Every candidate gets a check slide. One that fails is rejected there.
+- A root equal to a number (`sqrt(2x + 8) = 4`) has no quadratic: its moves
+  are `square`, then the moves that solve the linear equation, then the check.
 
 In a step card, write the factoring as steps of their own, each with its
 `why`, not as one step that jumps to the factors.
