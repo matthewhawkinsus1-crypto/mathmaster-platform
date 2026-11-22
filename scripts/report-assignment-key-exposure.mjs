@@ -85,7 +85,8 @@ export const STORED_KEY_FIELDS = Object.freeze({
   contextual: Object.freeze([
     'target (a number line\'s scalar key; a transformation\'s target {a,h,k} draws the item and is stimulus-derived)',
     'answerFields[].answer', 'answerFields[].numericTolerance', 'responseFields[].expected', 'responseFields[].answer',
-    'responses[].answer', 'scaffold.correct', 'table.answers', 'task.expected', 'generator.derived',
+    'responses[].answer', 'answerFields[].followThrough.answer', 'responseFields[].followThrough.answer',
+    'responses[].followThrough.answer', 'scaffold.correct', 'table.answers', 'task.expected', 'generator.derived',
     'targets[].classification', 'context.*.value (beside choices)',
   ]),
 });
@@ -109,6 +110,9 @@ const present = (value) => {
 const optionTexts = (option) => (isObject(option)
   ? [option.label, option.value, option.text, option.id].filter((entry) => entry != null).map(clean)
   : [clean(option)]);
+// A follow-through part's answer (SP-3) is its key written with the earlier
+// parts' {names}; the split moves it to the private key (assignmentKeySplit.mjs).
+const followThroughAnswer = (field) => isObject(field.followThrough) && present(field.followThrough.answer);
 const answerValues = (value) => (Array.isArray(value) ? value : [value]).filter((entry) => entry != null && typeof entry !== 'object').map(clean).filter(Boolean);
 
 /** Every object in a question, each once, with whether it is a root (the question or one of its variants). */
@@ -144,6 +148,7 @@ export const classifyQuestionExposure = (question) => {
       if (!isObject(field)) return;
       if (present(field.answer)) storedKeyFields.add('answerFields[].answer');
       if (present(field.numericTolerance)) storedKeyFields.add('answerFields[].numericTolerance');
+      if (followThroughAnswer(field)) storedKeyFields.add('answerFields[].followThrough.answer');
       const options = list(field.options).flatMap(optionTexts).filter(Boolean);
       if (options.length && answerValues(field.answer).some((answer) => options.includes(answer))) choiceLabelKey = true;
     });
@@ -151,8 +156,13 @@ export const classifyQuestionExposure = (question) => {
       if (!isObject(field)) return;
       if (present(field.expected)) storedKeyFields.add('responseFields[].expected');
       if (present(field.answer)) storedKeyFields.add('responseFields[].answer');
+      if (followThroughAnswer(field)) storedKeyFields.add('responseFields[].followThrough.answer');
     });
-    list(node.responses).forEach((response) => { if (isObject(response) && present(response.answer)) storedKeyFields.add('responses[].answer'); });
+    list(node.responses).forEach((response) => {
+      if (!isObject(response)) return;
+      if (present(response.answer)) storedKeyFields.add('responses[].answer');
+      if (followThroughAnswer(response)) storedKeyFields.add('responses[].followThrough.answer');
+    });
     if (isObject(node.scaffold) && present(node.scaffold.correct)) storedKeyFields.add('scaffold.correct');
     if (isObject(node.table) && present(node.table.answers)) storedKeyFields.add('table.answers');
     if (isObject(node.task) && present(node.task.expected)) storedKeyFields.add('task.expected');
