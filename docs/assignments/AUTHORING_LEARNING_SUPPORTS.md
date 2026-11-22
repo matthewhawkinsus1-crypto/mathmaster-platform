@@ -28,8 +28,28 @@ The example player (WE-A) reads a question's `example` and
   with no skill to name (no `familyId`, no `studentActions`);
 - an example that opens by itself is recorded as shown, not as help the
   student asked for, so it does not make the attempt a supported one;
-- a **tool replay** (`moves`) and `fade` are not played yet (WE-C to WE-E).
-  Until then such a question gets its built-in example.
+- a **Step Algebra replay** (`"tool": "stepAlgebra"`, `sibling.equation` and
+  `moves`) plays on the tool's own engine (WE-C): each move is drawn as the
+  board's lines, and the line is the engine's, never written in the lesson.
+  - The moves are `add`, `subtract`, `multiply` and `divide`, each with an
+    `operand`, then `{ "check": true }` as the last move.
+  - **The moves must reach the answer.** A script that stops before the
+    equation is solved, checks too early or names a move the board does not
+    have is an error when the assignment is compiled and in Pre-Flight:
+
+    > lessonSupports.examples[0] is a Step Algebra replay the tool cannot play: its moves end at 3x = -12, which is not solved for x. Add the moves that finish it.
+  - A Step Algebra question with no example of its own gets a built-in replay
+    of a sibling equation, where that equation is a plain one (`ax + b = cx + d`
+    with whole numbers). It collects the variable terms first.
+- **`fade`** is played on the second Classwork question on a skill: the
+  example opens by itself with its first steps or moves only, shows no
+  answer, and leaves the rest to the student. A question that names no
+  example takes the one the first question on its skill named. A built-in
+  replay fades after its first move. When the student asks for the example,
+  the whole of it plays;
+- a replay for another tool (radical equations, the plane, the inequality
+  builder, division) is not played yet (WE-D, WE-E). Until then such a
+  question gets its built-in example.
 
 The other fields are read by the packages being built on them:
 - reference cards (WE-H);
@@ -133,6 +153,17 @@ The three sources:
 - `fromStep: 3` lets the student do step 3 onward.
 
 Either number is at least 1 and no more than the example's steps or moves.
+
+A faded Step Algebra replay stops before the solving move: the one whose line
+reads `x = value`. A fade that would show it is an error, and the player
+never shows that line on a faded slide:
+
+> lessonSupports.examples[0].fade would show the solved equation: move 3 is the one that leaves the variable alone, and a faded example stops before it. Use handOverAfter of 2 or less.
+
+A move that multiplies or divides by an expression with a letter in it (such
+as `{ "op": "divide", "operand": "x" }`) is refused. It holds only where
+that expression is not zero, and a slide cannot show that condition yet.
+Multiply or divide by a number; add or subtract a variable term.
 
 ```json
 {

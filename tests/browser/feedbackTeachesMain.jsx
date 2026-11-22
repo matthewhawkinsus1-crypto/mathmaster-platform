@@ -76,6 +76,9 @@ import threeByThreeDay1 from '../../docs/assignments/Algebra_II_Honors_3x3_Syste
 import dol3Review from '../../teacher-import-jsons/algebra1-dol3/Algebra1_DOL3_Review.json';
 import linearRepresentationsLesson from '../../docs/assignments/Algebra1_Linear_Multiple_Representations_V5_FAMILY_UPDATED.json';
 import inequalitiesLesson from '../../teacher-import-jsons/algebra1-module3/T2_L4_Graphing_Inequalities_in_Two_Variables.json';
+import learningSupportsLesson from '../platform/fixtures/learningSupportsLessonFragment.json';
+import { parseAssignmentBlueprintText } from '../../src/assignmentBlueprint.js';
+import { canonicalV5PersistencePatch, getStoredAssignmentQuestions } from '../../src/platform/contract/storedAssignmentV5.js';
 import '../../src/index.css';
 import '../../src/App.css';
 
@@ -208,7 +211,21 @@ const QUESTIONS = {
     solution: [2, 3],
   },
 };
-const question = QUESTIONS[which];
+// The guide's own lesson (docs/assignments/AUTHORING_LEARNING_SUPPORTS.md), stored
+// the way a published assignment is: its questions carry their section's role,
+// and its Step Algebra replay is in lessonSupports (WE-C).
+//   ?q=replay     CW 2, which names the replay           (ls-cw-2)
+//   ?q=replay2    CW 3, the next question on the skill   (ls-cw-3)
+//   ?q=replaypr   Practice 1                             (ls-pr-1)
+//   ?q=replaydol  the DOL                                (ls-dol-1)
+const REPLAY_QUESTIONS = { replay: 'ls-cw-2', replay2: 'ls-cw-3', replaypr: 'ls-pr-1', replaydol: 'ls-dol-1' };
+const replayLesson = REPLAY_QUESTIONS[which]
+  ? { id: 'replay-lesson', ...canonicalV5PersistencePatch(parseAssignmentBlueprintText(JSON.stringify(learningSupportsLesson)).assignmentV5) }
+  : null;
+const replayQuestions = replayLesson ? getStoredAssignmentQuestions(replayLesson) : null;
+const question = replayQuestions
+  ? replayQuestions.find((entry) => entry.questionId === REPLAY_QUESTIONS[which])
+  : QUESTIONS[which];
 const FAMILY_INSTANCES = new Set(['family', 'vertex', 'absval']);
 // The question's own answers, for the driver's leak check (never rendered).
 window.__mmAnswers = which === 'transform' ? (question?.answerFields || []).map((field) => String(field.answer ?? ''))
@@ -229,12 +246,12 @@ const studentProfile = SUPPORT_PROFILES[params.get('support')] || {};
 // A stored question carries its section's role, and its skill is its student
 // action with its standard (exampleSkill.js).
 const onTheSkill = (entry) => ({ studentActions: ['multipleResponses'], standard: 'A.3A', ...entry, activityRole: params.get('section') });
-const lessonQuestions = params.get('section')
+const lessonQuestions = replayQuestions || (params.get('section')
   ? (params.get('newskill') === '1'
     ? [question]
     : [onTheSkill({ ...question, questionId: 'earlier-on-the-skill' }), question])
-  : null;
-if (lessonQuestions) Object.assign(question, onTheSkill(question));
+  : null);
+if (lessonQuestions && !replayQuestions) Object.assign(question, onTheSkill(question));
 
 window.__mmGrades = [];
 window.__mmHelp = [];
@@ -282,6 +299,7 @@ function Harness() {
           studentProfile={studentProfile}
           lessonQuestions={lessonQuestions}
           lessonGiven={lessonQuestions ? lessonQuestions.map((_, index) => index).join() : null}
+          lessonSupports={replayLesson?.lessonSupports || null}
           onGrade={onGrade}
           serverGrading={serverGrading}
           // The delivered family instance's own prompt, as plain text: the page

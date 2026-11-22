@@ -28,7 +28,7 @@ import MathText from './components/common/MathText.jsx';
 import { buildQuestionHints, diagnosisHint, hintLadderView, hintRelease } from './platform/supports/hints/questionHints.js';
 import { hintCostSentence } from './platform/supports/hints/hintCopy.js';
 import { hintPanelFocusTarget, keepHintPanelInView, requestedHintPanelPlace } from './platform/supports/hints/hintPanelReveal.js';
-import { EXAMPLE_OPENED_ANNOUNCEMENT, exampleOpensByItself, exampleSectionRule, lessonExampleContext, workedExampleFor } from './platform/supports/workedExample/examplePlayer.js';
+import { EXAMPLE_OPENED_ANNOUNCEMENT, exampleOpensByItself, exampleSectionRule, fadedExample, lessonExampleContext, workedExampleFor } from './platform/supports/workedExample/examplePlayer.js';
 import { focusAfterYourTurn } from './platform/supports/workedExample/yourTurnFocus.js';
 import { SR_ONLY_STYLE } from './ui/srOnly.js';
 import PracticeLikeThis from './platform/supports/workedExample/PracticeLikeThis.jsx';
@@ -2048,6 +2048,7 @@ function QuestionEngineBody({
       lessonSupports: workedExampleContext?.lessonSupports,
       sectionRole: workedExampleContext?.sectionRole,
       assignmentProblems: workedExampleContext?.assignmentProblems,
+      coveringExample: workedExampleContext?.coveringExample,
     }) : null),
     [exampleRule.offered, processedQuestion, record.variantIndex, workedExampleContext],
   );
@@ -2115,6 +2116,7 @@ function QuestionEngineBody({
   const exampleOpensNow = exampleOpensByItself({
     rule: exampleRule,
     newSkill: workedExampleContext?.newSkill === true,
+    fadeTurn: workedExampleContext?.fadeTurn === true,
     example: similarExample,
     alreadyUsed: restoredSupport.workedExampleUsed || workedExampleUsed,
     alreadyShown: restoredSupport.workedExampleShown || workedExampleShown,
@@ -2131,6 +2133,13 @@ function QuestionEngineBody({
     setHintPanelPlace('top');
     setHintPanelOpen(true);
   }, [exampleOpensNow]);
+  // The second Classwork question on a skill is shown a FADED example: its
+  // first moves only, the rest left to the student (fadedExample). One the
+  // student asks for is always the whole example.
+  const shownExample = useMemo(
+    () => (exampleOpenedByItself && workedExampleContext?.fadeTurn === true ? fadedExample(similarExample) : similarExample),
+    [exampleOpenedByItself, similarExample, workedExampleContext],
+  );
   // "Your turn": the example folds away and the cursor goes to the student's
   // own work, or failing that somewhere they can act (yourTurnFocus.js). The
   // panel closes with it unless it holds a hint they have read.
@@ -2191,7 +2200,7 @@ function QuestionEngineBody({
       revealed={hintLadder.revealed}
       release={hintState}
       onReveal={revealNextHint}
-      similar={similarExample}
+      similar={shownExample}
       similarOpen={similarOpen}
       onOpenSimilar={openSimilarExample}
       onYourTurn={exampleYourTurn}

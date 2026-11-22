@@ -68,6 +68,7 @@ import {
   authoredStepCard,
   exampleOpensByItself,
   exampleSectionRule,
+  fadedExample,
   lessonExampleContext,
   questionExampleExemption,
   workedExampleFor,
@@ -142,7 +143,10 @@ test('where the section shows no example, QuestionEngine builds none and draws n
   assert.match(built, /\(\) => \(exampleRule\.offered \? workedExampleFor\(processedQuestion, \{[\s\S]*\}\) : null\)/);
   assert.match(engine, /const similarOffered = Boolean\(similarExample && !similarOpen && !locked\);/);
   assert.match(region(engine, 'const openSimilarExample = (place) => {', '};', 'opening on request'), /if \(!similarExample\) return;/);
-  assert.match(region(engine, 'const hintPanel = helpControlAvailable ? (', ') : null;', 'the hint panel'), /similar=\{similarExample\}/);
+  // The panel is handed that example, whole or faded (WE-C): no example, nothing to fade, nothing handed over.
+  assert.match(region(engine, 'const hintPanel = helpControlAvailable ? (', ') : null;', 'the hint panel'), /similar=\{shownExample\}/);
+  assert.match(region(engine, 'const shownExample = useMemo(', ');', 'the example the panel is handed'), /\? fadedExample\(similarExample\) : similarExample\)/);
+  assert.equal(fadedExample(null), null);
   assert.doesNotMatch(engine, /buildSimilarWorkedExample/, 'no second way to an example');
   // The assignment hands over the lesson around the question as three plain values that stay the same between
   // renders: its stored questions, which of them this student is given (a retired or omitted one is not among
@@ -528,12 +532,15 @@ test('an example is never an item on the same assignment, and never the question
   assert.equal(workedExampleFor(equation, { assignmentProblems: everySibling }), null);
 });
 
-test('a tool replay the lesson wrote is left to the replay packages: the family\'s sibling plays meanwhile', () => {
+test('a Step Algebra replay the lesson wrote is not a step card: the tool\'s engine plays it (WE-C)', () => {
   const assignment = storedLesson();
   const question = receivedAt(assignment, 'ls-cw-2');
-  // ex-both-sides is `moves` on Step Algebra, with no `steps`.
+  // ex-both-sides is `moves` on Step Algebra, with no `steps`: no card, and the replay is the example
+  // (tests/platform/stepAlgebraReplay.test.mjs holds what it plays).
   assert.equal(authoredStepCard(question, assignment.lessonSupports, { sectionRole: 'classwork' }), null);
-  assert.equal(workedExampleFor(question, contextAt(assignment, 'ls-cw-2', 'classwork')).source, 'family');
+  const played = workedExampleFor(question, contextAt(assignment, 'ls-cw-2', 'classwork'));
+  assert.equal(played.source, 'authored');
+  assert.equal(played.format, 'replay');
   // An example kept to other sections is not this section's.
   const kept = { examples: [{ ...SAFE_CARD, roles: ['practice'] }] };
   const cw4 = receivedAt(storedLesson(withCard(SAFE_CARD)), 'ls-cw-4');
