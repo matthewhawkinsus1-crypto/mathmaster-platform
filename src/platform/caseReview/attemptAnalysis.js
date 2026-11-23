@@ -122,9 +122,13 @@ const questionType = (question) => clean(question?.type || question?.toolId || q
 // An example Classwork opened by itself is a fact, not help the student asked
 // for: it is named apart from "Worked example" (one they asked for).
 export const EXAMPLE_SHOWN_LABEL = 'Example shown by Classwork (not asked for)';
+// "Spot the mistake" after an example (WE-F): that the student answered it,
+// never whether the choice was right.
+export const SPOT_THE_MISTAKE_LABEL = 'Spot the mistake answered';
 const flagsOf = (usage) => [
   ...SUPPORT_FLAGS.filter(([key]) => usage?.[key] === true).map(([, label]) => label),
   ...(usage?.workedExampleShown === 'auto' ? [EXAMPLE_SHOWN_LABEL] : []),
+  ...(usage?.spotTheMistakeUsed === true ? [SPOT_THE_MISTAKE_LABEL] : []),
 ];
 
 // --- Per-attempt server events ------------------------------------------------------------

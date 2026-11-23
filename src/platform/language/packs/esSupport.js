@@ -2307,5 +2307,26 @@ const supportFamilyWorkedSolutions = [
   ['{1} is always true: the two equations describe the same line, so the system has infinitely many solutions.', '{1} siempre es verdadero: las dos ecuaciones describen la misma recta, así que el sistema tiene infinitas soluciones.'],
 ];
 
-export const supportSentences = [...attemptOutcome, ...matrixLabFixes, ...missMessages, ...toolChecks, ...genericHints, ...backUpSteps, ...familyHints, ...workedExamplePrompts, ...workedExampleAnswers, ...workedExampleSteps, ...platformFamilySentences, ...modelFormSiblings, ...supportFamilyWorkedSolutions];
+// --- Spot the mistake and Why this step? (WE-F; workedExample/exampleSlides.js,
+// spotTheMistake.js). The step and its right reason are the question's own
+// common error, which a teacher wrote: those stay in English unless translated.
+const workedExampleChecks = [
+  ['Here is a step someone could write on this question.', 'Este es un paso que alguien podría escribir en esta pregunta.'],
+  ['What is wrong with it?', '¿Qué tiene de malo?'],
+  ['Nothing is wrong: the step is correct.', 'No tiene nada de malo: el paso es correcto.'],
+  ['The step is right; it is only written in an untidy way.', 'El paso está bien; solo está escrito de forma desordenada.'],
+  ['Yes, that is what went wrong.', 'Sí, eso es lo que salió mal.'],
+  ['Not this one.', 'Esta no.'],
+  ['This is what went wrong.', 'Esto es lo que salió mal.'],
+  // A borrowed choice: true of another question, so never called wrong.
+  ['That describes a different mistake, one made on another question.', 'Eso describe un error distinto, uno que se cometió en otra pregunta.'],
+  ['Here is the mistake in this step.', 'Este es el error de este paso.'],
+  ['Why this step?', '¿Por qué este paso?'],
+  ['Pick the reason before it plays.', 'Elige la razón antes de que se muestre.'],
+  ['Yes, that is the reason.', 'Sí, esa es la razón.'],
+  ['Next shows the step.', 'Siguiente muestra el paso.'],
+  ['Next shows the step with its reason.', 'Siguiente muestra el paso con su razón.'],
+];
+
+export const supportSentences = [...attemptOutcome, ...matrixLabFixes, ...missMessages, ...toolChecks, ...genericHints, ...backUpSteps, ...familyHints, ...workedExamplePrompts, ...workedExampleAnswers, ...workedExampleSteps, ...platformFamilySentences, ...modelFormSiblings, ...supportFamilyWorkedSolutions, ...workedExampleChecks];
 export const supportChoices = [...backUpChoices, ...platformFamilyChoices];

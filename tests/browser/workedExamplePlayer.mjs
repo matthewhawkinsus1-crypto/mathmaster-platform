@@ -32,6 +32,15 @@
 //               phone, at 200% browser text, in the dark theme (text contrast
 //               4.5:1) and in forced colours (every control keeps a border,
 //               and Back's "not available" is a dashed edge, not a colour).
+//   WE-F        Spot the mistake follows the last slide on Practice (q=mistake):
+//               the question's own common error, three choices, a polite
+//               answer, chosen by keyboard, recorded as a fact and the same
+//               outcome either way. Why this step? on Classwork (q=replay): the
+//               slide before the first move asks for its reason, by keyboard,
+//               read aloud, skippable, once per example, and not on Practice.
+//               Both fit a phone at 200% text, keep 4.5:1 in both themes and
+//               their edges in forced colours, and neither is anywhere on a
+//               DOL, quiz or test.
 //
 // Exits non-zero on any failure. Screenshots: tests/browser/artifacts/workedExamplePlayer.
 import { mkdirSync } from 'node:fs';
@@ -543,6 +552,218 @@ for (const scheme of ['light', 'dark']) {
   const next = await player(page).locator('[data-example-next]').evaluate((element) => getComputedStyle(element).borderTopStyle);
   check(back.disabled === 'true' && back.style === 'dashed' && next === 'solid', `${where}: Back's "not available" is a dashed edge, beside Next's solid one`, `${JSON.stringify(back)} ${next}`);
   await screenshotKeepingTouch(page, { path: path.join(ARTIFACTS, `forced-colours-${scheme}.png`) });
+  await context.close();
+}
+
+/* -------------------------- WE-F: Spot the mistake, after the example's last slide */
+const spotOf = (page) => player(page).locator('[data-spot-the-mistake]');
+const toLastSlide = async (page) => {
+  const { count } = await slideState(page);
+  for (let step = 1; step < count; step += 1) { await player(page).locator('[data-example-next]').click(); await page.waitForTimeout(80); }
+};
+const openOnRequest = async (page) => {
+  await page.locator('[data-hint-control]').click();
+  await page.waitForTimeout(300);
+  await page.locator('.mathmaster-hint-panel button', { hasText: 'Try a similar one' }).click();
+  await player(page).first().waitFor();
+};
+const spotCredit = {};
+for (const device of DEVICES) {
+  for (const answerIt of [false, true]) {
+    const { page, context } = await open(device, 'q=mistake&role=practice&section=practice&newskill=1&support=translate');
+    const where = `${device.name} practice, Spot the mistake${answerIt ? ' answered' : ' left'}`;
+    await openOnRequest(page);
+    check(await spotOf(page).count() === 0, `${where}: not before the last slide`);
+    await toLastSlide(page);
+    check(await spotOf(page).count() === 1, `${where}: it follows the example's last slide`);
+    const line = (await spotOf(page).locator('[data-spot-line]').innerText().catch(() => '')).trim();
+    check(line === 'Dividing the change in x by the change in y.', `${where}: its step is the question's own common error`, line);
+    const choices = await spotOf(page).locator('[data-spot-choice]').evaluateAll((buttons) => buttons.map((button) => ({ text: button.innerText.trim(), pressed: button.getAttribute('aria-pressed') })));
+    check(choices.length === 3 && choices.every((choice) => choice.pressed === 'false'), `${where}: three choices, none chosen yet`, JSON.stringify(choices));
+    check(!/3\/4|0\.75/.test(await spotOf(page).innerText()), `${where}: it does not state the student's answer`);
+    const region = await spotOf(page).locator('[data-spot-feedback]').evaluate((element) => ({ live: element.getAttribute('aria-live'), text: element.textContent.trim() }));
+    check(region.live === 'polite' && region.text === '', `${where}: its answer region is polite and empty before a choice`, JSON.stringify(region));
+    check(await spotOf(page).locator('button', { hasText: 'Read' }).count() === 1, `${where}: it has Read aloud of its own`);
+    check(await spotOf(page).locator('[data-translate-ready], [data-translation-unavailable]').count() >= 1, `${where}: Translate is offered or says why not`);
+    await fitsItsBox(page, `${where}, last slide`);
+    await noSidewaysScroll(page, `${where}, last slide`);
+    if (answerIt) {
+      // By keyboard: Tab to the first wrong choice, Enter.
+      const wrong = spotOf(page).locator('[data-spot-choice]', { hasText: 'Nothing is wrong' });
+      await wrong.focus();
+      await page.keyboard.press('Enter');
+      await page.waitForTimeout(150);
+      const after = await spotOf(page).evaluate((root) => ({
+        pressed: [...root.querySelectorAll('[data-spot-choice]')].map((button) => button.getAttribute('aria-pressed')),
+        disabled: root.querySelectorAll('[data-spot-choice][aria-disabled="true"]').length,
+        feedback: root.querySelector('[data-spot-feedback]').textContent.trim(),
+        focusOnChosen: document.activeElement?.getAttribute('aria-pressed') === 'true',
+        chosenSays: document.activeElement?.innerText.trim() || '',
+      }));
+      check(after.pressed.filter((value) => value === 'true').length === 1 && after.disabled === 2, `${where}: the choice is the student's, the others no longer available`, JSON.stringify(after));
+      check(after.focusOnChosen && after.chosenSays.startsWith('Your choice'), `${where}: focus stays on it, and it says "Your choice" in words`, after.chosenSays.slice(0, 40));
+      check(/^Not this one\. This is what went wrong\. Dividing the change in x by the change in y: slope is the change in y over the change in x\.$/.test(after.feedback), `${where}: the answer and the whole common error follow`, after.feedback);
+      await fitsItsBox(page, `${where}, answered`);
+      await screenshotKeepingTouch(page, { path: path.join(ARTIFACTS, `${device.name}-spot-the-mistake.png`) });
+    }
+    await player(page).locator('[data-example-your-turn]').click();
+    await page.waitForTimeout(400);
+    // The same work either way: one miss, then right.
+    await answer(page, '5');
+    await submit(page);
+    await answer(page, '3/4');
+    await submit(page);
+    const graded = await page.evaluate(() => window.__mmGrades.map((entry) => ({ isCorrect: entry.isCorrect, spot: entry.supportUsage?.spotTheMistakeUsed === true, used: entry.supportUsage?.workedExampleUsed === true })));
+    check(graded.length === 2 && graded[0].isCorrect === false && graded[1].isCorrect === true, `${where}: a miss, then right, graded as such`, JSON.stringify(graded));
+    check(graded.every((entry) => entry.spot === answerIt && entry.used), `${where}: Spot the mistake is recorded as a fact only once answered`, JSON.stringify(graded));
+    const outcome = (await page.locator('[role="status"]').filter({ hasText: /Correct!/ }).first().innerText().catch(() => '')).replace(/\s+/g, ' ').trim();
+    spotCredit[`${device.name}|${answerIt}`] = { verdicts: graded.map((entry) => entry.isCorrect).join(','), outcome };
+    await context.close();
+  }
+  const left = spotCredit[`${device.name}|false`];
+  const answered = spotCredit[`${device.name}|true`];
+  check(Boolean(left?.outcome) && left.outcome === answered?.outcome && left.verdicts === answered.verdicts, `${device.name} practice: the outcome is the same with Spot the mistake answered`, `${left?.outcome} / ${answered?.outcome}`);
+}
+
+/* ------------------------------ WE-F: Why this step?, on Classwork, before a step */
+const whyOf = (page) => player(page).locator('[data-why-this-step]');
+for (const device of DEVICES) {
+  const { page, context } = await open(device, 'q=replay&role=classwork&support=read');
+  const where = `${device.name} classwork, Why this step?`;
+  await player(page).first().waitFor({ timeout: 8000 }).catch(() => {});
+  check(await whyOf(page).count() === 1 && (await slideState(page)).number === 1, `${where}: the slide before the first move asks for its reason`);
+  if (await whyOf(page).count() !== 1) { await context.close(); continue; }
+  const nextStep = (await whyOf(page).locator('[data-why-next-step]').innerText()).trim();
+  check(nextStep.startsWith('The next step: Subtract'), `${where}: it names the move that comes next`, nextStep);
+  const choices = await whyOf(page).locator('[data-why-choice]').allInnerTexts();
+  check(choices.length === 3 && new Set(choices).size === 3, `${where}: three different reasons`, choices.join(' | '));
+  check(await whyOf(page).locator('[data-why-skip]').count() === 1, `${where}: it can be skipped`);
+  check(await player(page).locator('[data-example-slide] [data-why-choice]').count() === 0, `${where}: the question is outside the slide's live region`);
+  await fitsItsBox(page, where);
+  await noSidewaysScroll(page, where);
+  // Read aloud reads the question with the slide.
+  await page.evaluate(() => {
+    window.__mmSpoken = [];
+    if (window.speechSynthesis) window.speechSynthesis.speak = (utterance) => { window.__mmSpoken.push(utterance.text); };
+  });
+  await player(page).locator('button', { hasText: 'Read' }).first().click();
+  await page.waitForTimeout(200);
+  const spoken = (await page.evaluate(() => window.__mmSpoken)).join(' ');
+  if (spoken) check(/Why this step\?/.test(spoken) && /Choice 3:/.test(spoken), `${where}: Read aloud reads the question and its choices`, spoken.slice(0, 160));
+  // Choose by keyboard: the answer is said politely, and focus goes to Next.
+  await whyOf(page).locator('[data-why-choice]').first().focus();
+  await page.keyboard.press('Enter');
+  await page.waitForTimeout(150);
+  // The player in the work (Work View's Help drawer keeps one of its own, closed).
+  const answered = await player(page).first().evaluate((root) => ({
+    choices: root.querySelectorAll('[data-why-choice]').length,
+    feedback: root.querySelector('[data-why-feedback]')?.textContent.trim() || '',
+    live: root.querySelector('[data-why-feedback]')?.getAttribute('aria-live'),
+    onNext: root.contains(document.activeElement) && (document.activeElement?.hasAttribute('data-example-next') || false),
+  }));
+  check(answered.choices === 0 && /^(Yes, that is the reason|Not this one)/.test(answered.feedback) && answered.live === 'polite', `${where}: a choice is answered in a polite region`, JSON.stringify(answered));
+  check(answered.onNext, `${where}: focus goes to Next`);
+  await page.keyboard.press('Enter');
+  await page.waitForTimeout(150);
+  const step = await slideState(page);
+  check(step.number === 2 && /Why:/.test(step.text) && await whyOf(page).count() === 0, `${where}: the step then plays with its reason`, step.text.slice(0, 120));
+  // Back: answered, it does not ask again.
+  await player(page).locator('[data-example-back]').click();
+  await page.waitForTimeout(120);
+  check(await whyOf(page).locator('[data-why-choice]').count() === 0, `${where}: once answered, it does not ask again`);
+  await screenshotKeepingTouch(page, { path: path.join(ARTIFACTS, `${device.name}-why-this-step.png`) });
+  await context.close();
+}
+{
+  const { page, context } = await open(DESKTOP, 'q=replay&role=classwork');
+  const where = 'desktop classwork, Why this step? skipped';
+  await player(page).first().waitFor();
+  await whyOf(page).locator('[data-why-skip]').click();
+  await page.waitForTimeout(120);
+  const after = await player(page).first().evaluate((root) => ({ asked: root.querySelectorAll('[data-why-this-step]').length, onNext: root.contains(document.activeElement) && (document.activeElement?.hasAttribute('data-example-next') || false) }));
+  check(after.asked === 0 && after.onNext, `${where}: Skip takes it away and focus goes to Next`, JSON.stringify(after));
+  // Opened again by the student: the same example does not ask again.
+  await toLastSlide(page);
+  await player(page).locator('[data-example-your-turn]').click();
+  await page.waitForTimeout(400);
+  await openOnRequest(page);
+  check(await whyOf(page).count() === 0, `${where}: opened again, it does not ask again`);
+  await context.close();
+}
+{
+  const { page, context } = await open(DESKTOP, 'q=replaypr&role=practice');
+  const where = 'desktop practice replay';
+  await openOnRequest(page);
+  check(await whyOf(page).count() === 0, `${where}: Practice asks no Why this step?`);
+  await context.close();
+}
+
+/* ---------------- WE-F: 200% text, the dark theme and forced colours, for both */
+for (const device of [PHONE, { name: 'narrow', viewport: { width: 320, height: 640 }, isMobile: true, hasTouch: true }]) {
+  const { page, context } = await open(device, 'q=replay&role=classwork', { textScale: 2 });
+  await player(page).first().waitFor();
+  await noSidewaysScroll(page, `${device.name} at 200% text, Why this step?`);
+  await fitsItsBox(page, `${device.name} at 200% text, Why this step?`);
+  await context.close();
+  const spot = await open(device, 'q=mistake&role=practice&section=practice&newskill=1', { textScale: 2 });
+  await openOnRequest(spot.page);
+  await toLastSlide(spot.page);
+  await noSidewaysScroll(spot.page, `${device.name} at 200% text, Spot the mistake`);
+  await fitsItsBox(spot.page, `${device.name} at 200% text, Spot the mistake`);
+  await screenshotKeepingTouch(spot.page, { path: path.join(ARTIFACTS, `${device.name}-spot-200-text.png`), fullPage: true });
+  await spot.context.close();
+}
+for (const theme of ['light', 'dark']) {
+  const why = await open(DESKTOP, 'q=replay&role=classwork', { contextOptions: { colorScheme: theme }, theme });
+  await player(why.page).first().waitFor();
+  const whyProblems = await contrastProblems(why.page);
+  check(whyProblems.length === 0, `desktop ${theme} theme, Why this step?: 4.5:1 contrast`, whyProblems.join('; '));
+  await why.context.close();
+  const spot = await open(DESKTOP, 'q=mistake&role=practice&section=practice&newskill=1', { contextOptions: { colorScheme: theme }, theme });
+  await openOnRequest(spot.page);
+  await toLastSlide(spot.page);
+  await spotOf(spot.page).locator('[data-spot-choice]').first().click();
+  await spot.page.waitForTimeout(120);
+  const spotProblems = await contrastProblems(spot.page);
+  check(spotProblems.length === 0, `desktop ${theme} theme, Spot the mistake: 4.5:1 contrast`, spotProblems.join('; '));
+  await screenshotKeepingTouch(spot.page, { path: path.join(ARTIFACTS, `desktop-spot-${theme}.png`) });
+  await spot.context.close();
+}
+{
+  const edgesOf = (page, selector) => player(page).first().locator(selector).evaluateAll((buttons) => buttons.map((button) => { const style = getComputedStyle(button); return { pressed: button.getAttribute('aria-pressed') === 'true', style: style.borderTopStyle, width: parseFloat(style.borderTopWidth), colour: style.borderTopColor, background: style.backgroundColor, page: getComputedStyle(document.body).backgroundColor }; }));
+  // A pressed control is a Highlight plate in forced colours (src/theme/forcedColors.css); every other keeps an edge.
+  const visible = (edges) => edges.length >= 3 && edges.every((edge) => (edge.pressed ? edge.background !== edge.page : edge.style !== 'none' && edge.width >= 1 && edge.colour !== edge.background));
+  const why = await open(DESKTOP, 'q=replay&role=classwork', { contextOptions: { forcedColors: 'active' } });
+  await player(why.page).first().waitFor();
+  const whyEdges = await edgesOf(why.page, '[data-why-choice], [data-why-skip]');
+  check(visible(whyEdges), 'desktop forced colours, Why this step?: every choice and Skip keeps an edge', JSON.stringify(whyEdges));
+  await why.context.close();
+  const spot = await open(DESKTOP, 'q=mistake&role=practice&section=practice&newskill=1', { contextOptions: { forcedColors: 'active' } });
+  await openOnRequest(spot.page);
+  await toLastSlide(spot.page);
+  await spotOf(spot.page).locator('[data-spot-choice]').first().click();
+  await spot.page.waitForTimeout(120);
+  const spotEdges = await edgesOf(spot.page, '[data-spot-choice]');
+  check(visible(spotEdges), 'desktop forced colours, Spot the mistake: every choice keeps an edge', JSON.stringify(spotEdges));
+  check(spotEdges.filter((edge) => !edge.pressed && edge.style === 'dashed').length === 2 && spotEdges.filter((edge) => edge.pressed).length === 1, 'desktop forced colours, Spot the mistake: the chosen one is the Highlight plate, the others dashed: not colour alone', JSON.stringify(spotEdges));
+  await screenshotKeepingTouch(spot.page, { path: path.join(ARTIFACTS, 'forced-colours-spot.png') });
+  await spot.context.close();
+}
+
+/* -------------------------- WE-F: never on a DOL, quiz or test, for both */
+for (const [q, role] of [['mistake', 'dol'], ['mistake', 'quiz'], ['mistake', 'test'], ['mistake', 'practice-dol'], ['replaydol', 'dol']]) {
+  const [activity, section] = role === 'practice-dol' ? ['practice', 'dol'] : [role, role];
+  const { page, context } = await open(DESKTOP, q === 'mistake' ? `q=${q}&role=${activity}&section=${section}&newskill=1` : `q=${q}&role=${activity}`);
+  const where = `${section} section run as ${activity} (${q})`;
+  const found = () => page.evaluate(() => document.querySelectorAll('[data-spot-the-mistake], [data-spot-choice], [data-why-this-step], [data-why-choice]').length);
+  check(await found() === 0, `${where}: no Spot the mistake and no Why this step? on arrival`);
+  const hint = page.locator('[data-hint-control]');
+  if (await hint.count()) { await hint.first().click(); await page.waitForTimeout(300); }
+  if (q === 'mistake') { await answer(page, '5'); await submit(page); }
+  check(await found() === 0, `${where}: none after an answer`);
+  const text = await documentText(page);
+  const leaked = ['Here is a step someone could write', 'What is wrong with it?', 'Nothing is wrong: the step is correct.', 'Pick the reason before it plays'].filter((word) => text.includes(word));
+  check(leaked.length === 0, `${where}: none of their words anywhere in the document`, leaked.join(' | '));
   await context.close();
 }
 

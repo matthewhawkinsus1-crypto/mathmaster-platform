@@ -3,8 +3,9 @@
 Status: **decided by the owner on 2026-11-20. Slice A (the player and the
 section rules), slice B (the coverage report), slice C (the Step Algebra
 replay), slice D (the radical replay with its factoring slides), slice E (the
-plane and inequality replay) and slice G (the teacher's view) are built; F and
-H are not.**
+plane and inequality replay) and slice G (the teacher's view) are built. Of
+slice F, Spot the mistake and Why this step? are built; the model answer is
+not, because no field holds one yet (below). H is not built.**
 This page is the spec. The build is split into slices that can ship in any
 order (section 9). Its companion, `docs/platform/SHOWING_THE_PROCESS.md`,
 covers answer boxes that one screenshot cannot answer.
@@ -195,6 +196,140 @@ Where slice E lives, and what it plays:
   does not classify the region or list its vertices, where the item asks that.
 - **Tests:** `tests/platform/planeReplay.test.mjs` and
   `tests/browser/planeReplay.mjs`.
+
+Where slice F lives, and what it does:
+- **The section rules:** `exampleSectionRule` (`examplePlayer.js`) says
+  `spotTheMistake` wherever an example is offered (Classwork and Practice) and
+  `whyThisStep` on Classwork running as Classwork only. On a DOL, quiz or test,
+  and wherever `hintsAllowed` is false, both are false: nothing is built and
+  nothing is drawn.
+- **Spot the mistake:** `spotTheMistake.js` (built in `QuestionEngine.jsx`,
+  drawn by the player on the last slide of a whole example; a faded example
+  has none).
+  - The step is the first part of the question's own
+    `solutionReview.commonError`, the part that says what was done; the right
+    choice is the rest, the part that says what is wrong with it (the turn is
+    the first `: `, ` — `, `; `, `, which`, `, so`, `, because` or `. `
+    outside `$…$`). A common error that says only what was done is not used:
+    the step and its reason would be the same words.
+  - The two wrong choices are the "what is wrong" parts of OTHER questions'
+    common errors on the same assignment (the questions QuestionEngine already
+    hands the example context, `lessonQuestions`), in the assignment's order.
+    One is used only when it is another question's (by id and by words),
+    splits cleanly, makes a different mistake from this step, is not this
+    reason and does not contain it or sit inside it, is not on a DOL, quiz or
+    test question, and passes `similarExampleIsSafe` against this question and
+    against its own (so it never hands over another item's answer). And, so
+    that it cannot be a reason for this step's mistake too:
+    - its question is on a **different skill** (`exampleSkillOf`): questions on
+      one skill share their misconceptions. Where either skill is unknown it
+      may still lend, under the next rule;
+    - it shares **no word stem** with this question's whole common error
+      (`contentStems`: the first four letters of each word of five letters or
+      more, without a short stoplist: because, which, there, where, these,
+      those, should, would, could, value, answer, number). Four letters, not
+      five, so that "shading" and "shades" meet ("shad"), as "slope" and
+      "slopes" do. Five would leave the case below to the skill rule alone;
+    - it is **words only** (`wordsOnly`): no digit; none of = < > ≤ ≥ ± × ÷ ·
+      √ ∛ ∜ (nor + − ^); no superscript or subscript character; no `$` or
+      backslash; and no letter standing alone other than "a" and "I" (so no
+      x², xᵏ, x + m, or "x-coordinate"). Another item's mathematics can be its
+      worked result ("Rationalizing gives 6√2/2, and the 2 divides out,
+      leaving 3√2.", which the answer guard let through and which was lent to
+      another radical question on the same lesson), and no comparison of
+      answer forms is sure to see it. So none is lent.
+    Only a slot left empty takes a fixed choice (`SPOT_THE_MISTAKE_GENERIC`:
+    both say the step is correct, which a step holding a known mistake never
+    is). The right one's place is fixed by the common error and the seed, so
+    a redraw does not reshuffle it. Over the 450 shown below, 264 get two
+    borrowed wrong choices, 74 get one and 112 get none (before words only:
+    350, 61 and 39).
+  - The case that set the skill and stem rules: in Graphing Inequalities in Two
+    Variables, cw-6 ("Shading below because the slope is positive") had
+    borrowed "That shades the wrong half-plane." from cw-11, which explains
+    cw-6's mistake too. cw-11 is on the same skill, and "shades" shares a stem
+    with "Shading". Either rule now refuses it.
+  - A borrowed reason is wrong for this step's mistake, not false in general.
+    The rules make it unlikely to explain this step's mistake as well, but
+    nothing in the words can prove it does not, so the wording never calls it
+    false. Chosen, it says "That describes a different mistake, one made on
+    another question. Here is the mistake in this step." and this step's own
+    reason, and the button reads "Your choice: not this step's mistake",
+    never "wrong". Only a fixed choice, which really is false of any step
+    holding a mistake, keeps "Not this one. This is what went wrong." with the
+    whole common error. Both new sentences are in the Spanish pack and in the
+    leak gate's words.
+  - A reason keeps the case its common error wrote it in where it starts
+    with a letter of the mathematics ("x² · x⁵ is x⁷", not "X² · x⁵"); a word,
+    the article "a" included, takes a capital.
+  - This question's other fields were measured as a source (below) and are not
+    used.
+  - Nothing else is written: no mathematics of its own. Every word it would
+    show (the step, the choices, the whole common error shown after a choice)
+    goes through `similarExampleIsSafe`; one that states an answer of the
+    question, or whose step is the question's prompt, is not shown at all, nor
+    is one still holding a Question Family slot (`{{m}}`).
+  - Over the Classwork and Practice questions in `teacher-import-jsons` with a
+    common error (824 on 2026-11-22), 561 say both parts, and 450 of those pass
+    the guard and are shown; the guard holds back the other 111.
+  - **Recorded as a fact, not a grade:** answering it sets
+    `supportUsage.spotTheMistakeUsed: true` (absent otherwise, so a record
+    without it keeps its shape), kept by `attemptPolicy.mjs` and
+    `supportUseMemory.js` like `workedExampleShown`. Whether the choice was
+    right is never recorded. It changes no score, uses no attempt and leaves
+    independence to the example's own flags. The teacher's attempt analysis
+    names it "Spot the mistake answered".
+- **Why the wrong choices are not this question's own text.** The only fields
+  that read like a reason are the wrong-answer messages
+  (`misconceptions[].message`). Most state a true fact ("Exactly 800 pounds is
+  allowed."), which is no wrong answer; the rest name a mistake on the same
+  question, and can be the common error in other words ("Using ≥." beside "The
+  symbol points the wrong way."). A choice offered as wrong has to be wrong.
+- **Why this step?:** `whyThisStepFor` (`exampleSlides.js`), drawn by the
+  player. The slide before the example's first step with a why names that
+  step's move (a replayed move's name, or a step card's line) and asks for its
+  reason: that step's own `why` and the first two other `why` lines of the same
+  example, nothing written for it. An example with fewer than three different
+  whys asks nothing (a family's text steps have none). Skip, or Next, goes on
+  without a choice; the step then plays with its reason like every step; the
+  example never asks again (Back, or opened again). Not scored, not recorded.
+- **Accessibility**, as WE-A and WE-E do it: every choice is a button of 44px or
+  more with its own edge (the chosen Spot the mistake choice a heavier edge and
+  "Your choice" in words, the others dashed and `aria-disabled`); each answer
+  is said in a polite region that is in the page, empty, before a choice; the
+  Why this step? choices sit outside the slide's live region, and focus goes
+  to Next once they go; Read aloud and Translate read the question and its
+  choices with the slide, and Spot the mistake has its own (its fixed
+  sentences are in the Spanish pack, `esSupport.js`; a teacher's common error
+  stays English until translated).
+- **The leak gate:** their sentences, the two fixed choices and their controls
+  (`[data-spot-the-mistake]`, `[data-why-this-step]` and their choices) are in
+  `tests/browser/support/assessmentLadderWords.mjs`, and the gate's DOL and
+  test page carries a common error.
+- **Tests:** `tests/platform/workedExampleChecks.test.mjs`, the WE-F sections
+  of `tests/browser/workedExamplePlayer.mjs`, and the practice Spot the mistake
+  scenario in `tests/browser/assessmentLeakGates.mjs`.
+
+**The model answer is not built.** AG-1 defines `"example": { "none":
+"explain" }` and nothing else: the validator refuses any other key in it, and
+no question field holds a model answer and its checklist. (`sampleAnswer`
+exists only on a `contextInterpretation` item and is answer-key material in
+`functions/shared/assignmentKeySplit.mjs`.) The contract it needs is an owner
+or lead decision. What was proposed (2026-11-22, not decided):
+- a question field `modelAnswer: { "text": "...", "checklist": ["...", ...] }`,
+  beside `"example": { "none": "explain" }`, on Classwork and Practice only;
+- `text` a short strong answer in full sentences; `checklist` two to five short
+  lines, each one thing the answer includes;
+- the validator refusing: a `modelAnswer` that is not that shape or has other
+  keys; an empty `text`; a checklist outside two to five lines; one on a DOL,
+  quiz or test question; one on a question that is not `"none": "explain"`.
+  Pre-Flight warning on a new assignment's `"none": "explain"` with none;
+- `modelAnswer` matches the key split's `[a-z]Answers?$` family, so it is
+  answer-key material (shown after the item closes, as Solution Review is). A
+  checklist shown before the student answers would need a field of its own,
+  outside that family;
+- `translations.es.modelAnswer` for the teacher's Spanish, as for
+  `solutionReview`.
 
 A built-in step is a full sentence that carries its own reason; only a
 lesson's step card has a separate "why" line.

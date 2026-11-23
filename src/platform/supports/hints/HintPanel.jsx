@@ -104,6 +104,12 @@ export default function HintPanel({
   onOpenSimilar = null,
   onYourTurn = null,
   similarOpenedByItself = false,
+  // WE-F, handed to the player: "Why this step?" (Classwork), and "Spot the
+  // mistake" after the example with what to call once it is answered. Null
+  // and false wherever the section shows no example.
+  whyThisStep = false,
+  spotTheMistake = null,
+  onSpotTheMistake = null,
   // { context, draftKey, resetKey } for the record of a player that could not
   // load (QuestionSupplementBoundary); the question goes on either way.
   exampleFailure = null,
@@ -241,6 +247,9 @@ export default function HintPanel({
                 readAloud={readAloud}
                 translation={translation}
                 onSupportEvidence={onSupportEvidence}
+                whyThisStep={whyThisStep}
+                spotTheMistake={spotTheMistake}
+                onSpotTheMistake={onSpotTheMistake}
                 onYourTurn={onYourTurn}
                 openedByItself={similarOpenedByItself}
               />

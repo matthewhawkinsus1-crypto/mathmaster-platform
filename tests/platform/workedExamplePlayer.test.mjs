@@ -99,9 +99,11 @@ const contextAt = (assignment, id, sectionRole) => {
 
 test('Classwork opens the example by itself; Practice plays it only on request', () => {
   const classwork = exampleSectionRule({ sectionRole: 'classwork', activityRole: 'classwork', hintsAllowed: true });
-  assert.deepEqual({ ...classwork }, { offered: true, opensByItself: true, subSkills: EXAMPLE_SUB_SKILLS.IN_SEQUENCE });
+  // WE-F added `whyThisStep` (Classwork only) and `spotTheMistake` (wherever an
+  // example is) to the rule: tests/platform/workedExampleChecks.test.mjs.
+  assert.deepEqual({ ...classwork }, { offered: true, opensByItself: true, subSkills: EXAMPLE_SUB_SKILLS.IN_SEQUENCE, whyThisStep: true, spotTheMistake: true });
   const practice = exampleSectionRule({ sectionRole: 'practice', activityRole: 'practice', hintsAllowed: true });
-  assert.deepEqual({ ...practice }, { offered: true, opensByItself: false, subSkills: EXAMPLE_SUB_SKILLS.ON_REQUEST }, 'sub-skills are one tap away');
+  assert.deepEqual({ ...practice }, { offered: true, opensByItself: false, subSkills: EXAMPLE_SUB_SKILLS.ON_REQUEST, whyThisStep: false, spotTheMistake: true }, 'sub-skills are one tap away');
   // A host that names no section (My Math Path, Recovery): on request, as it always was.
   assert.deepEqual({ ...exampleSectionRule({ activityRole: 'practice', hintsAllowed: true }) }, { ...practice });
   assert.equal(exampleSectionRule({ activityRole: 'classwork', hintsAllowed: true }).opensByItself, true);
@@ -116,7 +118,7 @@ test('a DOL, quiz or test never shows an example, whatever the question runs as'
   for (const role of NO_EXAMPLE_SECTION_ROLES) {
     // By the section's own role, even where hints are allowed (a DOL practised after its due date).
     for (const activityRole of [role, 'practice', 'classwork', null]) {
-      assert.deepEqual({ ...exampleSectionRule({ sectionRole: role, activityRole, hintsAllowed: true }) }, { offered: false, opensByItself: false, subSkills: null }, `${role} section run as ${activityRole}`);
+      assert.deepEqual({ ...exampleSectionRule({ sectionRole: role, activityRole, hintsAllowed: true }) }, { offered: false, opensByItself: false, subSkills: null, whyThisStep: false, spotTheMistake: false }, `${role} section run as ${activityRole}`);
     }
     // By the role it runs under, where the host names no section.
     assert.equal(exampleSectionRule({ activityRole: role, hintsAllowed: true }).offered, false);

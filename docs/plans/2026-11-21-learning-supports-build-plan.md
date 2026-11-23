@@ -59,6 +59,7 @@ gate, and merges with a merge commit when CI is green.
 | WE-D: the radical replay with factoring slides | #602 |
 | WE-E: the plane and inequality replay | #607 |
 | SP-4: show the step (a part's checkpoint, done in its tool before the answer box) | #608 |
+| WE-F: Spot the mistake and Why this step? (the model answer waits for its contract: no field holds one) | #609 |
 
 ## Track SP: showing the process
 

@@ -144,7 +144,9 @@ const FIXTURES = {
     hints: ['LEAKCHECK-HINT-2: subtract in the same order.'],
     attemptFeedback: ['LEAKCHECK-FEEDBACK: check the order of subtraction.'],
     misconceptions: [{ match: ['-3/4', '-\\frac{3}{4}'], message: 'LEAKCHECK-MISCONCEPTION: a sign was dropped.' }],
-    solutionReview: { headline: 'LEAKCHECK-REVIEW headline', reasoning: ['LEAKCHECK-REVIEW: change in y is 3.'], answerSummary: 'LEAKCHECK-REVIEW: the slope is 3/4.' },
+    // A common error, for Spot the mistake (WE-F): shown after the example in
+    // practice, never on a DOL, quiz or test.
+    solutionReview: { headline: 'LEAKCHECK-REVIEW headline', reasoning: ['LEAKCHECK-REVIEW: change in y is 3.'], answerSummary: 'LEAKCHECK-REVIEW: the slope is 3/4.', commonError: 'Dividing the change in x by the change in y: LEAKCHECK-ERROR slope is the change in y over the change in x.' },
   }),
   // A Question Family instance: the server's classifier would name the miss.
   'feedback-family': () => ({
