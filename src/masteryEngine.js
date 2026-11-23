@@ -1,11 +1,11 @@
-import { attemptIsBeyondRolePolicy, getQuestionCredit, normalizeQuestionRecord } from './attemptPolicy.js';
+import { getQuestionCredit, normalizeQuestionRecord } from './attemptPolicy.js';
 import {
   getQuestionPrimaryTeksCodes,
   normalizeQuestionInstructionalMetadata,
 } from './questionMetadata.js';
 import { getTexasStandard, TEXAS_PERFORMANCE_LEVELS } from './texasStandards.js';
 import { resolveDOLQuestionIndices } from './assignmentLifecycle.js';
-import { getEffectiveActivityPolicy, resolveQuestionActivityRole } from './platform/policies/activityPolicies.js';
+import { attemptIsBeyondRolePolicy, getEffectiveActivityPolicy, resolveQuestionActivityRole } from './platform/policies/activityPolicies.js';
 
 const clamp = (value, min, max) => Math.max(min, Math.min(max, value));
 const round = (value, places = 1) => Number(Number(value || 0).toFixed(places));
@@ -132,7 +132,7 @@ const resolveQuestionEvidenceWeight = ({ question, assignment, standardEntry, re
   const activityEvidenceWeight = Math.max(0, Number(activityPolicy.mastery.evidenceWeight) || 0);
   // In an assignment that declares unlimited attempts, an answer reached past
   // the role's own number of tries is supported evidence too
-  // (attemptPolicy.mjs attemptIsBeyondRolePolicy). False everywhere else.
+  // (activityPolicies.mjs attemptIsBeyondRolePolicy). False everywhere else.
   const supported = usedAssistance || attemptIsBeyondRolePolicy({ assignment, question, activityRole, record });
 
   return {

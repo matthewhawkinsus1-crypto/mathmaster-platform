@@ -3,7 +3,7 @@ import { CASE_PROVENANCE, CASE_PROVENANCE_LABEL } from '../../../platform/caseRe
 import { QUESTION_OUTCOME } from '../../../platform/caseReview/attemptAnalysis.js';
 import { errorPatternForQuestion, isNamedPart } from '../../../platform/caseReview/errorPatterns.js';
 import { supportLabel } from '../../../../functions/shared/supportCatalog.mjs';
-import { attemptLimitLabel } from '../../../../functions/shared/activityPolicies.mjs';
+import { attemptLimitLabel } from '../../../platform/policies/activityPolicies.js';
 import { AttemptChips, ConditionTag, EmptyNote, Prov, pct, when } from './CaseReviewParts.jsx';
 
 /*

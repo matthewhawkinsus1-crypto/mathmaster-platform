@@ -5,7 +5,6 @@
 // same response. This file stays as the import path every caller already uses.
 export {
   MAX_ATTEMPTS_PER_QUESTION,
-  attemptIsBeyondRolePolicy,
   calculateStepPartialCredit,
   emptyQuestionRecord,
   getAttemptsRemaining,

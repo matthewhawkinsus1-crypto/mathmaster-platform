@@ -36,6 +36,10 @@
  */
 
 import { followThroughPlaceholders } from '../../../functions/shared/followThroughNames.mjs';
+// The two attempt policies (functions/shared/activityPolicies.mjs ATTEMPT_POLICY),
+// written out so that object stays off the student's first load; a test holds
+// them equal (unlimitedAttemptsAssignment.test.mjs).
+const ATTEMPT_POLICY = Object.freeze({ ROLE: 'rolePolicy', UNLIMITED: 'unlimited' });
 
 const isObject = (value) => Boolean(value) && typeof value === 'object' && !Array.isArray(value);
 const clean = (value) => String(value ?? '').trim();
@@ -424,6 +428,16 @@ export const validateLessonSupportsV5 = (input = {}) => {
   const warnings = [];
   if (!isObject(input)) return { errors, warnings };
   const sections = Array.isArray(input.sections) ? input.sections.filter(isObject) : [];
+
+  // The assignment's attempt policy (functions/shared/activityPolicies.mjs):
+  // judged here, not in validateAssignmentV5, which the student app loads.
+  const attemptPolicy = isObject(input.gradingPolicy) ? input.gradingPolicy.attemptPolicy : undefined;
+  if (attemptPolicy !== undefined && attemptPolicy !== null && !Object.values(ATTEMPT_POLICY).includes(attemptPolicy)) {
+    errors.push(`gradingPolicy.attemptPolicy ${JSON.stringify(attemptPolicy)} is not an attempt policy. Use "${ATTEMPT_POLICY.ROLE}" (each section's own number of attempts — the default) or "${ATTEMPT_POLICY.UNLIMITED}" (unlimited attempts in this assignment's Warm-Up, Classwork and Practice; a DOL, quiz or test keeps its one attempt), written exactly so, or delete the field.`);
+  }
+  if (attemptPolicy === ATTEMPT_POLICY.UNLIMITED && isObject(input.assessmentPolicy)) {
+    errors.push(`gradingPolicy.attemptPolicy "${ATTEMPT_POLICY.UNLIMITED}" cannot be used on an assignment with an assessmentPolicy (a Test Cycle): its Review, Corrections, Test and Retest keep their own attempts. Delete the field or set it to "${ATTEMPT_POLICY.ROLE}".`);
+  }
 
   if (isObject(input.assignment) && input.assignment.lessonSupports !== undefined) {
     errors.push('assignment.lessonSupports is in the wrong place: lessonSupports goes at the top level of the assignment JSON, beside sections.');

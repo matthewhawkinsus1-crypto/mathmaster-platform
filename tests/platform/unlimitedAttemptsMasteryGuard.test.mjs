@@ -21,7 +21,8 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 
-import { attemptIsBeyondRolePolicy, getQuestionCredit } from '../../src/attemptPolicy.js';
+import { getQuestionCredit } from '../../src/attemptPolicy.js';
+import { attemptIsBeyondRolePolicy } from '../../src/platform/policies/activityPolicies.js';
 import { buildAttemptEvidenceEvent } from '../../functions/shared/attemptEvidenceEvent.mjs';
 import { SUPPORTED_CREDIT, masteryEventFacts } from '../../functions/shared/masteryScoring.mjs';
 import { classifyAttemptEvidence } from '../../src/platform/mastery/evidenceClassification.js';

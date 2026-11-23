@@ -11,7 +11,7 @@ import { generateStableId } from './idUtils.mjs';
 import { toCanonicalKey } from './teksUtils.mjs';
 import { describeAdaptation } from './adaptationNarrative.mjs';
 import { trustedMisconceptionFindings } from './misconceptionCodes.mjs';
-import { attemptIsBeyondRolePolicy } from './attemptPolicy.mjs';
+import { attemptIsBeyondRolePolicy } from './activityPolicies.mjs';
 
 const unique = (values = []) => [...new Set(values.filter(Boolean))];
 
@@ -115,7 +115,7 @@ export const buildAttemptEvidenceEvent = ({
   const score = attemptResult?.isCorrect ? 1 : Math.max(0, Math.min(1, partialCredit / 100));
   const misconception = attemptMisconceptionEvidence(misconceptionEvidence);
   // An attempt past the role's own number of tries, possible only in an
-  // assignment that declares unlimited attempts (attemptPolicy.mjs
+  // assignment that declares unlimited attempts (activityPolicies.mjs
   // attemptIsBeyondRolePolicy): supported evidence for mastery, never an
   // independent success. False for every other event, which keeps its shape.
   const beyondRolePolicy = attemptIsBeyondRolePolicy({ assignment, question, activityRole, record: attemptRecord });

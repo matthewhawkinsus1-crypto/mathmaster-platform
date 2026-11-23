@@ -1,5 +1,4 @@
 import { normalizeTestBlueprint } from '../../../functions/shared/testCycleBlueprint.mjs';
-import { ATTEMPT_POLICY, ATTEMPT_POLICY_VALUES } from '../../../functions/shared/activityPolicies.mjs';
 import {
   TEST_CYCLE_MODE,
   isTestCyclePolicy,
@@ -334,13 +333,9 @@ export const validateAssignmentV5 = (input = {}, { requireQuestions = true } = {
   // not read as the role policy: a misspelt "unlimited" would otherwise give a
   // class three tries on an assignment its teacher announced as unlimited.
   // Absent is the role policy, as it always was.
-  const attemptPolicy = isObject(input.gradingPolicy) ? input.gradingPolicy.attemptPolicy : undefined;
-  if (attemptPolicy !== undefined && attemptPolicy !== null && !ATTEMPT_POLICY_VALUES.includes(attemptPolicy)) {
-    errors.push(`gradingPolicy.attemptPolicy ${JSON.stringify(attemptPolicy)} is not an attempt policy. Use "${ATTEMPT_POLICY.ROLE}" (each section's own number of attempts — the default) or "${ATTEMPT_POLICY.UNLIMITED}" (unlimited attempts in this assignment's Warm-Up, Classwork and Practice; a DOL, quiz or test keeps its one attempt), written exactly so, or delete the field.`);
-  }
-  if (attemptPolicy === ATTEMPT_POLICY.UNLIMITED && isObject(input.assessmentPolicy)) {
-    errors.push(`gradingPolicy.attemptPolicy "${ATTEMPT_POLICY.UNLIMITED}" cannot be used on an assignment with an assessmentPolicy (a Test Cycle): its Review, Corrections, Test and Retest keep their own attempts. Delete the field or set it to "${ATTEMPT_POLICY.ROLE}".`);
-  }
+  // gradingPolicy.attemptPolicy is checked by validateLessonSupportsV5
+  // (lessonSupportsV5.js), with the other fields of new assignments, so its
+  // messages are not on the student's first load.
 
   if (cycleContract.declared && !cycleContract.policyConfigured) {
     errors.push(`${TEST_CYCLE_DIAGNOSTIC.POLICY_MISSING}: Test Cycle assignments require assessmentPolicy.mode "testCycle".`);

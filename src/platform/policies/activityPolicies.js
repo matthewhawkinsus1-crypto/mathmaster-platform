@@ -1,4 +1,5 @@
 import { getStoredAssignmentTypeProjection } from '../contract/storedAssignmentV5.js';
+import { attemptsAreUnlimited as attemptsAreUnlimitedCount } from '../../../functions/shared/activityPolicies.mjs';
 // Roles, policies and the attempt counts they carry live in shared code so the
 // Cloud Functions deadline finalizer enforces the same attempt policy.
 import {
@@ -15,14 +16,16 @@ export {
   normalizeActivityRole,
   getEffectiveActivityPolicy,
   toEnforcedActivityPolicy,
-  ATTEMPT_POLICY,
-  ATTEMPT_POLICY_VALUES,
   UNLIMITED_ATTEMPTS,
   UNLIMITED_ATTEMPT_ROLES,
   attemptsAreUnlimited,
-  attemptLimitLabel,
+  attemptIsBeyondRolePolicy,
   assignmentDeclaresUnlimitedAttempts,
 } from '../../../functions/shared/activityPolicies.mjs';
+
+// What a teacher reads for a limit: the number, or "unlimited". Kept here,
+// not in the shared module, which is on the student's first load.
+export const attemptLimitLabel = (count) => (attemptsAreUnlimitedCount(count) ? 'unlimited' : String(count));
 
 export const resolveQuestionActivityRole = ({ question = {}, assignment = {}, isDOL = false } = {}) => {
   const explicit = question?.activityRole ?? question?.role;

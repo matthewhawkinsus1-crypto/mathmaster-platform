@@ -39,7 +39,6 @@ import {
   UNLIMITED_ATTEMPTS,
   UNLIMITED_ATTEMPT_ROLES,
   assignmentDeclaresUnlimitedAttempts,
-  attemptLimitLabel,
   attemptsAreUnlimited,
   getEffectiveActivityPolicy,
   toEnforcedActivityPolicy,
@@ -60,6 +59,8 @@ import { attemptInputsFromGrading } from '../../functions/shared/serverGrading/g
 import { gradeMultiAnswerResponse } from '../../functions/shared/ordinaryResponseGrading.mjs';
 import { normalizeCheckpointResponse } from '../../src/platform/performance/responseCheckpoint.js';
 import { normalizeAssignmentV5, validateAssignmentV5, flattenV5Sections } from '../../src/platform/contract/assignmentSchemaV5.js';
+import { attemptLimitLabel } from '../../src/platform/policies/activityPolicies.js';
+import { validateLessonSupportsV5 } from '../../src/platform/contract/lessonSupportsV5.js';
 import { canonicalV5PersistencePatch, storedAssignmentToV5 } from '../../src/platform/contract/storedAssignmentV5.js';
 import { buildAssignmentV5PreflightModel } from '../../src/platform/preflight/assignmentV5PreflightModel.js';
 import { buildPreflightReviewedAssignmentV5 } from '../../src/components/teacher/preflightV5Review.js';
@@ -181,7 +182,7 @@ const packet = (patch = {}) => ({
 });
 
 test('the validator accepts the two attempt policies and refuses anything else in plain words', () => {
-  const errorsFor = (gradingPolicy, extra = {}) => validateAssignmentV5(packet({ gradingPolicy, ...extra })).errors
+  const errorsFor = (gradingPolicy, extra = {}) => validateLessonSupportsV5(packet({ gradingPolicy, ...extra })).errors
     .filter((error) => /attemptPolicy/.test(error));
   assert.deepEqual(errorsFor(undefined), []);
   assert.deepEqual(errorsFor({}), []);
@@ -671,7 +672,7 @@ test('every existing lesson resolves exactly as before: the same policy object a
     if (name.includes('/thanksgiving-packet/')) {
       declaring += 1;
       assert.equal(assignmentDeclaresUnlimitedAttempts(source), true, name);
-      assert.deepEqual(validateAssignmentV5(source).errors.filter((error) => /attemptPolicy/.test(error)), [], name);
+      assert.deepEqual(validateLessonSupportsV5(source).errors.filter((error) => /attemptPolicy/.test(error)), [], name);
       lessons -= 1;
       return;
     }
@@ -679,7 +680,7 @@ test('every existing lesson resolves exactly as before: the same policy object a
     // write the field write the default.
     assert.equal(assignmentDeclaresUnlimitedAttempts(source), false, name);
     assert.ok([undefined, 'rolePolicy'].includes(source.gradingPolicy?.attemptPolicy), `${name}: ${source.gradingPolicy?.attemptPolicy}`);
-    assert.deepEqual(validateAssignmentV5(source).errors.filter((error) => /attemptPolicy/.test(error)), [], name);
+    assert.deepEqual(validateLessonSupportsV5(source).errors.filter((error) => /attemptPolicy/.test(error)), [], name);
 
     const normalized = normalizeAssignmentV5(source);
     assert.equal(normalized.gradingPolicy.attemptPolicy, 'rolePolicy', name);
