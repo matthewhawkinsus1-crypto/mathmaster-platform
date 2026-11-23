@@ -659,14 +659,24 @@ const lessonFiles = () => {
 test('every existing lesson resolves exactly as before: the same policy object and the same limit for every question', () => {
   let lessons = 0;
   let questions = 0;
+  let declaring = 0;
   lessonFiles().forEach((path) => {
     let source;
     try { source = JSON.parse(readFileSync(path, 'utf8')); } catch { return; }
     if (!source || Number(source.schemaVersion) !== 5 || !Array.isArray(source.sections)) return;
     lessons += 1;
     const name = path.slice(REPO.length);
-    // No lesson in the repository declares the policy; the two that write the
-    // field write the default.
+    // The Thanksgiving packets are the lessons written to declare the policy:
+    // each must, and none is an "existing lesson" held to the old limits.
+    if (name.includes('/thanksgiving-packet/')) {
+      declaring += 1;
+      assert.equal(assignmentDeclaresUnlimitedAttempts(source), true, name);
+      assert.deepEqual(validateAssignmentV5(source).errors.filter((error) => /attemptPolicy/.test(error)), [], name);
+      lessons -= 1;
+      return;
+    }
+    // No other lesson in the repository declares the policy; the two that
+    // write the field write the default.
     assert.equal(assignmentDeclaresUnlimitedAttempts(source), false, name);
     assert.ok([undefined, 'rolePolicy'].includes(source.gradingPolicy?.attemptPolicy), `${name}: ${source.gradingPolicy?.attemptPolicy}`);
     assert.deepEqual(validateAssignmentV5(source).errors.filter((error) => /attemptPolicy/.test(error)), [], name);
@@ -691,6 +701,7 @@ test('every existing lesson resolves exactly as before: the same policy object a
     });
     questions += flattenV5Sections(normalized).length;
   });
+  assert.equal(declaring, 3, "the three Thanksgiving packets declare unlimited attempts");
   assert.ok(lessons >= 20, `the sweep read the lesson library (${lessons} lessons)`);
   assert.ok(questions >= 200, `and its questions (${questions})`);
 });
