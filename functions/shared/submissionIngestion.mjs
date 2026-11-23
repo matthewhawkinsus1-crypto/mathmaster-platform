@@ -572,7 +572,11 @@ export const buildIngestedAttempt = ({
   const academicAt = occurredAt === null || occurredAt === undefined
     ? resolveAcademicOccurrenceAt({ envelope, assignment, ingestedAt })
     : finite(occurredAt, ingestedAt);
-  const activityPolicy = getEffectiveActivityPolicy(envelope.activityRole);
+  // The role is the question's own (withAuthoritativeActivityRole above) and
+  // the assignment is the server's copy: an assignment that declares unlimited
+  // attempts has them on its Warm-Up, Classwork and Practice, and a DOL, quiz
+  // or test in the same assignment keeps its one.
+  const activityPolicy = getEffectiveActivityPolicy(envelope.activityRole, assignment);
   const teacherGrantedExtraAttempts = resolveTeacherGrantedExtraAttempts({
     assignment,
     activityRole: envelope.activityRole,

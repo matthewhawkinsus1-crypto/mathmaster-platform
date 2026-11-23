@@ -329,6 +329,14 @@ export const validateAssignmentV5 = (input = {}, { requireQuestions = true } = {
     errors.push(`variantPolicy.mode must be one of: ${V5_VARIANT_MODES.join(', ')}.`);
   }
 
+  // The attempt policy is one of a short list. A value outside it is refused,
+  // not read as the role policy: a misspelt "unlimited" would otherwise give a
+  // class three tries on an assignment its teacher announced as unlimited.
+  // Absent is the role policy, as it always was.
+  // gradingPolicy.attemptPolicy is checked by validateLessonSupportsV5
+  // (lessonSupportsV5.js), with the other fields of new assignments, so its
+  // messages are not on the student's first load.
+
   if (cycleContract.declared && !cycleContract.policyConfigured) {
     errors.push(`${TEST_CYCLE_DIAGNOSTIC.POLICY_MISSING}: Test Cycle assignments require assessmentPolicy.mode "testCycle".`);
   }

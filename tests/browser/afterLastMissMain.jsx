@@ -22,6 +22,9 @@
 //                                        whose workspace a journey cannot miss quickly
 //   ?host=0                              the host does not vouch for the practice
 //                                        (Recovery, Path, a preview elsewhere)
+//   ?attempts=unlimited                  the item belongs to an assignment that declares
+//                                        gradingPolicy.attemptPolicy "unlimited": the policy
+//                                        App.jsx resolves for it (no last miss to be after)
 //
 // Graded submissions land on window.__mmGrades; the practice the engine will
 // show (same seed, same sibling to avoid) on window.__mmPractice.
@@ -57,7 +60,9 @@ const role = params.get('role') || 'classwork';
 const which = params.get('q') || 'inverse';
 const hostAllows = params.get('host') !== '0';
 const run = params.get('run') || 'manual';
-const policy = getEffectiveActivityPolicy(role);
+// The stored assignment the item belongs to, as far as the attempt policy reads it.
+const assignment = params.get('attempts') === 'unlimited' ? { gradingPolicy: { attemptPolicy: 'unlimited' } } : null;
+const policy = getEffectiveActivityPolicy(role, assignment);
 
 const practiceLike = (lesson) => compileAuthoringIntentV5(lesson).package.sections
   .filter((section) => ['classwork', 'practice'].includes(section.role))
@@ -124,6 +129,7 @@ function Harness() {
           questionRecord={record}
           maximumAttempts={maximumAttempts}
           activityRole={role}
+          activityPolicy={policy}
           practiceLikeThisAllowed={hostAllows && ['classwork', 'practice'].includes(role)}
           dolMode={role === 'dol'}
           generationKey={`after-last-miss-${which}|student-a|0|variant:0`}

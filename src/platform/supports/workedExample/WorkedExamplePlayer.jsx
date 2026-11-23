@@ -178,7 +178,7 @@ export function SpotTheMistake({ MathText, SupportedTextActions, spot, chosen, o
                   aria-pressed={mine ? 'true' : 'false'}
                   aria-disabled={chosen && !mine ? 'true' : undefined}
                   onClick={() => choose(choice)}
-                  style={mine ? chosenButton : chosen ? { ...choiceButton, borderStyle: 'dashed', cursor: 'default' } : choiceButton}
+                  style={mine ? chosenButton : chosen ? { ...choiceButton, border: '1px dashed var(--mm-primary-border)', cursor: 'default' } : choiceButton}
                 >
                   {mine ? <span data-spot-chosen="" style={{ display: 'block', fontSize: 'calc(12 * var(--mm-px))', fontWeight: 800 }}>{spotTheMistakeChosenLabel(choice)}</span> : null}
                   <MathText>{choice.text}</MathText>
@@ -437,7 +437,7 @@ export default function WorkedExamplePlayer({
           data-example-back=""
           aria-disabled={first ? 'true' : undefined}
           onClick={back}
-          style={first ? { ...button, opacity: 0.55, cursor: 'not-allowed', borderStyle: 'dashed' } : button}
+          style={first ? { ...button, opacity: 0.55, cursor: 'not-allowed', border: '1px dashed var(--mm-primary-border)' } : button}
         >
           Back
         </button>

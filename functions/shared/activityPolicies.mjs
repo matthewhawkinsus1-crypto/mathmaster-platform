@@ -8,6 +8,8 @@
  * which re-exports everything here.
  */
 
+import { UNLIMITED_ATTEMPTS_AT_LEAST, resolveQuestionMaximumAttempts } from './attemptPolicy.mjs';
+
 export const ACTIVITY_ROLES = Object.freeze({
   WARMUP: 'warmup',
   CLASSWORK: 'classwork',
@@ -146,10 +148,89 @@ export const normalizeActivityRole = (role, fallback = ACTIVITY_ROLES.CLASSWORK)
   return isActivityRole(normalized) ? normalized : fallback;
 };
 
-export const getEffectiveActivityPolicy = (role) => ACTIVITY_POLICIES[normalizeActivityRole(role)];
+/*
+ * AN ASSIGNMENT MAY DECLARE UNLIMITED ATTEMPTS.
+ *
+ * The number of tries belongs to the section's role (above). One assignment-
+ * level declaration changes it: `gradingPolicy.attemptPolicy: "unlimited"` in
+ * the Assignment V5 file, stored with the assignment. It applies to the
+ * Warm-Up, Classwork and Practice sections of that assignment and to nothing
+ * else — a DOL, a quiz, a test, a Test Cycle's Review and Corrections keep
+ * their own count whatever the file says, and an assignment that carries an
+ * assessment policy (a Test Cycle) is never unlimited.
+ *
+ * ONE RESOLVER. `getEffectiveActivityPolicy(role, assignment)` is where the
+ * declaration is read. Every place that counts tries — the question on the
+ * student's screen, submission ingestion and the deadline finalizer on the
+ * server, the teacher's case review and Pre-Flight — takes its number from
+ * the policy this returns, so none of them can disagree. Called with a role
+ * alone it returns exactly the object it always did.
+ *
+ * "Unlimited" is a number, not Infinity: it survives JSON, Firestore and the
+ * integer arithmetic of the attempt policy (`maximum - used`, `used + 1 >=
+ * maximum`), and no student reaches it. Anything that puts a count in front
+ * of a person asks `attemptsAreUnlimited` first — of the maximum or of what
+ * is left, which is why the test is a floor well below the number itself.
+ */
+export const ATTEMPT_POLICY = Object.freeze({ ROLE: 'rolePolicy', UNLIMITED: 'unlimited' });
+export const UNLIMITED_ATTEMPTS = 1000000;
+export const UNLIMITED_ATTEMPT_ROLES = Object.freeze([
+  ACTIVITY_ROLES.WARMUP,
+  ACTIVITY_ROLES.CLASSWORK,
+  ACTIVITY_ROLES.PRACTICE,
+]);
 
-export const toEnforcedActivityPolicy = (role) => {
-  const policy = getEffectiveActivityPolicy(role);
+/** True for the unlimited maximum and for what is left of it after any real number of tries. */
+export const attemptsAreUnlimited = (count) => Number(count) >= UNLIMITED_ATTEMPTS_AT_LEAST;
+
+/** "unlimited", or the number: for anything that prints an attempt limit. */
+
+/**
+ * Does this assignment declare unlimited attempts? Read from the stored
+ * assignment or from its Assignment V5 form — both keep `gradingPolicy` at the
+ * top level. Only the exact value counts; anything else is the role policy.
+ */
+export const assignmentDeclaresUnlimitedAttempts = (assignment) => assignment?.gradingPolicy?.attemptPolicy === 'unlimited'
+  && !(assignment.assessmentPolicy && typeof assignment.assessmentPolicy === 'object');
+
+// One frozen object for each role, made the first time it is asked for, so a
+// caller can compare policies by identity.
+const UNLIMITED_ACTIVITY_POLICIES = {};
+
+export const getEffectiveActivityPolicy = (role, assignment) => {
+  const policy = ACTIVITY_POLICIES[normalizeActivityRole(role)];
+  if (!assignment || !UNLIMITED_ATTEMPT_ROLES.includes(policy.role) || !assignmentDeclaresUnlimitedAttempts(assignment)) return policy;
+  return (UNLIMITED_ACTIVITY_POLICIES[policy.role] ??= Object.freeze({
+    ...policy,
+    attempts: UNLIMITED_ATTEMPTS,
+    attemptsUnlimited: true,
+  }));
+};
+/*
+ * AN ATTEMPT THE ROLE POLICY ALONE WOULD NOT HAVE ALLOWED.
+ *
+ * In an assignment that declares unlimited attempts a student can reach the
+ * right answer on a 4th or a 20th try, and on a choice-only question by
+ * trying each option. That answer is full credit for the GRADE, as a correct
+ * 2nd or 3rd attempt always was. As MASTERY evidence it is not the same thing
+ * as getting it within the tries the section gives everywhere else, so an
+ * attempt past that number counts as supported evidence (masteryScoring.mjs
+ * SUPPORTED_CREDIT, masteryEngine.js): worth less than an independent
+ * success and never counted as one. Attempts within the role's own number,
+ * and every attempt of an assignment that does not declare unlimited
+ * attempts, are untouched — this is false for all of them.
+ *
+ * `record` is the question's record as it stands after the attempt.
+ */
+export const attemptIsBeyondRolePolicy = ({ assignment = null, question = {}, activityRole = null, record = null } = {}) => {
+  // The unlimited policy is a different object from the role's own.
+  const rolePolicy = getEffectiveActivityPolicy(activityRole);
+  return getEffectiveActivityPolicy(activityRole, assignment) !== rolePolicy
+    && (Number(record?.attemptCount) || 0) > resolveQuestionMaximumAttempts({ question, activityPolicy: rolePolicy });
+};
+
+export const toEnforcedActivityPolicy = (role, assignment) => {
+  const policy = getEffectiveActivityPolicy(role, assignment);
   return {
     role: policy.role,
     attemptsAllowed: policy.attempts,

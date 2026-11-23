@@ -709,3 +709,16 @@ test('the Hint panel loads the player on demand, and draws nothing of it with no
   // The student's screen does not load the teacher's coverage report for the skill.
   assert.doesNotMatch(executableSource(read('src/platform/supports/workedExample/examplePlayer.js')), /classworkCoverage/);
 });
+
+/*
+ * A BORDER IS CHANGED WHOLE. The player's buttons set `border`; a state that
+ * changed only `borderStyle` on top of it made React remove a sub-property of
+ * a shorthand on the next render and log "Removing borderStyle border ..." to
+ * the console of every example (found by the Thanksgiving packets' screen
+ * check, which fails on any console error).
+ */
+test('the player changes a button\'s whole border, never one border property on top of the shorthand', () => {
+  const source = executableSource(read('src/platform/supports/workedExample/WorkedExamplePlayer.jsx'));
+  assert.doesNotMatch(source, /border(Style|Width|Color)\s*:/);
+  assert.equal((source.match(/border: '1px dashed var\(--mm-primary-border\)'/g) || []).length, 2, 'Back on the first slide, and a choice not chosen');
+});

@@ -140,6 +140,10 @@ export const resolveTeacherGrantedExtraAttempts = ({
  * tests/platform/extraAttemptsDecision.test.mjs fails when any of that is
  * wired without the label and the report changing with it.
  */
+// The count from which attempts are unlimited (activityPolicies.mjs
+// attemptsAreUnlimited reads it from here, so there is one number).
+export const UNLIMITED_ATTEMPTS_AT_LEAST = 500000;
+
 export const resolveQuestionMaximumAttempts = ({
   question = {},
   maximumAttempts = null,
@@ -151,6 +155,12 @@ export const resolveQuestionMaximumAttempts = ({
     Number(maximumAttempts ?? activityPolicy?.attempts ?? MAX_ATTEMPTS_PER_QUESTION)
       || MAX_ATTEMPTS_PER_QUESTION,
   );
+  // An assignment that declares unlimited attempts (activityPolicies.mjs) has
+  // them on every question of its Warm-Up, Classwork and Practice, a
+  // choice-only one included: the owner's decision is that no question there
+  // closes for running out of tries. The role policy the caller resolved
+  // carries the number; nothing here reads the assignment.
+  if (requested >= UNLIMITED_ATTEMPTS_AT_LEAST) return requested;
   const base = isChoiceOnlyQuestion(question) ? 1 : requested;
   const teacherBonus = Math.max(0, Math.min(20, Math.floor(Number(teacherGrantedExtraAttempts) || 0)));
   return base + teacherBonus;

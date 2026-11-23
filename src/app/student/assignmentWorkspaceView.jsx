@@ -176,7 +176,7 @@ export function createAssignmentWorkspaceView(
     const currentFeedbackReleased = lifecycle.isPracticeOnly || assignmentFeedbackWasReleased(assignment)
       || (activeActivityPolicy.feedback === 'afterAssignmentSubmit' && ['correct', 'expired'].includes(currentRecord.status));
     const runtimeActivityRole = !preview && lifecycle.isPracticeOnly ? 'practice' : activeQuestionRole;
-    const runtimeActivityPolicy = getEffectiveActivityPolicy(runtimeActivityRole);
+    const runtimeActivityPolicy = getEffectiveActivityPolicy(runtimeActivityRole, assignment);
     const currentCheckpointOutcome = preview ? null : checkpointOutcomes[currentQuestionIndex] || null;
     // The DOL's lock message, open notice and close receipt: a teacher's
     // "Close now" never reads as the timer, and "when time ends" only while it is open.
@@ -397,7 +397,7 @@ export function createAssignmentWorkspaceView(
     // Viewable: a closed section stays reachable read-only.
     const entryIsAvailable = (entry) => sectionAccessFor(entry).viewable;
     const entryMaximumAttempts = (entry) => {
-      const policy = getEffectiveActivityPolicy(entry.role);
+      const policy = getEffectiveActivityPolicy(entry.role, assignment);
       return resolveQuestionMaximumAttempts({
         question: countedQuestionFor(assignment, entry.index, workingTracker?.[entry.index], questions[entry.index], preview),
         maximumAttempts: policy.attempts,
@@ -412,7 +412,7 @@ export function createAssignmentWorkspaceView(
     };
     // The policy the question itself runs under (post-deadline practice runs
     // every question as Practice).
-    const entryRuntimePolicy = (entry) => getEffectiveActivityPolicy(!preview && lifecycle.isPracticeOnly ? 'practice' : entry.role);
+    const entryRuntimePolicy = (entry) => getEffectiveActivityPolicy(!preview && lifecycle.isPracticeOnly ? 'practice' : entry.role, assignment);
     // The held-feedback mask: wherever the question withholds its outcome — a
     // quiz or test until the teacher's release, a DOL until it is finished
     // (a teacher's extra try leaves it open) — the navigator says nothing of

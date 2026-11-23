@@ -16,6 +16,7 @@ import { fileURLToPath } from 'node:url';
 
 import { compileTeacherImport } from '../../../scripts/check-teacher-import.mjs';
 import { gradeMultiAnswerResponse } from '../../../functions/shared/ordinaryResponseGrading.mjs';
+import * as followThrough from '../../../functions/shared/followThrough.mjs';
 import '../../../functions/shared/serverGrading/serverResponseGrading.mjs';
 import { buildFamilyQuestion, cachedFamilyInstanceSequence } from '../../../functions/shared/questionFamilyEngine.mjs';
 import { resolveQuestionFamilyDefinition } from '../../../functions/shared/questionFamilyInstance.mjs';
@@ -108,10 +109,12 @@ export const keyFindings = (questions) => {
       versionsChecked += 1;
       const fields = version.answerFields || [];
       const key = Object.fromEntries(fields.map((field) => [field.id, String(field.answer)]));
-      if (!gradeMultiAnswerResponse(version, key).isCorrect) problems.push(`${version.questionId}: its own key is refused (${JSON.stringify(key)})`);
+      // A part that builds on an earlier one (followThrough) is graded only with
+      // its rules handed in, as every screen and the server hand them.
+      if (!gradeMultiAnswerResponse(version, key, { followThrough }).isCorrect) problems.push(`${version.questionId}: its own key is refused (${JSON.stringify(key)})`);
       fields.forEach((field) => {
         const wrong = wrongAnswerFor(field);
-        if (gradeMultiAnswerResponse(version, { ...key, [field.id]: wrong }).isCorrect) {
+        if (gradeMultiAnswerResponse(version, { ...key, [field.id]: wrong }, { followThrough }).isCorrect) {
           problems.push(`${version.questionId} ${field.id}: the wrong answer "${wrong}" is accepted`);
         }
       });

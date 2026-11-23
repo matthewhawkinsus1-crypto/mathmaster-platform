@@ -286,7 +286,7 @@ export const analyzeAssignmentQuestions = ({
     });
     const maxAttempts = resolveQuestionMaximumAttempts({
       question: triesCountedOn,
-      activityPolicy: getEffectiveActivityPolicy(role),
+      activityPolicy: getEffectiveActivityPolicy(role, assignment),
       teacherGrantedExtraAttempts: resolveTeacherGrantedExtraAttempts({
         assignment, activityRole: role, classId: student?.classId || null, studentId: student?.id || null,
       }),

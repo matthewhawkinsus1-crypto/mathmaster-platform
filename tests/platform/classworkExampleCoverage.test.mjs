@@ -33,6 +33,7 @@ import {
   classworkExampleCoverage,
   coverageHeadline,
   exampleSkillOf,
+  summarizeClassworkExampleCoverage,
 } from '../../src/platform/supports/workedExample/classworkCoverage.js';
 import { asQuestionEngineReceivesIt, lessonFiles, measureClassworkExampleCoverage } from '../../scripts/lib/classworkExampleCoverageReport.mjs';
 import { componentSource, executableSource, region } from './helpers/sourceContract.mjs';
@@ -189,8 +190,26 @@ const realMeasurement = () => {
   return measured;
 };
 
-test('the real lessons: 137 of 496 Classwork questions have a built-in example, and 14 of 41 lessons have none (WORKED_EXAMPLES.md section 8)', () => {
-  const { lessons, summary, lessonsWithClasswork, lessonsWithNoBuiltIn } = realMeasurement();
+/*
+ * WORKED_EXAMPLES.md section 8 measures the lessons that existed when the
+ * coverage rule was decided. They are not back-filled, so the measurement holds
+ * for them as long as they write no example. A lesson written since writes its
+ * own (the Algebra I Thanksgiving Break Packet is the first): it is not part
+ * of that baseline, and is held separately below.
+ */
+const writesItsOwnExamples = (lesson) => lesson.summary.byStatus[STATUS.OWN] > 0;
+const baselineMeasurement = () => {
+  const lessons = realMeasurement().lessons.filter((lesson) => !writesItsOwnExamples(lesson));
+  return {
+    lessons,
+    summary: summarizeClassworkExampleCoverage(lessons.flatMap((lesson) => lesson.questions)),
+    lessonsWithClasswork: lessons.length,
+    lessonsWithNoBuiltIn: lessons.filter((lesson) => lesson.summary.byStatus[STATUS.BUILT_IN] === 0).length,
+  };
+};
+
+test('the lessons written before the rule: 137 of 496 Classwork questions have a built-in example, and 14 of 41 lessons have none (WORKED_EXAMPLES.md section 8)', () => {
+  const { lessons, summary, lessonsWithClasswork, lessonsWithNoBuiltIn } = baselineMeasurement();
   assert.equal(lessonsWithClasswork, 41);
   assert.equal(summary.total, 496);
   assert.equal(summary.byStatus.builtIn, 137);
@@ -205,11 +224,27 @@ test('the real lessons: 137 of 496 Classwork questions have a built-in example, 
   const rest = Object.entries(without).filter(([kind]) => !(kind in named));
   assert.equal(rest.length, 12, '12 other kinds');
   assert.equal(rest.reduce((sum, [, count]) => sum + count, 0), 33, '33 more questions');
-  // No real lesson writes an example or an exemption yet (existing lessons are
-  // not back-filled), so the rest of the rule is the same-skill one: 43 more
-  // questions follow an earlier covered question on their skill.
+  // None of these lessons writes an example or an exemption (existing lessons
+  // are not back-filled), so the rest of the rule is the same-skill one: 43
+  // more questions follow an earlier covered question on their skill.
   assert.deepEqual(summary.byStatus, { own: 0, earlierSameSkill: 43, builtIn: 137, exempt: 0, uncovered: 316 });
   assert.equal(summary.covered, 180);
+});
+
+test('a lesson written since the rule writes its own examples, and leaves no Classwork question uncovered', () => {
+  const lessons = realMeasurement().lessons.filter(writesItsOwnExamples);
+  assert.ok(lessons.length >= 2, 'the Thanksgiving packet and its Honors file');
+  lessons.forEach((lesson) => {
+    assert.equal(lesson.summary.uncovered, 0, `${lesson.file}: ${JSON.stringify(lesson.questions.filter(({ status }) => status === STATUS.UNCOVERED))}`);
+    assert.equal(lesson.summary.covered + lesson.summary.exempt, lesson.summary.total, lesson.file);
+    // Every example it names is one it has: a missing example is not coverage.
+    assert.ok(lesson.questions.every((entry) => !entry.missingExample), lesson.file);
+  });
+  // The whole measurement is the baseline and these together.
+  const { summary } = realMeasurement();
+  const baseline = baselineMeasurement().summary;
+  assert.equal(summary.total, baseline.total + lessons.reduce((sum, lesson) => sum + lesson.summary.total, 0));
+  assert.equal(summary.uncovered, baseline.uncovered, 'the new lessons add no uncovered question');
 });
 
 test('the real lessons: every uncovered question has a fill hint, and generator means a rich tool or a family', () => {
