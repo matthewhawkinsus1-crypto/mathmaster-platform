@@ -283,7 +283,7 @@ const PUBLIC_GRADER_READS = Object.freeze({
     // Which earlier parts a follow-through part builds on (SP-3): the screen
     // writes the student's own values into its label. Its answer moves
     // (`answerFields[].followThrough.answer` in KEY_FIELDS).
-    'answerFields[].followThrough',
+    'answerFields[].followThrough', 'answerFields[].followThrough.from',
     'responseFields', 'responses', 'analysisRequests', 'analysisRequests[].id', 'analysisRequests[].kind',
     'analysisRequests[].label', 'analysisRequests[].feature', 'analysisRequests[].notation', 'analysisRequests[].allowNone',
     'analysisRequests[].answerMode', 'analysisRequests[].responseMode', 'fields', 'fields[].id', 'fields[].label', 'fields[].type',
@@ -337,13 +337,31 @@ const PUBLIC_GRADER_READS = Object.freeze({
     'system.**', 'spatialModel.**', 'linearQuadratic.**', 'quadratic.**', 'inequalities.**', 'testPoint.**',
     'source.**', 'sourcePoints.**', 'givenPoints', 'points.**', 'rows.**', 'pairs.**', 'tableXValues',
     'sets.**', 'cardKinds', 'mixedSet.**', 'targetId', 'function.**', 'initial.**', 'parentPoint', 'target.**', 'targetLabel',
-    'coordinates', 'applyResponseToGraph', 'line.**', 'slope', 'point', 'standard.**', 'value', 'orientation', 'referenceLine',
+    'coordinates', 'applyResponseToGraph', 'line.**', 'slope', 'point', 'standard.**', 'value', 'orientation',
+    // The given line of a parallel or perpendicular question, with its slope,
+    // intercept and relation: Graphing draws it and names it in the task, and
+    // its review starts from it (first authored in the Algebra I Thanksgiving packet).
+    'referenceLine.**',
     'm', 'b', 'expressions[].expression', 'd1', 'd2', 'n1', 'n2', 'quantities[].id', 'quantities[].label', 'quantities[].unit',
     'focus', 'directrix.**', 'z.**', 'w.**', 'quarterTurns', 'base', 'exponent', 'h', 'k', 'p', 'y', 'offset',
     'startingModel', 'predictionX', 'sourceData.**', 'constraints.**',
     // The inequalities of a Systems Workspace item as the student reads them,
     // and the variables (symbol and meaning) a student writes a model in.
     'sourceConstraints', 'modeling.variables', 'modeling.variables[].symbol', 'modeling.variables[].label',
+  ],
+  /*
+   * Supports a student is shown while answering. A grader first read them with
+   * the Algebra II Honors Thanksgiving packet: its graph-analysis questions
+   * carry a back-up step, guided notes and a worked example's id, and the
+   * Graph Workspace fingerprints the whole question (JSON.stringify) for its
+   * model cache, which reads every field. None of these holds a key: the
+   * back-up step's own answer (`scaffold.correct`) and the notes' text
+   * (`guidedNotes.steps`) are moved by the split, and `example` is the id of a
+   * worked example in the lesson's `lessonSupports` (a sibling problem, never
+   * the item), or the reason the question needs none.
+   */
+  'supports the student is shown, whose own keys move (scaffold.correct, guidedNotes.steps)': [
+    'scaffold', 'scaffold.prompt', 'scaffold.options', 'guidedNotes', 'example',
   ],
 });
 
