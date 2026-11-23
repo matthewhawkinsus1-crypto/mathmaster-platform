@@ -17,11 +17,12 @@
 //   - it renders, with no page error, no console error and no error text;
 //   - the packet says its tries are unlimited, and the strip above the
 //     question says so;
-//   - the worked example the lesson's own rule gives it (lessonExample.js)
-//     opens by itself exactly when the question is the first on its skill,
-//     and on request ("Try a similar one") otherwise; it is the authored step
-//     card, with as many steps as were written; and "Go to my question" on
-//     its last slide closes it;
+//   - the worked example the player's own rules give it (examplePlayer.js)
+//     opens by itself exactly when those rules say so (the first Classwork
+//     question on a skill; the second, faded, where the example hands over),
+//     and on request ("Try a similar one") otherwise; a question that names
+//     an example is played that example, never the platform's in its place;
+//     and "Your turn" on its last slide closes it;
 //   - a question with no example of its own (the parent-function items, whose
 //     example is the platform's own; the SAT items, which are Practice) is
 //     reported, not failed;
@@ -100,13 +101,15 @@ for (const file of files.length ? files : ['a1', 'a1h', 'a2h']) {
   await listing.context.close();
   if (packet.compileErrors.length) fail(file, `the packet does not compile: ${JSON.stringify(packet.compileErrors).slice(0, 300)}`);
   if (packet.attemptPolicy !== 'unlimited') fail(file, `the stored assignment's attempt policy is ${packet.attemptPolicy}, not unlimited`);
+  if (!packet.storedExamples) fail(file, 'the stored assignment lost its worked examples');
+  if (!packet.rolesCarried) fail(file, 'a stored question does not carry its section role, so the player cannot read the lesson');
   mkdirSync(path.join(ARTIFACTS, file), { recursive: true });
   let checked = 0;
 
   for (const question of packet.questions) {
     if (only.length && !only.includes(question.questionId)) continue;
     const rule = question.exampleRule;
-    const opensByItself = rule.firstOnSkill && rule.from !== 'earlierSameSkill';
+    const opensByItself = rule.opensByItself === true;
     const failedBefore = failures.length;
     for (const device of devices) {
       const where = `${file} ${question.questionId} ${device}`;
@@ -120,35 +123,47 @@ for (const file of files.length ? files : ['a1', 'a1h', 'a2h']) {
 
         const player = playerOf(page);
         const openedByItself = (await player.count()) === 1;
-        if (rule.unsafe) fail(where, `its authored example is refused: ${rule.unsafe.reason}`);
-        if (rule.exampleId && opensByItself !== openedByItself) fail(where, opensByItself ? 'first on its skill, but the example did not open by itself' : 'the example opened by itself on a question that is not the first on its skill');
-        if (!openedByItself) {
-          await page.locator('[data-hint-control]').first().click();
+        if (rule.from === 'own' && rule.source !== 'authored') fail(where, `the player hides its example ${rule.exampleId} (it would state an answer) and gives ${rule.source || 'nothing'} instead`);
+        if (rule.offered && opensByItself !== openedByItself) fail(where, opensByItself ? 'the example should open by itself here, and did not' : 'the example opened by itself where the rules say it does not');
+        if (openedByItself && rule.faded !== ((await player.getAttribute('data-example-faded')) !== null)) fail(where, rule.faded ? 'the second question on a skill should open its example faded' : 'the example opened faded on the first question of its skill');
+        // The example a student asks for is the whole one: fold a faded one away first.
+        if (openedByItself && rule.faded) {
+          const slides = Number(await player.getAttribute('data-example-slide-count'));
+          for (let step = 1; step < slides; step += 1) { await player.locator('[data-example-next]').click(); await page.waitForTimeout(100); }
+          await player.locator('[data-example-your-turn]').click();
+          await page.waitForTimeout(500);
+        }
+        if ((await player.count()) === 0) {
+          const control = page.locator('[data-hint-control]').first();
+          if ((await control.getAttribute('aria-expanded')) !== 'true') await control.click();
           await page.waitForTimeout(250);
-          const offer = page.locator('.mathmaster-hint-panel').getByRole('button', { name: 'Try a similar one' });
-          if (await offer.count()) { await offer.click(); await page.waitForTimeout(400); }
+          const offer = page.locator('.mathmaster-hint-panel button', { hasText: 'Try a similar one' });
+          if (await offer.count()) { await offer.first().click(); await page.waitForTimeout(500); }
         }
         if ((await player.count()) === 1) {
-          const kind = await player.getAttribute('data-example-kind');
-          if (rule.exampleId && kind !== 'authored') fail(where, `the example played is "${kind}", not the lesson's own`);
-          if (!rule.exampleId) notes.push(`${where}: no example of its own; the platform's (${kind}) plays`);
+          const source = await player.getAttribute('data-example-source');
+          if (source !== rule.source) fail(where, `the example played is "${source}"; the rules give "${rule.source}"`);
+          if (rule.exampleId && source !== 'authored') notes.push(`${where}: ${rule.exampleId} would state an answer of this question, so the platform's own example plays`);
+          if (!rule.exampleId) notes.push(`${where}: no example of its own; the platform's (${source}) plays`);
           const open = await sideways(page);
           if (open.page > 1 || open.wide.length) fail(where, `scrolls sideways with the example open: ${JSON.stringify(open)}`);
           await page.screenshot({ path: path.join(ARTIFACTS, file, `${question.questionId}-${device}-example.png`) });
-          let slides = 0;
-          while ((await player.getAttribute('data-example-slide')) !== 'your-turn' && slides < 25) {
+          const slides = Number(await player.getAttribute('data-example-slide-count'));
+          // A problem slide, then each step (a step that uses another skill may open that skill's slides).
+          if (!(slides >= (rule.steps || 1) + 1)) fail(where, `the example has ${slides} slides for ${rule.steps} steps`);
+          let clicks = 0;
+          while ((await player.locator('[data-example-your-turn]').count()) === 0 && clicks < 40) {
             await player.locator('[data-example-next]').click();
-            await page.waitForTimeout(120);
-            slides += 1;
+            await page.waitForTimeout(100);
+            clicks += 1;
           }
-          if ((await player.getAttribute('data-example-slide')) !== 'your-turn') fail(where, 'the example never reaches Your turn');
+          if ((await player.locator('[data-example-your-turn]').count()) === 0) fail(where, 'the example never reaches Your turn');
           else {
-            if (rule.exampleId && slides !== rule.steps) fail(where, `the example shows ${slides} steps; ${rule.steps} were written`);
-            await player.getByRole('button', { name: 'Go to my question' }).click();
+            await player.locator('[data-example-your-turn]').click();
             await page.waitForTimeout(600);
-            if (await player.count()) fail(where, '"Go to my question" did not close the example');
+            if (await player.count()) fail(where, '"Your turn" did not close the example');
           }
-        } else if (rule.exampleId) fail(where, `the example ${rule.exampleId} did not open, by itself or on request`);
+        } else if (rule.offered && rule.source) fail(where, `the example (${rule.exampleId || rule.source}) did not open, by itself or on request`);
         else notes.push(`${where}: no worked example is offered (section role: ${question.role})`);
 
         // The whole question in one picture: a tall window at the same width (a phone's stage scrolls inside itself).
@@ -167,7 +182,7 @@ for (const file of files.length ? files : ['a1', 'a1h', 'a2h']) {
       checked += 1;
       await context.close();
     }
-    console.log(`${failures.length === failedBefore ? 'ok  ' : 'FAIL'} ${file} ${question.questionId} [${question.type}] example ${rule.exampleId || 'none'} (${rule.from || 'none'}${opensByItself ? ', opens by itself' : ''})`);
+    console.log(`${failures.length === failedBefore ? 'ok  ' : 'FAIL'} ${file} ${question.questionId} [${question.type}] example ${rule.exampleId || 'none'} (${rule.from || 'none'}, plays ${rule.source || 'nothing'}${opensByItself ? (rule.faded ? ', opens by itself faded' : ', opens by itself') : ''})`);
   }
   console.log(`${file}: ${checked} question screens checked`);
 }

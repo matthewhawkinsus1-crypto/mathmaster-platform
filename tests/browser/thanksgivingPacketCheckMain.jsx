@@ -8,7 +8,8 @@
 // assignment screen gives it (src/app/student/assignmentWorkspaceView.jsx):
 // the section's own role, the attempt policy the stored assignment declares
 // (unlimited), Guided Notes as Classwork has them, part by part, and the
-// lesson's worked examples.
+// lesson around the question (its stored questions and its worked examples),
+// which is what the example player reads (examplePlayer.js).
 //
 //   ?file=a1|a1h|a2h   which packet (default a1)
 //   ?q=<questionId>    the question (default: the first)
@@ -25,7 +26,7 @@ import { buildQuestionDraftKey } from '../../src/questionDraftStorage.js';
 import { emptyQuestionRecord, recordQuestionAttempt, resolveQuestionMaximumAttempts } from '../../src/attemptPolicy.js';
 import { canonicalV5PersistencePatch, getStoredAssignmentQuestions } from '../../src/platform/contract/storedAssignmentV5.js';
 import { getEffectiveActivityPolicy, resolveQuestionActivityRole } from '../../src/platform/policies/activityPolicies.js';
-import { authoredExampleProblem, authoredStepCard, lessonExampleContext } from '../../src/platform/supports/workedExample/lessonExample.js';
+import { exampleOpensByItself, exampleSectionRule, lessonExampleContext, workedExampleFor } from '../../src/platform/supports/workedExample/examplePlayer.js';
 import algebra1 from '../../teacher-import-jsons/thanksgiving-packet/Algebra1_Thanksgiving_Packet.json';
 import algebra1Honors from '../../teacher-import-jsons/thanksgiving-packet/Algebra1_Thanksgiving_Packet_Honors.json';
 import algebra2Honors from '../../teacher-import-jsons/thanksgiving-packet/Algebra2_Honors_Thanksgiving_Packet.json';
@@ -50,18 +51,36 @@ const sectionRoles = questions.map((entry) => resolveQuestionActivityRole({ ques
 const role = sectionRoles[index] || 'classwork';
 const policy = getEffectiveActivityPolicy(role, stored);
 const maximumAttempts = question ? resolveQuestionMaximumAttempts({ question, maximumAttempts: policy.attempts, activityPolicy: policy }) : null;
-const workedExampleLesson = { questions, index, sectionRoles, lessonSupports: stored.lessonSupports || null };
 
-// What the lesson's example rule says of each question (lessonExample.js), for the driver to hold the screen to.
+// What the player's own rules say of each question (examplePlayer.js), for
+// the driver to hold the screen to: the example it names or borrows, the one
+// the player really gives it (the lesson's own, or the platform's where the
+// lesson's would state an answer of this question), and whether it opens by
+// itself (Classwork, the first question on a skill; or the second, faded,
+// where the example has a hand-over).
+const roleOf = (candidate) => String(candidate?.activityRole || '').trim().toLowerCase() || null;
 const exampleRule = (position) => {
-  const context = lessonExampleContext({ questions, index: position, lessonSupports: stored.lessonSupports || null, roleOf: (entry, at) => sectionRoles[at] });
-  const card = context?.example ? authoredStepCard(context.example) : null;
+  const entry = questions[position];
+  const sectionRole = roleOf(entry) || sectionRoles[position];
+  const context = lessonExampleContext({ questions, index: position, sectionRole, roleOf, lessonSupports: stored.lessonSupports || null, assignmentQuestions: questions });
+  const rule = exampleSectionRule({ sectionRole, activityRole: sectionRoles[position], hintsAllowed: true });
+  const example = rule.offered ? workedExampleFor(entry, {
+    lessonSupports: context.lessonSupports,
+    sectionRole: context.sectionRole,
+    assignmentProblems: context.assignmentProblems,
+    coveringExample: context.coveringExample,
+    subSkills: rule.subSkills,
+  }) : null;
+  const own = typeof entry.example === 'string' ? entry.example : null;
   return {
-    exampleId: context?.example?.id ?? null,
-    from: context?.from ?? null,
-    firstOnSkill: context?.firstOnSkill === true,
-    steps: card?.steps?.length ?? null,
-    unsafe: card ? authoredExampleProblem(questions[position], card) : null,
+    exampleId: own || context.coveringExample || null,
+    from: own ? 'own' : context.coveringExample ? 'earlierSameSkill' : null,
+    offered: rule.offered,
+    source: example?.source ?? null,
+    format: example?.format ?? null,
+    steps: example?.steps?.length ?? null,
+    opensByItself: exampleOpensByItself({ rule, newSkill: context.newSkill, fadeTurn: context.fadeTurn, example }),
+    faded: !context.newSkill && context.fadeTurn && Number(example?.handOverAfter) >= 1,
   };
 };
 
@@ -74,6 +93,8 @@ window.__mmPacket = {
   attemptPolicy: stored.gradingPolicy?.attemptPolicy ?? null,
   exampleField: question?.example ?? null,
   storedLessonSupports: Boolean(stored.lessonSupports),
+  storedExamples: (stored.lessonSupports?.examples || []).length,
+  rolesCarried: questions.every((entry) => roleOf(entry)),
   compileErrors: compiled.errors || [],
   questions: questions.map((entry, position) => ({
     questionId: entry.questionId,
@@ -115,7 +136,8 @@ function Harness() {
           generationKey={`${stored.id}|${which}|variant:0`}
           activityRole={role}
           activityPolicy={policy}
-          workedExampleLesson={workedExampleLesson}
+          lessonQuestions={questions}
+          lessonSupports={stored.lessonSupports || null}
           practiceLikeThisAllowed={['classwork', 'practice'].includes(role)}
           guidedMode={role === 'classwork'}
           guidedNotesMode={role === 'classwork' ? 'automatic' : 'off'}

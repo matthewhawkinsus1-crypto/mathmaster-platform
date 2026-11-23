@@ -7,11 +7,53 @@ Before this check, the packets had passed their own tests but nobody had seen a 
 ## The short version
 
 - All 197 questions open on a desktop and on a phone with no error, and nothing runs off the side of the phone.
-- Every question that names a worked example shows it. It opens by itself on the first question of a skill and from the Hint button on the others, and "Go to my question" returns to the question.
+- Every question that names a worked example shows it. It opens by itself on the first question of a skill and from the Hint button on the others, and "Your turn" returns to the question.
+- The answering below was done on 2026-11-21, before the platform's own example player was merged. The packets were then fitted to that player and every screen was opened again on 2026-11-23; see "Re-checked against the platform's example player".
 - One question of every tool in each file was answered right and wrong through the screen. Every right answer was accepted. Every wrong one was refused with a message, the answer and the worked solution stayed hidden, and another try was offered.
 - Five things were fixed: three in the packets and two small ones in the platform. They are listed below.
 - Nothing found stops a student from finishing a question. The most important thing left alone is a grading slip: `[−1, ∞]` is marked correct.
 - Not everything was answered to the end. The list is under "What was not checked".
+
+## Re-checked against the platform's example player (2026-11-23)
+
+The first check ran against an example player that was built alongside the packets. The platform's own player reached main first, with more in it (tool replays, "Why this step?", "Spot the mistake", graded follow-through parts and checked steps). The packets were moved onto it and that earlier player was dropped. What changed:
+
+**The player's guard is stricter.** An authored example is not played on a question when its problem, a step or a "why" contains one of that question's answers, and a short answer such as 3 counts wherever it stands alone as a number. A hidden example is replaced by the platform's own similar problem, or by nothing. Pre-Flight does not warn about it. Under this rule 28 examples were hidden (13 in Algebra I, 3 more in Honors, 12 in Algebra II), five of them with nothing in their place. Each was given new numbers, with the same method and difficulty:
+
+| File | Example | Now |
+|---|---|---|
+| Algebra I | `ex-rate-table` | rows (1, 9), (3, 17), (4, 21), (8, 37) |
+| Algebra I | `ex-equation-from-table` | rows (−1, 1), (0, 5), (1, 9), (5, 25) |
+| Algebra I | `ex-line-two-points` | through (2, 6) and (4, 14): y = 4x − 2 |
+| Algebra I | `ex-translate-vertical`, `ex-translate-horizontal` | points (−3, −3), (1, 1), (5, 5) under f(x) − 8 and f(x + 10) |
+| Algebra I | `ex-parallel-line` | parallel to y = 3x − 4 through (4, 1) |
+| Algebra I | `ex-perpendicular-line` | perpendicular to y = (2/5)x + 4 through (2, 7) |
+| Algebra I | `ex-solve-inequality`, `ex-inequality-reverse` | 2x + 3 > 21 and −5x + 3 ≤ 13 |
+| Algebra I | `ex-graph-system` | y = 3x and y = x + 6, crossing at (3, 9) |
+| Algebra I Honors | `ex-geometric-sequence` | 625, 125, 25, 5 (ratio 1/5) |
+| Algebra II Honors | `ex-u2-identify`, `ex-u2-map`, `ex-u2-match` | vertex (−4, 5); y = 3√(x + 1) − 4; center (−5, 4) |
+| Algebra II Honors | `ex-u3-derive` | the inverse of f(x) = 4x + 20 |
+| Algebra II Honors | `ex-u4-vertex`, `ex-u4-plot` | vertex (5, −4); g(x) = −\|x + 8\| + 9 |
+| Algebra II Honors | `ex-u8-trinomial-signs` | x² − 7x − 8 |
+| Algebra II Honors | `ex-u9-add`, `ex-u9-multiply` | √8 + √32; 2√3 · 5√15 |
+| Algebra II Honors | `ex-u10-evaluate`, `ex-u10-properties` | 27^(5/3); (y^(3/5))^10 |
+| Algebra II Honors | `ex-u11-rational` | (x − 1)^(5/2) = 32 |
+
+The guided note that quotes an example on one line was changed with it.
+
+**What plays now.** Every question that names an example is played that example. Two later Algebra I questions that borrow their skill's first example (`tg-u3-q2`, and `tg-u4-h1` in Honors) are played the platform's own similar problem instead, because the borrowed numbers meet their own answers. Four Algebra I Step Algebra examples and the Algebra II "isolate the radical first" example are played as tool replays: the board's own lines, from the lesson's moves. The Algebra II one is now written for the radical equation tool, whose replay knows the squaring move.
+
+**Opening.** On Classwork the example opens by itself before the first question on a skill. On the second question of a skill it opens again, faded, only where the example hands over (a built-in replay does; the packets' step cards do not). An example that opens by itself is recorded as shown, not as help the student asked for, so it does not make the attempt a supported one.
+
+**Follow-through is graded.** A later part of an answer box is marked right on the answer that follows from the student's own earlier value, as well as on its own key. Every such part of the packets was graded with a slip carried through and with a wrong value. One part does not benefit: Algebra II Unit 3 question 7, where the later answer is the earlier expression plus 1. A carried expression is keyed in brackets and the comparison reads it as written, so the simplified answer from a slip is still marked wrong there, as it would be with no follow-through.
+
+**The checked step.** Algebra II Unit 8 question 6 (the ac method) opens its last part on a factor-pair step in the tool. The step now names the trinomial it works on, which the validator requires.
+
+**One platform fix.** The player's Back button and the "Spot the mistake" choices changed one border property while the whole border was set, which made React log a console warning on every example. The whole border is swapped now.
+
+**Screens.** `node tests/browser/thanksgivingPacketCheck.mjs` was run again on all three files at both widths, against the platform's player: 394 of 394 screens passed (108 Algebra I, 130 Algebra I Honors, 156 Algebra II Honors), with no console error and nothing off the side. The lesson's own example plays on 53 of 54, 63 of 65 and 70 of 78 questions; the platform's own plays on the two borrowers named above and on the two Algebra II parent-function questions; the six SAT questions are Practice and are offered none.
+
+**Not re-done on 2026-11-23.** The answering described below (right and wrong answers through the screen) was not repeated on the platform's player. The tools, the graders and unlimited tries are the same code; the example player, follow-through labels and the checked step are new on those screens and were seen only as far as the sweep goes: each question renders, its example opens and closes, and nothing runs off the side. The checked step on Unit 8 question 6 was not driven. "Why this step?" and "Spot the mistake" were not driven on packet questions.
 
 ## What was checked and how
 
@@ -21,7 +63,7 @@ Before this check, the packets had passed their own tests but nobody had seen a 
 
 - it renders with no page error, no console error and no error text;
 - the strip above it says "Unlimited tries on this question";
-- its worked example opens by itself or on request, as the lesson's rule says it should, is the authored step card with the number of steps that were written, and closes on "Go to my question";
+- its worked example opens by itself or on request, as the player's rules say it should, is the lesson's own example wherever the question names one, and closes on "Your turn";
 - nothing reaches past the right edge, with the example open and with it closed.
 
 | File | Questions | Rendered, desktop | Rendered, phone | Authored example plays | Platform's own example | No example |
@@ -198,14 +240,15 @@ These came from building the three files, the example player and the unlimited-a
 
 ### Worked examples
 
-- **The player's rule treats a label the student must pick as a leaked answer.** "function", "geometric", "no solution" and every option of a choice are refused in an example, whichever case the question is. Examples now say the conclusion in other words. Upgrade: an allow-list for choice labels, or compare computed values only.
-- **Words are matched as plain text.** "x + 5x = 42" was refused for containing "x = 4". Lists such as factor pairs or coefficients count every number in them as a stated result.
+- **The player's guard counts any number.** An example is hidden on a question if any step or "why" holds a number equal to one of that question's answers, even as a coordinate, an index such as f(2), or the 1 in 1/2. On questions whose answers are several small coordinates, an example has to be written around four or five digits. Upgrade: count a number only where a step states it as a result, or compare the example's computed values with the question's.
+- **A hidden example is silent.** Pre-Flight does not say that an authored example will not be shown; the question quietly gets the platform's own, or nothing. Only a test that asks the player finds it. Upgrade: a Pre-Flight warning that names the question, the example and the step.
+- **A label the student must pick counts as a leaked answer.** "function", "geometric", "no solution" and every option of a choice are refused in an example, whichever case the question is. The packets' examples say the conclusion in other words. Upgrade: an allow-list for choice labels.
+- **Words are matched as plain text.** "x + 5x = 42" is refused for containing "x = 4".
 - **"State the facts of a parent function" questions cannot have an authored example**, because any honest sibling shares the facts. They use the platform's built-in example.
-- **Pre-Flight warns only about a question's own example**, not one it borrows from an earlier question. The packet tests check both.
-- **Tool replays (`moves`) do not play yet** and have no vocabulary check. The engine calls the radical move `radicalRaise` where the guide says `square`; there is no move for distributing, combining like terms or splitting an absolute value.
-- **"Opened once" is per device.** A student who opens a question on a second device before any try sees the example open again.
+- **A later question borrows its skill's first example**, and the guard is applied to the borrower too. A sequence question cannot borrow another sequence's example if one of its own terms is 2, since every example writes f(2).
+- **Replays cover Step Algebra and radical equations.** A lesson's own moves for the plane, the inequality builder and division are not played yet. Step Algebra has no move for distributing, combining like terms or splitting an absolute value, so those examples are step cards.
 - **Examples have no Spanish.** Translate on an authored step usually says there is no translation yet.
-- **Follow-through labels show their braces** until follow-through grading ships, and nothing says whether an expression such as `{root}^2` will be evaluated.
+- **Follow-through on an expression that is not one term works only for the literal text.** See Unit 3 question 7 above. Upgrade: compare a bracketed key by value.
 
 ### Unlimited attempts
 

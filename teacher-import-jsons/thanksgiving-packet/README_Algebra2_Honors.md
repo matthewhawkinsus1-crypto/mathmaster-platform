@@ -65,8 +65,10 @@ The questions are in `scripts/content/algebra2HonorsThanksgivingPacket/` (`units
 
 ## Known limits
 
-- Follow-through grading and checkpoints are written into the answer boxes (`followThrough`, `checkpoint`) but nothing reads them yet. Until they ship, each part is graded against its own key.
-- Every example has a step card (`steps`), which is what the player plays. The Step Algebra example for radical equations also carries a tool replay (`moves`), which does not play yet. The absolute value examples carry step cards only: the documented replay vocabulary has no move for splitting an absolute value equation.
+- Follow-through is graded: a later part of an answer box is marked right on the answer that follows from the student's own earlier value, as well as on its own key. One part does not benefit (Unit 3 question 7): a carried expression is keyed in brackets, which the comparison reads as written.
+- Unit 8 question 6 opens its last part on a checked factor-pair step in the tool (`checkpoint`, with the trinomial as `of`). After two refusals a student may answer without the step.
+- Every example has a step card (`steps`). The "isolate the radical first" example also carries the radical equation tool's own moves (`moves`), and is played as that tool's replay. The absolute value examples are step cards only: Step Algebra's replay has no move for splitting an absolute value equation.
+- A new example has to pass the player's guard: no step or reason may hold a number equal to an answer of the question that plays it. `tests/platform/thanksgivingPacketAlgebra2Honors.test.mjs` asks the player for every question.
 
 ## Checked on a screen
 

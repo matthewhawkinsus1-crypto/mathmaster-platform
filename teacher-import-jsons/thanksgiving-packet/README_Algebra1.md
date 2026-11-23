@@ -73,7 +73,8 @@ The builder refuses to write a packet in which a question has no example before 
 
 ## Known follow-ups (not changed here)
 
-- The worked-example player is not live yet. Until it is, students see the guided notes on the first question of each skill, and "See a similar problem worked" where the platform has one.
+- Two later questions that borrow their skill's first example (Unit 3 question 2, and the Honors question of Unit 4) are played the platform's own similar problem instead: the borrowed example's numbers meet their own answers, and the player hides an example that would state one.
+- A new example has to pass the player's guard: no step or reason may hold a number equal to an answer of the question that plays it. `tests/platform/thanksgivingPacketAlgebra1.test.mjs` asks the player for every question.
 - No Spanish version of the hints and worked solutions is written, as in every other lesson in this folder.
 
 ## Checked on a screen
