@@ -199,10 +199,11 @@ test('the family message is factual, courteous, about one student, and covers th
 });
 
 test('the principal report lists each repeat offender with ID, every date and time, and the family contact', () => {
+  const submitted = { form: { state: 'submitted' } };
   const list = [
-    incident({ type: 'tardy', occurredAtMs: at('08:05', '2026-11-18') }),
-    incident({ type: 'dressCode', occurredAtMs: at('08:10', '2026-11-20') }),
-    incident({ type: 'idViolation', detail: 'idRemoved', occurredAtMs: at('10:15', '2026-12-01') }),
+    incident({ type: 'tardy', occurredAtMs: at('08:05', '2026-11-18'), ...submitted }),
+    incident({ type: 'dressCode', occurredAtMs: at('08:10', '2026-11-20'), ...submitted }),
+    incident({ type: 'idViolation', detail: 'idRemoved', occurredAtMs: at('10:15', '2026-12-01'), ...submitted }),
   ];
   const offenders = repeatOffenders({ incidents: list, asOfDateKey: '2026-12-01' });
   const report = principalReport({
@@ -219,8 +220,25 @@ test('the principal report lists each repeat offender with ID, every date and ti
   assert.match(report.body, /1\. Ada Lovelace \(ID 1500101\), Algebra I \(Period 1\): 3 violations in 10 school days/);
   assert.match(report.body, /- Wed, 11\/18 8:05 AM: Tardy\n {3}- Fri, 11\/20 8:10 AM: Dress Code\n {3}- Tue, 12\/1 10:15 AM: ID Violation · ID removed/);
   assert.match(report.body, /Parent contact: Text message on Fri, 11\/20 3:40 PM \(Sent through SchoolStatus\)/);
+  assert.match(report.body, /Each was also submitted to the Campus Violation Tracker form\./, 'every one was');
   const none = principalReport({ offenders: [], asOfDateKey: '2026-12-01' });
   assert.match(none.body, /No student has repeated violations/);
+});
+
+test('the principal report says which violations are not on the district form yet, and never claims they all are', () => {
+  const list = [
+    incident({ type: 'tardy', occurredAtMs: at('08:05', '2026-11-30'), form: { state: 'submitted' } }),
+    incident({ type: 'dressCode', occurredAtMs: at('08:10', '2026-11-30'), form: { state: 'unknown' } }),
+    incident({ type: 'deviceCollected', occurredAtMs: at('09:15', '2026-12-01'), form: { state: 'failed', reason: 'No district ID on file' } }),
+    incident({ type: 'tardy', occurredAtMs: at('10:15', '2026-12-01'), form: { state: 'pending' } }),
+  ];
+  const report = principalReport({ offenders: repeatOffenders({ incidents: list, asOfDateKey: '2026-12-01' }), studentsById: students, asOfDateKey: '2026-12-01' });
+  assert.doesNotMatch(report.body, /Each was also submitted/);
+  assert.match(report.body, /Each violation was submitted to the Campus Violation Tracker form unless its line says otherwise\./);
+  assert.match(report.body, /- Mon, 11\/30 8:05 AM: Tardy\n/, 'a submitted one has no note');
+  assert.match(report.body, /- Mon, 11\/30 8:10 AM: Dress Code \(may not be on the district form: its send got no answer\)/);
+  assert.match(report.body, /- Tue, 12\/1 9:15 AM: Device Collected \(not on the district form: the send failed\)/);
+  assert.match(report.body, /- Tue, 12\/1 10:15 AM: Tardy \(not yet on the district form\)/);
 });
 
 test('the Outlook link opens a filled-in message for the teacher to review and send', () => {

@@ -6,7 +6,7 @@
  * tests/browser/teacherWorkflow/studentScreenChange.mjs counts the student's),
  * and fails (exit 1) unless:
  *
- *   L1  every one of the 22 destinations in the teacher's navigation has exactly
+ *   L1  every one of the 23 destinations in the teacher's navigation has exactly
  *       one main landmark, it is the workspace's own (#mm-main-content), and it
  *       holds the screen's content, not the navigation or the header;
  *   L2  the dialogs and drawers a teacher opens on top of a screen leave it at
@@ -222,7 +222,7 @@ try {
 
       // ----------------------------------------------- L1, every destination
       const titles = await page.locator(`${NAV} button[title]`).evaluateAll((buttons) => buttons.map((button) => button.getAttribute('title')).filter((title) => !/sidebar$/i.test(title)));
-      check(tag, titles.length === 22, `L1 the navigation has 22 destinations (${titles.length})`);
+      check(tag, titles.length === 23, `L1 the navigation has 23 destinations (${titles.length})`);
       for (const title of titles) {
         await page.locator(NAV).locator(`button[title="${title}"]`).evaluate((button) => button.click());
         await drawn(page);

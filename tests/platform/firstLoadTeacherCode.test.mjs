@@ -187,17 +187,21 @@ test('the needs-attention queue and the Action Center wait for the kit, and rebu
   assert.match(scope, /if \(!teacherKit \|\| teacherWorkspaceMode !== 'teacher' \|\| teacherTab !== 'actionCenter'\) \{\s*return \{ units: \[\], authorizedClassIds: \[\] \};/);
   assert.match(scope, /return teacherKit\.projectGradeTransferUnits\(\{/);
   assert.match(scope, /\}, \[teacherKit, /, 'the memo depends on the kit');
-  // Its return check-ins, and the attendance correction helpers, are the kit's too.
+  // Its return check-ins are the kit's too.
   const returns = region(actionCenterCode, 'const actionReturnCheckIns = useMemo(() => {', '\n  const teacherActionItems', 'return check-ins memo');
   assert.match(returns, /if \(!teacherKit \|\| teacherWorkspaceMode !== 'teacher' \|\| teacherTab !== 'actionCenter'\) return \[\];/);
   assert.match(returns, /teacherKit\.resolveReturnCheckIns\(\{/);
   assert.match(returns, /\}, \[teacherKit, /, 'the memo depends on the kit');
   // Since the App split the correction is createAttendanceExtensionControls',
-  // which App hands requireTeacherKit.
+  // which App hands requireTeacherKit. Its two reconciliation helpers are
+  // loaded by the correction itself, not with a teacher's first page either.
   const attendance = executableSource(teacherControlsSource('createAttendanceExtensionControls'));
   assert.ok(teacherControlsSeam('createAttendanceExtensionControls').parameters.includes('requireTeacherKit'));
-  assert.match(attendance, /requireTeacherKit\(\)\.reconcileAssignmentExtensionsForCorrection\(\{/);
-  assert.match(attendance, /requireTeacherKit\(\)\.buildStudentExtensionPatch\(\{/);
+  const reconcile = region(attendance, 'const reconcileAttendanceExtensions = async (event, record) => {', 'const handleKeepAttendanceExtension', 'the correction');
+  const load = reconcile.indexOf("const { buildStudentExtensionPatch, reconcileAssignmentExtensionsForCorrection } = await import('../../../platform/attendance/extensionReconciliation.js');");
+  assert.ok(load >= 0, 'the correction imports the helpers when it runs');
+  assert.ok(load < reconcile.indexOf('reconcileAssignmentExtensionsForCorrection({') && load < reconcile.indexOf('buildStudentExtensionPatch({'), 'before either is called');
+  assert.doesNotMatch(read('src/app/teacher/teacherKit.js'), /extensionReconciliation/, 'the kit no longer carries them');
 });
 
 test('the authoring states and the exam-practice rule are the same values from their new homes', async () => {

@@ -222,32 +222,3 @@ button.tw-stat[aria-pressed='true'] { border-color: var(--mm-focus); box-shadow:
      than the screen, so it may wrap (TT27). */
   .tw-pill { white-space: normal; text-align: left; }
 }
-
-/* Discipline Tracker: an attendance-style roster, one row per student. */
-.tw-discipline-row {
-  display: grid;
-  grid-template-columns: minmax(180px, 1fr) auto;
-  gap: 6px 12px;
-  align-items: center;
-  padding: 10px 4px;
-  border-bottom: 1px solid var(--mm-divider);
-}
-.tw-discipline-row__who { display: grid; gap: 2px; min-width: 0; }
-.tw-discipline-row__buttons { display: flex; flex-wrap: wrap; gap: 6px; justify-content: flex-end; }
-.tw-discipline-tap { min-height: 40px; min-width: 64px; }
-.tw-discipline-tap[data-count] { border-color: var(--mm-warning-border); background: var(--mm-warning-bg); color: var(--mm-warning-text); }
-.tw-discipline-row__taps {
-  grid-column: 1 / -1;
-  display: grid;
-  gap: 4px;
-  margin: 0;
-  padding: 0 0 0 4px;
-  list-style: none;
-  font-size: calc(13 * var(--mm-px));
-}
-.tw-discipline-row__taps li { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
-@media (max-width: 640px) {
-  .tw-discipline-row { grid-template-columns: 1fr; }
-  .tw-discipline-row__buttons { justify-content: flex-start; }
-  .tw-discipline-tap { flex: 1 1 40%; }
-}
