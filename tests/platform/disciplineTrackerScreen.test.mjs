@@ -12,10 +12,13 @@ import {
   contactForDay,
   dayIncidentsByStudent,
   daySummary,
+  FORM_REFRESH_MS,
   formStateWords,
+  needsFormRefresh,
   newTapId,
   parentDrafts,
   recentViolationCount,
+  undoNotice,
 } from '../../src/platform/teacher/disciplineTrackerModel.js';
 import { componentSource, executableSource, region } from './helpers/sourceContract.mjs';
 
@@ -106,6 +109,38 @@ test('a tap saves through the server, once; buttons are for today only; an undo 
   assert.match(region(source, '{isToday && (', 'role="group"', 'the buttons'), /tw-discipline-row__buttons/);
   assert.match(region(source, 'const undo = async (incident) => {', 'const setDetail', 'undo'), /await voidDisciplineIncident\(\{ incidentId: incident\.id \}\)/);
   assert.doesNotMatch(source, /deleteDoc|\.delete\(/);
+});
+
+test('an undo says plainly whether the district form may already have the violation', () => {
+  assert.deepEqual(undoNotice({ label: 'Tardy' }), { tone: 'success', text: 'Tardy undone. It will not be sent.' });
+  const sent = undoNotice({ label: 'Tardy', alreadySubmitted: true });
+  assert.equal(sent.tone, 'warning');
+  assert.match(sent.text, /had already been sent to the district form/);
+  // A send that got no answer may have been recorded: never "It will not be sent".
+  const maybe = undoNotice({ label: 'Tardy', maybeSubmitted: true });
+  assert.equal(maybe.tone, 'warning');
+  assert.match(maybe.text, /the form may have it: check the form's responses/);
+  assert.doesNotMatch(maybe.text, /will not be sent/);
+  const source = screen();
+  assert.match(region(source, 'const undo = async (incident) => {', 'const setDetail', 'undo'), /setMessage\(undoNotice\(\{ label: violationLabel\(incident\), alreadySubmitted: result\.alreadySubmitted, maybeSubmitted: result\.maybeSubmitted \}\)\)/);
+});
+
+test('while today\'s taps wait for the district form, the screen looks again every minute, keeping taps still saving', () => {
+  const today = '2026-11-30';
+  assert.equal(needsFormRefresh([tap()], today), true, 'a tap waiting for the after-class send');
+  assert.equal(needsFormRefresh([tap({ form: { state: 'sending' } })], today), true);
+  for (const state of ['submitted', 'failed', 'unknown']) assert.equal(needsFormRefresh([tap({ form: { state } })], today), false, `${state} is settled`);
+  assert.equal(needsFormRefresh([tap({ voidedAtMs: at('08:06') })], today), false, 'an undone tap is not sent');
+  assert.equal(needsFormRefresh([tap({ dateKey: '2026-11-27' })], today), false, 'an earlier day was sent then');
+  assert.equal(needsFormRefresh([tap({ saving: true })], today), false, 'a tap still saving has no form state yet');
+  assert.equal(FORM_REFRESH_MS, 60000);
+  const source = screen();
+  const effect = region(source, 'const awaitingForm = isToday && needsFormRefresh(incidents, today);', '}, [awaitingForm, dateKey]);', 'the refresh');
+  assert.match(effect, /if \(!awaitingForm\) return undefined;/);
+  assert.match(effect, /if \(document\.visibilityState === 'visible'\) load\(\);/, 'only while the tab is showing');
+  assert.match(effect, /\}, FORM_REFRESH_MS\);\s*return \(\) => clearInterval\(timer\);/);
+  const load = region(source, 'const load = async () => {', 'useEffect(() => { load(); }, [dateKey]);', 'load');
+  assert.match(load, /setIncidents\(\(current\) => \[\.\.\.listed, \.\.\.current\.filter\(\(entry\) => entry\.saving && !listedIds\.has\(entry\.id\)\)\]\);/, 'a refresh never drops a tap mid-save');
 });
 
 test('a family message logged here is a Parent Contacts record; the principal report opens in Outlook', () => {

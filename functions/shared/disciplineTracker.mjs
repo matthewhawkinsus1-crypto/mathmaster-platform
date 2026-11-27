@@ -436,6 +436,19 @@ export const parentMessage = ({ student = {}, incidents = [], dateKey, teacherNa
 
 /* ------------------------------------------------------------ principal report */
 
+/**
+ * Where one violation stands with the district's Campus Violation Tracker
+ * form, as the principal reads it: nothing when it was submitted, otherwise
+ * what is true. The report never claims a submission that did not happen.
+ */
+const reportFormNote = (incident = {}) => {
+  const state = text(incident.form?.state) || 'pending';
+  if (state === 'submitted') return '';
+  if (state === 'unknown') return ' (may not be on the district form: its send got no answer)';
+  if (state === 'failed') return ' (not on the district form: the send failed)';
+  return ' (not yet on the district form)';
+};
+
 const CONTACT_METHOD_WORDS = Object.freeze({ phone: 'Phone call', email: 'Email', text: 'Text message', conference: 'Conference', voicemail: 'Voicemail', other: 'Contact' });
 
 /**
@@ -450,11 +463,15 @@ export const principalReport = ({
 } = {}) => {
   const from = schoolDaysEndingOn(asOfDateKey, rule.totalSchoolDays)[0] || asOfDateKey;
   const subject = `Repeat student violations: ${disciplineShortDay(from)} to ${disciplineShortDay(asOfDateKey)}${teacherName ? ` (${teacherName})` : ''}`;
+  const listed = offenders.flatMap((offender) => offender.incidents || []);
+  const allSubmitted = listed.length > 0 && listed.every((incident) => !reportFormNote(incident));
   const lines = [
     principalName ? `${principalName},` : 'Hello,',
     '',
     offenders.length
-      ? `These students have repeated violations in my classes over the last ${rule.totalSchoolDays} school days (${rule.totalCount} or more violations, or the same violation ${rule.sameTypeCount} times in ${rule.sameTypeSchoolDays} school days). Each was also submitted to the Campus Violation Tracker form.`
+      ? `These students have repeated violations in my classes over the last ${rule.totalSchoolDays} school days (${rule.totalCount} or more violations, or the same violation ${rule.sameTypeCount} times in ${rule.sameTypeSchoolDays} school days). ${allSubmitted
+        ? 'Each was also submitted to the Campus Violation Tracker form.'
+        : 'Each violation was submitted to the Campus Violation Tracker form unless its line says otherwise.'}`
       : `No student has repeated violations in my classes over the last ${rule.totalSchoolDays} school days.`,
   ];
   offenders.forEach((offender, index) => {
@@ -463,7 +480,7 @@ export const principalReport = ({
     const classes = [...new Set(offender.incidents.map((incident) => classLabelsById.get(incident.classId) || incident.classPeriod || ''))].filter(Boolean);
     lines.push('', `${index + 1}. ${formStudentName(student) || 'Name unavailable'} (ID ${isValidDistrictStudentId(sis) ? sis : 'not on file'})${classes.length ? `, ${classes.join(', ')}` : ''}: ${offender.reasons.join('; ')}`);
     offender.incidents.forEach((incident) => {
-      lines.push(`   - ${disciplineShortDay(incident.dateKey)} ${disciplineTime(incident.occurredAtMs)}: ${violationLabel(incident)}`);
+      lines.push(`   - ${disciplineShortDay(incident.dateKey)} ${disciplineTime(incident.occurredAtMs)}: ${violationLabel(incident)}${reportFormNote(incident)}`);
     });
     const firstAt = offender.incidents[0]?.occurredAtMs ?? 0;
     const contacts = (contactsByStudentId.get(offender.studentId) || [])

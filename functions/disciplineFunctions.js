@@ -153,7 +153,13 @@ exports.voidDisciplineIncident = onCall(async (request) => {
     transaction.update(ref, update);
     return { ...data, ...update };
   });
-  return { ...disciplineIncidentView(ref.id, result), alreadySubmitted: result.form?.state === "submitted" };
+  // An `unknown` send may have reached the form (Google recorded it but the
+  // reply was lost), so the teacher is told it might need correcting there.
+  return {
+    ...disciplineIncidentView(ref.id, result),
+    alreadySubmitted: result.form?.state === "submitted",
+    maybeSubmitted: result.form?.state === "unknown",
+  };
 });
 
 exports.setDisciplineIncidentDetail = onCall(async (request) => {
