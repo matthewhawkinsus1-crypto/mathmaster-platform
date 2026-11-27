@@ -210,22 +210,33 @@ export default function GradeTransferCenter({
     ],
   );
 
+  // The TEAMS sync sends exactly what an export of this marking period would:
+  // the same students (with corrected district IDs), export history, Practice
+  // Passes and per-student deadlines. "Send now", the TEAMS Sync extension and
+  // the server's 30-minute publish (buildTeamsSyncTargetsFromRecords) all
+  // send this one set; each publish replaces the class's set, so they must.
+  const buildSyncTargets = (classId) => buildTeamsSyncTargets({
+    classId,
+    classes,
+    assignments,
+    students: projectedStudents,
+    teacherEmail,
+    isRootAdmin,
+    snapshots,
+    practicePasses,
+    resolveStudentFinalDeadline,
+    includeAssignment: (assignment) => resolveAssignmentGradingPeriod(assignment, gradingPeriodSettings || {}).isCurrent,
+  });
+
   // The TEAMS Sync extension (extensions/teams-sync) works through this
-  // screen while it is open: window.mathmasterTeamsSync builds targets from
-  // the same inputs the export uses, read fresh at each call.
+  // screen while it is open: window.mathmasterTeamsSync publishes
+  // buildSyncTargets, read fresh at each call.
   const teamsSyncContext = useRef(null);
   useEffect(() => {
     teamsSyncContext.current = {
       ready: stateLoaded,
-      classes,
       authorizedClasses,
-      assignments,
-      students: projectedStudents,
-      teacherEmail,
-      isRootAdmin,
-      snapshots,
-      practicePasses,
-      resolveStudentFinalDeadline,
+      buildTargets: buildSyncTargets,
     };
   });
   // Loaded after the screen, so the teacher's first load carries none of it.
@@ -485,22 +496,7 @@ export default function GradeTransferCenter({
     });
   };
 
-  // The TEAMS sync sends exactly what an export of this marking period would:
-  // the same students (with corrected district IDs), export history, Practice
-  // Passes and per-student deadlines.
   const syncClasses = authorizedClasses.filter((entry) => !classFilter.size || classFilter.has(entry.classId));
-  const buildSyncTargets = (classId) => buildTeamsSyncTargets({
-    classId,
-    classes,
-    assignments,
-    students: projectedStudents,
-    teacherEmail,
-    isRootAdmin,
-    snapshots,
-    practicePasses,
-    resolveStudentFinalDeadline,
-    includeAssignment: (assignment) => resolveAssignmentGradingPeriod(assignment, gradingPeriodSettings || {}).isCurrent,
-  });
 
   const assignmentScopeTitle = assignmentFilter ? (assignmentsById.get(assignmentFilter)?.title || 'This assignment') : null;
   const selectedGradeCount = selectedUnits.reduce((sum, unit) => sum + (summaries.get(unit.key)?.fullRowCount || 0), 0);

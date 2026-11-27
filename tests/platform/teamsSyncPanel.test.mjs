@@ -76,6 +76,20 @@ test('what needs a decision is grouped and names the student, lesson and TEAMS s
   assert.equal(groups[4].items[0].message, 'A future case.', 'an unknown code is still shown');
 });
 
+test('every exception the engine raises has its own heading, and the #Count hold is shown as waiting', () => {
+  // A code renamed in the engine would otherwise fall to "Other" without a
+  // failing test (#617 replaced PROVISIONAL_SCORE_WILL_COUNT with the hold).
+  for (const code of Object.values(TEAMS_EXCEPTION)) {
+    const [group] = groupTeamsExceptions([{ code }]);
+    assert.notEqual(group.title, 'Other', `${code} has a heading`);
+  }
+  const [held] = groupTeamsExceptions([
+    { code: TEAMS_EXCEPTION.COUNT_HELD_FOR_FINAL_GRADE, studentId: 'u-ada', sisStudentId: '1500101', lesson: 'Nth Roots - DOL', sectionRef: '15001/05', message: 'This student has no final grade yet.' },
+  ], () => 'Ada Lovelace');
+  assert.equal(held.title, '#Count waiting for a final grade');
+  assert.deepEqual(held.items[0], { code: TEAMS_EXCEPTION.COUNT_HELD_FOR_FINAL_GRADE, who: 'Ada Lovelace', where: 'Nth Roots - DOL · TEAMS 15001/05', values: '', message: 'This student has no final grade yet.' });
+});
+
 test('sending grades reports what the server kept and what it left out', () => {
   assert.deepEqual(publishResultMessage({ published: 4, droppedRows: 0 }, 'Algebra I - 5'), {
     tone: 'success', text: 'Sent 4 lesson sections for Algebra I - 5 to the sync. The MathMaster extension in your TEAMS tab applies them on its next run.',

@@ -104,7 +104,8 @@ export default function TeamsSyncPanel({
         <p className="tw-small tw-muted" style={{ margin: 0 }}>
           The MathMaster extension in your signed-in TEAMS tab creates each lesson&apos;s Warm-Up, Classwork, Practice and DOL
           assignments and imports the grades. While a lesson is open, scores show in TEAMS at #Count 0 and do not count toward
-          the average. When it closes, #Count changes to 1 once. Grades you typed in TEAMS are never overwritten. Your TEAMS
+          the average. When it closes, #Count changes to 1 once, after every student whose open-lesson score is in TEAMS has a
+          final grade (TEAMS cannot clear a score, so it waits). Grades you typed in TEAMS are never overwritten. Your TEAMS
           password never leaves your browser. MathMaster sends each linked class&apos;s current grades to the sync every 30 minutes
           from 6 am to 10 pm; Send now does it right away.
         </p>

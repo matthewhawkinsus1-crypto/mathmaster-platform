@@ -26,8 +26,14 @@ Leave the TEAMS tab alone while a sync runs; the extension drives it.
 ## What a sync does
 
 For one class: read each linked section in TEAMS (gradebook and Assignments
-pages), publish Grade Transfer's targets for that marking period, then repeat
-*step → apply → read back* (`lib/runner.js`) until the server says done.
+pages), publish Grade Transfer's targets for MathMaster's current marking
+period, then repeat *step → apply → read back* (`lib/runner.js`) until the
+server says done.
+
+Those targets are the same set Grade Export's **Send now** and the server's
+30-minute publish (6 am–10 pm Central) send: Grade Transfer builds them once
+(`buildSyncTargets`) and the bridge publishes that. Each publish replaces the
+class's set, so the three must agree.
 
 | Server operation | In TEAMS (`lib/teamsPage.js`) |
 |---|---|
@@ -75,7 +81,11 @@ on the page.
 
 ## Known limits
 
-- One marking period per sync: the one TEAMS opens (the current one).
+- One marking period per sync: the one TEAMS opens (the current one). The
+  lessons sent are those in MathMaster's current marking period
+  (`settings/gradingPeriods`); a lesson whose due date TEAMS's open marking
+  period does not contain is not written and shows as "No TEAMS marking period
+  contains the due date."
 - Roster entry and withdrawal dates are not on the gradebook; a scheduled
   student counts as on the section, a dropped one does not.
 - A locked marking period is not detected before acting; TEAMS refuses the

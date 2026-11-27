@@ -92,7 +92,10 @@ const GROUPS = [
   { title: 'Grades already in TEAMS that differ from MathMaster', codes: [TEAMS_EXCEPTION.MANUAL_GRADE_DIFFERS] },
   { title: 'Grades cleared in TEAMS', codes: [TEAMS_EXCEPTION.TEACHER_CLEARED] },
   { title: 'Students not on exactly one of this class\'s TEAMS sections', codes: [TEAMS_EXCEPTION.NOT_ENROLLED, TEAMS_EXCEPTION.ENROLLED_IN_SEVERAL] },
-  { title: 'Provisional scores that would count', codes: [TEAMS_EXCEPTION.PROVISIONAL_SCORE_WILL_COUNT, TEAMS_EXCEPTION.PROVISIONAL_WEIGHT_NOT_ZERO, TEAMS_EXCEPTION.REOPENED_AFTER_COUNTED] },
+  // DeSoto's TEAMS cannot clear a cell, so a closed lesson keeps #Count 0
+  // while a student's provisional score is still there (owner, 2026-11-27).
+  { title: '#Count waiting for a final grade', codes: [TEAMS_EXCEPTION.COUNT_HELD_FOR_FINAL_GRADE] },
+  { title: 'Provisional scores that would count', codes: [TEAMS_EXCEPTION.PROVISIONAL_WEIGHT_NOT_ZERO, TEAMS_EXCEPTION.REOPENED_AFTER_COUNTED] },
   { title: 'TEAMS did not keep a grade', codes: [TEAMS_EXCEPTION.SAVE_NOT_PERSISTING] },
   {
     title: 'TEAMS assignments to check',
