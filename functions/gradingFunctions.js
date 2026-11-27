@@ -3783,3 +3783,167 @@ exports.confirmGradeTransferUploaded = onCall(async (request) => {
   }
   return { transferId, confirmed: true };
 });
+
+/*
+ * Frontline TEAMS sync (route E, #612/#613). MathMaster's server holds the
+ * targets, the ledger and the plan; the teacher's Chrome extension, signed in
+ * to TEAMS, applies each batch through TEAMS's own pages and reports what it
+ * read back. No district credential reaches MathMaster. The engine and every
+ * input check are pure and shared: functions/shared/teamsSyncEngine.mjs and
+ * functions/shared/teamsSyncServer.mjs. These callables only authorize, load
+ * and store. Collections (server-only in firestore.rules):
+ *   teamsSyncClasses/{classId}   linked TEAMS sections, the leased batch, last step
+ *   teamsSyncTargets/{docId}     what Grade Transfer published to send, per lesson section
+ *   teamsSyncLedger/{docId}      what MathMaster wrote to TEAMS, per lesson section and TEAMS section
+ */
+let teamsSyncServerModule = null;
+const teamsSyncServer = async () => {
+  if (!teamsSyncServerModule) teamsSyncServerModule = await import("./shared/teamsSyncServer.mjs");
+  return teamsSyncServerModule;
+};
+// A ledger key carries a TEAMS section ("15001/05"), which a document id cannot.
+const teamsSyncDocId = (classId, key) => `${classId}~${require("node:crypto").createHash("sha256").update(`${classId}|${key}`).digest("hex").slice(0, 40)}`;
+const teamsSyncInput = (module, fn) => {
+  try {
+    return fn();
+  } catch (error) {
+    if (error instanceof module.TeamsSyncInputError) throw new HttpsError("invalid-argument", error.message);
+    throw error;
+  }
+};
+// Firestore refuses undefined; the engine's objects are plain JSON.
+const teamsSyncPlain = (value) => JSON.parse(JSON.stringify(value ?? null));
+
+exports.setTeamsSyncSections = onCall(async (request) => {
+  await requireTeacher(request);
+  const db = getFirestore();
+  const module = await teamsSyncServer();
+  const authority = await gradeTransferClassAuthority(db, request, request.data?.classId);
+  const sections = teamsSyncInput(module, () => module.normalizeTeamsSections(request.data?.sections));
+  const capabilities = teamsSyncInput(module, () => module.normalizeTeamsCapabilities(request.data?.capabilities || null));
+  const ref = db.collection("teamsSyncClasses").doc(authority.classId);
+  await db.runTransaction(async (transaction) => {
+    const existing = (await transaction.get(ref)).data() || {};
+    const pairs = Number(existing.targetCount || 0) * Math.max(1, sections.length);
+    if (pairs > module.TEAMS_SYNC_LIMITS.targetSectionPairs) {
+      throw new HttpsError("failed-precondition", "Publish fewer lesson sections before linking another TEAMS section.");
+    }
+    transaction.set(ref, {
+      classId: authority.classId,
+      teacherOfRecord: authority.email,
+      sections,
+      capabilities,
+      // A batch leased against the old sections must not be completed.
+      issued: null,
+      updatedAt: FieldValue.serverTimestamp(),
+      updatedByUid: request.auth.uid,
+    }, { merge: true });
+  });
+  return { classId: authority.classId, sections, capabilities };
+});
+
+exports.publishTeamsSyncTargets = onCall(async (request) => {
+  await requireTeacher(request);
+  const db = getFirestore();
+  const module = await teamsSyncServer();
+  const authority = await gradeTransferClassAuthority(db, request, request.data?.classId);
+  const classRef = db.collection("teamsSyncClasses").doc(authority.classId);
+  const classState = (await classRef.get()).data() || {};
+  const members = await db.collection("grades").where("classId", "==", authority.classId).select("sisStudentId").get();
+  const roster = module.teamsRosterIndex(members.docs.map((entry) => ({ id: entry.id, ...entry.data() })));
+  const { targets, droppedRows } = teamsSyncInput(module, () => module.normalizeTeamsTargets({
+    targets: request.data?.targets,
+    classId: authority.classId,
+    roster,
+    sectionCount: (classState.sections || []).length || 1,
+  }));
+
+  // Replace this class's published set: a lesson section no longer published
+  // stops being synced (its ledger stays, so TEAMS values stay recognised).
+  const existing = await db.collection("teamsSyncTargets").where("classId", "==", authority.classId).select().get();
+  const keep = new Set(targets.map((target) => teamsSyncDocId(authority.classId, target.key)));
+  const writes = [
+    ...targets.map((target) => (batch) => batch.set(
+      db.collection("teamsSyncTargets").doc(teamsSyncDocId(authority.classId, target.key)),
+      { classId: authority.classId, key: target.key, target: teamsSyncPlain(target), publishedAt: FieldValue.serverTimestamp(), publishedByUid: request.auth.uid },
+    )),
+    ...existing.docs.filter((entry) => !keep.has(entry.id)).map((entry) => (batch) => batch.delete(entry.ref)),
+    (batch) => batch.set(classRef, {
+      classId: authority.classId, teacherOfRecord: authority.email, targetCount: targets.length, targetsPublishedAt: FieldValue.serverTimestamp(),
+    }, { merge: true }),
+  ];
+  for (let index = 0; index < writes.length; index += 400) {
+    const batch = db.batch();
+    writes.slice(index, index + 400).forEach((write) => write(batch));
+    // eslint-disable-next-line no-await-in-loop
+    await batch.commit();
+  }
+  return { classId: authority.classId, published: targets.length, droppedRows };
+});
+
+exports.teamsSyncStep = onCall(async (request) => {
+  await requireTeacher(request);
+  const db = getFirestore();
+  const module = await teamsSyncServer();
+  const authority = await gradeTransferClassAuthority(db, request, request.data?.classId);
+  const dryRun = request.data?.dryRun === true;
+  const classRef = db.collection("teamsSyncClasses").doc(authority.classId);
+  const targetDocs = await db.collection("teamsSyncTargets").where("classId", "==", authority.classId).get();
+  const targets = targetDocs.docs.map((entry) => entry.data()?.target).filter(Boolean);
+
+  return db.runTransaction(async (transaction) => {
+    const classState = (await transaction.get(classRef)).data() || {};
+    const keys = module.teamsLedgerKeysFor(targets, classState.sections || []);
+    const refs = keys.map((key) => db.collection("teamsSyncLedger").doc(teamsSyncDocId(authority.classId, key)));
+    const snapshots = refs.length ? await transaction.getAll(...refs) : [];
+    const ledger = {};
+    snapshots.forEach((entry, index) => { if (entry.exists) ledger[keys[index]] = entry.data()?.entry || {}; });
+
+    const result = teamsSyncInput(module, () => module.teamsSyncStep({
+      classState,
+      targets,
+      ledger,
+      readbacks: request.data?.readbacks || {},
+      outcomes: request.data?.outcomes || [],
+      runnerId: request.data?.runnerId,
+      now: Date.now(),
+      dryRun,
+    }));
+    if (!result.changed) return result.response;
+
+    const changed = module.changedTeamsLedgerKeys(ledger, result.ledger);
+    if (changed.length > 450) throw new HttpsError("resource-exhausted", "Too many lesson sections changed in one step. Publish fewer at once.");
+    changed.forEach((key) => transaction.set(db.collection("teamsSyncLedger").doc(teamsSyncDocId(authority.classId, key)), {
+      classId: authority.classId, key, entry: teamsSyncPlain(result.ledger[key]), updatedAt: FieldValue.serverTimestamp(),
+    }));
+    transaction.set(classRef, {
+      ...teamsSyncPlain({
+        stepCounter: result.classState.stepCounter,
+        issued: result.classState.issued,
+        lastStep: result.classState.lastStep,
+        capabilities: result.classState.capabilities,
+      }),
+      updatedAt: FieldValue.serverTimestamp(),
+    }, { merge: true });
+    logger.info("TEAMS sync step", {
+      classId: authority.classId, by: authority.email, status: result.response.status, ops: result.response.ops.length, changed: changed.length,
+    });
+    return result.response;
+  });
+});
+
+exports.getTeamsSyncState = onCall(async (request) => {
+  await requireTeacher(request);
+  const db = getFirestore();
+  const authority = await gradeTransferClassAuthority(db, request, request.data?.classId);
+  const classState = (await db.collection("teamsSyncClasses").doc(authority.classId).get()).data() || {};
+  return {
+    classId: authority.classId,
+    sections: classState.sections || [],
+    capabilities: classState.capabilities || null,
+    targetCount: Number(classState.targetCount || 0),
+    targetsPublishedAt: serializableGradeTransferDate(classState.targetsPublishedAt),
+    lastStep: classState.lastStep || null,
+    batchLeasedUntil: classState.issued?.leaseUntil ? new Date(Number(classState.issued.leaseUntil)).toISOString() : null,
+  };
+});

@@ -18,7 +18,10 @@ import {
   teamsAssignmentName,
   teamsClearCsv,
   teamsDay,
+  teamsLedgerKey,
+  planTeamsSync,
   teamsTargetFromTransferUnit,
+  buildTeamsSyncTargets,
 } from '../../src/platform/gradeTransfer/teamsSync.js';
 import { buildTransferUnit, teamsCsv } from '../../src/platform/gradeTransfer/gradeTransferModel.js';
 import { createTeamsTestGradebook } from './helpers/teamsTestGradebook.mjs';
@@ -138,7 +141,7 @@ test('demonstration: provisional at weight 0, retries without duplicates, one sw
   assert.equal(gradebook.average(REF, GUS, MP2), before.gus);
   assert.equal(gradebook.average(REF, EVE, MP2), before.eve);
   assert.equal(statusOf(result, EVE), TEAMS_CELL_STATUS.HELD);
-  assert.equal(result.ledger[closing.key].weightState, 'counted');
+  assert.equal(result.ledger[teamsLedgerKey(closing.key, REF)].weightState, 'counted');
 
   // The teacher's own assignments and the TEAMS-only student were never touched.
   assert.equal(gradebook.cell(bell, TEAMS_ONLY), 77);
@@ -258,7 +261,7 @@ test('a save that never persists stops after three attempts and is reported, not
   assert.equal(gradebook.cell(column.id, ADA), 90);
   assert.equal(statusOf(result, BEN), TEAMS_CELL_STATUS.DELIVERED, 'delivered is not verified');
   assert.ok(codes(result).includes(TEAMS_EXCEPTION.SAVE_NOT_PERSISTING));
-  assert.equal(result.ledger[target().key].cells[BEN].pending.attempts, 3);
+  assert.equal(result.ledger[teamsLedgerKey(target().key, REF)].cells[BEN].pending.attempts, 3);
   assert.equal(column.weight, 0, 'the column does not start counting while a final score is unconfirmed');
   assert.deepEqual(gradebook.calls.setColumnWeight, []);
 });
@@ -295,7 +298,8 @@ test('class membership, locked periods, ambiguous and deleted columns stop the w
   assert.deepEqual(codes(twin), [TEAMS_EXCEPTION.AMBIGUOUS_COLUMN]);
   assert.equal(gradebook.calls.createColumn, 1);
 
-  const gone = { ...result.ledger, [target().key]: { ...result.ledger[target().key], columnId: 'A404' } };
+  const ledgerKey = teamsLedgerKey(target().key, REF);
+  const gone = { ...result.ledger, [ledgerKey]: { ...result.ledger[ledgerKey], columnId: 'A404' } };
   result = await runTeamsSync({ targets: [target({ closed: true, rows: rows({ [ADA]: 90 }) })], ledger: gone, adapter: gradebook, capabilities: ZERO_WEIGHT, now });
   assert.deepEqual(codes(result), [TEAMS_EXCEPTION.MAPPED_COLUMN_MISSING]);
   assert.equal(gradebook.calls.createColumn, 1, 'a deleted column is not silently recreated');
@@ -398,7 +402,7 @@ test('a provisional score that equals the final grade becomes final, so reopenin
   result = await runTeamsSync({ targets: [target({ closed: true, rows: rows({ [ADA]: 70, [BEN]: 60 }) })], ledger: result.ledger, adapter: gradebook, capabilities, now });
   const [column] = gradebook.columnsNamed(REF, 'Nth Roots - Classwork');
   assert.equal(column.weight, 1);
-  assert.equal(result.ledger[target().key].cells[ADA].provisional, false);
+  assert.equal(result.ledger[teamsLedgerKey(target().key, REF)].cells[ADA].provisional, false);
   result = await runTeamsSync({
     targets: [target({ closed: true, rows: rows({ [BEN]: 60 }), withheld: [{ studentId: `s${ADA}`, sisStudentId: ADA, reason: 'Student explicitly reopened' }] })],
     ledger: result.ledger, adapter: gradebook, capabilities, now,
@@ -483,4 +487,95 @@ test('a lesson assigned in the previous marking period starts on the first day o
   await runTeamsSync({ targets: [target({ assignedDate: '2026-10-14', dueDate: '2026-10-21', closed: true, rows: rows({ [ADA]: 90 }) })], adapter: gradebook, capabilities: ZERO_WEIGHT, now: clock() });
   const [column] = gradebook.columnsNamed(REF, 'Nth Roots - Classwork');
   assert.deepEqual([column.markingPeriod, column.assignedDate, column.dueDate], [MP2, '2026-10-19', '2026-10-21']);
+});
+
+// DeSoto keeps inclusion students in their own TEAMS section: there are two
+// 5th periods and two 8th periods in TEAMS, but one class in MathMaster.
+test('one MathMaster class linked to two TEAMS 5th periods: each student lands in their own section', async () => {
+  const P5 = 'ALG1-05'; const P5_INC = 'ALG1-55';
+  const base = section();
+  const inP5 = (sis, enteredOn = '2026-11-10') => ({ sisStudentId: sis, enteredOn });
+  const now = clock();
+  const fifth = target({
+    teamsSectionRef: undefined,
+    teamsSectionRefs: [P5, P5_INC],
+    closed: true,
+    rows: rows({ [ADA]: 90, [BEN]: 80, [DEE]: 70, [FAY]: 60, [GUS]: 50, [HAL]: 40 }),
+  });
+  // TEAMS's roster for the regular section, with Fay's and Gus's entries.
+  const sectionsWithMoves = createTeamsTestGradebook({
+    sections: {
+      [P5]: { ...base, roster: [ADA, BEN, CAL].map((sis) => inP5(sis, '2026-08-13')).concat([inP5(FAY), inP5(GUS, '2026-08-13')]) },
+      [P5_INC]: { ...base, roster: [inP5(DEE, '2026-08-13'), { sisStudentId: FAY, enteredOn: '2026-08-13', leftOn: '2026-11-09' }, inP5(GUS, '2026-08-13')] },
+    },
+    importOnly: true,
+  });
+  let result = await runTeamsSync({ targets: [fifth], adapter: sectionsWithMoves, capabilities: DESOTO_TEAMS_CAPABILITIES, now });
+  const [regularColumn] = sectionsWithMoves.columnsNamed(P5, fifth.name);
+  const [inclusionColumn] = sectionsWithMoves.columnsNamed(P5_INC, fifth.name);
+  assert.ok(regularColumn && inclusionColumn, 'one column in each TEAMS section');
+  assert.equal(sectionsWithMoves.calls.createColumn, 2);
+  assert.deepEqual([ADA, BEN, FAY].map((sis) => sectionsWithMoves.cell(regularColumn.id, sis)), [90, 80, 60]);
+  assert.equal(sectionsWithMoves.cell(inclusionColumn.id, DEE), 70);
+  assert.equal(sectionsWithMoves.cell(inclusionColumn.id, FAY), undefined, 'Fay is graded where she is on the due date');
+  assert.equal(sectionsWithMoves.cell(regularColumn.id, DEE), undefined);
+  // Gus (both sections) and Hal (neither) are reported and written nowhere.
+  assert.equal(sectionsWithMoves.cell(regularColumn.id, GUS), undefined);
+  assert.equal(sectionsWithMoves.cell(inclusionColumn.id, GUS), undefined);
+  assert.deepEqual(
+    result.exceptions.filter((item) => item.code === TEAMS_EXCEPTION.ENROLLED_IN_SEVERAL || item.code === TEAMS_EXCEPTION.NOT_ENROLLED).map((item) => [item.code, item.sisStudentId]),
+    [[TEAMS_EXCEPTION.ENROLLED_IN_SEVERAL, GUS], [TEAMS_EXCEPTION.NOT_ENROLLED, HAL]],
+  );
+  // Each section switches to counted on its own, once.
+  assert.deepEqual(sectionsWithMoves.columnsIn(P5).concat(sectionsWithMoves.columnsIn(P5_INC)).filter((item) => item.name === fifth.name).map((item) => item.weight), [1, 1]);
+  assert.equal(sectionsWithMoves.calls.setColumnWeight.length, 2);
+  assert.ok(result.ledger[teamsLedgerKey(fifth.key, P5)].columnId);
+  assert.ok(result.ledger[teamsLedgerKey(fifth.key, P5_INC)].columnId);
+
+  // A repeat run changes nothing in either section.
+  const before = sectionsWithMoves.calls.importScores.length;
+  result = await runTeamsSync({ targets: [fifth], ledger: result.ledger, adapter: sectionsWithMoves, capabilities: DESOTO_TEAMS_CAPABILITIES, now });
+  assert.equal(sectionsWithMoves.calls.importScores.length, before);
+  assert.equal(sectionsWithMoves.calls.createColumn, 2);
+});
+
+test('with two linked sections, nothing is written until both rosters are read', () => {
+  const read = { markingPeriods: section().markingPeriods, roster: [{ sisStudentId: ADA }], columns: [], cells: {} };
+  const { units, plans } = planTeamsSync({
+    targets: [target({ teamsSectionRefs: ['A', 'B'], closed: true, rows: rows({ [ADA]: 90 }) })],
+    gradebooks: new Map([['A', read]]),
+    capabilities: DESOTO_TEAMS_CAPABILITIES,
+  });
+  assert.deepEqual(units, []);
+  assert.deepEqual(plans.flatMap((plan) => plan.ops), []);
+  assert.deepEqual(plans[0].exceptions[0].sectionRefs, ['B']);
+});
+
+// #613: what Grade Transfer would publish for the server to sync.
+test('buildTeamsSyncTargets: one target per lesson section, final after the deadline, provisional before', () => {
+  const klass = { classId: 'c1', name: 'Algebra I', period: '5', teacherOfRecord: 'teacher@school.org' };
+  const lesson = {
+    id: 'a1', schemaVersion: 5, title: 'Nth Roots', assignedClassIds: ['c1'],
+    assignedAt: '2026-11-16T14:00:00Z', lateDueAt: '2026-11-19T04:59:00Z',
+    sections: ['warmup', 'classwork', 'practice', 'dol'].map((role) => ({ id: role, role, questions: [{ questionId: `${role}-1`, activityRole: role }] })),
+  };
+  const record = (status) => ({ status, totalAttempts: 1, variantIndex: 0, lastSubmissionId: 'sub-1', partialCredit: status === 'correct' ? 100 : 0 });
+  const roster = [
+    { id: 'u1', sisStudentId: ADA, classId: 'c1', gradesByAssignment: { a1: { 0: record('correct'), 1: record('correct'), 2: record('correct'), 3: record('correct') } } },
+    { id: '1500102', classId: 'c1', gradesByAssignment: { a1: { 0: record('correct'), 1: record('expired'), 2: record('correct'), 3: record('expired') } } },
+  ];
+  const build = (now) => buildTeamsSyncTargets({ classId: 'c1', classes: [klass], assignments: [lesson], students: roster, teacherEmail: 'teacher@school.org', now: Date.parse(now) });
+
+  const closed = build('2026-11-20T12:00:00Z');
+  assert.deepEqual(closed.map((item) => item.name), ['Nth Roots - Warm-Up', 'Nth Roots - Classwork', 'Nth Roots - Practice', 'Nth Roots - DOL']);
+  assert.ok(closed.every((item) => item.closed && item.dueDate === '2026-11-18' && item.assignedDate === '2026-11-16' && item.category === 'Daily'));
+  assert.ok(closed.every((item) => item.teamsSectionRefs === undefined), 'the server, not the browser, says which TEAMS sections');
+  const classwork = closed.find((item) => item.name.endsWith('Classwork'));
+  assert.deepEqual(classwork.rows.map((row) => [row.sisStudentId, row.grade]), [[ADA, 100], [BEN, 0]], 'a legacy all-digit account id is the district id; an expired item is a real zero');
+
+  const open = build('2026-11-17T12:00:00Z');
+  assert.ok(open.every((item) => item.closed === false));
+  assert.deepEqual(open.find((item) => item.name.endsWith('Classwork')).rows.map((row) => [row.sisStudentId, row.grade]), [[ADA, 100], [BEN, 0]], 'open lessons carry current scores to post at #Count 0');
+  assert.deepEqual(build('2026-11-20T12:00:00Z').filter((item) => item.dueDate >= '2026-11-19'), []);
+  assert.equal(buildTeamsSyncTargets({ classId: 'c1', classes: [klass], assignments: [lesson], students: roster, teacherEmail: 'teacher@school.org', now: Date.parse('2026-11-20T12:00:00Z'), dueOnOrAfter: '2026-11-19' }).length, 0);
 });

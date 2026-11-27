@@ -289,28 +289,65 @@ adapter differs.
 district password stored on MathMaster. F would need the district's written
 approval and is not planned.
 
-## Smallest next implementation PR
+## Server side (route E), #613
 
-## Smallest next implementation PR
+**Inclusion sections.** DeSoto keeps inclusion students in their own TEAMS
+section: TEAMS has two 5th periods and two 8th periods, while MathMaster has
+one class for each. So a MathMaster class is linked to **one to three TEAMS
+sections**. Each student goes to the one section TEAMS has them in on the
+due date, read from that section's roster (`routeTeamsTargets`). Each section
+gets its own column and its own ledger entry (`lessonKey@sectionRef`), and
+switches `#Count` on its own. A student on none of the linked sections, or
+on more than one (a TEAMS scheduling error), is reported and written nowhere.
+Until every linked section has been read back, nothing in the class is
+written, because a student's section cannot be known.
 
-Wire the engine to real data behind a flag, still writing nothing to TEAMS:
+**What runs where.** The engine is now `functions/shared/teamsSyncEngine.mjs`,
+one copy shared by the browser and the backend.
+`functions/shared/teamsSyncServer.mjs` is the server's pure part: it
+validates everything a browser sends, and runs one round trip with the
+teacher's extension. The callables in `functions/gradingFunctions.js` only
+authorize, load and store. Each callable checks the teacher of record, like
+Grade Transfer's own.
 
-1. A per-class **TEAMS section link** (`teamsSectionRef`) on the class record.
-2. A server-held **ledger** collection. It needs rules cases in
-   `npm run test:rules` and a `firestore:rules` deploy.
-3. Targets built from `projectGradeTransferUnits` via
-   `teamsTargetFromTransferUnit`, plus open-lesson provisional rows.
-4. A **dry-run panel** in Grade Transfer that shows, per class, the plan the
-   engine would apply and its exceptions, using a read-back the teacher
-   supplies (a TEAMS gradebook export).
+| Callable | Who calls it | What it does |
+| --- | --- | --- |
+| `setTeamsSyncSections` | Grade Transfer (teacher) | Links a class to its TEAMS section(s), e.g. `15001/05` and `15001/55`, and the district's settings (`#Count` 0, clear by blank Overwrite) |
+| `publishTeamsSyncTargets` | Grade Transfer (teacher) | Publishes what to send, built by `buildTeamsSyncTargets` from Grade Transfer's own projection. The server keeps a row only when its student is on this class's MathMaster roster under that district ID. |
+| `teamsSyncStep` | The Chrome extension (teacher's session) | Takes the read-backs and the outcomes of the last batch. Reconciles the ledger, plans, records each new operation's intent (write-ahead) and leases the batch to that runner for 3 minutes. Returns up to 40 operations. `dryRun: true` previews and records nothing. |
+| `getTeamsSyncState` | Grade Transfer | Linked sections, published count, last step, lease |
 
-Then the adapter for route E: a Chrome extension (Manifest V3) for the
-teacher's signed-in TEAMS tab, built from the `MathMaster-Frontline-Pilot`
-package. It implements `readGradebook`, `createColumn` (the Assignments
-grid), `setColumnWeight` (`#Count`) and `importScores` (the Import dialog).
-It has no `clearScores`, because the engine clears with a blank Overwrite
-file. It fetches each plan from a MathMaster callable and reports each
-read-back to one, and runs on a timer while TEAMS is signed in. Building it
-needs a session on the teacher's computer, where TEAMS's pages can be seen.
+Each operation the extension receives is self-contained. A new column comes
+with TEAMS's own field names and screen dates (`Assignment Name`,
+`Category`, `Assign Date` 11-16-2026, `Due Date`, `#Count`,
+`Maximum Value`). A grade write or a clear comes as an Import file body plus
+its Overwrite answer. A weight change names `#Count`.
+
+The lease keeps two open TEAMS tabs from both creating a column: while one
+runner holds an unanswered batch, another is told to wait. Only the holder's
+outcomes are believed. A reply lost after TEAMS acted still converges with
+no duplicate, because each intent was recorded before the batch was handed
+out.
+
+**Storage.** There are three server-only collections, `teamsSyncClasses`,
+`teamsSyncTargets` and `teamsSyncLedger`, all `allow read, write: if false`.
+They are covered by `tests/rules/serverOnlyCollectionsRules.test.mjs`. A
+step reads and writes them in one transaction. Their deploy needs
+`firestore:rules` as well as the four functions.
+
+**Still to build:**
+
+1. **The Chrome extension** (Manifest V3) for the teacher's signed-in TEAMS
+   tab, built from the `MathMaster-Frontline-Pilot` package. It reads each
+   linked section (marking periods, roster with entry and withdrawal dates,
+   assignments with `#Count`, cells), fills a new row in the Assignments grid,
+   uses the Import dialog for grades and clears, and changes `#Count`. It
+   calls `teamsSyncStep` until `done`, on a timer while TEAMS is signed in.
+   It authenticates to MathMaster as the teacher. Building it needs a session
+   on the teacher's computer, where TEAMS's pages can be seen.
+2. **Grade Transfer wiring.** A place to enter each class's TEAMS section(s),
+   publishing on open and after grade changes, and a preview from the last
+   read-back.
+
 If Frontline ever offers a supported write API (route A), it replaces the
-extension and the engine stays as it is.
+extension, and the engine and server stay as they are.

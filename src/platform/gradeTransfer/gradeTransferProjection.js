@@ -87,6 +87,10 @@ const aggregateSectionUnits = (sectionUnits) => {
 export const projectGradeTransferUnits = ({
   classes = [], assignments = [], students = [], teacherEmail = '', isRootAdmin = false,
   snapshots = [], practicePasses = new Set(), resolveStudentFinalDeadline = resolveStudentFinalDeadlineFromAssignment,
+  // The moment finality is judged at. Grade Transfer uses the present; the
+  // TEAMS sync also asks "what would each student's grade be if it were final
+  // now" to post open-lesson scores at #Count 0 (buildTeamsSyncTargets).
+  now = Date.now(),
 } = {}) => {
   const authorizedClasses = authorizedGradeTransferClasses({ classes, teacherEmail, isRootAdmin });
   // Across every student this teacher holds, not one class: two children
@@ -104,6 +108,7 @@ export const projectGradeTransferUnits = ({
         return buildTransferUnit({
           classRecord,
           assignment,
+          now,
           students: eligible,
           projectCanonicalGrade: canonicalPresentedAssignmentGrade,
           hasAuthoritativePracticePass: ({ student }) => practicePasses.has(`${student.id}__${classRecord.classId}__${assignment.id}`),
@@ -125,6 +130,7 @@ export const projectGradeTransferUnits = ({
         return buildTransferUnit({
           classRecord,
           assignment,
+          now,
           students: eligible,
           sectionKey,
           sectionLabel: SECTION_TRANSFER_LABELS[sectionKey],
