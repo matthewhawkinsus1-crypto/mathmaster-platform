@@ -9,7 +9,7 @@ import assert from 'node:assert/strict';
 
 import { buildStudentCaseReview } from '../../src/platform/caseReview/studentCaseReview.js';
 import {
-  caseAssignmentsCsv, caseFactsCsv, caseQuestionsCsv, caseReviewJson,
+  caseAssignmentsCsv, caseConductCsv, caseFactsCsv, caseQuestionsCsv, caseReviewJson,
 } from '../../src/platform/caseReview/caseReviewExport.js';
 import { caseInputs, assignments, studentA } from './helpers/caseReviewFixture.mjs';
 
@@ -62,6 +62,7 @@ test('no answer key, solution or student response reaches the case file or any e
     assignmentsCsv: caseAssignmentsCsv(model),
     questionsCsv: caseQuestionsCsv(model),
     factsCsv: caseFactsCsv(model),
+    conductCsv: caseConductCsv(model),
   };
   Object.entries(outputs).forEach(([name, text]) => {
     assert.ok(!text.includes(KEY), `${name} carries an answer key`);

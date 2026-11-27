@@ -13,6 +13,8 @@ const FILTERS = [
   { key: 'support', label: 'Support records' },
   // Recorded facts about attempts, labelled not conclusive where they are drawn.
   { key: 'signals', label: 'Work-pattern signals' },
+  // The Discipline Tracker's records and the family contacts, staff documented.
+  { key: 'conduct', label: 'Conduct & family contact' },
 ];
 
 const OPEN_DAYS_LIMIT = 20;

@@ -3,11 +3,12 @@ import { CASE_PROVENANCE_LABEL } from '../../../platform/caseReview/caseProvenan
 import { day, pct, when } from './CaseReviewParts.jsx';
 
 /*
- * PRINT CASE REVIEW — the twelve sections of PRINT_SECTIONS, every one
- * expanded, black on white, tables instead of disclosures. Used for the
- * on-screen preview and, unchanged, for paper / PDF. The teacher's own next
- * steps print last, labelled as teacher-authored, apart from the generated
- * evidence.
+ * PRINT CASE REVIEW — every section of PRINT_SECTIONS, each one expanded,
+ * black on white, tables instead of disclosures. Used for the on-screen
+ * preview and, unchanged, for paper / PDF. The teacher's own next steps print
+ * as their own section, labelled as teacher-authored, apart from the
+ * generated evidence (the sections added since follow them, so the original
+ * twelve keep their numbers).
  */
 
 const SECTION_ORDER = ['warmup', 'classwork', 'practice', 'dol', 'assessment'];
@@ -278,6 +279,45 @@ export default function CasePrintView({ model, nextSteps = '' }) {
             </table>
           </>
         ) : <p>No signal is recorded in this window.</p>}
+      </section>
+
+      <section data-print-conduct>
+        <h2>{title('conduct')}</h2>
+        {!model.conduct?.loaded ? <p>The conduct records and family contacts were not loaded for this case review.</p> : (
+          <>
+            <p><em>{model.conduct.note}</em></p>
+            <ul>{model.conduct.lines.map((line) => <li key={line}>{line}</li>)}</ul>
+            {model.conduct.incidents.length > 0 && (
+              <table>
+                <thead><tr><th>Recorded</th><th>What</th><th>Class</th><th>District form</th></tr></thead>
+                <tbody>
+                  {model.conduct.incidents.map((row) => (
+                    <tr key={row.id || row.atMs}><td>{when(row.atMs)}</td><td>{row.label}</td><td>{row.classLabel || '—'}</td><td>{row.formLabel}</td></tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
+            {model.conduct.contacts.length > 0 && (
+              <>
+                <p><em>Family contacts. Outcome and notes are the teacher&apos;s own words, as logged in Parent Contacts.</em></p>
+                <table>
+                  <thead><tr><th>When</th><th>Method and reason</th><th>Outcome (teacher-written)</th><th>Follow-up</th><th>Notes (teacher-written)</th></tr></thead>
+                  <tbody>
+                    {model.conduct.contacts.map((row) => (
+                      <tr key={row.id || row.atMs}>
+                        <td>{when(row.atMs)}</td>
+                        <td>{row.methodLabel} · {row.categoryLabel}</td>
+                        <td>{row.outcome || '—'}</td>
+                        <td>{row.followUpDate ? `${row.followUpDate} (${row.followUpCompleted ? 'completed' : 'open'})` : '—'}</td>
+                        <td>{row.notes || '—'}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </>
+            )}
+          </>
+        )}
       </section>
     </article>
   );

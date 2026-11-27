@@ -75,8 +75,21 @@ that class's roster. Students never see any of it. The list query uses the
 - `submitDisciplineFormsNow`
 - `resolveDisciplineFormState`
 - `submitDisciplineFormsOnSchedule`
+- `loadStudentConductEvidence` (the case review's conduct section, below)
 
 Use `node scripts/release-firebase.mjs`.
+
+## In the Student Case Review
+
+The case review (the "deep dive") has a **Conduct & family contact** tab, so a
+student's conduct records sit beside their academic evidence. It shows the
+records in the case's window by type and detail, where each stands with the
+district form, and the family contacts logged in Parent Contacts. It is also
+in the summary, the timeline, the printed case (section 14) and a Conduct CSV.
+Undone taps are left out. The records are staff documented, and a type with no
+record is never shown as "none". Nothing in the section changes a grade, a
+narrative fact or "What needs attention?". See
+`docs/STUDENT_CASE_REVIEW_DESIGN.md` 3.11 and 5.4.
 
 ## Next
 

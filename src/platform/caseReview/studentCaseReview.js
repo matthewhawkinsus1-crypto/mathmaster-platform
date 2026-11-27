@@ -38,6 +38,9 @@ import { RECOVERY_RECORDS_TRUNCATED, analyzeErrorPatterns } from './errorPattern
 import { analyzeAssignmentCompletion, summarizeCompletion } from './completionAnalysis.js';
 import { buildCaseTimeline } from './caseTimeline.js';
 import { buildWorkPatternSignals, workPatternTimelineEntries } from './workPatternSignals.js';
+import {
+  CONDUCT_RECORDS_TRUNCATED, FAMILY_CONTACTS_TRUNCATED, buildConductRecords, conductTimelineEntries,
+} from './conductRecords.js';
 import { analyzeOfficialContribution, reconcileGradebook } from './sisReconciliation.js';
 import { buildNarrativeFacts } from './narrativeFacts.js';
 import { buildAttentionSummary } from './attentionSummary.js';
@@ -193,6 +196,9 @@ export const buildStudentCaseReview = ({
   // undefined = not loaded.
   attemptSignals = undefined,
   attemptSignalsMeta = null,
+  // The `loadStudentConductEvidence` response; undefined = not loaded.
+  conductEvidence = undefined,
+  conductEvidenceError = '',
   sisSnapshot = null,
   sisConfirmedMatches = {},
   nowValue = Date.now(),
@@ -438,6 +444,15 @@ export const buildStudentCaseReview = ({
   if (!sis) gaps.push('No official gradebook snapshot is imported. MathMaster grade contributions are not the official average.');
   else if (!sis.contribution.sufficient) gaps.push(sis.contribution.explanation);
 
+  // Conduct records and family contacts: recorded facts beside the academic
+  // evidence. Not an input to any grade, narrative fact or attention item.
+  const conduct = buildConductRecords({
+    conductEvidence, error: conductEvidenceError, fromDateKey: support.meta.fromDateKey, toDateKey: support.meta.toDateKey,
+  });
+  if (!conduct.loaded) gaps.push(`Conduct records and family contacts could not be loaded${conduct.error ? ` (${conduct.error})` : ''}.`);
+  if (conduct.truncated.incidents) gaps.push(CONDUCT_RECORDS_TRUNCATED);
+  if (conduct.truncated.contacts) gaps.push(FAMILY_CONTACTS_TRUNCATED);
+
   const dataSources = {
     gradeRecord: sourceStatus({ label: 'Question records and grade projections', path: 'grades/{student}', loaded: true, provenance: CASE_PROVENANCE.DIRECT, note: 'Rolling question state; older records were written by the student\'s browser.' }),
     supportRecords: sourceStatus({ label: 'Support profile, evidence, service log, active-minute ledger (PR #401)', path: 'grades/{student}/support*, engagementMinutes', loaded: true, count: list(evidence).length, provenance: CASE_PROVENANCE.DIRECT }),
@@ -451,6 +466,8 @@ export const buildStudentCaseReview = ({
     sessionSummaries: sourceStatus({ label: 'Class-session summaries', path: 'studentSessionSummaries', loaded: sessionSummaries !== undefined, count: sessionSummaries === undefined ? null : list(sessionSummaries).length, provenance: CASE_PROVENANCE.LEGACY, note: 'Client-clock times; Practice Mode sessions are not flagged.' }),
     exportHistory: sourceStatus({ label: 'Grade export history', path: 'gradeTransferSnapshots (via listGradeTransferState)', loaded: exportSnapshots !== null, count: Array.isArray(exportSnapshots) ? exportSnapshots.length : null, provenance: CASE_PROVENANCE.DIRECT }),
     sisSnapshot: sourceStatus({ label: 'Official gradebook snapshot', path: sis?.meta.saved ? 'grades/{student}/sisGradebookSnapshots' : 'imported in this session', loaded: Boolean(sis), provenance: CASE_PROVENANCE.SIS }),
+    conductRecords: sourceStatus({ label: 'Conduct records (Discipline Tracker)', path: 'disciplineIncidents (via loadStudentConductEvidence)', loaded: conduct.loaded, count: conduct.loaded ? conduct.total : null, provenance: CASE_PROVENANCE.STAFF, error: conduct.error, note: conduct.truncated.incidents ? CONDUCT_RECORDS_TRUNCATED : 'Undone taps are not records and are left out.' }),
+    familyContacts: sourceStatus({ label: 'Family contacts (Parent Contacts)', path: 'parentContactLogs (via loadStudentConductEvidence)', loaded: conduct.loaded, count: conduct.loaded ? conduct.contacts.length : null, provenance: CASE_PROVENANCE.STAFF, error: conduct.error, note: conduct.truncated.contacts ? FAMILY_CONTACTS_TRUNCATED : 'Only the contacts you can read in Parent Contacts.' }),
   };
 
   // Work-pattern signals: counts of recorded facts, never a finding, and
@@ -477,7 +494,7 @@ export const buildStudentCaseReview = ({
     })),
     supportTimeline: support.timeline,
     overrideAudits: evidenceLoaded ? caseEvidence.overrideAudits : [],
-    extraEntries: workPatternTimelineEntries(workPatterns),
+    extraEntries: [...workPatternTimelineEntries(workPatterns), ...conductTimelineEntries(conduct)],
   });
 
   const model = {
@@ -512,6 +529,7 @@ export const buildStudentCaseReview = ({
       legend: EVIDENCE_LEGEND,
     },
     workPatterns,
+    conduct,
     timeline,
     sis,
     tools: { calculatorAssignments },

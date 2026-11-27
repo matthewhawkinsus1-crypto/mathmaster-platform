@@ -1,7 +1,7 @@
 // What Grade Transfer offers the TEAMS Sync extension
 // (src/platform/gradeTransfer/teamsSyncBridge.js): only the classes Grade
-// Transfer may export, targets from Grade Transfer's own projection, and a
-// preview that goes to the dry-run callable.
+// Transfer may export, the very targets Grade Transfer builds for "Send now"
+// and the scheduled publish, and a preview that goes to the dry-run callable.
 
 import assert from 'node:assert/strict';
 import test from 'node:test';
@@ -20,16 +20,15 @@ const recordingApi = () => {
   return { api, calls };
 };
 
+const built = (classId) => [
+  { key: `${classId}__warmup`, title: 'Warm-Up', rows: [] },
+  { key: `${classId}__dol`, title: 'DOL', rows: [] },
+];
+
 const context = (overrides = {}) => ({
   ready: true,
-  classes: [{ classId: 'c1', name: 'Algebra II Honors 3rd' }, { classId: 'c2', period: '5' }],
   authorizedClasses: [{ classId: 'c1', name: 'Algebra II Honors 3rd' }, { classId: 'c2', period: '5' }],
-  assignments: [],
-  students: [],
-  teacherEmail: 'teacher@example.org',
-  isRootAdmin: false,
-  snapshots: [],
-  practicePasses: new Set(),
+  buildTargets: built,
   ...overrides,
 });
 
@@ -51,16 +50,39 @@ test('every call is refused for a class Grade Transfer cannot export, before any
   assert.deepEqual(calls, []);
 });
 
-test('publishing waits for the export history, and builds targets from Grade Transfer\'s inputs for one marking period', async () => {
+test('publishing waits for the export history, then sends exactly what Grade Transfer builds', async () => {
   const { api, calls } = recordingApi();
   let ready = false;
-  const bridge = createTeamsSyncBridge({ getContext: () => context({ ready }), api, now: () => Date.parse('2026-11-20T15:00:00Z') });
+  const asked = [];
+  const buildTargets = (classId) => { asked.push(classId); return built(classId); };
+  const bridge = createTeamsSyncBridge({ getContext: () => context({ ready, buildTargets }), api });
   await assert.rejects(bridge.publish({ classId: 'c1' }), /still loading the export history/);
+  assert.deepEqual(calls, [], 'nothing is published before the history loads');
   ready = true;
-  await assert.rejects(bridge.publish({ classId: 'c1', dueOnOrAfter: '11/02/2026' }), /must be a date/);
-  const result = await bridge.publish({ classId: 'c1', dueOnOrAfter: '2026-11-02' });
-  assert.equal(result.targetCount, 0, 'no assignments in this context, so no targets');
-  assert.deepEqual(calls.at(-1), ['publish', { classId: 'c1', targets: [] }]);
+  const result = await bridge.publish({ classId: 'c1' });
+  assert.equal(result.targetCount, 2);
+  assert.deepEqual(asked, ['c1']);
+  assert.deepEqual(calls.at(-1), ['publish', { classId: 'c1', targets: built('c1') }]);
+});
+
+test('the extension\'s marking-period start changes nothing: every publisher sends one set', async () => {
+  // Each publish replaces the class's set. If the extension sent a different
+  // set from "Send now" and the 30-minute publish, they would undo each other.
+  const { api, calls } = recordingApi();
+  const bridge = createTeamsSyncBridge({ getContext: () => context(), api });
+  await bridge.publish({ classId: 'c1' });
+  await bridge.publish({ classId: 'c1', dueOnOrAfter: '2026-11-02' });
+  await bridge.publish({ classId: 'c1', dueOnOrAfter: '2027-01-04' });
+  const sent = calls.filter(([kind]) => kind === 'publish').map(([, input]) => input);
+  assert.equal(sent.length, 3);
+  sent.forEach((input) => assert.deepEqual(input, { classId: 'c1', targets: built('c1') }));
+});
+
+test('without Grade Transfer\'s builder nothing is published', async () => {
+  const { api, calls } = recordingApi();
+  const bridge = createTeamsSyncBridge({ getContext: () => context({ buildTargets: undefined }), api });
+  await assert.rejects(bridge.publish({ classId: 'c1' }), /cannot build TEAMS sync grades/);
+  assert.deepEqual(calls, []);
 });
 
 test('a preview goes to the dry-run callable; a sync step carries the runner and the outcomes', async () => {
@@ -90,4 +112,18 @@ test('Grade Transfer installs the bridge while it is open, reading its current i
   assert.match(source, /installTeamsSyncBridge\(createTeamsSyncBridge\(\{ getContext: \(\) => teamsSyncContext\.current/);
   assert.match(source, /ready: stateLoaded/, 'targets wait for the export history, as an export does');
   assert.match(source, /students: projectedStudents/, 'with the corrected district IDs an export uses');
+  // One builder for every publisher: the extension (through the bridge) and
+  // "Send now" both use buildSyncTargets, the current-marking-period rule the
+  // scheduled publish (buildTeamsSyncTargetsFromRecords) also applies.
+  assert.match(source, /buildTargets: buildSyncTargets/, 'the bridge publishes Grade Transfer\'s own targets');
+  assert.match(source, /<TeamsSyncPanel [^>]*buildTargets=\{buildSyncTargets\}/, '"Send now" publishes the same targets');
+  assert.equal(source.match(/buildTeamsSyncTargets\(/g)?.length, 1, 'Grade Transfer builds TEAMS sync targets in one place');
+  assert.match(source, /includeAssignment: \(assignment\) => resolveAssignmentGradingPeriod\(assignment, gradingPeriodSettings \|\| \{\}\)\.isCurrent/);
+});
+
+test('the bridge builds no targets of its own', () => {
+  const source = fs.readFileSync(new URL('../../src/platform/gradeTransfer/teamsSyncBridge.js', import.meta.url), 'utf8');
+  assert.doesNotMatch(source, /buildTeamsSyncTargets|dueOnOrAfter:/);
+  const panel = fs.readFileSync(new URL('../../extensions/teams-sync/panel.js', import.meta.url), 'utf8');
+  assert.doesNotMatch(panel, /dueOnOrAfter/, 'the extension asks for the class\'s set, not a set of its own');
 });

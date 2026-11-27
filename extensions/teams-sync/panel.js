@@ -88,9 +88,9 @@ const syncClass = async (entry, card, dryRun) => {
       log(`Reading TEAMS section ${ref}…`);
       readbacks[ref] = await adapter.readSection(ref);
     }
-    const starts = Object.values(readbacks).map((readback) => readback.markingPeriods?.[0]?.start).filter(Boolean).sort();
-    const published = await call('publish', { classId: entry.classId, dueOnOrAfter: starts[0] || '' });
-    log(`MathMaster has ${published.targetCount} lesson section(s) for this marking period${published.droppedRows ? `; ${published.droppedRows} row(s) were not on the class roster and were left out` : ''}.`);
+    // The same grades Grade Export's "Send now" and the 30-minute publish send.
+    const published = await call('publish', { classId: entry.classId });
+    log(`MathMaster has ${published.targetCount} lesson section(s) for the current marking period${published.droppedRows ? `; ${published.droppedRows} row(s) were not on the class roster and were left out` : ''}.`);
     const id = await runnerId();
     const result = await runTeamsSync({
       mathmaster: { step: (payload) => call('step', { classId: entry.classId, runnerId: id, ...payload }) },

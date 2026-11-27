@@ -43,6 +43,8 @@ import {
   pendingUploadIds,
 } from '../../platform/gradeTransfer/gradeTransferHistory.js';
 import { resolveAssignmentGradingPeriod } from '../../platform/student/gradingPeriods.js';
+import { buildTeamsSyncTargets } from '../../platform/gradeTransfer/teamsSync.js';
+import TeamsSyncPanel from './TeamsSyncPanel.jsx';
 import useActionBarFocusReveal from '../common/useActionBarFocusReveal.js';
 import './teacherWorkspace.css';
 
@@ -208,22 +210,33 @@ export default function GradeTransferCenter({
     ],
   );
 
+  // The TEAMS sync sends exactly what an export of this marking period would:
+  // the same students (with corrected district IDs), export history, Practice
+  // Passes and per-student deadlines. "Send now", the TEAMS Sync extension and
+  // the server's 30-minute publish (buildTeamsSyncTargetsFromRecords) all
+  // send this one set; each publish replaces the class's set, so they must.
+  const buildSyncTargets = (classId) => buildTeamsSyncTargets({
+    classId,
+    classes,
+    assignments,
+    students: projectedStudents,
+    teacherEmail,
+    isRootAdmin,
+    snapshots,
+    practicePasses,
+    resolveStudentFinalDeadline,
+    includeAssignment: (assignment) => resolveAssignmentGradingPeriod(assignment, gradingPeriodSettings || {}).isCurrent,
+  });
+
   // The TEAMS Sync extension (extensions/teams-sync) works through this
-  // screen while it is open: window.mathmasterTeamsSync builds targets from
-  // the same inputs the export uses, read fresh at each call.
+  // screen while it is open: window.mathmasterTeamsSync publishes
+  // buildSyncTargets, read fresh at each call.
   const teamsSyncContext = useRef(null);
   useEffect(() => {
     teamsSyncContext.current = {
       ready: stateLoaded,
-      classes,
       authorizedClasses,
-      assignments,
-      students: projectedStudents,
-      teacherEmail,
-      isRootAdmin,
-      snapshots,
-      practicePasses,
-      resolveStudentFinalDeadline,
+      buildTargets: buildSyncTargets,
     };
   });
   // Loaded after the screen, so the teacher's first load carries none of it.
@@ -483,6 +496,8 @@ export default function GradeTransferCenter({
     });
   };
 
+  const syncClasses = authorizedClasses.filter((entry) => !classFilter.size || classFilter.has(entry.classId));
+
   const assignmentScopeTitle = assignmentFilter ? (assignmentsById.get(assignmentFilter)?.title || 'This assignment') : null;
   const selectedGradeCount = selectedUnits.reduce((sum, unit) => sum + (summaries.get(unit.key)?.fullRowCount || 0), 0);
 
@@ -637,6 +652,10 @@ export default function GradeTransferCenter({
           <p className="tw-small tw-muted" style={{ margin: 0 }}>Student Access has the same {DISTRICT_ID_COPY.editAction} control for every student you teach.</p>
         </div>
       </details>
+    )}
+
+    {syncClasses.length > 0 && (
+      <TeamsSyncPanel classes={syncClasses} buildTargets={buildSyncTargets} labelFor={personLabel} ready={stateLoaded} />
     )}
 
     {message && <div role="status" className="tw-notice" data-tone={message.tone}>{message.text}</div>}

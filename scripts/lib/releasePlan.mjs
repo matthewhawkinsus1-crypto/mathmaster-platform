@@ -46,10 +46,13 @@
 import { DEPLOY_OVERRIDE_ENV } from './deployProvenance.mjs';
 import { VENDORED_PATHS } from '../sync-path-admin-runtime.mjs';
 import { plannerClosure } from '../sync-functions-weekly-planner.mjs';
+import { teamsSyncBuilderClosure } from '../sync-functions-teams-sync.mjs';
 
 // Read once, lazily: the planner's module closure, repo-relative.
 let plannerFiles = null;
 const weeklyPlannerFiles = () => (plannerFiles ||= new Set(plannerClosure()));
+let teamsSyncFiles = null;
+const teamsSyncBuilderFiles = () => (teamsSyncFiles ||= new Set(teamsSyncBuilderClosure()));
 
 export const RELEASE_TARGETS = Object.freeze({
   INDEXES: 'firestore:indexes',
@@ -147,7 +150,7 @@ const ORDER = [
 const NO_DEPLOY = [
   /^docs\//, /^tests\//, /^functions\/test\//, /^\.github\//, /^drafts\//, /^seed\//,
   /\.md$/i, /\.txt$/i, /\.png$/i, /^[._]oxlintrc\.json$/, /^\.gitignore$/,
-  /^scripts\/(?!build-ccmr|build-course-path|sync-path-admin|sync-functions-weekly-planner|build-firebase-hosting)/,
+  /^scripts\/(?!build-ccmr|build-course-path|sync-path-admin|sync-functions-weekly-planner|sync-functions-teams-sync|build-firebase-hosting)/,
 ];
 
 const RULES = [
@@ -161,9 +164,12 @@ const RULES = [
   // The weekly planner's src/ modules are copied into the default codebase at
   // predeploy (scripts/sync-functions-weekly-planner.mjs), so the freeze plans
   // with the browser's planner; a change to one is a functions change too.
+  // Likewise Grade Transfer's TEAMS sync target builder
+  // (scripts/sync-functions-teams-sync.mjs), which the scheduled publish runs.
   [RELEASE_TARGETS.FUNCTIONS, (file) => (file.startsWith('functions/') && !file.startsWith('functions/test/'))
-    || /^scripts\/(build-ccmr-v2-1-production-release|sync-functions-weekly-planner)/.test(file)
-    || weeklyPlannerFiles().has(file)],
+    || /^scripts\/(build-ccmr-v2-1-production-release|sync-functions-weekly-planner|sync-functions-teams-sync)/.test(file)
+    || weeklyPlannerFiles().has(file)
+    || teamsSyncBuilderFiles().has(file)],
   [RELEASE_TARGETS.HOSTING, (file) => file.startsWith('src/') || file.startsWith('public/')
     || ['index.html', 'vite.config.js', 'package.json', 'package-lock.json', 'firebase.json'].includes(file)
     || file.startsWith('functions/shared/') // the browser imports the shared grading/policy modules

@@ -16,6 +16,8 @@ const CALLABLES = [
   'recordDisciplineIncident', 'voidDisciplineIncident', 'setDisciplineIncidentDetail', 'listDisciplineIncidents',
   'getDisciplineSettings', 'saveDisciplineSettings', 'submitDisciplineFormsNow', 'resolveDisciplineFormState',
   'queueFamilyMessages', 'resolveFamilyMessage', 'familyMessageOutbox', 'setFamilyMessagingMode',
+  // The case review's read (caseReviewConduct.test.mjs pins the rest of it).
+  'loadStudentConductEvidence',
 ];
 const body = (name) => executableSource(functionsDeclaration(name));
 const moduleSource = () => executableSource(readFileSync('functions/disciplineFunctions.js', 'utf8'));
