@@ -34,6 +34,7 @@ export const CONDUCT_FORM_LABEL = Object.freeze({
   sending: 'Being sent to the district form',
   unknown: 'May not have reached the district form (no reply)',
   failed: 'Not sent to the district form',
+  testOnly: 'A SchoolStatus test student: never sent to the district form',
 });
 
 export const CONTACT_METHOD_LABEL = Object.freeze({
@@ -67,7 +68,7 @@ const emptyConduct = ({ loaded, error = '' }) => ({
   days: 0,
   incidents: [],
   byType: [],
-  form: { submitted: 0, waiting: 0, needsCheck: 0 },
+  form: { submitted: 0, waiting: 0, needsCheck: 0, testOnly: 0 },
   contacts: [],
   contactsByCategory: [],
   openFollowUps: 0,
@@ -151,7 +152,7 @@ export const buildConductRecords = ({
       };
     });
   const formCount = (states) => incidents.filter((row) => states.includes(row.formState)).length;
-  const form = { submitted: formCount(['submitted']), waiting: formCount(['pending', 'sending']), needsCheck: formCount(['unknown', 'failed']) };
+  const form = { submitted: formCount(['submitted']), waiting: formCount(['pending', 'sending']), needsCheck: formCount(['unknown', 'failed']), testOnly: formCount(['testOnly']) };
 
   const contacts = list(conductEvidence.contacts)
     .map(familyContact)
@@ -169,7 +170,7 @@ export const buildConductRecords = ({
       ? `${plural(incidents.length, 'conduct record')} on ${plural(days, 'school day')}: ${byType.map((entry) => `${entry.label} ${entry.count}`).join(' · ')}.`
       : 'No conduct records in the Discipline Tracker for this window.',
     ...(incidents.length
-      ? [`District form: ${form.submitted} of ${incidents.length} sent${form.waiting ? `, ${form.waiting} waiting to send` : ''}${form.needsCheck ? `, ${form.needsCheck} to check` : ''}.`]
+      ? [`District form: ${form.submitted} of ${incidents.length} sent${form.waiting ? `, ${form.waiting} waiting to send` : ''}${form.needsCheck ? `, ${form.needsCheck} to check` : ''}${form.testOnly ? `, ${form.testOnly} test-only (never sent)` : ''}.`]
       : []),
     contacts.length
       ? `${plural(contacts.length, 'family contact')} logged: ${contactsByCategory.map((entry) => `${entry.label} ${entry.count}`).join(' · ')}${openFollowUps ? `; ${plural(openFollowUps, 'follow-up')} still open` : ''}.`
