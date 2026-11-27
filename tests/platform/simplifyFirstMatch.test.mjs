@@ -38,6 +38,7 @@ import { all, create } from 'mathjs';
 import { withSimplifyCoreOnce } from '../../functions/shared/algebra/simplifyCoreOnce.mjs';
 import { withSimplifyFirstMatch } from '../../functions/shared/algebra/simplifyFirstMatch.mjs';
 import { withSimplifyRulesParsedOnce } from '../../functions/shared/algebra/simplifyRulesParsedOnce.mjs';
+import { createRng } from '../../scripts/lib/graderFuzz/prng.mjs';
 import { safeMathInstance, simplify as safeSimplify } from '../../functions/shared/algebra/safeMath.mjs';
 import { factories as clientFactories, math as clientMath } from '../../src/platform/math/mathjs.js';
 import { countedWork, totalWork as total } from './helpers/simplifyWork.mjs';
@@ -242,6 +243,130 @@ test('withSimplifyFirstMatch composes with withSimplifyRulesParsedOnce and withS
       assert.deepEqual(answer(() => math.simplify(expression)), answer(() => theirs.simplify(expression)), expression);
     }
     assert.equal(countedWork(math, () => math.simplify(LONG.likeTerms(12))).serialised, 0);
+  }
+});
+
+/*
+ * EACH WAY BACK TO MATHJS'S OWN SEARCH. The first match alone is the answer
+ * only where no later candidate can throw. Each thing that sends a rule back
+ * to every match is shown here answering as mathjs does, and, where the two
+ * searches would part, that they would: a search that stopped at the first
+ * would answer otherwise.
+ */
+test('a constant that is not a number sends the rule back to mathjs\'s own search', () => {
+  // A string: mathjs's own throws on a candidate after the first match (above).
+  const { expression, rules } = THROWS_AFTER_THE_FIRST;
+  assert.match(answer(() => ported().simplify(expression, rules)).error || '', /Cannot convert "abc" to a number/);
+  // The same rule with a number where the string was: the first match, and 5.
+  assert.equal(ported().simplify('x + 1 + 7', rules).toString(), '5');
+  // Constants of another number type: every match, and mathjs's answers.
+  for (const number of ['BigNumber', 'Fraction', 'bigint']) {
+    const mine = ported();
+    const theirs = own();
+    mine.config({ number });
+    theirs.config({ number });
+    const side = LONG.likeTerms(8);
+    assert.ok(countedWork(mine, () => mine.simplify(side)).serialised > 0, `${number}: mathjs's own search ran`);
+    assert.deepEqual(answer(() => mine.simplify(side)), answer(() => theirs.simplify(side)), number);
+  }
+});
+
+test('a malformed rule sends the rule back to mathjs\'s own search', () => {
+  for (const rules of [
+    // A wildcard mathjs does not know.
+    ['q1 + n1 -> n1'],
+    // A function of three operands: mathjs's search throws when it meets a
+    // call of another number of arguments, which a search that never got
+    // there would not.
+    ['f(n1, n2, n3) -> n1'],
+    ['n1 + n2 + n3 -> n1', 'add(n1, n2, n3) -> n2'],
+  ]) {
+    for (const expression of ['x + y + z', 'f(a, b, c) + 1 + 2 + 3', 'f(a, b) + 1', 'g(x) + f(a, b, c)', LONG.likeTerms(6), '2x']) {
+      assert.deepEqual(answer(() => ported().simplify(expression, rules)), answer(() => own().simplify(expression, rules)), `${rules.join(', ')}: ${expression}`);
+    }
+  }
+  assert.match(answer(() => own().simplify('f(a, b) + 1', ['f(n1, n2, n3) -> n1'])).error || '', /non-binary associative/,
+    'mathjs\'s own search throws on the three-operand rule');
+  assert.equal(ported().simplify('g(x) + f(a, b, c)', ['f(n1, n2, n3) -> n1']).toString(), 'g(x) + a');
+});
+
+/*
+ * A SEEDED CORPUS. Polynomials, rational expressions, radicals and long sides
+ * of like terms (up to 41, the fuzz harness's case), drawn from a fixed seed,
+ * each simplified by the port and by mathjs's own simplify on the instance
+ * the platform had before it (with simplifyCoreOnce.mjs, whose answers are
+ * mathjs's own: simplifyCoreOnce.test.mjs; plain mathjs takes 17 s for 24
+ * terms). Text, printed text and node structure must be identical.
+ */
+const generatedCorpus = (rng) => {
+  const variable = () => rng.pick(['x', 'x', 'y', 'n']);
+  const coefficient = () => rng.pick([rng.int(1, 12), -rng.int(1, 9), `${rng.int(1, 9)}/${rng.int(2, 7)}`, `0.${rng.int(1, 9)}`]);
+  const monomial = (v = variable()) => rng.pick([`${coefficient()} ${v}`, `${coefficient()} ${v}^${rng.int(2, 4)}`, `${rng.int(1, 20)}`, v]);
+  const sum = (count, v) => Array.from({ length: count }, () => monomial(v)).join(rng.pick([' + ', ' - ']));
+  const polynomial = () => rng.pick([
+    () => sum(rng.int(2, 7)),
+    () => `(${variable()} + ${rng.int(-6, 6)})(${variable()} - ${rng.int(1, 6)})`,
+    () => `${coefficient()}(${sum(rng.int(2, 3), 'x')}) - ${monomial('x')}`,
+    () => `(${sum(2, 'x')})^2`,
+    () => `${sum(3, 'x')} = ${sum(2, 'x')}`,
+  ])();
+  const rational = () => rng.pick([
+    () => `(${sum(rng.int(1, 3), 'x')}) / (${sum(rng.int(1, 2), 'x')})`,
+    () => `${rng.int(1, 9)} / x + ${rng.int(1, 9)} / x - ${monomial('x')}`,
+    () => `(x^2 - ${rng.int(1, 5) ** 2}) / (x - ${rng.int(1, 5)})`,
+    () => `x / ${rng.int(2, 9)} + x / ${rng.int(2, 9)} + ${rng.int(1, 9)} / ${rng.int(2, 9)}`,
+    () => `1 / (1 / x + 1 / ${rng.int(2, 6)})`,
+  ])();
+  const radical = () => rng.pick([
+    () => `sqrt(${rng.int(1, 80)}) + ${rng.int(1, 5)} sqrt(${rng.int(2, 12)})`,
+    () => `${rng.int(2, 6)} sqrt(${rng.int(2, 7)}) - sqrt(${rng.int(2, 7)}) * ${rng.int(1, 4)}`,
+    () => `sqrt(x)^2 + sqrt(${rng.int(2, 50)} x^2)`,
+    () => `nthRoot(${rng.int(2, 64)}, ${rng.int(2, 3)}) + x^(1/2) * x^(1/2)`,
+    () => `(${rng.int(1, 5)} + sqrt(${rng.int(2, 9)}))(${rng.int(1, 5)} - sqrt(${rng.int(2, 9)}))`,
+  ])();
+  const drawn = [];
+  for (let index = 0; index < 120; index += 1) drawn.push(polynomial(), rational(), radical());
+  // Long sides of like terms with different coefficients, as a student keeps
+  // them, and with the coefficients and letters drawn.
+  for (const count of [6, 12, 24, 41]) {
+    drawn.push(LONG.likeTerms(count));
+    if (count <= 24) {
+      drawn.push(terms(count, (index) => `${index ? rng.pick([' + ', ' - ']) : ''}${rng.int(1, 30)}${rng.pick(['x', 'y', 'x^2', ''])}`));
+      drawn.push(LONG.mixedLetters(count), LONG.divisions(count));
+    }
+  }
+  return drawn;
+};
+
+test('a seeded corpus of polynomials, rational expressions, radicals and long like-term sides simplifies exactly as with mathjs\'s own simplify', () => {
+  const mine = create(withSimplifyFirstMatch(withSimplifyCoreOnce(all)));
+  const theirs = create(withSimplifyCoreOnce(all));
+  const corpus = generatedCorpus(createRng('simplifyFirstMatch-559'));
+  assert.ok(corpus.length > 370, `${corpus.length} expressions`);
+  let answered = 0;
+  for (const expression of corpus) {
+    const expected = answer(() => theirs.simplify(expression));
+    assert.deepEqual(answer(() => mine.simplify(expression)), expected, expression);
+    if (!expected.error) answered += 1;
+  }
+  assert.ok(answered > 0.9 * corpus.length, `${answered} of ${corpus.length} simplified without an error`);
+});
+
+/*
+ * THE MATHJS VERSION. The port follows mathjs 15.2.0 (the files are pinned
+ * below, too). Another version may change simplify's search or its rules:
+ * re-check the port against it, then change this version and the pins.
+ */
+test('every copy of mathjs the platform loads is 15.2.0, the version the port was checked against', () => {
+  const copies = new Set([
+    path.dirname(createRequire(import.meta.url).resolve('mathjs/package.json')),
+    path.dirname(createRequire(path.join(ROOT, 'functions/shared/algebra/safeMath.mjs')).resolve('mathjs/package.json')),
+  ]);
+  const functionsCopy = path.join(ROOT, 'functions/node_modules/mathjs');
+  if (existsSync(functionsCopy)) copies.add(functionsCopy);
+  for (const copy of copies) {
+    const { version } = JSON.parse(readFileSync(path.join(copy, 'package.json'), 'utf8'));
+    assert.equal(version, '15.2.0', `${path.relative(ROOT, copy)} is mathjs ${version}: functions/shared/algebra/simplifyFirstMatch.mjs was ported from 15.2.0's simplify; re-check the port against ${version} (or drop it, if mathjs now stops at the first match) before upgrading`);
   }
 });
 
