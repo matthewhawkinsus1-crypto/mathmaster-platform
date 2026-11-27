@@ -2449,6 +2449,16 @@ service cloud.firestore {
     }
 
     /*
+     * Frontline TEAMS sync (#612/#613): which TEAMS sections a class is linked
+     * to, what Grade Transfer published to send, and what MathMaster wrote to
+     * TEAMS. Only the backend reads or writes them (functions/gradingFunctions.js,
+     * the teamsSync* callables), after its own teacher-of-record check.
+     */
+    match /teamsSyncClasses/{classId} { allow read, write: if false; }
+    match /teamsSyncTargets/{targetId} { allow read, write: if false; }
+    match /teamsSyncLedger/{entryId} { allow read, write: if false; }
+
+    /*
      * Immutable SIS transfer evidence. A teacher can create a snapshot only
      * for a class they own and can subsequently add only upload-confirmation
      * fields. Downloading never writes those fields. Students have no access.

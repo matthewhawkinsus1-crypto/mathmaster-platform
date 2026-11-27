@@ -208,6 +208,34 @@ export default function GradeTransferCenter({
     ],
   );
 
+  // The TEAMS Sync extension (extensions/teams-sync) works through this
+  // screen while it is open: window.mathmasterTeamsSync builds targets from
+  // the same inputs the export uses, read fresh at each call.
+  const teamsSyncContext = useRef(null);
+  useEffect(() => {
+    teamsSyncContext.current = {
+      ready: stateLoaded,
+      classes,
+      authorizedClasses,
+      assignments,
+      students: projectedStudents,
+      teacherEmail,
+      isRootAdmin,
+      snapshots,
+      practicePasses,
+      resolveStudentFinalDeadline,
+    };
+  });
+  // Loaded after the screen, so the teacher's first load carries none of it.
+  useEffect(() => {
+    let undo = () => {};
+    let closed = false;
+    import('../../platform/gradeTransfer/teamsSyncBridge.js').then(({ createTeamsSyncBridge, installTeamsSyncBridge }) => {
+      if (!closed) undo = installTeamsSyncBridge(createTeamsSyncBridge({ getContext: () => teamsSyncContext.current || { ready: false } }));
+    }).catch(() => {});
+    return () => { closed = true; undo(); };
+  }, []);
+
   const assignmentsById = useMemo(() => new Map((assignments || []).map((assignment) => [assignment.id, assignment])), [assignments]);
   const periodOf = (unit) => resolveAssignmentGradingPeriod(assignmentsById.get(unit.assignmentId) || null, gradingPeriodSettings || {});
   const periodLabelOf = (unit) => periodOf(unit).label;

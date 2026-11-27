@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>MathMaster TEAMS Sync</title>
+<style>
+  :root { color-scheme: light; --ink: #182947; --muted: #4a5a78; --line: #cdd5e3; --accent: #1f5fbf; --warn: #8a4b00; --bad: #a3192a; --ok: #1d6b3a; }
+  body { max-width: 52rem; margin: 2rem auto; padding: 0 1rem; font: 16px/1.5 system-ui, sans-serif; color: var(--ink); background: #fff; }
+  h1 { font-size: 1.5rem; margin: 0 0 .25rem; }
+  .lede { color: var(--muted); margin: 0 0 1.5rem; }
+  .card { border: 1px solid var(--line); border-radius: 8px; padding: 1rem; margin: 0 0 1rem; }
+  .card h2 { font-size: 1.1rem; margin: 0 0 .25rem; }
+  .meta { color: var(--muted); font-size: .9rem; margin: 0 0 .75rem; }
+  button { font: inherit; padding: .45rem .9rem; border-radius: 6px; border: 1px solid var(--accent); background: #fff; color: var(--accent); cursor: pointer; }
+  button.primary { background: var(--accent); color: #fff; }
+  button:disabled { opacity: .5; cursor: default; }
+  .row { display: flex; gap: .5rem; flex-wrap: wrap; align-items: center; }
+  fieldset { border: 1px solid var(--line); border-radius: 6px; margin: .75rem 0; }
+  label { display: block; margin: .2rem 0; }
+  #log { white-space: pre-wrap; font: 13px/1.45 ui-monospace, monospace; background: #f4f6fa; border-radius: 6px; padding: .75rem; max-height: 22rem; overflow: auto; }
+  .result { margin: .75rem 0 0; }
+  .result table { border-collapse: collapse; width: 100%; font-size: .9rem; }
+  .result th, .result td { text-align: left; border-bottom: 1px solid var(--line); padding: .25rem .4rem; }
+  .bad { color: var(--bad); } .warn { color: var(--warn); } .ok { color: var(--ok); }
+</style>
+</head>
+<body>
+<h1>MathMaster TEAMS Sync</h1>
+<p class="lede">Keep two tabs open: MathMaster on <strong>Grade Transfer</strong>, and DeSoto TEAMS on <strong>Enter Classroom Grading</strong>. Leave the TEAMS tab alone while a sync runs. Preview reads TEAMS and changes nothing there.</p>
+<div class="row"><button id="refresh" type="button">Load my classes</button></div>
+<div id="classes" aria-live="polite"></div>
+<h2 style="font-size:1.1rem">Activity</h2>
+<div id="log" role="log" aria-live="polite"></div>
+<script type="module" src="panel.js"></script>
+</body>
+</html>

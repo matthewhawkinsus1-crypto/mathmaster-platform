@@ -16,7 +16,7 @@ import {
 // would do the most harm without anyone noticing: no screen reads or writes
 // them from a browser, so nothing in the app breaks to show that a rule opened.
 //
-//   * Fifteen are server-only (`allow read, write: if false`: Google Classroom
+//   * Eighteen are server-only (`allow read, write: if false`: Google Classroom
 //     links, the sign-in handshake, repair audits, the Path locks, a game's
 //     achievement jobs, a teacher's dry run ...): no student, teacher, root
 //     administrator or signed-out visitor reads, lists, creates, edits or
@@ -80,6 +80,9 @@ const SERVER_ONLY = [
   'activePathLocks', // the lock that keeps one open My Math Path session per skill
   'masteryEvidenceApplications', // the marker that a Path answer was already applied to mastery
   'secureTestManifests', // a secure Test's blueprint and issuance record
+  'teamsSyncClasses', // which TEAMS sections a class is linked to, and the batch a sync runner holds
+  'teamsSyncTargets', // the grades Grade Transfer published for the TEAMS sync to send
+  'teamsSyncLedger', // what MathMaster wrote to each TEAMS cell
 ];
 
 before(async () => {

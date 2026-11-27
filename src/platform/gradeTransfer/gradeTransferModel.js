@@ -4,6 +4,7 @@ import {
   effectiveDistrictStudentId,
   isValidDistrictStudentId,
 } from '../../../functions/shared/studentDistrictId.mjs';
+import { teamsImportCsv } from '../../../functions/shared/teamsImportFile.mjs';
 import {
   STUDENT_NAME_UNAVAILABLE,
   formatStudentLabel,
@@ -310,10 +311,8 @@ export const buildTransferUnit = ({
   };
 };
 
-export const teamsCsv = (rows) => (rows || []).map((row) => {
-  if (!validSisStudentId(row.sisStudentId) || !Number.isInteger(row.grade) || row.grade < 0 || row.grade > 100) throw new Error('Invalid TEAMS export row.');
-  return `${row.sisStudentId},${row.grade}`;
-}).join('\r\n') + ((rows || []).length ? '\r\n' : '');
+// One definition of the TEAMS Import file, shared with the sync engine.
+export const teamsCsv = teamsImportCsv;
 
 const safeName = (value) => text(value).replace(/[^A-Za-z0-9_-]+/g, '').slice(0, 64) || 'GradeExport';
 const shortIdentity = (value) => {
