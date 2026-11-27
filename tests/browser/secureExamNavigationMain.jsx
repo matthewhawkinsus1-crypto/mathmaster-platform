@@ -161,6 +161,13 @@ harness.list = () => listStudentSecureExamSessions();
 harness.integrity = (type = 'window_blur') => recordSecureExamIntegrityEvent({ examSessionId: harness.sessionId, eventId: `harness_${Date.now()}_${Math.random()}`, type });
 // The released record of the session under test (after `proctor('releaseFeedback')`).
 harness.review = () => getStudentSecureExamReview({ examSessionId: harness.sessionId });
+// A draft saved for the item at `position` from elsewhere (another device),
+// and the draft the server holds for it now.
+harness.saveDraft = async (position, responses) => {
+  const issued = await issueSecureExamQuestion({ examSessionId: harness.sessionId, position });
+  await saveSecureExamDraft({ examSessionId: harness.sessionId, questionInstanceId: issued.questionInstance.questionInstanceId, responsePayload: { responses } });
+};
+harness.draft = async (position) => (await issueSecureExamQuestion({ examSessionId: harness.sessionId, position }))?.draftResponse?.responsePayload?.responses || null;
 harness.session = async () => (await listStudentSecureExamSessions()).sessions.find((entry) => entry.examSessionId === harness.sessionId) || null;
 
 const shell = (children) => (

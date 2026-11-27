@@ -272,8 +272,16 @@ const FieldItem = ({ question, policy, calculatorPolicy, studentSupportProfile, 
   const verdictsWithheld = policy.secure || !policy.capabilities?.immediateFeedback;
   const everyPartAtOnce = getStudentSupportPresentation(studentSupportProfile).everyPartAtOnce === true;
   const [stepStatus, setStepStatus] = useState(NO_STEPS);
+  // A field that already had an answer when the item opened (a saved draft,
+  // perhaps from another device) keeps its box open, showing that answer: the
+  // step never locks an answer already given behind redoing it. Its step is
+  // still drawn to be done; one that did not come with the draft is recorded
+  // as nothing (no line), neither skipped nor done.
+  const [answeredOnOpen] = useState(() => new Set(Object.entries(restoredFieldResponses(initialResponsePayload))
+    .filter(([id, value]) => !id.endsWith('::step') && String(value ?? '').trim())
+    .map(([id]) => id)));
   const stepOf = (field) => (closed ? null : checkpointOf(field));
-  const stepIsOpen = (field) => everyPartAtOnce || !stepOf(field) || stepStatus[field.id]?.open === true;
+  const stepIsOpen = (field) => everyPartAtOnce || !stepOf(field) || answeredOnOpen.has(field.id) || stepStatus[field.id]?.open === true;
   const reportStep = useCallback((id, status) => setStepStatus((current) => (
     current[id]?.open === status.open && current[id]?.done === status.done ? current : { ...current, [id]: status }
   )), []);
@@ -445,6 +453,7 @@ const FieldItem = ({ question, policy, calculatorPolicy, studentSupportProfile, 
                           onStatus={(status) => reportStep(field.id, status)}
                           verdictsWithheld={verdictsWithheld}
                           optional={everyPartAtOnce}
+                          carriedOver={answeredOnOpen.has(field.id)}
                           disabled={locked}
                           draftKey={draftKey ? `${draftKey}:step-${field.id}` : null}
                           partLabel={field.label || `Response ${fieldIndex + 1}`}

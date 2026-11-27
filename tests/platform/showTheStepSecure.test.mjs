@@ -108,7 +108,7 @@ test('a secure Test and Corrections open the step above the field, with no verdi
   assert.match(item, /const verdictsWithheld = policy\.secure \|\| !policy\.capabilities\?\.immediateFeedback;/);
   // See every part at once opens the box at once.
   assert.match(item, /const everyPartAtOnce = getStudentSupportPresentation\(studentSupportProfile\)\.everyPartAtOnce === true;/);
-  assert.match(item, /const stepIsOpen = \(field\) => everyPartAtOnce \|\| !stepOf\(field\) \|\| stepStatus\[field\.id\]\?\.open === true;/);
+  assert.match(item, /const stepIsOpen = \(field\) => everyPartAtOnce \|\| !stepOf\(field\) \|\| [^;]*stepStatus\[field\.id\]\?\.open === true;/);
   // The field is not answered, nor the item ready, until the step lets the box open.
   assert.match(item, /const complete = fields\.every\(\(field\) => String\(responses\[field\.id\] \?\? ''\)\.trim\(\) && stepIsOpen\(field\)\)/);
   assert.match(item, /const fieldDone = \(field\) => [^\n]*&& stepIsOpen\(field\);/);
@@ -146,6 +146,26 @@ test('the step these screens load is the engine\'s: ShowTheStep, handed the Step
   assert.match(engine, /const LazyShowTheStep = lazy\(\(\) => import\('\.\/platform\/supports\/showTheStep\/ShowTheStep\.jsx'\)\);/);
   assert.match(engine, /const ShowTheStep = \(props\) => <LazyShowTheStep \{\.\.\.props\} StepByStepAlgebraCore=\{StepByStepAlgebraCore\} \/>;/);
   assert.match(engine, /^export const ShowTheStepForField = ShowTheStep;$/m);
+});
+
+test('an answer saved before the item opened is never locked behind redoing the step (another device)', () => {
+  // The browser proof: secureExamNavigation.mjs, the step journey's "another
+  // device" checks (a draft with answers and no step state).
+  const item = region(source('src/components/question/RichQuestionRuntime.jsx'), 'const FieldItem = ', '\n};\n', 'the field item');
+  // The fields answered when the item opened, read once from the saved draft.
+  assert.match(item, /const \[answeredOnOpen\] = useState\(\(\) => new Set\(Object\.entries\(restoredFieldResponses\(initialResponsePayload\)\)/);
+  assert.match(item, /\.filter\(\(\[id, value\]\) => !id\.endsWith\('::step'\) && String\(value \?\? ''\)\.trim\(\)\)/);
+  // Its box is open…
+  assert.match(item, /const stepIsOpen = \(field\) => everyPartAtOnce \|\| !stepOf\(field\) \|\| answeredOnOpen\.has\(field\.id\) \|\| stepStatus\[field\.id\]\?\.open === true;/);
+  assert.match(region(item, '<StepForPart', '/>', 'the step'), /carriedOver=\{answeredOnOpen\.has\(field\.id\)\}/);
+  // …and the step says it was not carried over: not done, not skipped, and no line is written for it.
+  const step = source('src/platform/supports/showTheStep/ShowTheStep.jsx');
+  assert.match(step, /const open = !source\.ok \|\| optional \|\| carriedOver \|\| /);
+  assert.match(step, /carriedOver && !check\.done \? 'Your answer from before is kept\. Your step was not carried over/);
+  // A Step Algebra workspace that opens with no moves (no draft on this
+  // device) does not erase the moves the saved line records.
+  const moves = region(step, 'function StepMoves(', '\n}\n', 'the moves step');
+  assert.match(moves, /if \(lines\.length > 1\) heldMoves\.current = true;\n\s+else if \(!heldMoves\.current && String\(valueRef\.current \|\| ''\)\.trim\(\)\) return;/);
 });
 
 // ------------------------------------------------------------------ 4. the review
