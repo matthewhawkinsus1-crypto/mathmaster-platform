@@ -135,10 +135,13 @@ The behaviour is controlled by `capabilities.provisional`:
   to 0.
   - **Individual extension at closure.** Weight is per column, not per
     student, so an extended student's provisional score would start counting.
-    The engine clears it where the route can clear a cell. Where it cannot,
-    the case becomes the exception `PROVISIONAL_SCORE_WILL_COUNT` for the
-    teacher. The class still closes on time. The final grade posts when the
-    extension ends.
+    The engine clears it where the route can clear a cell. Where it cannot
+    (DeSoto's TEAMS, observed 2026-11-27), **the `#Count` switch waits** (the
+    owner's decision, 2026-11-27): the exception `COUNT_HELD_FOR_FINAL_GRADE`
+    tells the teacher, everyone's final grades still post at `#Count` 0, and
+    the switch happens once the final grade replaces the provisional score
+    or a teacher clears that cell in TEAMS. A provisional score never counts.
+    Each inclusion section waits only for its own students.
   - **Student reopened after their final posted.** That student's grade stays
     as posted, because only values written *while open* are provisional. It
     updates when they are final again.

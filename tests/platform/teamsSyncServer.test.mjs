@@ -157,7 +157,7 @@ test('the extension loop syncs an inclusion class into both TEAMS 5th periods, t
   assert.equal(server.store.classState.lastStep.status, 'done');
 });
 
-test('on DeSoto\'s TEAMS (no clear through the Import), an extended student\'s provisional score is reported, not cleared', async () => {
+test('on DeSoto\'s TEAMS (no clear through the Import), the section holding an extended student\'s provisional score waits to count', async () => {
   const gradebook = testGradebook();
   const server = makeServer();
   await runExtension({ server, gradebook, targets: published() });
@@ -175,7 +175,12 @@ test('on DeSoto\'s TEAMS (no clear through the Import), an extended student\'s p
     }),
   });
   assert.equal(gradebook.cell(inclusion.id, '1500104'), 0, 'no blank file was sent');
-  assert.ok(response.exceptions.some((item) => item.code === TEAMS_EXCEPTION.PROVISIONAL_SCORE_WILL_COUNT && item.sisStudentId === '1500104'), 'the teacher is told');
+  assert.ok(response.exceptions.some((item) => item.code === TEAMS_EXCEPTION.COUNT_HELD_FOR_FINAL_GRADE && item.sisStudentId === '1500104'), 'the teacher is told');
+  // Each section switches on its own: the regular 5th period counts, the
+  // inclusion 5th period waits for Dee's final grade.
+  const [regular] = gradebook.columnsNamed(P5, 'Nth Roots - Classwork');
+  assert.equal(regular.weight, 1);
+  assert.equal(gradebook.columnsNamed(P5_INC, 'Nth Roots - Classwork')[0].weight, 0);
 });
 
 test('a reply lost after TEAMS acted still converges with no duplicate column or grade', async () => {

@@ -77,7 +77,7 @@ export const TEAMS_EXCEPTION = Object.freeze({
   SAVE_NOT_PERSISTING: 'SAVE_NOT_PERSISTING',
   PROVISIONAL_WEIGHT_NOT_ZERO: 'PROVISIONAL_WEIGHT_NOT_ZERO',
   REOPENED_AFTER_COUNTED: 'REOPENED_AFTER_COUNTED',
-  PROVISIONAL_SCORE_WILL_COUNT: 'PROVISIONAL_SCORE_WILL_COUNT',
+  COUNT_HELD_FOR_FINAL_GRADE: 'COUNT_HELD_FOR_FINAL_GRADE',
 });
 
 const EXCEPTION_MESSAGES = Object.freeze({
@@ -95,7 +95,7 @@ const EXCEPTION_MESSAGES = Object.freeze({
   SAVE_NOT_PERSISTING: 'TEAMS accepted this grade several times, but it is still blank when read back.',
   PROVISIONAL_WEIGHT_NOT_ZERO: 'The provisional TEAMS assignment no longer has #Count 0, so open-lesson scores were not posted.',
   REOPENED_AFTER_COUNTED: 'The lesson reopened after its grades started counting. Scores in TEAMS stay as posted until it closes again.',
-  PROVISIONAL_SCORE_WILL_COUNT: 'This student has no final grade yet, and their provisional score in TEAMS will count once #Count changes. It cannot be cleared by this route.',
+  COUNT_HELD_FOR_FINAL_GRADE: 'This student has no final grade yet, and their provisional score is still in TEAMS, so #Count stays 0 for this assignment. It switches by itself once their final grade replaces that score, or once you clear that cell in TEAMS.',
 });
 
 const DEFAULT_MAX_ATTEMPTS = 3;
@@ -152,8 +152,9 @@ export const teamsClearCsv = (sisStudentIds = []) => {
  *   Overwrite Yes to clear a cell, but on a live test assignment (2026-11-27,
  *   an empty cell) TEAMS refused the line: "Error finding student Id/Grade in
  *   the File for line number: 1", "Total number of grades added: 0". So a
- *   provisional score with no final grade is flagged for the teacher
- *   (PROVISIONAL_SCORE_WILL_COUNT) instead of cleared.
+ *   provisional score with no final grade cannot be cleared: the #Count
+ *   switch waits for it (COUNT_HELD_FOR_FINAL_GRADE, the owner's decision of
+ *   2026-11-27), so a provisional score never counts.
  */
 export const DESOTO_TEAMS_CAPABILITIES = Object.freeze({
   provisional: 'assignment-weight-zero',
@@ -371,6 +372,11 @@ export const planTeamsTarget = ({ target, ledgerEntry = {}, gradebook, capabilit
       if (!finalIds.has(sis) && !listed.has(sis)) listed.set(sis, { row: { sisStudentId: sis }, status: TEAMS_CELL_STATUS.HELD, detail: 'No final grade to send', unlisted: true });
     });
   }
+  // A provisional score still in TEAMS for a student with no final grade
+  // would count the moment #Count switches. Where it cannot be cleared, the
+  // switch waits (the owner, 2026-11-27): for the final grade to replace it,
+  // or for a teacher to clear the cell.
+  let holdCount = false;
   for (const { row, status, detail, unlisted } of listed.values()) {
     const sis = text(row.sisStudentId);
     const mine = sis ? ledgerCells[sis] : null;
@@ -381,8 +387,9 @@ export const planTeamsTarget = ({ target, ledgerEntry = {}, gradebook, capabilit
       clears.push(sis);
       cell(row, TEAMS_CELL_STATUS.QUEUED, `${detail}; clearing provisional ${score}`);
     } else if (ownsProvisional) {
-      exception(TEAMS_EXCEPTION.PROVISIONAL_SCORE_WILL_COUNT, { studentId: row.studentId, sisStudentId: sis, teams: score });
-      cell(row, status, `${detail}; provisional ${score} remains`);
+      holdCount = true;
+      exception(TEAMS_EXCEPTION.COUNT_HELD_FOR_FINAL_GRADE, { studentId: row.studentId, sisStudentId: sis, teams: score });
+      cell(row, status, `${detail}; provisional ${score} remains, so #Count stays 0`);
     } else {
       cell(row, status, detail);
     }
@@ -397,10 +404,11 @@ export const planTeamsTarget = ({ target, ledgerEntry = {}, gradebook, capabilit
   if (clears.length) result.ops.push({ type: 'clearScores', key: target.key, columnId: column.id, sisStudentIds: clears });
 
   // The one weight change: only on closure, only once every final score is
-  // confirmed and every provisional leftover is resolved, and never again
-  // once the ledger records it as counted.
+  // confirmed and every provisional leftover is resolved (cleared, replaced
+  // by a final grade, or cleared by a teacher), and never again once the
+  // ledger records it as counted.
   const unsettled = result.cells.some((item) => item.status === TEAMS_CELL_STATUS.QUEUED || item.status === TEAMS_CELL_STATUS.DELIVERED);
-  if (target.closed && stillProvisional && !result.ops.length && !unsettled) {
+  if (target.closed && stillProvisional && !result.ops.length && !unsettled && !holdCount) {
     result.ops.push({ type: 'setWeight', key: target.key, columnId: column.id, weight: countedWeight });
   }
   return result;

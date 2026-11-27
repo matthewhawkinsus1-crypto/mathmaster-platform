@@ -80,7 +80,8 @@ on the page.
   student counts as on the section, a dropped one does not.
 - A locked marking period is not detected before acting; TEAMS refuses the
   change and the run stops there.
-- No clear: when a lesson closes, a provisional score left for a student with
-  no final grade (an extension, a Recovery hold) is reported to the teacher,
-  and counts once `#Count` switches. Whether the switch should wait is the
-  owner's decision.
+- No clear on DeSoto's TEAMS: when a lesson closes while a student still has
+  a provisional score in TEAMS and no final grade (an extension, a Recovery
+  hold), that section's `#Count` stays 0 (the owner's decision, 2026-11-27).
+  It switches once the final grade replaces the score, or once the teacher
+  clears that cell in TEAMS; the sync shows which students it waits for.

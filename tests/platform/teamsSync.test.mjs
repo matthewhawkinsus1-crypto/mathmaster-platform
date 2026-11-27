@@ -221,7 +221,9 @@ test('a tenant that refuses weight 0 surfaces as a failed create, never as count
   assert.equal(statusOf(result, ADA), TEAMS_CELL_STATUS.QUEUED);
 });
 
-test('without a way to clear a cell, an extended student\'s provisional score is a teacher decision', async () => {
+// The owner's decision of 2026-11-27: where a provisional score cannot be
+// cleared, #Count waits, so a provisional score never counts.
+test('without a way to clear a cell, #Count waits until the extended student\'s final grade replaces the provisional score', async () => {
   const { gradebook } = seededGradebook();
   const now = clock();
   let result = await runTeamsSync({ targets: [target({ rows: rows({ [ADA]: 70, [EVE]: 50 }) })], adapter: gradebook, capabilities: ZERO_WEIGHT, now });
@@ -229,12 +231,38 @@ test('without a way to clear a cell, an extended student\'s provisional score is
     targets: [target({ closed: true, rows: rows({ [ADA]: 85 }), withheld: [{ studentId: `s${EVE}`, sisStudentId: EVE }] })],
     ledger: result.ledger, adapter: gradebook, capabilities: ZERO_WEIGHT, now,
   });
-  const exception = result.exceptions.find((item) => item.code === TEAMS_EXCEPTION.PROVISIONAL_SCORE_WILL_COUNT);
+  const [column] = gradebook.columnsNamed(REF, 'Nth Roots - Classwork');
+  const exception = result.exceptions.find((item) => item.code === TEAMS_EXCEPTION.COUNT_HELD_FOR_FINAL_GRADE);
   assert.equal(exception.sisStudentId, EVE);
   assert.equal(gradebook.calls.clearScores, 0);
-  // The class still closes on time: everyone else's grade counts.
-  assert.equal(gradebook.columnsNamed(REF, 'Nth Roots - Classwork')[0].weight, 1);
+  assert.equal(gradebook.cell(column.id, ADA), 85, 'final grades still post');
+  assert.equal(gradebook.cell(column.id, EVE), 50);
+  assert.equal(column.weight, 0, 'nothing counts while a provisional score is in TEAMS');
+  assert.deepEqual(gradebook.calls.setColumnWeight, []);
   assert.equal(statusOf(result, EVE), TEAMS_CELL_STATUS.HELD);
+
+  // Eve's extension ends: her final grade replaces the provisional score, and
+  // only then does #Count switch, once.
+  result = await runTeamsSync({ targets: [target({ closed: true, rows: rows({ [ADA]: 85, [EVE]: 78 }) })], ledger: result.ledger, adapter: gradebook, capabilities: ZERO_WEIGHT, now });
+  assert.equal(gradebook.cell(column.id, EVE), 78);
+  assert.equal(gradebook.columnsNamed(REF, 'Nth Roots - Classwork')[0].weight, 1);
+  assert.equal(result.exceptions.filter((item) => item.code === TEAMS_EXCEPTION.COUNT_HELD_FOR_FINAL_GRADE).length, 0);
+  await runTeamsSync({ targets: [target({ closed: true, rows: rows({ [ADA]: 85, [EVE]: 78 }) })], ledger: result.ledger, adapter: gradebook, capabilities: ZERO_WEIGHT, now });
+  assert.equal(gradebook.calls.setColumnWeight.length, 1, 'the switch happens once');
+});
+
+test('a teacher who clears the held cell in TEAMS releases #Count', async () => {
+  const { gradebook } = seededGradebook();
+  const now = clock();
+  let result = await runTeamsSync({ targets: [target({ rows: rows({ [ADA]: 70, [EVE]: 50 }) })], adapter: gradebook, capabilities: ZERO_WEIGHT, now });
+  const closing = target({ closed: true, rows: rows({ [ADA]: 85 }), withheld: [{ studentId: `s${EVE}`, sisStudentId: EVE }] });
+  result = await runTeamsSync({ targets: [closing], ledger: result.ledger, adapter: gradebook, capabilities: ZERO_WEIGHT, now });
+  const [column] = gradebook.columnsNamed(REF, 'Nth Roots - Classwork');
+  assert.equal(column.weight, 0);
+  gradebook.teacherClear(column.id, EVE);
+  result = await runTeamsSync({ targets: [closing], ledger: result.ledger, adapter: gradebook, capabilities: ZERO_WEIGHT, now });
+  assert.equal(gradebook.columnsNamed(REF, 'Nth Roots - Classwork')[0].weight, 1);
+  assert.equal(gradebook.cell(column.id, EVE), undefined, 'MathMaster does not re-enter it');
 });
 
 test('a student reopened after their final grade posted keeps that grade; only provisional values are cleared', async () => {
@@ -439,12 +467,13 @@ test('an unresolved student\'s provisional score is cleared or reported before t
     let result = await runTeamsSync({ targets: [opening], adapter: gradebook, capabilities, now });
     result = await runTeamsSync({ targets: [closing], ledger: result.ledger, adapter: gradebook, capabilities, now });
     const [column] = gradebook.columnsNamed(REF, closing.name);
-    assert.equal(column.weight, 1);
     if (canClearCells) {
       assert.equal(gradebook.cell(column.id, BEN), undefined, 'held student is blank, not counted at 70');
+      assert.equal(column.weight, 1);
     } else {
       assert.equal(gradebook.cell(column.id, BEN), 70);
-      assert.ok(result.exceptions.some((item) => item.code === TEAMS_EXCEPTION.PROVISIONAL_SCORE_WILL_COUNT && item.sisStudentId === BEN));
+      assert.equal(column.weight, 0, '#Count waits: the 70 is still provisional');
+      assert.ok(result.exceptions.some((item) => item.code === TEAMS_EXCEPTION.COUNT_HELD_FOR_FINAL_GRADE && item.sisStudentId === BEN));
     }
     assert.equal(statusOf(result, BEN), TEAMS_CELL_STATUS.HELD);
   }
@@ -456,7 +485,8 @@ test('a provisional value for a student missing from every list is still caught 
   let result = await runTeamsSync({ targets: [target({ rows: rows({ [ADA]: 60, [CAL]: 50 }) })], adapter: gradebook, capabilities: ZERO_WEIGHT, now });
   // Cal left the class: the closing target does not mention him at all.
   result = await runTeamsSync({ targets: [target({ closed: true, rows: rows({ [ADA]: 90 }) })], ledger: result.ledger, adapter: gradebook, capabilities: ZERO_WEIGHT, now });
-  assert.ok(result.exceptions.some((item) => item.code === TEAMS_EXCEPTION.PROVISIONAL_SCORE_WILL_COUNT && item.sisStudentId === CAL));
+  assert.ok(result.exceptions.some((item) => item.code === TEAMS_EXCEPTION.COUNT_HELD_FOR_FINAL_GRADE && item.sisStudentId === CAL));
+  assert.equal(gradebook.columnsNamed(REF, 'Nth Roots - Classwork')[0].weight, 0, 'his provisional score would count, so #Count waits');
 });
 
 // DeSoto's TEAMS, confirmed by the teacher on 2026-11-27: the Import is the
@@ -487,7 +517,7 @@ test('on an Import-only route that clears with a blank Overwrite file, an extend
   assert.throws(() => teamsClearCsv(['bad id']));
 });
 
-test('on DeSoto\'s TEAMS, which cannot clear through the Import, an extended student\'s provisional score is reported to the teacher', async () => {
+test('on DeSoto\'s TEAMS, which cannot clear through the Import, #Count waits for an extended student\'s final grade', async () => {
   assert.equal(DESOTO_TEAMS_CAPABILITIES.canClearCells, false, 'observed 2026-11-27: a blank grade is refused');
   const { gradebook } = seededGradebook({ importOnly: true });
   const now = clock();
@@ -498,8 +528,9 @@ test('on DeSoto\'s TEAMS, which cannot clear through the Import, an extended stu
     ledger: result.ledger, adapter: gradebook, capabilities: DESOTO_TEAMS_CAPABILITIES, now,
   });
   assert.equal(gradebook.cell(column.id, EVE), 50, 'nothing was sent that TEAMS would refuse');
-  assert.ok(result.exceptions.some((item) => item.code === TEAMS_EXCEPTION.PROVISIONAL_SCORE_WILL_COUNT && item.sisStudentId === EVE), 'the teacher is told');
+  assert.ok(result.exceptions.some((item) => item.code === TEAMS_EXCEPTION.COUNT_HELD_FOR_FINAL_GRADE && item.sisStudentId === EVE), 'the teacher is told');
   assert.equal(gradebook.calls.clearScores, 0);
+  assert.equal(gradebook.columnsNamed(REF, 'Nth Roots - Classwork')[0].weight, 0, '#Count waits for her final grade');
 });
 
 test('a lesson assigned in the previous marking period starts on the first day of the due date\'s period', async () => {
