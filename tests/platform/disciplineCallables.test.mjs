@@ -15,6 +15,8 @@ import { executableSource } from './helpers/sourceContract.mjs';
 const CALLABLES = [
   'recordDisciplineIncident', 'voidDisciplineIncident', 'setDisciplineIncidentDetail', 'listDisciplineIncidents',
   'getDisciplineSettings', 'saveDisciplineSettings', 'submitDisciplineFormsNow', 'resolveDisciplineFormState',
+  // The case review's read (caseReviewConduct.test.mjs pins the rest of it).
+  'loadStudentConductEvidence',
 ];
 const body = (name) => executableSource(functionsDeclaration(name));
 const moduleSource = () => executableSource(readFileSync('functions/disciplineFunctions.js', 'utf8'));

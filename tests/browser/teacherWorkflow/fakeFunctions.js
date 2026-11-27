@@ -54,6 +54,9 @@ import {
 import {
   authorizeCaseEvidenceCaller, buildCaseEvidenceResponse, validateCaseEvidenceRequest,
 } from '../../../functions/shared/caseReviewEvidence.mjs';
+import {
+  ConductEvidenceInputError, buildConductEvidenceResponse, validateConductEvidenceRequest,
+} from '../../../functions/shared/conductEvidence.mjs';
 import { workspaceDraftDocumentId } from '../../../functions/shared/workspaceDraftSchema.mjs';
 import { CRASH_REPORTING_FLAG, resolveCrashReportingMode } from '../../../functions/shared/crashReport.mjs';
 import { explainStudentChallengeRewards } from '../../../functions/shared/rewardDiagnostics.mjs';
@@ -808,6 +811,32 @@ const handlers = {
       .map((path) => ({ id: path.split('/').pop(), data: harnessStore.get(path) }))
       .filter((entry) => wanted.has(entry.data?.source?.assignmentId));
     return buildCaseEvidenceResponse({ request: validation.request, events, receipts, drafts, audits, misconceptionRecords, nowMs: Date.now() });
+  },
+  // The case review's conduct section (functions/disciplineFunctions.js
+  // loadStudentConductEvidence): the real request validation, the case
+  // review's own teacher decision and the real projection, over the store's
+  // Discipline Tracker records and Parent Contacts.
+  loadStudentConductEvidence: (data) => {
+    let request;
+    try { request = validateConductEvidenceRequest(data); } catch (error) {
+      if (error instanceof ConductEvidenceInputError) throw rejection('invalid-argument', error.message);
+      throw error;
+    }
+    const student = harnessStore.get(`grades/${request.studentId}`) || null;
+    const classRecord = student?.classId ? harnessStore.get(`classes/${student.classId}`) || null : null;
+    const decision = authorizeCaseEvidenceCaller({ callerEmail: TEACHER_EMAIL, callerRole: 'teacher', student, classRecord });
+    if (!decision.allowed) {
+      throw rejection(decision.reason === 'student-not-found' ? 'not-found' : 'permission-denied', 'Only this student\'s teacher may load their conduct records.');
+    }
+    const byStudent = (prefix) => harnessStore.paths(prefix)
+      .map((path) => ({ id: path.split('/').pop(), ...harnessStore.get(path) }))
+      .filter((entry) => entry.studentId === request.studentId);
+    return buildConductEvidenceResponse({
+      ...request,
+      incidents: byStudent('disciplineIncidents/'),
+      contacts: byStudent('parentContactLogs/'),
+      callerEmail: TEACHER_EMAIL,
+    });
   },
   // The Response Inspector, as functions/index.js inspectStudentResponse
   // answers: the same checks in the same order (a teacher; this student's

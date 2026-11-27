@@ -63,7 +63,8 @@ const here = path.dirname(fileURLToPath(import.meta.url));
 const repo = path.resolve(here, '../../..');
 const ARTIFACTS = path.join(repo, 'tests/browser/artifacts/caseReview');
 const ORIGIN = process.env.TEACHER_HARNESS_ORIGIN || 'http://127.0.0.1:5188';
-const PAGE = `${ORIGIN}/tests/browser/teacherWorkflow/index.html?reset=1`;
+// `conduct=1`: the student's Discipline Tracker records and a family contact (fixture.js).
+const PAGE = `${ORIGIN}/tests/browser/teacherWorkflow/index.html?reset=1&conduct=1`;
 const ONLY = process.env.ONLY ? process.env.ONLY.split(',') : null;
 const VIEWPORTS = (process.env.VIEWPORTS || '1440x900,1366x768,1024x768,768x1024,390x844')
   .split(',').map((entry) => entry.split('x').map(Number)).map(([width, height]) => ({ width, height }));
@@ -180,7 +181,7 @@ const evidenceScroller = (review) => review.evaluateHandle((shell) => {
 const openAllDetails = (scope) => scope.locator('details').evaluateAll((elements) => elements.forEach((element) => { element.open = true; }));
 const shot = (page, name) => page.screenshot({ path: path.join(ARTIFACTS, `${name}-${page.viewportSize().width}.png`) });
 
-const TAB_KEYS = ['summary', 'grades', 'questions', 'skills', 'dol', 'completion', 'supports', 'timeline', 'gradebook', 'facts', 'attention', 'print'];
+const TAB_KEYS = ['summary', 'grades', 'questions', 'skills', 'dol', 'completion', 'supports', 'conduct', 'timeline', 'gradebook', 'facts', 'attention', 'print'];
 
 // Each action waits for its own target (the search filters as it is typed).
 const openDrawer = async (page) => {
@@ -279,6 +280,16 @@ const journeys = {
     const supports = await text(panel(review, 'supports'));
     expect('C1', /Revision 2/.test(supports) && /read aloud/i.test(supports) && /Staff documented/.test(supports), 'PR #401\'s support records are reused');
     expect('C1', await panel(review, 'timeline').locator('[data-timeline-kind]').count() > 5, 'the timeline lists recorded events');
+    // Conduct and family contact: the Discipline Tracker's records, counted as
+    // recorded, the undone tap left out, the teacher's words labelled as theirs.
+    const conduct = await text(panel(review, 'conduct'));
+    expect('C1', /2 conduct records on 2 school days: Tardy 1 · ID Violation 1\./.test(conduct), `the student's conduct records are counted (${conduct.match(/\d+ conduct records?.{0,80}/)?.[0]})`);
+    expect('C1', /ID Violation · ID not displayed \(no lanyard\)/.test(conduct) && /Sent to the district form/.test(conduct), 'each record shows what was recorded and where it stands with the district form');
+    expect('C1', !/Dress Code/.test(conduct), 'an undone tap is not a record');
+    expect('C1', /Called about wearing the ID on a lanyard\./.test(conduct) && /teacher-written/.test(conduct), 'the family contact is shown, the teacher\'s own words labelled as theirs');
+    expect('C1', await panel(review, 'timeline').locator('[data-timeline-kind="conduct-record"]').count() === 2
+      && await panel(review, 'timeline').locator('[data-timeline-kind="family-contact"]').count() === 1, 'the timeline carries the two records and the call');
+    expect('C1', /2 conduct records/.test(await text(panel(review, 'summary'))), 'the summary names them beside the academic snapshot');
 
     // The selection reopened over a built case review (every assignment
     // listed): still usable, and the evidence still reachable.

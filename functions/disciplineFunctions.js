@@ -208,6 +208,67 @@ exports.listDisciplineIncidents = onCall(async (request) => {
   };
 });
 
+/*
+ * The Student Case Review's conduct section: one student's recorded
+ * violations and family contacts over the case's window. Read-only, and
+ * authorized exactly as the case review's own evidence is
+ * (gradingFunctions.js loadStudentCaseEvidence): the student's teacher, the
+ * class's teacher of record, or the root administrator. A student's records
+ * follow them to a new class, as their support history and family contacts
+ * do. Family contacts are only those the caller may already read in Parent
+ * Contacts (shared/conductEvidence.mjs).
+ */
+exports.loadStudentConductEvidence = onCall(async (request) => {
+  await requireTeacher(request);
+  const conduct = await import("./shared/conductEvidence.mjs");
+  let input;
+  try {
+    input = conduct.validateConductEvidenceRequest(request.data || {});
+  } catch (error) {
+    if (error instanceof conduct.ConductEvidenceInputError) throw new HttpsError("invalid-argument", error.message);
+    throw error;
+  }
+  const { studentId, fromDateKey, toDateKey } = input;
+  const email = callerEmail(request);
+  const isRootAdmin = request.auth?.token?.rootAdmin === true && authLib.isRootAdminEmail(email);
+
+  const db = getFirestore();
+  const [studentSnap] = await db.getAll(db.collection("grades").doc(studentId), { fieldMask: ["classId", "assignedTeacherEmail"] });
+  const student = studentSnap.exists ? studentSnap.data() || {} : null;
+  const classSnap = student?.classId ? await db.collection(CLASS_COLLECTION).doc(String(student.classId)).get() : null;
+  const { authorizeCaseEvidenceCaller } = await import("./shared/caseReviewEvidence.mjs");
+  const decision = authorizeCaseEvidenceCaller({
+    callerEmail: email,
+    callerRole: request.auth?.token?.role,
+    isRootAdmin,
+    student,
+    classRecord: classSnap?.exists ? classSnap.data() || {} : null,
+  });
+  if (!decision.allowed) {
+    throw new HttpsError(
+      decision.reason === "student-not-found" ? "not-found" : "permission-denied",
+      "Only this student's teacher may load their conduct records.",
+    );
+  }
+
+  // By student only (single-field indexes); the window is applied in memory.
+  const limits = conduct.CONDUCT_EVIDENCE_LIMITS;
+  const [incidentSnapshot, contactSnapshot] = await Promise.all([
+    db.collection("disciplineIncidents").where("studentId", "==", studentId).limit(limits.maxIncidents).get(),
+    db.collection("parentContactLogs").where("studentId", "==", studentId).limit(limits.maxContacts).get(),
+  ]);
+  return conduct.buildConductEvidenceResponse({
+    studentId,
+    fromDateKey,
+    toDateKey,
+    incidents: incidentSnapshot.docs.map((entry) => ({ id: entry.id, ...entry.data() })),
+    contacts: contactSnapshot.docs.map((entry) => ({ id: entry.id, ...entry.data() })),
+    callerEmail: email,
+    isRootAdmin,
+    truncated: { incidents: incidentSnapshot.size >= limits.maxIncidents, contacts: contactSnapshot.size >= limits.maxContacts },
+  });
+});
+
 exports.getDisciplineSettings = onCall(async (request) => {
   await requireTeacher(request);
   const email = callerEmail(request);
