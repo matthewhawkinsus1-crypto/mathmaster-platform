@@ -13,10 +13,12 @@ import {
   TEAMS_EXCEPTION,
   planTeamsTarget,
   runTeamsSync,
+  TEAMS_ASSIGNMENT_NAME_MAX,
+  teamsAssignmentName,
   teamsDay,
   teamsTargetFromTransferUnit,
 } from '../../src/platform/gradeTransfer/teamsSync.js';
-import { buildTransferUnit } from '../../src/platform/gradeTransfer/gradeTransferModel.js';
+import { buildTransferUnit, teamsCsv } from '../../src/platform/gradeTransfer/gradeTransferModel.js';
 import { createTeamsTestGradebook } from './helpers/teamsTestGradebook.mjs';
 
 const REF = 'DESOTO-HS-ALG2-P2';
@@ -332,4 +334,54 @@ test('a Grade Transfer section unit becomes a sync target with the export\'s own
   assert.equal(open.closed, false);
   assert.deepEqual(open.rows.map((row) => row.sisStudentId), [EVE]);
   assert.deepEqual(open.withheld, []);
+});
+
+// Observed on DeSoto's TEAMS, 2026-11-26: names are stored to 64 characters.
+test('a lesson name longer than TEAMS keeps still maps to one column across runs', async () => {
+  const { gradebook } = seededGradebook();
+  const now = clock();
+  const title = 'Solving Rational Equations and Identifying Extraneous Solutions in Context';
+  const longA = target({ key: 'long-a', name: teamsAssignmentName(title, 'Classwork'), closed: true, rows: rows({ [ADA]: 90 }) });
+  const longB = target({ key: 'long-b', name: teamsAssignmentName(`${title} (Part 2)`, 'Classwork'), closed: true, rows: rows({ [ADA]: 70 }) });
+  assert.equal(TEAMS_ASSIGNMENT_NAME_MAX, 64);
+  assert.ok(longA.name.length <= 64 && longB.name.length <= 64);
+  assert.match(longA.name, / - Classwork$/, 'the section label survives the cut');
+  assert.notEqual(longA.name, longB.name, 'two titles sharing their start still differ');
+  assert.equal(teamsAssignmentName('Nth Roots', 'Warm-Up'), 'Nth Roots - Warm-Up', 'short names are unchanged');
+
+  let result = await runTeamsSync({ targets: [longA, longB], adapter: gradebook, capabilities: ZERO_WEIGHT, now });
+  result = await runTeamsSync({ targets: [longA, longB], ledger: result.ledger, adapter: gradebook, capabilities: ZERO_WEIGHT, now });
+  // A fresh ledger (for example a restored backup) must still find them by name.
+  result = await runTeamsSync({ targets: [longA, longB], adapter: gradebook, capabilities: ZERO_WEIGHT, now });
+  assert.equal(gradebook.calls.createColumn, 2);
+  assert.equal(gradebook.cell(gradebook.columnsNamed(REF, longA.name)[0].id, ADA), 90);
+  assert.equal(gradebook.cell(gradebook.columnsNamed(REF, longB.name)[0].id, ADA), 70);
+  // A raw over-long name is fitted by the planner as well.
+  const raw = target({ key: 'raw', name: `${title} - Practice`, closed: true, rows: rows({ [ADA]: 80 }) });
+  result = await runTeamsSync({ targets: [raw], ledger: result.ledger, adapter: gradebook, capabilities: ZERO_WEIGHT, now });
+  result = await runTeamsSync({ targets: [raw], adapter: gradebook, capabilities: ZERO_WEIGHT, now });
+  assert.equal(gradebook.calls.createColumn, 3);
+});
+
+test('a column another lesson section maps to is never matched by name', async () => {
+  const { gradebook } = seededGradebook();
+  const now = clock();
+  const first = target({ key: 'first', name: 'Review', closed: true, rows: rows({ [ADA]: 90 }) });
+  let result = await runTeamsSync({ targets: [first], adapter: gradebook, capabilities: ZERO_WEIGHT, now });
+  const second = target({ key: 'second', name: 'Review', closed: true, rows: rows({ [ADA]: 40 }) });
+  result = await runTeamsSync({ targets: [first, second], ledger: result.ledger, adapter: gradebook, capabilities: ZERO_WEIGHT, now });
+  const [a, b] = gradebook.columnsNamed(REF, 'Review');
+  assert.ok(a && b && a.id !== b.id);
+  assert.equal(gradebook.cell(a.id, ADA), 90, 'the first lesson\'s grade is not overwritten by the second');
+  assert.equal(gradebook.cell(b.id, ADA), 40);
+});
+
+// The Import dialog's defaults, as recorded on DeSoto's TEAMS: delimiter Comma,
+// text qualifier None, Student ID column 1, Grade column 2, Header Row No.
+test('the import file needs no change to the TEAMS Import defaults', () => {
+  const file = teamsCsv([{ sisStudentId: ADA, grade: 90 }, { sisStudentId: BEN, grade: 0 }]);
+  const lines = file.trim().split(/\r\n/);
+  assert.deepEqual(lines.map((line) => line.split(',')), [[ADA, '90'], [BEN, '0']]);
+  assert.doesNotMatch(file, /"/, 'no text qualifier');
+  assert.doesNotMatch(lines[0], /[A-Za-z]/, 'no header row');
 });

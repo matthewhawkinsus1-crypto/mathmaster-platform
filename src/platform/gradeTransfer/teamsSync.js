@@ -31,8 +31,10 @@ import { SECTION_TRANSFER_LABELS, teamsCsv } from './gradeTransferModel.js';
 export const PROVISIONAL_MODE = Object.freeze({
   // A column MathMaster created is posted at assignment weight 0 while the
   // lesson is open, then switched to its normal weight once, on closure.
-  // Only safe where the tenant accepts weight 0 AND excludes it from the
-  // average. Both are tenant facts, not assumptions (see the discovery doc).
+  // In TEAMS the per-assignment weight is the "#Count" field (default 1).
+  // DeSoto's TEAMS accepts #Count 0 when an assignment is created (observed
+  // 2026-11-26), and the teacher confirms a #Count-0 grade is not factored
+  // into the average. A tenant where either fails uses NONE.
   ASSIGNMENT_WEIGHT_ZERO: 'assignment-weight-zero',
   // The closest workable behaviour when the tenant cannot hold a score at
   // zero weight: the column (with dates) appears right away, scores arrive
@@ -79,9 +81,9 @@ const EXCEPTION_MESSAGES = Object.freeze({
   TEACHER_OVERRIDE: 'A teacher changed the grade in TEAMS after MathMaster wrote it. The newer MathMaster grade was not applied.',
   TEACHER_CLEARED: 'A grade MathMaster had confirmed in TEAMS was cleared there. It was not re-entered.',
   SAVE_NOT_PERSISTING: 'TEAMS accepted this grade several times, but it is still blank when read back.',
-  PROVISIONAL_WEIGHT_NOT_ZERO: 'The provisional TEAMS assignment no longer has weight 0, so open-lesson scores were not posted.',
+  PROVISIONAL_WEIGHT_NOT_ZERO: 'The provisional TEAMS assignment no longer has #Count 0, so open-lesson scores were not posted.',
   REOPENED_AFTER_COUNTED: 'The lesson reopened after its grades started counting. Scores in TEAMS stay as posted until it closes again.',
-  PROVISIONAL_SCORE_WILL_COUNT: 'This student has an extension, and their provisional score in TEAMS will count once the weight changes. It cannot be cleared by this route.',
+  PROVISIONAL_SCORE_WILL_COUNT: 'This student has an extension, and their provisional score in TEAMS will count once #Count changes. It cannot be cleared by this route.',
 });
 
 const DEFAULT_MAX_ATTEMPTS = 3;
@@ -95,6 +97,27 @@ const asScore = (value) => {
 // A non-blank, non-numeric TEAMS value is a code the teacher chose (exempt,
 // missing, incomplete...). Codes are never overwritten.
 const isCode = (value) => !isBlank(value) && asScore(value) === null;
+// Observed on DeSoto's TEAMS (2026-11-26): the assignment-name editor stops
+// taking input at 64 characters and stores at most 64. A longer name would be
+// cut by TEAMS, stop matching its own column and get duplicated on the next
+// run, so names are fitted here. A cut name keeps its section label and gains
+// a short hash of the full name, so two long lesson titles that share their
+// first 50 characters still get different columns.
+export const TEAMS_ASSIGNMENT_NAME_MAX = 64;
+const shortHash = (value) => {
+  let hash = 2166136261;
+  for (const character of value) hash = Math.imul(hash ^ character.charCodeAt(0), 16777619);
+  return (hash >>> 0).toString(36).padStart(4, '0').slice(-4);
+};
+export const teamsAssignmentName = (title, label = '') => {
+  const cleanTitle = text(title).replace(/\s+/g, ' ');
+  const cleanLabel = text(label).replace(/\s+/g, ' ');
+  const full = cleanLabel ? `${cleanTitle} - ${cleanLabel}` : cleanTitle;
+  if (full.length <= TEAMS_ASSIGNMENT_NAME_MAX) return full;
+  const suffix = ` ~${shortHash(full)}${cleanLabel ? ` - ${cleanLabel}` : ''}`;
+  return `${cleanTitle.slice(0, Math.max(0, TEAMS_ASSIGNMENT_NAME_MAX - suffix.length)).trimEnd()}${suffix}`.slice(0, TEAMS_ASSIGNMENT_NAME_MAX);
+};
+
 const sameName = (left, right) => text(left).toLowerCase().replace(/\s+/g, ' ') === text(right).toLowerCase().replace(/\s+/g, ' ');
 
 /** A calendar date in the district's zone. TEAMS dates are days, not instants. */
@@ -117,7 +140,7 @@ const enrolledOn = (gradebook, sisStudentId, date) => (gradebook.roster || []).s
  * ledger entry and read-back always give the same operations, so a retry
  * or an overlapping nightly run cannot do anything a first run would not.
  */
-export const planTeamsTarget = ({ target, ledgerEntry = {}, gradebook, capabilities = {} }) => {
+export const planTeamsTarget = ({ target, ledgerEntry = {}, gradebook, capabilities = {}, claimedColumnIds = new Set() }) => {
   const mode = capabilities.provisional === PROVISIONAL_MODE.ASSIGNMENT_WEIGHT_ZERO
     ? PROVISIONAL_MODE.ASSIGNMENT_WEIGHT_ZERO
     : PROVISIONAL_MODE.NONE;
@@ -136,6 +159,7 @@ export const planTeamsTarget = ({ target, ledgerEntry = {}, gradebook, capabilit
 
   if (!gradebook) { exception(TEAMS_EXCEPTION.CLASS_NOT_MAPPED); holdAll('Class not linked to TEAMS'); return result; }
 
+  const columnName = teamsAssignmentName(target.name);
   const dueDate = text(target.dueDate);
   const periods = gradebook.markingPeriods || [];
   const period = target.markingPeriod
@@ -154,7 +178,11 @@ export const planTeamsTarget = ({ target, ledgerEntry = {}, gradebook, capabilit
     if (!column) { exception(TEAMS_EXCEPTION.MAPPED_COLUMN_MISSING, { columnId: entry.columnId }); holdAll('TEAMS assignment missing'); return result; }
     result.columnSource = entry.created ? 'created' : 'matched';
   } else {
-    const named = (gradebook.columns || []).filter((item) => item.markingPeriod === period.id && sameName(item.name, target.name));
+    // A column another lesson section already maps to is never matched by
+    // name, even when the names collide.
+    const named = (gradebook.columns || []).filter((item) => item.markingPeriod === period.id
+      && !claimedColumnIds.has(item.id)
+      && sameName(item.name, columnName));
     if (named.length > 1) {
       exception(TEAMS_EXCEPTION.AMBIGUOUS_COLUMN, { columnIds: named.map((item) => item.id) });
       holdAll('Ambiguous TEAMS assignment');
@@ -173,7 +201,7 @@ export const planTeamsTarget = ({ target, ledgerEntry = {}, gradebook, capabilit
     result.ops.push({
       type: 'createColumn', key: target.key, sectionRef: target.teamsSectionRef,
       spec: {
-        name: target.name, category: target.category, markingPeriod: period.id,
+        name: columnName, category: target.category, markingPeriod: period.id,
         assignedDate: text(target.assignedDate) || dueDate, dueDate, weight, maxScore: 100,
       },
     });
@@ -358,6 +386,9 @@ const sectionRefs = (targets) => [...new Set(targets.map((target) => target.team
 
 const planAll = ({ targets, ledger, gradebooks, capabilities }) => targets.map((target) => planTeamsTarget({
   target, ledgerEntry: ledger[target.key], gradebook: gradebooks.get(target.teamsSectionRef), capabilities,
+  claimedColumnIds: new Set(Object.entries(ledger)
+    .filter(([key, entry]) => key !== target.key && entry?.columnId)
+    .map(([, entry]) => entry.columnId)),
 }));
 
 /**
@@ -453,7 +484,7 @@ export const teamsTargetFromTransferUnit = ({
     key: unit.key,
     classId: unit.classId,
     teamsSectionRef,
-    name: label ? `${unit.assignmentTitle} - ${label}` : unit.assignmentTitle,
+    name: teamsAssignmentName(unit.assignmentTitle, label),
     category: category || (isTestCycleAssignment(assignment) ? 'Test' : 'Daily'),
     assignedDate: teamsDay(assignment.assignedAt || assignment.startAt || assignment.createdAt, timeZone),
     dueDate: teamsDay(assignment.dueAt || assignment.dueDate || unit.ordinaryDeadline, timeZone),

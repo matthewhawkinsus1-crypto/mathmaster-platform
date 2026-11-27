@@ -11,8 +11,15 @@
 //                and an assignment with no weight does not count.
 //   MathMaster:  "Overwrite existing grades?" YES/NO on import (Grade
 //                Transfer's MANIFEST already tells teachers to set it).
-//   unverified:  assignment weight 0 (`allowZeroAssignmentWeight`), clearing a
-//                cell (`canClearCells`), and how TEAMS really rounds averages.
+//   observed on DeSoto's TEAMS (2026-11-26, one test assignment, no scores):
+//                the per-assignment weight is "#Count" (default 1) and 0 is
+//                accepted at creation (`allowZeroAssignmentWeight`); names are
+//                stored to at most 64 characters; the Import dialog defaults
+//                to comma, no qualifier, ID column 1, grade column 2, no
+//                header, "Overwrite existing grades?" No.
+//   teacher:     a #Count-0 grade is not factored into the average.
+//   unverified:  clearing a cell (`canClearCells`) and how TEAMS really
+//                rounds averages.
 //
 // Faults reproduce what the browser pilot saw: a save that reports success and
 // reopens blank (`phantomSaves`), a connection lost part-way through a file
@@ -20,6 +27,8 @@
 // (`loseCreateResponse`).
 
 const text = (value) => String(value ?? '').trim();
+// TEAMS keeps at most 64 characters of an assignment name (observed).
+const NAME_MAX = 64;
 const clone = (value) => structuredClone(value);
 
 export const createTeamsTestGradebook = ({
@@ -73,7 +82,7 @@ export const createTeamsTestGradebook = ({
       if (!(section(ref).categories || {})[spec.category]) throw new Error(`Category ${spec.category} is not set up for this class`);
       if (Number(spec.weight) === 0 && !allowZeroAssignmentWeight) throw new Error('Assignment weight must be greater than 0');
       const id = `A${state.nextId++}`;
-      state.columns.set(id, { id, sectionRef: ref, ...clone(spec), weight: Number(spec.weight) });
+      state.columns.set(id, { id, sectionRef: ref, ...clone(spec), name: String(spec.name).slice(0, NAME_MAX), weight: Number(spec.weight) });
       state.cells.set(id, new Map());
       if (pendingFaults.loseCreateResponse) {
         pendingFaults.loseCreateResponse = false;
@@ -122,7 +131,7 @@ export const createTeamsTestGradebook = ({
     // --- what a teacher does by hand in the TEAMS screen ---
     teacherCreateColumn(ref, spec) {
       const id = `A${state.nextId++}`;
-      state.columns.set(id, { id, sectionRef: ref, weight: 1, maxScore: 100, ...clone(spec) });
+      state.columns.set(id, { id, sectionRef: ref, weight: 1, maxScore: 100, ...clone(spec), name: String(spec.name).slice(0, NAME_MAX) });
       state.cells.set(id, new Map());
       return id;
     },
@@ -131,6 +140,7 @@ export const createTeamsTestGradebook = ({
     teacherSetWeight(id, weight) { column(id).weight = Number(weight); },
 
     columnsNamed(ref, name) { return [...state.columns.values()].filter((item) => item.sectionRef === ref && item.name === name); },
+    columnsIn(ref) { return [...state.columns.values()].filter((item) => item.sectionRef === ref); },
     cell(id, sis) { return state.cells.get(id).get(sis); },
 
     /**

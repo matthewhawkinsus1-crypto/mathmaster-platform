@@ -45,8 +45,13 @@ search-engine excerpts of those pages. Each is marked with how firm it is.
 | An imported ID must belong to a student **scheduled in the class on the assignment's due date**. | Same guide | Documented |
 | The Import only fills an assignment that already exists. Third-party Schoology→Frontline tooling says to *"create assignments in Frontline SIS that match"* first, matching on Frontline Local ID, ignoring blanks and mapping codes such as Excused/Missing to district codes. | teachertools.me (third party) | Corroborated, not vendor |
 | An assignment in a **category with no weight does not count** toward the average. Category weights should total 100. | Donna ISD TEAMS guide; a Texas-district TEAMS gradebook handout | Documented (category level) |
-| A per-**assignment** weight of 0 is accepted, and a grade at weight 0 is **not factored into the average** | The DeSoto teacher who owns #612, 2026-11-27 | **Teacher-confirmed for DeSoto.** Not yet observed by the engine. |
-| The "Overwrite existing grades?" choice on import | MathMaster's own MANIFEST (PRs #262, #400), written from teacher use | Teacher-observed |
+| The per-assignment weight is the **`#Count`** field (default 1). **`#Count` 0 is accepted when the assignment is created** and is still 0 after reopening. | Live check on DeSoto production, period 01, 2026-11-26 | **Observed** |
+| A grade with `#Count` 0 is **not factored into the average**. | The DeSoto teacher who owns #612 | **Teacher-confirmed.** Not observed with scores, because none were entered. |
+| Assignment names are stored to at most **64 characters**. The editor stops taking input at 64. | Live check | **Observed** |
+| The Import dialog ("Import file of assignment grades") has: Delimiter (Comma by default, or Tab), Text Qualifier (None by default, or Quote), Student ID Column 1, Grade Column 2, Header Row (No by default), and **Overwrite existing grades?** (No by default). | Live check | **Observed.** The two-column, no-header file MathMaster ships matches every default. |
+| How Overwrite Yes/No actually treats an existing grade | MathMaster's own MANIFEST (PRs #262, #400), written from teacher use | Option observed. Behaviour with scores not yet tested. |
+| New-row defaults: Scale Value 100, Maximum Value 100, Alpha Grades Only N, High/Low Drop N, Extra Credit Only N, GB Grading Cycle = the current six weeks. | Live check | **Observed** |
+| The Assignments grid saves a row **when focus leaves it**. There is no Save button; the page posts to an internal `/grading/JSON-RPC`. | Live check | **Observed.** A likely cause of the pilot's "saved, then blank" cells. |
 | Frontline SIS holds **Ed-Fi** SIS API certification (Data Standard v4) for Texas clients, valid through 2025-04-17 on the registry. | Ed-Fi Alliance partner page and registry | Documented, but it is SIS → state reporting (outbound), **not** a gradebook write-in |
 | OneRoster for Frontline TEAMS (rostering or the Gradebook service) | No 1EdTech listing or Frontline document found | **Unverified** |
 | Clever, ClassLink and Edlink as grade paths | Clever and ClassLink are rostering/SSO. Edlink "does not support … grades with ClassLink". | Not a route |
@@ -112,8 +117,10 @@ first run would not.
 
 The behaviour is controlled by `capabilities.provisional`:
 
-- **`assignment-weight-zero`** (DeSoto's teacher confirms weight 0 is left out
-  of the average, so this is the intended mode there). A column
+- **`assignment-weight-zero`** is the intended mode for DeSoto. In TEAMS the
+  per-assignment weight is `#Count`. DeSoto's TEAMS accepts `#Count` 0 at
+  creation (observed), and the teacher confirms it is left out of the
+  average. The code says "weight" throughout; for TEAMS, read `#Count`. A column
   MathMaster creates is created at weight 0. While the lesson is open,
   current scores post and are visible, and the average does not move. That is
   checked by reading the average, not assumed. On closure, the engine first
@@ -208,40 +215,53 @@ persists.
    district-scheduled external-gradebook import (sFTP) that can **create
    assignments** as well as post scores? If so: vendor credentials and
    scopes, and how a class, marking period and category are identified.
-2. ~~Can a teacher set a per-assignment weight of 0, and is it then left out
-   of the average?~~ **Answered yes** by the teacher on 2026-11-27. Still to
-   check on the 1st-period test assignment: weight 0 can be set at creation
-   (not only edited in afterwards), and switching it to 1 counts the grades
-   with nothing else changed.
-3. Are Daily/Test weights fixed by the district? What is the maximum
-   assignment-name length (unknown to the teacher; to be measured on the
-   test assignment)? Does Import's "Overwrite existing grades?" behave
-   as the MANIFEST says? Does a blank in a file ever clear a cell? Which
-   exempt/missing codes exist?
-4. Does the district permit a teacher-installed extension to drive TEAMS
-   screens for the teacher?
+2. ~~Per-assignment weight 0, set at creation and left out of the average?~~
+   **Answered:** `#Count` 0 is accepted at creation (observed), and it is
+   left out of the average (teacher). Still to observe with a score:
+   changing `#Count` 0 → 1 makes the grade count, with nothing else changed.
+3. ~~Maximum assignment-name length?~~ **64 characters** (observed). The
+   engine now fits names to 64 (`teamsAssignmentName`).
+   ~~Import options?~~ **Recorded** (see the facts table).
+   Still open: how Overwrite Yes/No treats an existing grade; whether a blank
+   in a file ever clears a cell; which exempt/missing codes exist; whether
+   Daily/Test weights are fixed by the district.
+4. **The Data Entry Date Range** for the 3rd Six Weeks is 12-08-2026 to
+   01-05-2027, while its grading cycle runs 11-02-2026 to 12-18-2026.
+   Creating an assignment before that range was allowed. Does the range
+   block *score* entry or Import before 12-08? If it does, open-lesson
+   provisional scores cannot post early in a cycle, and the engine must hold
+   them until the range opens.
+5. Does the district permit a teacher-installed extension to drive TEAMS
+   screens for the teacher? A browser adapter should use the Import dialog,
+   which is a documented teacher function. It should not call the internal
+   `/grading/JSON-RPC` the grid uses, which is unsupported and could change
+   without notice.
 
-**Unproven:** anything against a live TEAMS tenant. That includes the browser
+**Unproven:** any score write against live TEAMS. That includes the browser
 pilot's end-to-end import into a real class.
 
-### Live check authorised: one test assignment in 1st period
+### Live check: one test assignment in 1st period (done 2026-11-26)
 
-The teacher has authorised creating **one assignment in 1st period** to
-settle the open questions. Plan, once a browser on the teacher's computer is
-connected to the session:
+The teacher authorised one assignment in DeSoto production: section
+15001/01, Algebra I Honors, period 01, 3rd Six Weeks. It was run from a
+session on the teacher's computer.
 
-1. Create *"MM Sync Test - delete me"* (Daily, current marking period,
-   weight **0**). Record whether 0 is accepted at creation.
-2. Rename it to a 60-character name, then to an 80-character name, and read
-   it back. The longest name kept intact sets the engine's name limit.
-3. Open the Import dialog and record its exact options (columns, header,
-   "Overwrite existing grades?"). Writing no scores.
-4. Delete the assignment, or leave it at weight 0 if the teacher prefers.
+1. *"MM Sync Test - delete me"* was created as Daily with `#Count` 0. It was
+   accepted at creation and still 0 after reopening. Category weights, on
+   the separate Maintain Teacher Gradebook Category screen, were not
+   touched.
+2. A 60-character name was kept intact. An 80-character name was cut to
+   exactly 64 characters, both while typing and after reopening.
+3. The Import dialog's options were recorded (see the facts table). It was
+   closed with Cancel and nothing was imported.
+4. **No student scores were entered.** The assignment was deleted after an
+   in-page confirmation, and after reopening it was gone from both the
+   Assignments list and the gradebook.
 
-Entering scores for real students, even at weight 0, is **not** part of this
-authorisation. Parents may see assignments in the portal. It needs the
-teacher's separate go-ahead, and then only for one or two students, cleared
-afterwards.
+The next live check, if the teacher allows it, needs one or two scores at
+`#Count` 0, cleared afterwards. It would settle the questions above that a
+live check can answer: the 0 → 1 switch, Overwrite, blank-clears, and the Data
+Entry Date Range. Parents may briefly see such an assignment in the portal.
 
 ## Smallest next implementation PR
 
