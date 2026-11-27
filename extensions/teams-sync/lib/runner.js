@@ -58,8 +58,8 @@ export const runTeamsSync = async ({
   let applied = 0;
   let failed = 0;
   let busy = 0;
-  // Read-backs taken just before (to publish targets for the right marking
-  // period) serve the first round; every later round reads TEAMS again, so
+  // Read-backs taken just before (while the targets were published) serve the
+  // first round; every later round reads TEAMS again, so
   // what the last batch did is seen as TEAMS kept it.
   let fresh = initialReadbacks && sections.every((ref) => initialReadbacks[ref]) ? initialReadbacks : null;
   for (let round = 1; round <= RUN_LIMITS.rounds; round += 1) {

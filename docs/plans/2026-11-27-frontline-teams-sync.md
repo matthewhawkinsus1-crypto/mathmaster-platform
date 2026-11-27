@@ -344,17 +344,57 @@ step reads and writes them in one transaction. Their deploy needs
 
 **Still to build:**
 
-1. **The Chrome extension** (Manifest V3) for the teacher's signed-in TEAMS
-   tab, built from the `MathMaster-Frontline-Pilot` package. It reads each
-   linked section (marking periods, roster with entry and withdrawal dates,
-   assignments with `#Count`, cells), fills a new row in the Assignments grid,
-   uses the Import dialog for grades and clears, and changes `#Count`. It
-   calls `teamsSyncStep` until `done`, on a timer while TEAMS is signed in.
-   It authenticates to MathMaster as the teacher. Building it needs a session
-   on the teacher's computer, where TEAMS's pages can be seen.
-2. **Grade Transfer wiring.** A place to enter each class's TEAMS section(s),
-   publishing on open and after grade changes, and a preview from the last
-   read-back.
+1. ~~**The Chrome extension.**~~ Done in #617 (`extensions/teams-sync/`,
+   checked on DeSoto's live TEAMS; see its README). It reads each linked
+   section, fills a new row in the Assignments grid, imports grades through
+   the Import dialog and changes `#Count`, calling `teamsSyncStep` until
+   `done`. It holds no MathMaster sign-in: it works through the teacher's open
+   Grade Transfer tab (`window.mathmasterTeamsSync`). It does not clear cells
+   (DeSoto's TEAMS refuses a blank grade), and it runs when the teacher
+   presses Sync, not on a timer.
+2. ~~**Grade Transfer wiring.**~~ Done: Grade Export's **Automatic TEAMS
+   sync** panel (`components/teacher/TeamsSyncPanel.jsx`, words and checks in
+   `teamsSyncPanelModel.js`). Per class, it lets the teacher enter the TEAMS
+   section(s), with both for an inclusion class. **Send current grades to the
+   sync** publishes this marking period's lessons, from the same students,
+   history, Practice Passes and deadlines as an export. The panel shows where
+   the sync stands and the last sync's *needs your decision* list, by lesson,
+   TEAMS section and student. It loads nothing until opened, and sends only
+   once the export history has loaded.
+3. ~~**Publishing without the teacher.**~~ Done:
+   `publishTeamsSyncTargetsOnSchedule` runs every 30 minutes from 6 am to
+   10 pm, Central time. It rebuilds each linked class's targets on the server
+   and publishes only what changed. It uses **the same builder Grade Export
+   runs** (`buildTeamsSyncTargetsFromRecords`), and reads the records the
+   screen reads:
+   - the class's lessons, including those assigned to students one by one;
+   - each student's private controls;
+   - the roster;
+   - export history and Practice Passes;
+   - the current marking period.
+
+   A test pins that the server and the screen build identical targets from
+   the same records.
+
+   The builder lives in `src/`, so `scripts/sync-functions-teams-sync.mjs`
+   copies its 71-file module closure into `functions/vendor/` at predeploy,
+   as the weekly planner already does. The release planner treats a change to
+   any of those files as a Functions change.
+
+   A class is skipped, and keeps what it had, when it is archived, has no
+   teacher of record, or no student was read. One failing class never stops
+   the others. Without a deployed builder the job publishes nothing and logs
+   a warning. **Send now** on Grade Export still sends immediately.
+
+   **One set for every publisher.** Each publish replaces the class's set, so
+   **Send now**, the schedule and the extension (which publishes just before
+   each Sync) must send the same targets, or each would undo the others
+   every half hour. Grade Transfer builds them in one place
+   (`buildSyncTargets`, MathMaster's current marking period); the panel and
+   the extension's bridge both publish that, and the schedule's builder is
+   pinned to it by the parity test. The extension's own reading of TEAMS's
+   marking period start is not used to choose lessons
+   (`teamsSyncBridge.test.mjs`).
 
 If Frontline ever offers a supported write API (route A), it replaces the
 extension, and the engine and server stay as they are.
