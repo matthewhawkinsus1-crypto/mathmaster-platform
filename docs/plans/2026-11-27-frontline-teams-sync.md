@@ -225,12 +225,10 @@ persists.
    ~~Import options?~~ **Recorded** (see the facts table).
    ~~Overwrite, and blanks?~~ **Answered** (teacher): Overwrite Yes replaces
    existing grades, and a blank clears a cell.
-   **One assumption to confirm before the first live write:** Overwrite Yes
-   changes only the students *listed in the file* and leaves every other
-   student's grade alone. The engine's correction and clear files list only
-   cells MathMaster owns. If Overwrite also blanked students missing from the
-   file, every correction would need the full roster, re-sending everyone
-   else's current TEAMS value.
+   ~~Does Overwrite Yes touch students missing from the file?~~ **No**
+   (teacher, 2026-11-27): only the students listed in the file change. The
+   engine's correction and clear files, which list only cells MathMaster
+   owns, are therefore safe as designed.
    Still open: which exempt/missing codes exist; whether Daily/Test weights
    are fixed by the district.
 4. ~~Does the Data Entry Date Range block score entry?~~ **No** (teacher).
@@ -264,10 +262,9 @@ session on the teacher's computer.
    in-page confirmation, and after reopening it was gone from both the
    Assignments list and the gradebook.
 
-The teacher has since answered Overwrite, blank-clears, `#Count` 0
-visibility and the date rule from experience (see the facts table). What
-remains for a live write is the one assumption under question 3: Overwrite
-Yes leaves students who are not in the file alone.
+The teacher has since answered Overwrite (including that students missing
+from a file are unchanged), blank-clears, `#Count` 0 visibility and the date
+rule from experience (see the facts table).
 
 ## A backend for one teacher
 
@@ -288,8 +285,9 @@ Both use the Import dialog, a documented teacher function, and not the
 internal `/grading/JSON-RPC`. Both reuse this engine unchanged. Only the
 adapter differs.
 
-E is recommended: the same automation with no district password stored on
-MathMaster. F should only be built with the district's written approval.
+**Decision (teacher, 2026-11-27): E.** It is the same automation with no
+district password stored on MathMaster. F would need the district's written
+approval and is not planned.
 
 ## Smallest next implementation PR
 
@@ -306,6 +304,13 @@ Wire the engine to real data behind a flag, still writing nothing to TEAMS:
    engine would apply and its exceptions, using a read-back the teacher
    supplies (a TEAMS gradebook export).
 
-Then, depending on the district's answer, one adapter: the backend route
-(A), or the teacher-session browser adapter (C) built from the pilot
-package.
+Then the adapter for route E: a Chrome extension (Manifest V3) for the
+teacher's signed-in TEAMS tab, built from the `MathMaster-Frontline-Pilot`
+package. It implements `readGradebook`, `createColumn` (the Assignments
+grid), `setColumnWeight` (`#Count`) and `importScores` (the Import dialog).
+It has no `clearScores`, because the engine clears with a blank Overwrite
+file. It fetches each plan from a MathMaster callable and reports each
+read-back to one, and runs on a timer while TEAMS is signed in. Building it
+needs a session on the teacher's computer, where TEAMS's pages can be seen.
+If Frontline ever offers a supported write API (route A), it replaces the
+extension and the engine stays as it is.
