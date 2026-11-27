@@ -20,8 +20,9 @@
  *   7. `of` IS NEVER A KEY: the validator refuses one that is an answer, the
  *      answer-key split leaves it public, and the exposure report does not
  *      count it.
- *   8. NO GRADE PATH READS A STEP, and the screens that do not open one (a
- *      secure Test, Corrections, Path) draw and mark the part as before.
+ *   8. NO GRADE PATH READS A STEP. A secure Test, Corrections and Path open
+ *      it too (SP-4b) and mark the part as before:
+ *      tests/platform/showTheStepSecure.test.mjs.
  */
 import test from 'node:test';
 import assert from 'node:assert/strict';
@@ -45,13 +46,13 @@ import { normalizeStoredResponse } from '../../functions/shared/responseCheckpoi
 import { MAX_TYPED_ANSWER_LENGTH } from '../../functions/shared/typedEntryGuard.mjs';
 import { recordQuestionAttempt } from '../../functions/shared/attemptPolicy.mjs';
 import { buildResponseView } from '../../functions/shared/responseInspectorView.mjs';
-import { MAX_STEP_LINE_LENGTH, isStepFieldId, stepFieldId, stepFieldsFromAnswers, stepRowLabel } from '../../functions/shared/showTheStepFields.mjs';
+import { MAX_STEP_LINE_LENGTH, isStepFieldId, stepFieldId, stepFieldsFromAnswers } from '../../functions/shared/showTheStepFields.mjs';
+import { stepRowLabel } from '../../functions/shared/showTheStepRows.mjs';
 import { attemptHasToolWork } from '../../src/platform/signals/attemptSignalFacts.js';
 import { pastedPartIndex } from '../../src/platform/signals/useAttemptSignals.js';
 import { mergeQuestion, splitQuestion } from '../../functions/shared/assignmentKeySplit.mjs';
 import { classifyQuestionExposure } from '../../scripts/report-assignment-key-exposure.mjs';
 import { executableSource, region } from './helpers/sourceContract.mjs';
-import { fieldItem, mathPath, secureGrade, simulatorGrade } from './helpers/followThroughFixtures.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
 const fixture = () => JSON.parse(readFileSync(path.join(ROOT, 'tests/platform/fixtures/learningSupportsLessonFragment.json'), 'utf8'));
@@ -441,7 +442,7 @@ test('no grade, attempt or mastery path reads a checkpoint or its step: one norm
     for (const file of files) {
       read += 1;
       const source = executableSource(readFileSync(path.join(ROOT, file), 'utf8'));
-      if (file === 'functions/shared/ordinaryResponseGrading.mjs') continue;
+      if (file === 'functions/shared/ordinaryResponseGrading.mjs' || file === 'functions/lib/mathPath.js') continue;
       assert.doesNotMatch(source, /showTheStep|ShowTheStep|stepFieldsFromAnswers|checkCheckpoint|\.checkpoint\b|::step/, `${file} is a grade path and reads a checkpoint or its step`);
     }
   }
@@ -454,28 +455,18 @@ test('no grade, attempt or mastery path reads a checkpoint or its step: one norm
   for (const grader of ['export const gradeMultiAnswerResponse', 'export const gradeOrdinaryResponse']) {
     assert.doesNotMatch(region(ordinary, grader, '\n};', grader), STEP_WORDS, `${grader} does not read a step`);
   }
+  // The secure and Path item builder names the checkpoint once, to issue it
+  // with the field's public copy (SP-4b), and no grader there reads it.
+  const issuer = executableSource(readFileSync(path.join(ROOT, 'functions/lib/mathPath.js'), 'utf8'));
+  const publicCheckpoint = region(issuer, 'function publicCheckpoint(field)', '\n}\n', 'the public checkpoint');
+  assert.match(publicCheckpoint, /field\?\.checkpoint/);
+  assert.equal(issuer.split('.checkpoint').length - 1, 1, 'read once, in publicCheckpoint');
+  assert.match(region(issuer, 'function normalizeResponseFields', '\n}\n', 'the public fields'), /checkpoint: publicCheckpoint\(field\)/);
+  for (const grader of ['function privateGradingDefinition', 'async function gradeResponse', 'async function valuesEquivalent']) {
+    assert.doesNotMatch(region(issuer, grader, '\n}\n', grader), STEP_WORDS, `${grader} does not read a step`);
+  }
   // And the module that carries it marks nothing: it imports nothing at all.
   assert.doesNotMatch(executableSource(readFileSync(path.join(ROOT, 'functions/shared/showTheStepFields.mjs'), 'utf8')), /\bimport\b|isCorrect|credit|score/);
-});
-
-test('a secure Test, Corrections and Path draw a part with a checkpoint as today\'s answer box, and mark it as before', async () => {
-  // These screens do not open a step (the ordinary runner does). They must
-  // not half-draw one either: none of them reads a checkpoint, so the part is
-  // the answer box it always was.
-  for (const file of ['src/components/question/RichQuestionRuntime.jsx', 'src/components/student/PathResponseFields.jsx', 'src/components/student/PathSessionPlayer.jsx', 'src/components/assessment/SecureExamReview.jsx', 'src/components/student/TestCycleCorrections.jsx']) {
-    const source = executableSource(readFileSync(path.join(ROOT, file), 'utf8'));
-    assert.doesNotMatch(source, /ShowTheStep|showTheStep|checkpointOf|\.checkpoint\b/, `${file} does not draw or wait for a step`);
-  }
-  // And a secure item's part is marked the same with a checkpoint on it.
-  const withStep = structuredClone(fieldItem);
-  withStep.responseFields[0].checkpoint = { kind: 'pickPoints', count: 2, of: '(0, 3) and (1, 1)' };
-  for (const responses of [{ slope: '-2', inequality: 'y > -2x + 3' }, { slope: '2', inequality: 'y > 2x + 3' }, { slope: '5', inequality: 'y < x' }]) {
-    assert.deepEqual(await secureGrade(withStep, responses), await secureGrade(fieldItem, responses), JSON.stringify(responses));
-    assert.deepEqual(simulatorGrade(withStep, responses), simulatorGrade(fieldItem, responses), JSON.stringify(responses));
-  }
-  // The student's copy of a secure item never needed the step to be answered.
-  const plan = await mathPath.buildIssuePlan(withStep);
-  assert.equal(plan.issuable, true, plan.reason);
 });
 
 test('a paste into a step\'s own box raises no "pasted into a math box": it is a tool\'s checked work', () => {

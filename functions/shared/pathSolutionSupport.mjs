@@ -151,7 +151,9 @@ const responseValues = (responsePayload = {}) => {
     : {};
   const raw = responsePayload?.raw && typeof responsePayload.raw === 'object' ? responsePayload.raw : {};
   return [
-    ...Object.values(responses),
+    // A part's shown step (`<id>::step`, SP-4b) is work beside an answer, not
+    // an answer a misconception is matched against.
+    ...Object.entries(responses).filter(([id]) => !id.endsWith('::step')).map(([, value]) => value),
     ...Object.values(raw).filter((value) => typeof value === 'string' || typeof value === 'number'),
   ].map((value) => text(value)).filter(Boolean);
 };

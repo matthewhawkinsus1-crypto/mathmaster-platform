@@ -26,7 +26,8 @@
  *
  * Pure: no Firestore, no clock, no React.
  */
-import { checkpointParts, partIdOfStepField, stepRowLabel, withStepsAfterParts } from './showTheStepFields.mjs';
+import { checkpointParts, partIdOfStepField } from './showTheStepFields.mjs';
+import { stepRowLabel, withStepsAfterParts } from './showTheStepRows.mjs';
 import { answerCandidatesForField, isChoiceAnswerField, orderedPairKey } from './answerUtils.mjs';
 import { multiAnswerFields, systemSolutionKey } from './ordinaryResponseGrading.mjs';
 import { resolveGradingSurfaceId } from './serverGrading/gradingManifest.mjs';

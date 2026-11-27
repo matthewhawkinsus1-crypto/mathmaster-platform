@@ -12,6 +12,8 @@ import { getStudentSecureExamReview } from '../../services/secureExamService.js'
 import { describeToolWork, rawToolWorkOf, toolWorkLabel } from '../../platform/assessment/secureToolWorkSummary.js';
 import { withFollowThroughLabels } from '../../../functions/shared/followThroughNames.mjs';
 import { useFollowThroughRules } from '../../platform/interaction/useFollowThroughRules.js';
+import { checkpointParts, partIdOfStepField } from '../../../functions/shared/showTheStepFields.mjs';
+import { stepRowLabel, withStepsAfterParts } from '../../../functions/shared/showTheStepRows.mjs';
 import {
   RESULT_STATUS,
   answerIsLatex,
@@ -76,8 +78,21 @@ const responseRows = (item, followThrough = null) => {
   // value written into a part that builds on it (followThrough.mjs).
   const fields = withFollowThroughLabels(snapshotFields, responses, { value: followThrough?.followThroughValue });
   const choices = Array.isArray(item?.questionSnapshot?.choices) ? item.questionSnapshot.choices : [];
-  return Object.entries(responses)
-    .map(([fieldId, raw]) => {
+  // SP-4b: a part's shown step (`<id>::step`) is a row of its own, after its
+  // part, named for what the student did, with no result of its own.
+  const stepParts = checkpointParts({ answerFields: snapshotFields });
+  // In the question's own order, each part followed by its step; anything
+  // else the record holds after them, as stored.
+  const fieldOrder = snapshotFields.map((entry) => entry?.id).filter((id) => Object.prototype.hasOwnProperty.call(responses, id));
+  const ordered = [...fieldOrder, ...Object.keys(responses).filter((id) => !fieldOrder.includes(id))];
+  return withStepsAfterParts(ordered, { answerFields: snapshotFields })
+    .map((fieldId) => {
+      const raw = responses[fieldId];
+      const stepPart = stepParts.get(partIdOfStepField(fieldId) ?? '');
+      if (stepPart) {
+        const label = fields.find((entry) => entry.id === stepPart.id)?.label || stepPart.label;
+        return { id: fieldId, label: stepRowLabel(stepPart.checkpoint.kind, label), value: String(raw ?? '').trim(), math: false, step: true };
+      }
       const field = fields.find((entry) => entry.id === fieldId);
       // A field's own choices first, as the server reads the correct answer.
       const fieldChoices = Array.isArray(field?.choices) && field.choices.length ? field.choices : choices;
@@ -107,7 +122,7 @@ const quietButton = { minHeight: 44, padding: '8px 14px', border: '1px solid var
 const answerValueStyle = { color: 'var(--mm-text-strong)', fontSize: 'calc(15 * var(--mm-px))', overflowWrap: 'anywhere' };
 
 const AnswerRows = ({ rows }) => rows.map((row, index) => (
-  <div key={row.id || index} style={{ display: 'grid', gridTemplateColumns: row.label ? 'minmax(90px, auto) minmax(0, 1fr)' : 'minmax(0, 1fr)', gap: 10, alignItems: 'baseline', marginTop: index === 0 ? 0 : 6 }}>
+  <div key={row.id || index} data-answer-row={row.step ? 'step' : 'answer'} style={{ display: 'grid', gridTemplateColumns: row.label ? 'minmax(90px, auto) minmax(0, 1fr)' : 'minmax(0, 1fr)', gap: 10, alignItems: 'baseline', marginTop: index === 0 ? 0 : 6 }}>
     {row.label && <MathText style={{ color: 'var(--mm-text-muted)', fontSize: 'calc(12 * var(--mm-px))', fontWeight: 800 }}>{row.label}</MathText>}
     {row.math
       ? <span style={answerValueStyle}><MathDisplay value={row.value} format="latex" inline /></span>

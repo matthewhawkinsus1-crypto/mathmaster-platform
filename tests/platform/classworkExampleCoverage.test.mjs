@@ -33,8 +33,10 @@ import {
   classworkExampleCoverage,
   coverageHeadline,
   exampleSkillOf,
+  isCoveredStatus,
   summarizeClassworkExampleCoverage,
 } from '../../src/platform/supports/workedExample/classworkCoverage.js';
+import { workedExampleFor } from '../../src/platform/supports/workedExample/examplePlayer.js';
 import { asQuestionEngineReceivesIt, lessonFiles, measureClassworkExampleCoverage } from '../../scripts/lib/classworkExampleCoverageReport.mjs';
 import { componentSource, executableSource, region } from './helpers/sourceContract.mjs';
 import { chainTo, repo, teacherFirstLoadGraph } from './helpers/firstLoadGraph.mjs';
@@ -44,16 +46,22 @@ import { chainTo, repo, teacherFirstLoadGraph } from './helpers/firstLoadGraph.m
 // A small lesson, compiled by the real compiler. `example` and
 // `lessonSupports` are set on the compiled package, the shape Pre-Flight reads,
 // so the module is held to them whether or not the compiler passes them yet.
-let inequalitySystem = null;
+const classworkOf = (relative) => compileAuthoringIntentV5(JSON.parse(readFileSync(path.join(repo, relative), 'utf8')))
+  .package.sections.filter((section) => section.role === 'classwork').flatMap((section) => section.questions);
+// A rich tool with no example yet: an inequality whose model the student
+// writes first, which the plane replay does not play (WORKED_EXAMPLES.md,
+// slice E, "Not played").
+let inequalityModel = null;
 const realInequalitySystem = () => {
-  if (inequalitySystem) return inequalitySystem;
-  const file = path.join(repo, 'teacher-import-jsons/algebra1-module3/T2_L5_Systems_of_Linear_Inequalities.json');
-  const compiled = compileAuthoringIntentV5(JSON.parse(readFileSync(file, 'utf8')));
-  inequalitySystem = compiled.package.sections.filter((section) => section.role === 'classwork').flatMap((section) => section.questions)
-    .find((question) => question.studentActions?.[0] === 'solveInequalitySystem');
-  assert.ok(inequalitySystem, 'the lesson has a Classwork inequality system');
-  return inequalitySystem;
+  if (inequalityModel) return inequalityModel;
+  inequalityModel = classworkOf('teacher-import-jsons/algebra1-module3/T2_L4_Graphing_Inequalities_in_Two_Variables.json')
+    .find((question) => question.questionId === 'm3t2l4-cw-15');
+  assert.equal(inequalityModel?.studentActions?.[0], 'solveInequalitySystem', 'the lesson has a Classwork inequality to model first');
+  return inequalityModel;
 };
+// One the plane replay plays (WE-E): its first Classwork inequality system.
+const replayedInequalitySystem = () => classworkOf('teacher-import-jsons/algebra1-module3/T2_L5_Systems_of_Linear_Inequalities.json')
+  .find((question) => question.studentActions?.[0] === 'solveInequalitySystem');
 
 const compileLesson = () => {
   const compiled = compileAuthoringIntentV5({
@@ -208,15 +216,19 @@ const baselineMeasurement = () => {
   };
 };
 
-test('the lessons written before the rule: 137 of 496 Classwork questions have a built-in example, and 14 of 41 lessons have none (WORKED_EXAMPLES.md section 8)', () => {
-  const { lessons, summary, lessonsWithClasswork, lessonsWithNoBuiltIn } = baselineMeasurement();
+test('the lessons written before the rule: 137 of 496 Classwork questions have a built-in sibling, and 14 of 41 lessons have none (WORKED_EXAMPLES.md section 8)', () => {
+  const { lessons, lessonsWithClasswork } = baselineMeasurement();
   assert.equal(lessonsWithClasswork, 41);
-  assert.equal(summary.total, 496);
-  assert.equal(summary.byStatus.builtIn, 137);
-  assert.equal(lessonsWithNoBuiltIn, 14);
+  // Section 8 checked each question for a sibling from its family or its own
+  // numbers (a replay on its tool came later, WE-C to WE-E: the next test).
+  const sibling = ({ builtIn }) => builtIn === 'family' || builtIn === 'numericVariant';
+  const entries = lessons.flatMap((lesson) => lesson.questions);
+  assert.equal(entries.length, 496);
+  assert.equal(entries.filter(sibling).length, 137);
+  assert.equal(lessons.filter((lesson) => !lesson.questions.some(sibling)).length, 14);
   // The 359 without one, by kind, as section 8 lists them.
   const without = {};
-  lessons.flatMap((lesson) => lesson.questions).filter(({ status }) => status !== STATUS.BUILT_IN)
+  entries.filter((entry) => !sibling(entry))
     .forEach(({ kind }) => { without[kind] = (without[kind] || 0) + 1; });
   assert.equal(Object.values(without).reduce((sum, count) => sum + count, 0), 359);
   const named = { multipleResponses: 247, solveInequalitySystem: 30, matchFigures: 10, syntheticDivision: 10, sortIntoCategories: 10, solveRadicalEquation: 10, analyzeTransformations: 9 };
@@ -224,11 +236,49 @@ test('the lessons written before the rule: 137 of 496 Classwork questions have a
   const rest = Object.entries(without).filter(([kind]) => !(kind in named));
   assert.equal(rest.length, 12, '12 other kinds');
   assert.equal(rest.reduce((sum, [, count]) => sum + count, 0), 33, '33 more questions');
+});
+
+test('a question the example player plays a replay for is covered: the same lessons since WE-C to WE-E', () => {
+  const { lessons, summary, lessonsWithNoBuiltIn } = baselineMeasurement();
+  const replays = {};
+  lessons.flatMap((lesson) => lesson.questions).filter(({ builtIn }) => builtIn === 'replay')
+    .forEach(({ kind }) => { replays[kind] = (replays[kind] || 0) + 1; });
+  // The plane replay (WE-E) plays 20 of the 30 inequality systems; the Step
+  // Algebra replay (WE-C) 3 equations no family has a sibling for.
+  assert.deepEqual(replays, { solveInequalitySystem: 20, solveStepByStep: 3 });
   // None of these lessons writes an example or an exemption (existing lessons
-  // are not back-filled), so the rest of the rule is the same-skill one: 43
+  // are not back-filled), so the rest of the rule is the same-skill one: 49
   // more questions follow an earlier covered question on their skill.
-  assert.deepEqual(summary.byStatus, { own: 0, earlierSameSkill: 43, builtIn: 137, exempt: 0, uncovered: 316 });
-  assert.equal(summary.covered, 180);
+  assert.deepEqual(summary.byStatus, { own: 0, earlierSameSkill: 49, builtIn: 160, exempt: 0, uncovered: 287 });
+  assert.equal(summary.covered, 209);
+  assert.equal(lessonsWithNoBuiltIn, 9);
+});
+
+test('the report counts a question as covered whenever workedExampleFor plays a replay for it, on every real lesson', () => {
+  // The student's own player, on each Classwork question as QuestionEngine
+  // receives it: where it plays a replay, the report counts the question as
+  // covered; where it does not, the report never says 'replay'.
+  let played = 0;
+  for (const lesson of realMeasurement().lessons) {
+    const byId = new Map(classworkOf(lesson.file).map((question) => [question.questionId, question]));
+    for (const entry of lesson.questions) {
+      const question = byId.get(entry.questionId);
+      if (!question || entry.status === STATUS.OWN || entry.status === STATUS.EXEMPT) continue;
+      const replay = workedExampleFor(asQuestionEngineReceivesIt(question))?.format === 'replay';
+      if (replay) played += 1;
+      if (replay) assert.ok(isCoveredStatus(entry.status), `${lesson.file} ${entry.questionId} is played as a replay but reported ${entry.status}`);
+      // (A family's sibling may be played as a replay too: it is 'family'.)
+      if (entry.builtIn === 'replay') assert.ok(replay, `${lesson.file} ${entry.questionId} is reported as a replay the player does not play`);
+    }
+  }
+  assert.ok(played >= 29, `${played} questions are played as a replay`);
+  // No inequality system the player plays is left uncovered: the four left are
+  // models to write first, which the replay does not play.
+  const left = realMeasurement().lessons.flatMap((lesson) => lesson.questions.map((entry) => ({ ...entry, file: lesson.file })))
+    .filter(({ status, kind }) => status === STATUS.UNCOVERED && kind === 'solveInequalitySystem');
+  assert.deepEqual(left.map(({ questionId }) => questionId).sort(), ['m3t2l4-cw-15', 'm3t2l4-cw-2', 'm3t2l4h-cw-15', 'm3t2l4h-cw-2']);
+  // And the replayed fixture question is built-in by replay.
+  assert.equal(builtInExampleSource(asQuestionEngineReceivesIt(replayedInequalitySystem())), 'replay');
 });
 
 test('a lesson written since the rule writes its own examples, and leaves no Classwork question uncovered', () => {
@@ -264,7 +314,7 @@ test('the real lessons: every uncovered question has a fill hint, and generator 
     const claimed = Boolean(familyFor(asQuestionEngineReceivesIt(questionsById.get(`${lesson.file}#${entry.questionId}`))));
     assert.equal(entry.fillWith, claimed ? FILL.GENERATOR : FILL.AUTHORED_EXAMPLE, `${lesson.file} ${entry.questionId}`);
   }));
-  assert.deepEqual(realMeasurement().summary.byFill, { generator: 100, authoredExample: 216 });
+  assert.deepEqual(realMeasurement().summary.byFill, { generator: 71, authoredExample: 216 });
 });
 
 test('Pre-Flight\'s view of a question gives the same answer as the student\'s screen', () => {

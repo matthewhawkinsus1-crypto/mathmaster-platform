@@ -270,7 +270,9 @@ const meaningful = (value) => {
 async function payloadHasWork(responsePayload) {
   if (!isObject(responsePayload)) return false;
   const responses = isObject(responsePayload.responses) ? responsePayload.responses : {};
-  if (Object.values(responses).some((value) => String(value ?? "").trim())) return true;
+  // A part's shown step (`<part id>::step`, SP-4b) is work beside an answer,
+  // not an answer: an item with a step and no answer is still unanswered.
+  if (Object.entries(responses).some(([id, value]) => !String(id).endsWith("::step") && String(value ?? "").trim())) return true;
   const raw = await rawWorkOf(responsePayload);
   return meaningful(raw);
 }

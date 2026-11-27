@@ -126,6 +126,20 @@ const courseItems = [
   },
 ];
 
+// SP-4b: a two-part item whose first part showed a step, as the Test records
+// it: the step's line beside the part's answer (`<id>::step`).
+const stepItems = [{
+  questionInstanceId: 'cs-1', position: 0, alignmentKeys: ['texas:A.3B'], targetId: 't-slope', planWeight: 1, assessmentDomainId: null,
+  unanswered: false, pathToolId: null, questionType: 'response', grading: { score: 1, isCorrect: true },
+  responsePayload: { responses: { 'slope::step': '(0, 3) (1, 1); rise -2; run 1', intercept: '3', slope: '-2' } },
+  questionSnapshot: {
+    prompt: 'The boundary line passes through $(0, 3)$ and $(1, 1)$. Enter its slope and its $y$-intercept.',
+    responseFields: [{ ...field('slope', 'Slope'), checkpoint: { kind: 'pickPoints', count: 2, of: '(0, 3) and (1, 1)' } }, field('intercept', 'Intercept')],
+    choices: [],
+  },
+  solution: { answers: [{ fieldId: 'slope', label: 'Slope', display: '-2' }, { fieldId: 'intercept', label: 'Intercept', display: '3' }], review: null },
+}];
+
 const satItems = [
   ['algebra', 'texas:A.5A', true], ['advancedMath', 'texas:A.10E', false], ['algebra', 'texas:A.2C', false],
   ['problemSolvingData', 'texas:A.8A', true], ['advancedMath', 'texas:A2.4F', true], ['geometryTrigonometry', 'texas:G.9A', false],
@@ -167,6 +181,7 @@ const REVIEWS = {
   // Course Test: weights 1,1,1,1,1,2.5,1 → earned 1+0+0+0.5+1+2.5+1 = 6 of 8.5.
   'course-test': () => reviewOf(released('course-test', 'courseTest', 'Unit 3 Test — Linear Functions', 7), courseItems, { earned: 6, possible: 8.5, weighted: true }),
   'course-retest': () => reviewOf(released('course-retest', 'courseTest', 'Unit 3 Test — Linear Functions — Retest', 4), courseItems.slice(0, 4).map((entry) => ({ ...entry, grading: { score: 1, isCorrect: true }, unanswered: false, responsePayload: entry.unanswered ? { responses: { answer: '3' } } : entry.responsePayload })), { earned: 4, possible: 4, weighted: false }),
+  'course-step': () => reviewOf(released('course-step', 'courseTest', 'Unit 3 Quiz — Lines', 1), stepItems, { earned: 1, possible: 1, weighted: false }),
   // SAT practice: 10 planned, 8 opened, 1 left blank; 4 correct of 10.
   'sat-practice': () => reviewOf(released('sat-practice', 'digitalSAT', 'Digital SAT Math — practice test', 10), satItems, { earned: 4, possible: 10, weighted: false }),
   // A session the server would never hand out: still being held.

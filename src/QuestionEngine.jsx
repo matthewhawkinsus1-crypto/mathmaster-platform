@@ -160,6 +160,11 @@ const LazyShowTheStep = lazy(() => import('./platform/supports/showTheStep/ShowT
 // The Step Algebra workspace a `stepMoves` step is done in is the one this
 // engine already holds; it is handed in, so the step's chunk brings none.
 const ShowTheStep = (props) => <LazyShowTheStep {...props} StepByStepAlgebraCore={StepByStepAlgebraCore} />;
+// The same step for the screens that draw a field's box themselves, with no
+// engine around it (SP-4b: a secure Test's field item, Corrections, My Math
+// Path). They load it through this module, which they already load lazily, so
+// no new chunk joins anyone's first load.
+export const ShowTheStepForField = ShowTheStep;
 const AssignmentGraphingCalculator = lazy(() => import('./components/calculator/AssignmentGraphingCalculator.jsx')
   .catch(() => ({ default: GraphingCalculatorUnavailable })));
 // A question's reference sheet (TL07) loads only for a question that names one

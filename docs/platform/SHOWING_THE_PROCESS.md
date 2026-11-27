@@ -174,9 +174,25 @@ ordinary quiz or test):
   submitted response (`functions/shared/showTheStepFields.mjs`). It holds the
   work and no verdict. The teacher's view of a response shows it in a row
   after its part, and the engine reads the line again there.
-- **Not yet.** A secure Test's field items, Corrections and My Math Path draw
-  a part with a checkpoint as its answer box, with no step, and mark it as
-  before.
+- **A secure Test, Corrections and My Math Path (SP-4b).** These screens draw
+  a field's answer box themselves (`RichQuestionRuntime.jsx` FieldItem,
+  `PathResponseFields.jsx`), and open its step the same way: the same
+  ShowTheStep and engine, loaded only for a field with a step, through the
+  engine's module the screens already load lazily (`ShowTheStepForField`,
+  `QuestionEngine.jsx`), so no new chunk joins a first load. The released
+  review names a step's row from `showTheStepRows.mjs`. The server issues the checkpoint with the field's public
+  copy, as `{ kind, count, of }` and nothing else
+  (`functions/lib/mathPath.js` `publicCheckpoint`).
+  - A secure Test gives no verdict in words: the box opens once the step is
+    done, as on a DOL.
+  - Corrections and the Path say right or wrong, so "Check my step" says what
+    is off, and after two refusals "Answer without this step" opens the box.
+  - See every part at once opens the box at once.
+  - The step is the same line beside the answer (`<id>::step` among the
+    item's responses), in the draft and in the recorded response. No grader
+    reads it; a step with no answer is still an unanswered item
+    (`secureItems.payloadHasWork`). The released review shows it in a row of
+    its own after its part.
 
 ## 6. Tool first (new assignments)
 

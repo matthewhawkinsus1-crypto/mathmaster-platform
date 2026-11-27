@@ -552,6 +552,15 @@ The 359 without one, by kind:
 - `analyzeTransformations` 9;
 - 33 more across 12 other kinds.
 
+**Played as a replay since (WE-C to WE-E).** The coverage report also counts
+a question as built-in where the student's example player
+(`workedExampleFor`, `examplePlayer.js`) plays a replay for it on the item's
+own tool (`builtIn: 'replay'`). On the same 496 questions that adds 23: 20
+inequality systems and 3 equations no family has a sibling for. The four
+inequality systems still uncovered ask for a model to be written first, which
+the plane replay does not play. The 10 radical equations above are solved with
+the sign analyzer, not Step Algebra, so the radical replay does not play them.
+
 No classwork question carries a variant. So for an answer-box question, the
 sibling must come from either:
 - a new support-family generator (platform work), or

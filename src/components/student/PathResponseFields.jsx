@@ -1,4 +1,4 @@
-import React, { useEffect, useId, useRef } from 'react';
+import React, { Suspense, lazy, useCallback, useEffect, useId, useRef, useState } from 'react';
 import MathText from '../common/MathText.jsx';
 import MathInput from '../../MathInput.jsx';
 import TypedEntryNotice from '../common/TypedEntryNotice.jsx';
@@ -7,6 +7,19 @@ import { ChoiceMark, useChoiceGroup } from '../../platform/interaction/choiceGro
 import { normalizeInteractionInputProfile, toolProfileForInputProfile } from '../../platform/interaction/interactionContract.js';
 import { withFollowThroughLabels } from '../../../functions/shared/followThroughNames.mjs';
 import { useFollowThroughRules } from '../../platform/interaction/useFollowThroughRules.js';
+import { checkpointOf, checkpointWorkKey } from '../../platform/supports/showTheStep/checkpointShape.js';
+
+// SHOW THE STEP (SP-4b; docs/platform/SHOWING_THE_PROCESS.md section 5). A
+// field with a `checkpoint` asks for one step in a tool before its box opens,
+// as on the assignment's own runner: the same step and engine, and the same
+// line beside the answer (`<id>::step` among the values), so the response the
+// server stores carries it. No grader reads it. The Path says right or wrong,
+// so "Check my step" says what is off, and after two refusals "Answer without
+// this step" opens the box. See every part at once (`stepsOptional`) opens it
+// at once. Loaded only for a field that has a step, from the engine's module
+// (the step and the Step Algebra workspace it hands in).
+const StepForPart = lazy(() => import('../../QuestionEngine.jsx').then((module) => ({ default: module.ShowTheStepForField })));
+const NO_STEPS = Object.freeze({});
 
 // The generic secure Path response.
 //
@@ -259,6 +272,12 @@ export const PathResponseFields = ({
   onChangeField,
   onSubmit,
   disabled = false,
+  // A finished question draws no step: there is nothing left to answer.
+  stepsClosed = false,
+  stepsOptional = false,
+  draftKey = null,
+  // Told whether every field's step lets its box open (true with no step).
+  onStepsOpenChange = null,
 }) => {
   // SP-3: a field that builds on an earlier one shows the student's own value
   // in its label, read by the follow-through rules, loaded only for such an
@@ -267,52 +286,89 @@ export const PathResponseFields = ({
   const resolved = withFollowThroughLabels(fields.length ? fields : [{ id: 'answer', label: 'Answer', inputProfile: 'text' }], values || {}, {
     value: followThrough.rules?.followThroughValue,
   });
+  const [stepStatus, setStepStatus] = useState(NO_STEPS);
+  const stepOf = (field) => (stepsClosed ? null : checkpointOf(field));
+  const stepIsOpen = (field) => stepsOptional || !stepOf(field) || stepStatus[field.id]?.open === true;
+  const reportStep = useCallback((id, status) => setStepStatus((current) => (
+    current[id]?.open === status.open && current[id]?.done === status.done ? current : { ...current, [id]: status }
+  )), []);
+  const allOpen = resolved.every(stepIsOpen);
+  const onStepsOpenChangeRef = useRef(onStepsOpenChange);
+  onStepsOpenChangeRef.current = onStepsOpenChange;
+  useEffect(() => { onStepsOpenChangeRef.current?.(allOpen); }, [allOpen]);
+  // One field's box, drawn by its input profile.
+  const fieldBox = (field, index) => {
+    const profile = normalizeProfile(field.inputProfile);
+    const choices = field.choices?.length ? field.choices : questionChoices;
+    if (profile === 'choice' && choices.length) {
+      return (
+        <ChoiceGroup
+          key={field.id}
+          field={field}
+          choices={choices}
+          value={values[field.id]}
+          onChange={(next) => onChangeField(field.id, next)}
+          disabled={disabled}
+        />
+      );
+    }
+    if (profile === 'text') {
+      return (
+        <WordField
+          key={field.id}
+          field={field}
+          value={values[field.id]}
+          onChange={(next) => onChangeField(field.id, next)}
+          onSubmit={onSubmit}
+          disabled={disabled}
+          autoFocus={index === 0}
+        />
+      );
+    }
+    return (
+      <MathField
+        key={field.id}
+        field={field}
+        profile={profile}
+        value={values[field.id]}
+        onChange={(next) => onChangeField(field.id, next)}
+        onSubmit={onSubmit}
+        disabled={disabled}
+        autoFocus={index === 0}
+      />
+    );
+  };
   return (
     <div style={{ display: 'grid', gap: 18 }}>
       {resolved.map((field, index) => {
-        const profile = normalizeProfile(field.inputProfile);
-        const choices = field.choices?.length ? field.choices : questionChoices;
-        if (profile === 'choice' && choices.length) {
-          return (
-            <ChoiceGroup
-              key={field.id}
-              field={field}
-              choices={choices}
-              value={values[field.id]}
-              onChange={(next) => onChangeField(field.id, next)}
-              disabled={disabled}
-            />
-          );
-        }
-        if (profile === 'text') {
-          return (
-            <WordField
-              key={field.id}
-              field={field}
-              value={values[field.id]}
-              onChange={(next) => onChangeField(field.id, next)}
-              onSubmit={onSubmit}
-              disabled={disabled}
-              autoFocus={index === 0}
-            />
-          );
-        }
+        const step = stepOf(field);
+        const box = stepIsOpen(field) ? fieldBox(field, index) : null;
+        if (!step) return box;
+        const stepKey = checkpointWorkKey(field.id);
         return (
-          <MathField
-            key={field.id}
-            field={field}
-            profile={profile}
-            value={values[field.id]}
-            onChange={(next) => onChangeField(field.id, next)}
-            onSubmit={onSubmit}
-            disabled={disabled}
-            autoFocus={index === 0}
-          />
+          <div key={field.id} style={{ display: 'grid', gap: 12, minWidth: 0 }}>
+            <Suspense fallback={<p role="status" style={{ margin: 0, color: 'var(--mm-text-muted)' }}>Loading the step…</p>}>
+              <StepForPart
+                checkpoint={field.checkpoint}
+                value={String(values?.[stepKey] ?? '')}
+                onChange={(line) => onChangeField(stepKey, line)}
+                onStatus={(status) => reportStep(field.id, status)}
+                optional={stepsOptional}
+                disabled={disabled}
+                draftKey={draftKey ? `${draftKey}:step-${field.id}` : null}
+                partLabel={field.label || 'Answer'}
+              />
+            </Suspense>
+            {box}
+          </div>
         );
       })}
     </div>
   );
 };
+
+/** Does any field ask for a step? (The Path waits for it before Check.) */
+export const pathFieldsHaveSteps = (fields = []) => (Array.isArray(fields) ? fields : []).some((field) => checkpointOf(field) !== null);
 
 export { pathEntryProblem, pathResponseComplete };
 

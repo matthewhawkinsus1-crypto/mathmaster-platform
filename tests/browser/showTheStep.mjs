@@ -20,7 +20,13 @@
 //   the tools   Step Algebra's own workspace, a factor pair, a table's rows;
 //   a reload    brings the step back, with the box still open;
 //   supports    See every part at once opens the box from the start;
-//   keyboard, Read aloud, phone width, 200% text, the dark theme, forced colours.
+//   keyboard, Read aloud, phone width, 200% text, the dark theme, forced colours;
+//   the Path    My Math Path's own renderer (SP-4b; showTheStepPath.html): the
+//               step before its box, "Check my step" and the way round it, Check
+//               waiting for the step, the step sent beside the answer, Step
+//               Algebra loaded for a step done in it, See every part at once.
+//               (A secure Test and Corrections: secureExamNavigation.mjs and
+//               secureResults.mjs.)
 //
 // Exits non-zero on any failure. Screenshots: tests/browser/artifacts/showTheStep.
 import { mkdirSync } from 'node:fs';
@@ -419,6 +425,94 @@ for (const scheme of ['light', 'dark']) {
   const where = 'desktop forced colours, the plane';
   const plane = await step(page).locator('svg[data-mm-plane]').evaluate((svg) => ({ marked: svg.hasAttribute('data-mm-plane'), curves: svg.querySelectorAll('path, polyline, line').length, box: svg.getBoundingClientRect().width }));
   check(plane.marked && plane.curves > 4 && plane.box > 200, `${where}: the plane is the platform's own, which a contrast theme draws`, JSON.stringify(plane));
+  await context.close();
+}
+
+/* ------------------------------------------------- My Math Path (SP-4b) */
+const openPath = async (device, query) => {
+  const context = await browser.newContext({ viewport: device.viewport, isMobile: device.isMobile || false, hasTouch: device.hasTouch || false, reducedMotion: 'reduce' });
+  const page = await context.newPage();
+  page.setDefaultTimeout(15000);
+  page.on('pageerror', (error) => check(false, `${device.name} path ${query}: page error`, String(error)));
+  runs += 1;
+  await page.goto(`${ORIGIN}/tests/browser/showTheStepPath.html?${query}&run=${Date.now()}-${runs}`, { waitUntil: 'networkidle' });
+  await page.locator('[data-show-the-step]').first().waitFor({ timeout: 20000 });
+  await page.waitForTimeout(400);
+  return { page, context };
+};
+const pathBoxes = (page) => page.locator('[data-show-the-step-path] :is(math-field, input[type="text"]):not([data-show-the-step] *)').count();
+const pathCheck = (page) => page.getByRole('button', { name: /^Check/ }).filter({ hasNotText: 'my step' }).first();
+const pathSubmits = (page) => page.evaluate(() => window.__mmSubmits);
+for (const device of [DESKTOP, PHONE]) {
+  const { page, context } = await openPath(device, 'kind=pickPoints');
+  const where = `${device.name} path, pick points`;
+  check(await pathBoxes(page) === 1, `${where}: only the part after the step has a box before the step`, String(await pathBoxes(page)));
+  check(await pathCheck(page).isDisabled(), `${where}: Check waits for the step`);
+  await step(page).locator('svg[data-mm-plane]').focus();
+  await pickFromOrigin(page, [0, 3]);
+  await pickFromOrigin(page, [1, 2], [0, 3]);
+  await step(page).locator('[data-step-entry="rise"]').fill('-1');
+  await step(page).locator('[data-step-entry="run"]').fill('1');
+  await step(page).locator('[data-step-check]').click();
+  check(/^\(1, 2\) is not on the line\./.test(await status(page)), `${where}: Check my step says which point is off`, await status(page));
+  check(!(await isOpen(page)) && await pathBoxes(page) === 1, `${where}: a refused step keeps its box shut`);
+  // Take the stray point back, pick one on the line, and count again.
+  await step(page).locator('svg[data-mm-plane]').focus();
+  await press(page, 'Enter');
+  await pickFromOrigin(page, [1, 1], [1, 2]);
+  await step(page).locator('[data-step-entry="rise"]').fill('-2');
+  await step(page).locator('[data-step-check]').click();
+  check(/^Your points \(0, 3\) and \(1, 1\) are on the line, and your rise and run match them\./.test(await status(page)), `${where}: the engine accepts the step`, await status(page));
+  const opened = await page.waitForFunction(() => document.querySelectorAll('[data-show-the-step-path] :is(math-field, input[type="text"]):not([data-show-the-step] *)').length === 2, null, { timeout: 5000 }).then(() => true).catch(() => false);
+  check(opened, `${where}: and its box opens`);
+  await noSidewaysScroll(page, where);
+  const typeInto = async (index, value) => {
+    const box = page.locator('[data-show-the-step-path] math-field:not([data-show-the-step] *)').nth(index);
+    await box.click();
+    await page.keyboard.type(value);
+  };
+  await typeInto(0, '-2');
+  await typeInto(1, '3');
+  await page.waitForFunction(() => [...document.querySelectorAll('button')].some((button) => /^Check/.test(button.textContent.trim()) && !/my step/.test(button.textContent) && !button.disabled), null, { timeout: 5000 }).catch(() => {});
+  await pathCheck(page).click();
+  await page.waitForFunction(() => window.__mmSubmits.length > 0, null, { timeout: 5000 }).catch(() => {});
+  const [sent] = await pathSubmits(page);
+  check(sent?.responses?.slope === '-2' && sent?.responses?.intercept === '3' && sent?.responses?.['slope::step'] === '(0, 3) (1, 1); rise -2; run 1', `${where}: the answers are sent with the step beside them`, JSON.stringify(sent?.responses));
+  await screenshotKeepingTouch(page, { path: path.join(ARTIFACTS, `${device.name}-path-points.png`) });
+  await context.close();
+}
+{
+  const { page, context } = await openPath(DESKTOP, 'kind=pickPoints');
+  const where = 'desktop path, stuck';
+  await step(page).locator('svg[data-mm-plane]').focus();
+  await pickFromOrigin(page, [0, 5]);
+  await pickFromOrigin(page, [4, 5], [0, 5]);
+  await step(page).locator('[data-step-entry="rise"]').fill('0');
+  await step(page).locator('[data-step-entry="run"]').fill('4');
+  await step(page).locator('[data-step-check]').click();
+  check(await step(page).locator('[data-step-skip]').count() === 0, `${where}: one refusal offers no way round`);
+  await step(page).locator('[data-step-check]').click();
+  await step(page).locator('[data-step-skip]').click();
+  const opened = await page.waitForFunction(() => document.querySelectorAll('[data-show-the-step-path] math-field:not([data-show-the-step] *)').length === 2, null, { timeout: 5000 }).then(() => true).catch(() => false);
+  check(opened && /^You chose to answer without this step\./.test(await status(page)), `${where}: after two refusals the student may answer without it`, await status(page));
+  await context.close();
+}
+{
+  const { page, context } = await openPath(DESKTOP, 'kind=stepMoves');
+  const where = 'desktop path, moves';
+  await step(page).locator('.algebra-embedded').waitFor({ timeout: 20000 });
+  check(await pathBoxes(page) === 0, `${where}: the step is Step Algebra's own workspace, loaded for it, before the box`);
+  await solveLinearInEquationWorkspace(page, step(page));
+  await page.waitForTimeout(400);
+  check(/^Your \d+ moves solve the equation\./.test(await status(page)), `${where}: the engine accepts the moves`, await status(page));
+  const opened = await page.waitForFunction(() => document.querySelectorAll('[data-show-the-step-path] math-field:not([data-show-the-step] *)').length === 1, null, { timeout: 5000 }).then(() => true).catch(() => false);
+  check(opened, `${where}: and the box opens`);
+  await context.close();
+}
+{
+  const { page, context } = await openPath(DESKTOP, 'kind=pickPoints&supports=everyPart');
+  const where = 'desktop path, See every part at once';
+  check(await pathBoxes(page) === 2 && /^This step is optional for you\./.test(await status(page)), `${where}: every box is open from the start`, await status(page));
   await context.close();
 }
 
