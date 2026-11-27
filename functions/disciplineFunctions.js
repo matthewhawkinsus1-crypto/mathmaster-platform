@@ -72,6 +72,7 @@ function disciplineIncidentView(id, data = {}) {
       submittedAtMs: data.form?.submittedAtMs || null,
     },
     voidedAtMs: data.voidedAtMs || null,
+    source: data.source === "teams" ? "teams" : "teacher",
   };
 }
 
@@ -105,6 +106,10 @@ exports.recordDisciplineIncident = onCall(async (request) => {
   const tapId = disciplineText(request.data?.tapId, 64);
   if (!/^[A-Za-z0-9_-]{8,64}$/.test(tapId)) throw new HttpsError("invalid-argument", "A tap id is required.");
   const violation = disciplineInput(shared, () => shared.normalizeViolationInput({ type: request.data?.type, detail: request.data?.detail }));
+  // A tardy TEAMS shows, recorded by the teacher's MathMaster tab
+  // (shared/teamsAttendance.mjs). Only ever a tardy; everything else is a tap.
+  const source = request.data?.source === "teams" ? "teams" : "teacher";
+  if (source === "teams" && violation.type !== "tardy") throw new HttpsError("invalid-argument", "Only a tardy is recorded from TEAMS.");
 
   const [student] = await db.getAll(db.collection("grades").doc(studentId), { fieldMask: ["classId"] });
   if (!student.exists || student.data()?.classId !== authority.classId) {
@@ -126,6 +131,7 @@ exports.recordDisciplineIncident = onCall(async (request) => {
     teacherOfRecord: authority.teacherOfRecord,
     recordedByEmail: authority.email,
     recordedByUid: request.auth.uid,
+    source,
     form: { state: "pending", attempts: 0 },
   };
   const saved = await db.runTransaction(async (transaction) => {

@@ -612,7 +612,7 @@ const handlers = {
   },
   // The Discipline Tracker (functions/disciplineFunctions.js). The harness has
   // no Google Form: Send now marks taps sent, and nothing leaves the browser.
-  recordDisciplineIncident: ({ classId, studentId, type, detail = '', tapId } = {}) => {
+  recordDisciplineIncident: ({ classId, studentId, type, detail = '', tapId, source = '' } = {}) => {
     const cls = requireClassTeacher(classId);
     const student = harnessStore.get(`grades/${studentId}`);
     if (!student || student.classId !== cls) throw rejection('permission-denied', "That student is not on this class's roster.");
@@ -621,13 +621,16 @@ const handlers = {
       if (error instanceof DisciplineInputError) throw rejection('invalid-argument', error.message);
       throw error;
     }
+    // As the real callable: a TEAMS-sourced record is only ever a tardy.
+    const from = source === 'teams' ? 'teams' : 'teacher';
+    if (from === 'teams' && violation.type !== 'tardy') throw rejection('invalid-argument', 'Only a tardy is recorded from TEAMS.');
     const path = `disciplineIncidents/${cls}_${tapId}`;
     if (!harnessStore.get(path)) {
       const nowMs = Date.now();
       const classRecord = harnessStore.get(`classes/${cls}`) || {};
       harnessStore.set(path, {
         classId: cls, classPeriod: classRecord.period || '', classLabel: classRecord.name || classRecord.period || '', studentId,
-        ...violation, occurredAtMs: nowMs, dateKey: disciplineDateKey(nowMs), teacherOfRecord: lower(TEACHER_EMAIL), form: { state: 'pending', attempts: 0 },
+        ...violation, occurredAtMs: nowMs, dateKey: disciplineDateKey(nowMs), teacherOfRecord: lower(TEACHER_EMAIL), source: from, form: { state: 'pending', attempts: 0 },
       });
     }
     return { id: path.split('/')[1], ...harnessStore.get(path) };
@@ -649,10 +652,12 @@ const handlers = {
     harnessStore.update(path, { detail: violation.detail });
     return { id: incidentId, ...harnessStore.get(path) };
   },
-  listDisciplineIncidents: ({ fromDateKey, toDateKey } = {}) => ({
+  listDisciplineIncidents: ({ fromDateKey, toDateKey, classId = '' } = {}) => ({
     incidents: harnessStore.paths('disciplineIncidents/')
       .map((path) => ({ id: path.split('/')[1], ...harnessStore.get(path) }))
-      .filter((entry) => entry.teacherOfRecord === lower(TEACHER_EMAIL) && entry.dateKey >= fromDateKey && entry.dateKey <= toDateKey),
+      .filter((entry) => entry.teacherOfRecord === lower(TEACHER_EMAIL) && entry.dateKey >= fromDateKey && entry.dateKey <= toDateKey)
+      // As the real callable: one class when it is named.
+      .filter((entry) => !classId || entry.classId === classId),
     formStatus: harnessStore.get('disciplineStatus/form') || null,
   }),
   getDisciplineSettings: () => ({ principalEmail: '', principalName: '', teacherName: '', ...(harnessStore.get(`disciplineSettings/${lower(TEACHER_EMAIL)}`) || {}) }),

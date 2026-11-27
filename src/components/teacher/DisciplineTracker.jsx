@@ -347,6 +347,7 @@ export default function DisciplineTracker({
                     <li key={incident.id} data-discipline-incident={incident.id}>
                       <span className="tw-strong">{violationType(incident.type)?.label}</span>
                       <span className="tw-muted"> {disciplineTime(incident.occurredAtMs)}</span>
+                      {incident.source === 'teams' && <span className="tw-muted" data-discipline-from-teams> · from TEAMS</span>}
                       {details.length > 0 && (
                         <select className="tw-select" aria-label={`Detail for ${violationType(incident.type)?.label} at ${disciplineTime(incident.occurredAtMs)}`} value={incident.detail || ''} disabled={incident.saving} onChange={(event) => setDetail(incident, event.target.value)}>
                           <option value="">No detail</option>

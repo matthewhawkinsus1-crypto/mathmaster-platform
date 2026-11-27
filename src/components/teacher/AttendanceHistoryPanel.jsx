@@ -54,7 +54,7 @@ function AuditTrail({ events }) {
         <div key={index} style={{ fontSize: 'calc(11 * var(--mm-px))', color: 'var(--mm-text-muted)' }}>
           {markLabel(entry.mark)}
           {entry.reason ? ` — ${entry.reason}` : ''}
-          {entry.markSource === 'liveQuickMark' ? ' (Live Classroom quick mark)' : ' (history correction)'}
+          {entry.event?.source === 'teams' ? ' (from TEAMS)' : entry.markSource === 'liveQuickMark' ? ' (Live Classroom quick mark)' : ' (history correction)'}
         </div>
       ))}
     </div>
@@ -286,6 +286,7 @@ export default function AttendanceHistoryPanel({
                     <span style={{ fontSize: 'calc(11 * var(--mm-px))', fontWeight: 900, padding: '2px 8px', borderRadius: 999, ...style }}>
                       {effective ? markLabel(effective.mark) : 'Not marked'}
                       {effective && !effective.classified ? ' (unclassified)' : ''}
+                      {effective?.event?.source === 'teams' ? ' · from TEAMS' : ''}
                     </span>
                     <button type="button" onClick={() => setExpandedStudentId(expanded ? null : id)} style={{ ...smallButtonStyle, border: 'none', background: 'none', color: 'var(--mm-primary)', textDecoration: 'underline' }}>
                       {expanded ? 'Hide history' : 'Show history'}

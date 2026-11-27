@@ -6,8 +6,9 @@ import { functions } from '../../firebase.js';
 
 const call = async (name, data = {}) => (await httpsCallable(functions, name)(data)).data || {};
 
-export const recordDisciplineIncident = ({ classId, studentId, type, detail = '', tapId }) => (
-  call('recordDisciplineIncident', { classId, studentId, type, detail, tapId })
+// `source: 'teams'`: a tardy TEAMS shows, recorded by the attendance mirror.
+export const recordDisciplineIncident = ({ classId, studentId, type, detail = '', tapId, source = '' }) => (
+  call('recordDisciplineIncident', { classId, studentId, type, detail, tapId, ...(source ? { source } : {}) })
 );
 export const voidDisciplineIncident = ({ incidentId, reason = '' }) => call('voidDisciplineIncident', { incidentId, reason });
 export const setDisciplineIncidentDetail = ({ incidentId, detail }) => call('setDisciplineIncidentDetail', { incidentId, detail });

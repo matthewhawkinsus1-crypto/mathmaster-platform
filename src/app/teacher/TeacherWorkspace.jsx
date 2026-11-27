@@ -51,6 +51,7 @@ import { AssignmentAiHealth, AssignmentContentUpgradeModal, AssignmentGradeOverr
 // opens (./teacherPanels.js), and their code fetched while the browser is idle.
 import { AssignmentHub, ClassroomSyncReview, QuestionSignalNotes, StudentProfileDrawer, SupportEvidenceReportView, TeacherQuickSearch, WorkedExamplesBySkill } from './teacherPanels.js';
 import { prefetchTeacherPanels } from './teacherPanelPrefetch.js';
+import useTeamsAttendanceBridge from './useTeamsAttendanceBridge.js';
 import { compareStudentsByName, formatStudentName } from '../../platform/studentName';
 import { isTestCycleAssignment } from '../../platform/assessment/testCycle.js';
 import { attachTestCycleContract, preflightTestCycleCandidate, updateTestCyclePolicy } from '../../services/testCycleService.js';
@@ -333,6 +334,9 @@ export default function TeacherWorkspace({
   // the authoring code, while the browser is idle once the workspace has drawn.
   useEffect(() => prefetchTeacherPanels(), []);
   useEffect(() => prefetchAuthoringKit(), []);
+  // TEAMS attendance, mirrored by the MathMaster extension on any screen,
+  // through the one attendance handler.
+  useTeamsAttendanceBridge({ user, classes, students: allStudents, recordAttendance: handleRecordStudentSupportEvent });
   if (authoringKitError) throw authoringKitError;
   const authoringKit = () => loadAuthoringKit().catch((error) => {
     setAuthoringKitError(error);
