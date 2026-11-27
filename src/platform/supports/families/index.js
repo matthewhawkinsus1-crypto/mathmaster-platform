@@ -12,10 +12,14 @@ import * as transformations from './transformations.js';
 import * as quadraticsAbsoluteValue from './quadraticsAbsoluteValue.js';
 import * as dataAndModels from './dataAndModels.js';
 import * as perpendicularLines from './perpendicularLines.js';
+import * as polynomialDivision from './polynomialDivision.js';
+import * as algebra2AnswerBoxes from './algebra2AnswerBoxes.js';
 
 // perpendicularLines is last: it speaks only in the closed-question review
-// (CT02), so it may take only an item that no family above claims.
-const FAMILIES = [linearEquations, systems, linesAndSlope, fractions, pointsAndIntervals, functionFeatures, inverseComposition, transformations, quadraticsAbsoluteValue, dataAndModels, perpendicularLines];
+// (CT02), so it may take only an item that no family above claims. The
+// example families before it (polynomialDivision, algebra2AnswerBoxes; WE-I) each claim only a kind
+// of question no family above reads, and add a worked example and nothing else.
+const FAMILIES = [linearEquations, systems, linesAndSlope, fractions, pointsAndIntervals, functionFeatures, inverseComposition, transformations, quadraticsAbsoluteValue, dataAndModels, polynomialDivision, algebra2AnswerBoxes, perpendicularLines];
 
 export const implementedFamilies = () => FAMILIES.filter((module) => module.implemented === true);
 

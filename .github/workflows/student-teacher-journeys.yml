@@ -733,6 +733,16 @@ jobs:
           PLAYWRIGHT_MODULE: playwright
           AUDIT_ORIGIN: "http://127.0.0.1:5199"
         run: node tests/browser/planeReplay.mjs
+      # WE-I: synthetic and long division play as the Polynomial Workshop's
+      # own work (the table one column at a time, faded before the quotient,
+      # never on a DOL), and an Algebra II answer box gets a built-in sibling
+      # with a reason for every step.
+      - name: Division replay and the Algebra II answer-box examples
+        if: ${{ !cancelled() }}
+        env:
+          PLAYWRIGHT_MODULE: playwright
+          AUDIT_ORIGIN: "http://127.0.0.1:5199"
+        run: node tests/browser/divisionReplay.mjs
       # SP-4: a part's checkpoint opens one step in a tool (the plane, Step
       # Algebra, a factor pair, a table's rows) before its answer box. The
       # engine checks it; the DOL says nothing of right or wrong; the grade is
