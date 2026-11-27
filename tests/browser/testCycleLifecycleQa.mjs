@@ -28,6 +28,10 @@
 //   - release from the results panel; corrections with real tries; the
 //     retest; the capped recorded grade, explained;
 //   - the teacher preview's stages and real secure items, writing nothing;
+//   - a Test whose item shows a step first (SP-4b): answered through the step,
+//     submitted, and on the server the recorded response keeps the step's
+//     line beside the answer, the grade is the answers' alone, and the
+//     released review shows the step in a row after its part;
 //   - no sideways scroll, a reachable action, readable disabled controls, at
 //     Chromebook, iPad and phone widths, light and dark.
 //
@@ -189,6 +193,41 @@ const seed = async () => {
     id: ASSIGNMENT_ID,
     title: 'Unit 3 Test Cycle',
     testBlueprint: blueprint,
+    sections: assignment.sections.filter((section) => section.role === 'review'),
+  });
+};
+
+// SHOW THE STEP (SP-4b): a Test of its own, in a class of its own, whose
+// items show a step first: a table row of y = 2x + 1 before the sum.
+const STEP = { classId: 'qa-class-step', assignmentId: 'qa-step-test-cycle', studentId: 'QA_STEPPER' };
+const STEP_CHECKPOINT = { kind: 'tableRow', count: 1, of: 'y = 2x + 1' };
+const stepFamilies = families.filter((family) => family.alignmentKeys[0] === 'texas:A.3C').map((family) => ({
+  ...family,
+  id: family.id.replace(PREFIX, `${PREFIX}step_`),
+  familyId: family.familyId.replace(PREFIX, `${PREFIX}step_`),
+  responseFields: family.responseFields.map((field) => ({ ...field, checkpoint: STEP_CHECKPOINT })),
+}));
+const seedStepCycle = async () => {
+  await Promise.all(stepFamilies.map(({ id, ...fields }) => db.collection('pathQuestionBank').doc(id).set(fields)));
+  await db.collection('classes').doc(STEP.classId).set({ name: 'Algebra I — Period 5', period: 'Period 5', teacherOfRecord: TEACHER, status: 'active', course: 'algebra1' });
+  await db.collection('grades').doc(STEP.studentId).set({
+    displayName: 'QA stepper', classId: STEP.classId, classPeriod: 'Period 5', assignedTeacherEmail: TEACHER, status: 'active',
+    // Review done, as ingestion records it.
+    gradesByAssignment: { [STEP.assignmentId]: { 0: { status: 'correct', totalAttempts: 1 }, 1: { status: 'attempted', totalAttempts: 1 } } },
+  });
+  const source = fixture.certBlueprint();
+  delete source.timeLimitSeconds;
+  const target = source.targets.find((entry) => entry.alignmentKey === 'texas:A.3C');
+  const assignment = fixture.certAssignment({ classIds: [STEP.classId], assignmentId: STEP.assignmentId });
+  await db.collection('assignments').doc(STEP.assignmentId).set({
+    ...assignment,
+    id: STEP.assignmentId,
+    title: 'Unit 4 Quiz — show the step',
+    testBlueprint: {
+      ...source, blueprintId: `${PREFIX}step_blueprint`, title: 'Unit 4 Quiz — show the step',
+      targets: [{ ...target, questionCount: 2, familyIds: stepFamilies.map((family) => family.id) }],
+    },
+    assessmentPolicy: { ...assignment.assessmentPolicy, retest: { ...assignment.assessmentPolicy?.retest, questionCount: 2 } },
     sections: assignment.sections.filter((section) => section.role === 'review'),
   });
 };
@@ -646,6 +685,82 @@ try {
   await teacher.getByText(/Unlock the locked Test done/).waitFor({ timeout: 20_000 });
   const unlockedStatus = (await db.collection('examSessions').doc(passerRecord.test.examSessionId).get()).data()?.status;
   check(unlockedStatus === 'in_progress', 'teacher: unlocking from the row lets the student continue', unlockedStatus);
+
+  // 11. SHOW THE STEP on a secure Test (SP-4b), against the real handlers.
+  await seedStepCycle();
+  const asTeacher = (name, data) => teacher.evaluate(async ({ bridgeUrl, email, callable, payload }) => {
+    const response = await fetch(`${bridgeUrl}/call/${callable}`, {
+      method: 'POST', headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ identity: { as: 'teacher', email }, data: payload }),
+    });
+    return { status: response.status, body: await response.json() };
+  }, { bridgeUrl: BRIDGE, email: TEACHER, callable: name, payload: data });
+  const opened = await asTeacher('assignTestCycleSessions', { assignmentId: STEP.assignmentId, classId: STEP.classId });
+  check(opened.status === 200, 'step: the step Test\'s session opens', JSON.stringify(opened.body).slice(0, 200));
+  const stepper = await open({ query: `view=student&as=student&studentId=${STEP.studentId}&assignmentId=${STEP.assignmentId}` });
+  await waitForStage(stepper, 'test', 120_000);
+  await stepper.getByRole('button', { name: 'Start Test' }).click();
+  await stepper.locator('[data-secure-start-rules]').waitFor({ timeout: 15_000 });
+  await stepper.getByRole('button', { name: 'Start Test' }).click();
+  const stepAnswers = [];
+  for (let index = 0; index < 2; index += 1) {
+    // eslint-disable-next-line no-await-in-loop
+    await atQuestion(stepper, index + 1);
+    const theStep = stepper.locator('main [data-show-the-step="tableRow"]').first();
+    // eslint-disable-next-line no-await-in-loop
+    await theStep.waitFor({ timeout: 30_000 });
+    if (index === 0) {
+      // eslint-disable-next-line no-await-in-loop
+      check(await stepper.locator('main [data-secure-answer-editor]').count() === 0, 'step: the item opens on its step, with no answer box');
+      // eslint-disable-next-line no-await-in-loop
+      check(await theStep.locator('[data-step-check], [data-step-skip]').count() === 0, 'step: no Check my step on a secure Test');
+    }
+    // A row of y = 2x + 1: right on the first item, wrong on the second.
+    // eslint-disable-next-line no-await-in-loop
+    await theStep.locator('[data-step-entry="row-0-0"]').fill('1');
+    // eslint-disable-next-line no-await-in-loop
+    await theStep.locator('[data-step-entry="row-0-1"]').fill(index === 0 ? '3' : '4');
+    // eslint-disable-next-line no-await-in-loop
+    await stepper.locator('main [data-secure-answer-editor]').first().waitFor({ timeout: 15_000 });
+    // eslint-disable-next-line no-await-in-loop
+    const said = (await theStep.locator('[data-step-status]').innerText()).trim();
+    check(said === 'Step recorded. Now answer the part below.', `step: item ${index + 1}: the box opens once the row is filled, with no verdict`, said);
+    // The first answer right, the second wrong.
+    // eslint-disable-next-line no-await-in-loop
+    const answer = index === 0 ? await answerFromHeading(stepper, 'h1') : fixture.CERT_WRONG_ANSWER;
+    stepAnswers.push(answer);
+    // eslint-disable-next-line no-await-in-loop
+    await fillAnswer(stepper, answer);
+    // eslint-disable-next-line no-await-in-loop
+    await waitSaved(stepper);
+    if (index === 0) await shot(stepper, 'step-secure-item');
+    // eslint-disable-next-line no-await-in-loop
+    await stepper.locator(index === 1 ? '[data-secure-nav="review"]' : '[data-secure-nav="next"]').click();
+  }
+  await submitFromReview(stepper);
+  await stepper.getByRole('heading', { name: 'Test submitted' }).waitFor({ timeout: 30_000 });
+  // On the server: the recorded responses keep each step beside its answer,
+  // and each item is marked on its answer alone.
+  const stepRecord = (await db.collection('testCycleRecords').doc(`${STEP.assignmentId}__${STEP.studentId}`).get()).data();
+  const stepSession = (await db.collection('examSessions').doc(stepRecord.test.examSessionId).get()).data();
+  const recorded = Object.values(stepSession.responses || {}).sort((a, b) => (a.position ?? 0) - (b.position ?? 0));
+  const lines = recorded.map((entry) => entry.responsePayload?.responses?.['answer::step'] || null);
+  check(lines.join('|') === '(1, 3)|(1, 4)', 'step: the server keeps each step\'s line beside the answer', JSON.stringify(recorded.map((entry) => entry.responsePayload?.responses)));
+  check(recorded.map((entry) => entry.responsePayload?.responses?.answer).join('|') === stepAnswers.join('|'), 'step: and the answers as typed', JSON.stringify(stepAnswers));
+  check(recorded.map((entry) => entry.grading?.isCorrect).join('|') === 'true|false' && recorded.every((entry) => entry.unanswered !== true),
+    'step: each item is marked on its answer alone (a right step under a right answer, a wrong step under a wrong one)', JSON.stringify(recorded.map((entry) => entry.grading)));
+  // Released: the student's review shows the step in a row after its part.
+  const released = await asTeacher('releaseTestCycleResults', { assignmentId: STEP.assignmentId, stage: 'test', studentIds: [STEP.studentId] });
+  check(released.status === 200, 'step: the results are released', JSON.stringify(released.body).slice(0, 160));
+  await stepper.getByRole('button', { name: 'Back to my assessment' }).click();
+  await stepper.locator('[data-test-cycle-stage]').waitFor({ timeout: 30_000 });
+  await stepper.getByRole('button', { name: /Review (my )?Test/ }).first().click();
+  await stepper.waitForSelector('[data-results-score]', { timeout: 30_000 });
+  const reviewRows = await stepper.locator('article[data-result-status]').first().locator('[data-result-block="yours"] [data-answer-row]')
+    .evaluateAll((nodes) => nodes.map((node) => [node.dataset.answerRow, node.innerText.replace(/\s+/g, ' ').trim()]));
+  check(reviewRows.map(([kind]) => kind).join(',') === 'answer,step' && /^Step shown for "Sum": table rows/.test(reviewRows[1]?.[1] || ''),
+    'step: the released review shows the step in a row after its part', JSON.stringify(reviewRows));
+  await shot(stepper, 'step-released-review');
 
   for (const theme of ['dark']) {
     // eslint-disable-next-line no-await-in-loop
