@@ -231,8 +231,8 @@ translates it for the students entitled to that. The built-in cards:
 | `transformations.combined` | Transformations of a function, a·f(b(x − h)) + k |
 
 A few other spellings of the same skills work too (for example
-`linear.graphFromSlopeIntercept`). A card whose skill has no built-in card is a
-Pre-Flight warning, because students would never see it.
+`linear.graphFromSlopeIntercept`). On a new assignment, a card whose skill has
+no built-in card is a Pre-Flight warning, because students would never see it.
 
 Where it is shown:
 - on Classwork and Practice only, by the section's own role. That includes

@@ -33,7 +33,9 @@ import { executableSource, region } from './helpers/sourceContract.mjs';
 import { firstLoadGraph, repo, teacherFirstLoadGraph } from './helpers/firstLoadGraph.mjs';
 import { REFERENCE_CARDS, REFERENCE_CARD_LANGUAGES, REFERENCE_CARD_TEXT, readingFor, referenceCardFor } from '../../src/platform/supports/referenceCards/referenceCardLibrary.js';
 import { REFERENCE_CARD_SECTION_ROLES, pinnedReferenceCards } from '../../src/platform/supports/referenceCards/referenceCardRule.js';
-import { NO_EXAMPLE_SECTION_ROLES, validateLessonSupportsV5 } from '../../src/platform/contract/lessonSupportsV5.js';
+import { NO_EXAMPLE_SECTION_ROLES, referenceCardSkillWarnings, validateLessonSupportsV5 } from '../../src/platform/contract/lessonSupportsV5.js';
+import { buildAssignmentV5PreflightModel } from '../../src/platform/preflight/assignmentV5PreflightModel.js';
+import { parseAssignmentBlueprintText } from '../../src/assignmentBlueprint.js';
 import { speechTextFor } from '../../src/platform/language/speechText.js';
 import { TRANSLATION_COVERAGE, TRANSLATION_PROVIDER, resolveTranslation } from '../../src/platform/language/translationProviders.js';
 import { attemptSupportUsageFrom, emptySupportUse } from '../../src/platform/supports/supportUseMemory.js';
@@ -172,19 +174,29 @@ test('the authoring contract the rule reads: it refuses a card on a DOL, quiz or
   assert.ok(errorsFor([{ id: 'cubes', skill: 'factor.sumDifferenceOfCubes', formula: 'a^3+b^3' }]).some((error) => /formula is not a reference card field/.test(error)));
 });
 
-test('Pre-Flight warns about a card whose skill has no built-in card, which students would never see', () => {
-  const sections = [{ id: 'classwork', role: 'classwork', questions: [] }];
-  const judge = (referenceCards) => validateLessonSupportsV5({ sections, lessonSupports: { referenceCards } });
+test('Pre-Flight warns, on a new assignment only, about a card whose skill has no built-in card', () => {
+  const judge = (referenceCards) => referenceCardSkillWarnings({ lessonSupports: { referenceCards } });
   const unknown = judge([{ id: 'cubes', skill: 'factor.sumDifferenceOfCubes' }, { id: 'mystery', skill: 'made.up.skill' }]);
-  assert.deepEqual(unknown.errors, [], 'a warning, never an error: it does not stop the teacher');
-  assert.equal(unknown.warnings.length, 1);
-  assert.match(unknown.warnings[0], /^lessonSupports\.referenceCards\[1\]\.skill "made\.up\.skill" has no reference card in MathMaster yet, so students will not see this card\. Use the skill of a built-in card: factor\.sumDifferenceOfCubes, /);
-  for (const card of REFERENCE_CARDS) assert.ok(unknown.warnings[0].includes(card.skill), `${card.skill} is offered`);
-  // A known skill, or an alias of one, raises nothing.
-  assert.deepEqual(judge([{ id: 'a', skill: 'lines.slopeInterceptForm' }, { id: 'b', skill: 'linear.graphFromSlopeIntercept' }]).warnings, []);
+  assert.equal(unknown.length, 1);
+  assert.match(unknown[0], /^lessonSupports\.referenceCards\[1\]\.skill "made\.up\.skill" has no reference card in MathMaster yet, so students will not see this card\. Use the skill of a built-in card: factor\.sumDifferenceOfCubes, /);
+  for (const card of REFERENCE_CARDS) assert.ok(unknown[0].includes(card.skill), `${card.skill} is offered`);
+  // A known skill, or an alias of one, raises nothing; nor does a lesson with no cards.
+  assert.deepEqual(judge([{ id: 'a', skill: 'lines.slopeInterceptForm' }, { id: 'b', skill: 'linear.graphFromSlopeIntercept' }]), []);
+  assert.deepEqual(referenceCardSkillWarnings({}), []);
+  // The validator itself judges shapes only: it never raises this, so the compiler and an existing assignment are as before.
+  const sections = [{ id: 'classwork', role: 'classwork', questions: [] }];
+  assert.deepEqual(validateLessonSupportsV5({ sections, lessonSupports: { referenceCards: [{ id: 'mystery', skill: 'made.up.skill' }] } }), { errors: [], warnings: [] });
+  // In Pre-Flight: a warning on a new assignment, nothing on an existing one, never an error.
+  const source = JSON.parse(read('tests/platform/fixtures/learningSupportsLessonFragment.json'));
+  source.lessonSupports.referenceCards = [{ id: 'mystery', skill: 'made.up.skill', sections: ['classwork'] }];
+  const assignment = parseAssignmentBlueprintText(JSON.stringify(source)).assignmentV5;
+  const warningsOf = (isNewAssignment) => buildAssignmentV5PreflightModel(assignment, { isNewAssignment }).warnings.filter((warning) => /referenceCards/.test(warning));
+  assert.equal(warningsOf(true).length, 1, 'a new assignment');
+  assert.deepEqual(warningsOf(false), [], 'an existing assignment');
+  assert.ok(!buildAssignmentV5PreflightModel(assignment, { isNewAssignment: true }).errors.some((error) => /referenceCards/.test(error)));
   // The one lesson that declares a card today has its card.
-  const packet = read('scripts/content/build-algebra2-honors-thanksgiving-packet.mjs');
-  for (const [, skill] of packet.matchAll(/referenceCards: \[\{ id: '[^']+', skill: '([^']+)'/g)) assert.ok(referenceCardFor(skill), skill);
+  const packet = JSON.parse(read('teacher-import-jsons/thanksgiving-packet/Algebra2_Honors_Thanksgiving_Packet.json'));
+  assert.deepEqual(referenceCardSkillWarnings(packet), []);
 });
 
 // ------------------------------------------------------------------ 3. never a grade

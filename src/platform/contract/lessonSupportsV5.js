@@ -29,7 +29,8 @@
  * beside this one too. A reference card's content is the platform's (WE-H):
  * the card for its `skill` in the built-in library
  * (supports/referenceCards/referenceCardLibrary.js), so a card whose skill has
- * none is a warning here: students would never see it. So an assignment that carries none of the fields is judged and
+ * none is a Pre-Flight warning on a NEW assignment (referenceCardSkillWarnings,
+ * which the Pre-Flight model asks for only then): students would never see it. So an assignment that carries none of the fields is judged and
  * compiled exactly as before.
  *
  * The messages lead with "Section S Question Q <field path>", the locator
@@ -124,7 +125,7 @@ const exampleProblemTexts = (example) => [
   ...(isObject(example.sibling) ? Object.values(example.sibling) : [example.sibling]),
 ].filter(isNonEmptyString).map(problemText).filter((text) => text.length >= 3);
 
-const validateReferenceCards = (cards, sections, errors, warnings) => {
+const validateReferenceCards = (cards, sections, errors) => {
   if (!Array.isArray(cards)) {
     errors.push('lessonSupports.referenceCards must be an array of cards: [{ "id": "cubes", "skill": "factor.sumDifferenceOfCubes" }].');
     return;
@@ -145,7 +146,6 @@ const validateReferenceCards = (cards, sections, errors, warnings) => {
     else if (ids.has(clean(card.id))) errors.push(`${at}.id "${clean(card.id)}" is used by another reference card. Each card has its own id.`);
     else ids.add(clean(card.id));
     if (!isNonEmptyString(card.skill)) errors.push(`${at}.skill is required: the skill the card shows (for example "factor.sumDifferenceOfCubes").`);
-    else if (!referenceCardFor(card.skill)) warnings.push(`${at}.skill "${clean(card.skill)}" has no reference card in MathMaster yet, so students will not see this card. Use the skill of a built-in card: ${REFERENCE_CARDS.map((entry) => entry.skill).join(', ')}.`);
     if (card.sections === undefined) return;
     if (!Array.isArray(card.sections) || card.sections.length === 0 || !card.sections.every(isNonEmptyString)) {
       errors.push(`${at}.sections must be a non-empty list of section ids (or roles) the card is pinned on, for example ["classwork", "practice"]. Leave it out to pin the card on every Classwork and Practice section.`);
@@ -457,7 +457,7 @@ export const validateLessonSupportsV5 = (input = {}) => {
       unknownKeys(supports, LESSON_SUPPORT_KEYS).forEach((key) => {
         errors.push(`lessonSupports.${key} is not a lesson support. Use referenceCards or examples.`);
       });
-      if (supports.referenceCards !== undefined) validateReferenceCards(supports.referenceCards, sections, errors, warnings);
+      if (supports.referenceCards !== undefined) validateReferenceCards(supports.referenceCards, sections, errors);
       if (supports.examples !== undefined) examples = validateExamples(supports.examples, sections, errors);
     }
   }
@@ -474,6 +474,19 @@ export const validateLessonSupportsV5 = (input = {}) => {
   });
 
   return { errors, warnings };
+};
+
+/**
+ * A declared reference card whose skill has no built-in card (WE-H): students
+ * would never see it. Advice for a NEW assignment only; the Pre-Flight model
+ * asks for it only then (isNewAssignment), so an existing assignment is judged
+ * exactly as before.
+ */
+export const referenceCardSkillWarnings = (input = {}) => {
+  const cards = isObject(input?.lessonSupports) && Array.isArray(input.lessonSupports.referenceCards) ? input.lessonSupports.referenceCards : [];
+  return cards.flatMap((card, index) => (isObject(card) && isNonEmptyString(card.skill) && !referenceCardFor(card.skill)
+    ? [`lessonSupports.referenceCards[${index}].skill "${clean(card.skill)}" has no reference card in MathMaster yet, so students will not see this card. Use the skill of a built-in card: ${REFERENCE_CARDS.map((entry) => entry.skill).join(', ')}.`]
+    : []));
 };
 
 /**
