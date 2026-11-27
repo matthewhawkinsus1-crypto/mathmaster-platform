@@ -26,8 +26,10 @@
  * this one. A part's `checkpoint` opens its step in the tool (SP-4); whether
  * that tool can read `of`, and that `of` is never an answer, is checked with
  * the step (supports/showTheStep/checkpointSource.js checkpointSourceErrors),
- * beside this one too. Reference cards are a later package (WE-H) that reads
- * its fields as they stand here. So an assignment that carries none of the fields is judged and
+ * beside this one too. A reference card's content is the platform's (WE-H):
+ * the card for its `skill` in the built-in library
+ * (supports/referenceCards/referenceCardLibrary.js), so a card whose skill has
+ * none is a warning here: students would never see it. So an assignment that carries none of the fields is judged and
  * compiled exactly as before.
  *
  * The messages lead with "Section S Question Q <field path>", the locator
@@ -36,6 +38,7 @@
  */
 
 import { followThroughPlaceholders } from '../../../functions/shared/followThroughNames.mjs';
+import { REFERENCE_CARDS, referenceCardFor } from '../supports/referenceCards/referenceCardLibrary.js';
 // The two attempt policies (functions/shared/activityPolicies.mjs ATTEMPT_POLICY),
 // written out so that object stays off the student's first load; a test holds
 // them equal (unlimitedAttemptsAssignment.test.mjs).
@@ -121,7 +124,7 @@ const exampleProblemTexts = (example) => [
   ...(isObject(example.sibling) ? Object.values(example.sibling) : [example.sibling]),
 ].filter(isNonEmptyString).map(problemText).filter((text) => text.length >= 3);
 
-const validateReferenceCards = (cards, sections, errors) => {
+const validateReferenceCards = (cards, sections, errors, warnings) => {
   if (!Array.isArray(cards)) {
     errors.push('lessonSupports.referenceCards must be an array of cards: [{ "id": "cubes", "skill": "factor.sumDifferenceOfCubes" }].');
     return;
@@ -142,6 +145,7 @@ const validateReferenceCards = (cards, sections, errors) => {
     else if (ids.has(clean(card.id))) errors.push(`${at}.id "${clean(card.id)}" is used by another reference card. Each card has its own id.`);
     else ids.add(clean(card.id));
     if (!isNonEmptyString(card.skill)) errors.push(`${at}.skill is required: the skill the card shows (for example "factor.sumDifferenceOfCubes").`);
+    else if (!referenceCardFor(card.skill)) warnings.push(`${at}.skill "${clean(card.skill)}" has no reference card in MathMaster yet, so students will not see this card. Use the skill of a built-in card: ${REFERENCE_CARDS.map((entry) => entry.skill).join(', ')}.`);
     if (card.sections === undefined) return;
     if (!Array.isArray(card.sections) || card.sections.length === 0 || !card.sections.every(isNonEmptyString)) {
       errors.push(`${at}.sections must be a non-empty list of section ids (or roles) the card is pinned on, for example ["classwork", "practice"]. Leave it out to pin the card on every Classwork and Practice section.`);
@@ -453,7 +457,7 @@ export const validateLessonSupportsV5 = (input = {}) => {
       unknownKeys(supports, LESSON_SUPPORT_KEYS).forEach((key) => {
         errors.push(`lessonSupports.${key} is not a lesson support. Use referenceCards or examples.`);
       });
-      if (supports.referenceCards !== undefined) validateReferenceCards(supports.referenceCards, sections, errors);
+      if (supports.referenceCards !== undefined) validateReferenceCards(supports.referenceCards, sections, errors, warnings);
       if (supports.examples !== undefined) examples = validateExamples(supports.examples, sections, errors);
     }
   }

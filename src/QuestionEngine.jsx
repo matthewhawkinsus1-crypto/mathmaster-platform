@@ -29,6 +29,7 @@ import MathText from './components/common/MathText.jsx';
 import { buildQuestionHints, diagnosisHint, hintLadderView, hintRelease } from './platform/supports/hints/questionHints.js';
 import { hintCostSentence } from './platform/supports/hints/hintCopy.js';
 import { hintPanelFocusTarget, keepHintPanelInView, requestedHintPanelPlace } from './platform/supports/hints/hintPanelReveal.js';
+import { pinnedReferenceCards } from './platform/supports/referenceCards/referenceCardRule.js';
 import { EXAMPLE_OPENED_ANNOUNCEMENT, exampleOpensByItself, exampleSectionRule, fadedExample, lessonExampleContext, workedExampleFor } from './platform/supports/workedExample/examplePlayer.js';
 import { focusAfterYourTurn } from './platform/supports/workedExample/yourTurnFocus.js';
 import { spotTheMistakeFor } from './platform/supports/workedExample/spotTheMistake.js';
@@ -160,6 +161,12 @@ const LazyShowTheStep = lazy(() => import('./platform/supports/showTheStep/ShowT
 // The Step Algebra workspace a `stepMoves` step is done in is the one this
 // engine already holds; it is handed in, so the step's chunk brings none.
 const ShowTheStep = (props) => <LazyShowTheStep {...props} StepByStepAlgebraCore={StepByStepAlgebraCore} />;
+// THE PINNED REFERENCE CARDS (WE-H): loaded, with the card library, only for a
+// question with a card pinned (referenceCardRule.js), so a DOL, quiz, test or
+// Home downloads none of it. A chunk that cannot be fetched draws nothing: the
+// card is a support beside the question, and the question stays.
+const ReferenceCards = lazy(() => import('./platform/supports/referenceCards/ReferenceCards.jsx')
+  .catch(() => ({ default: () => null })));
 const AssignmentGraphingCalculator = lazy(() => import('./components/calculator/AssignmentGraphingCalculator.jsx')
   .catch(() => ({ default: GraphingCalculatorUnavailable })));
 // A question's reference sheet (TL07) loads only for a question that names one
@@ -728,6 +735,9 @@ function QuestionEngineBody({
   // "Spot the mistake" answered after the example (WE-F): a fact for the
   // teacher, never a grade (spotTheMistake.js).
   const [spotTheMistakeUsed, setSpotTheMistakeUsed] = useState(restoredSupport.spotTheMistakeUsed);
+  // A reference card was on the screen with this question (WE-H): a fact for
+  // the teacher, never help asked for and never a grade (supportUseMemory.js).
+  const [referenceCardShown, setReferenceCardShown] = useState(false);
   const [similarOpen, setSimilarOpen] = useState(false);
   // The graded work behind the feedback on screen, kept beside it for the
   // display-only miss message (missDiagnosis.js). Never sent anywhere.
@@ -1387,6 +1397,7 @@ function QuestionEngineBody({
     workedExampleUsed,
     workedExampleShown,
     spotTheMistakeUsed,
+    referenceCardShown,
     backUpStepDone: scaffoldComplete,
     backUpStepSource: scaffold.source,
     scaffoldUsed: specificStepUsed,
@@ -2069,6 +2080,20 @@ function QuestionEngineBody({
       assignmentQuestions: lessonQuestions,
     });
   }, [lessonQuestions, lessonGiven, lessonSupports, question]);
+  /*
+   * THE REFERENCE CARDS (WE-H; referenceCardRule.js): the lesson's cards, pinned
+   * above the work on a Classwork or Practice section, by the section's OWN
+   * role (a DOL practised after its due date is still a DOL) and the role it
+   * runs under, wherever the hint control is allowed. Never on a DOL, quiz or
+   * test. Where none is pinned nothing of the card is loaded or drawn.
+   */
+  const pinnedCards = useMemo(() => pinnedReferenceCards({
+    lessonSupports,
+    sectionRole: isActivityRole(question?.activityRole) ? question.activityRole : null,
+    sectionId: question?.sectionId ?? null,
+    activityRole: resolvedActivityPolicy?.role,
+    hintsAllowed: hintControlAllowed,
+  }), [lessonSupports, question?.activityRole, question?.sectionId, resolvedActivityPolicy?.role, hintControlAllowed]);
   const exampleRule = exampleSectionRule({
     sectionRole: workedExampleContext?.sectionRole,
     activityRole: resolvedActivityPolicy?.role,
@@ -2236,6 +2261,21 @@ function QuestionEngineBody({
     ? { language: languageTools.language }
     : null;
   const reportSupportedTextUse = (supportId, eventType, details = null) => reportSupportEvidence(supportId, eventType, details);
+  const referenceCards = pinnedCards.length ? (
+    <div className="mathmaster-top-panel-row" data-reference-cards-row="">
+      <Suspense fallback={null}>
+        <QuestionSupplementBoundary stage="reference-cards" context={failureContext} draftKey={draftKey} resetKey={supplementResetKey}>
+          <ReferenceCards
+            cards={pinnedCards}
+            readAloud={supportedTextReadAloud}
+            translation={supportedTextTranslation}
+            onSupportEvidence={reportSupportedTextUse}
+            onShown={() => setReferenceCardShown(true)}
+          />
+        </QuestionSupplementBoundary>
+      </Suspense>
+    </div>
+  ) : null;
   const hintPanel = helpControlAvailable ? (
     <HintPanel
       hints={hintLadder.hints}
@@ -3703,6 +3743,7 @@ function QuestionEngineBody({
             it is clipped (see the Next-question note in the action bar). */}
         {/* Each in a row of its own, which keeps the Enlarge button clear when
             it starts the work (WorkViewShell.css, student pass 3 HELP-21). */}
+        {referenceCards}
         {hintPanelOpen && hintPanelPlace === 'top' && hintPanel ? (
           <div className="mathmaster-top-panel-row">
             <div ref={hintPanelRef} className="mathmaster-hint-panel" style={{ padding: '14px 16px', borderRadius: 12, border: '1px solid var(--mm-primary-border)', background: 'var(--mm-surface)', boxShadow: '0 4px 14px rgba(26,115,232,0.10)' }}>
