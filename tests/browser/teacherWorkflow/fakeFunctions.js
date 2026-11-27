@@ -657,7 +657,7 @@ const handlers = {
     if (!record) throw rejection('not-found', 'That violation was not found.');
     requireClassTeacher(record.classId);
     if (!record.voidedAtMs) harnessStore.update(path, { voidedAtMs: Date.now() });
-    return { id: incidentId, ...harnessStore.get(path), alreadySubmitted: record.form?.state === 'submitted' };
+    return { id: incidentId, ...harnessStore.get(path), alreadySubmitted: record.form?.state === 'submitted', maybeSubmitted: record.form?.state === 'unknown' };
   },
   setDisciplineIncidentDetail: ({ incidentId, detail = '' } = {}) => {
     const path = `disciplineIncidents/${incidentId}`;

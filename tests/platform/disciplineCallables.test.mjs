@@ -60,6 +60,9 @@ test('nothing is ever deleted: an undo marks the tap, and waits while it is bein
   const source = body('voidDisciplineIncident');
   assert.match(source, /if \(data\.form\?\.state === "sending"\) \{\s*throw new HttpsError\("failed-precondition"/);
   assert.match(source, /voidedAtMs: Date\.now\(\), voidedAt: FieldValue\.serverTimestamp\(\), voidedByEmail: authority\.email/);
+  // The screen is told when the form has it, and when it may (a send with no answer).
+  assert.match(source, /alreadySubmitted: result\.form\?\.state === "submitted",/);
+  assert.match(source, /maybeSubmitted: result\.form\?\.state === "unknown",/);
 });
 
 test('listing reads the caller\'s own classes, and settings are the caller\'s own', () => {

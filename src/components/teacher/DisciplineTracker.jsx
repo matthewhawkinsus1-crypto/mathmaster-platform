@@ -17,10 +17,13 @@ import {
   daySummary,
   draftsWithFamilyMessages,
   familyMessageWords,
+  FORM_REFRESH_MS,
   formStateWords,
+  needsFormRefresh,
   newTapId,
   parentDrafts,
   recentViolationCount,
+  undoNotice,
 } from '../../platform/teacher/disciplineTrackerModel.js';
 import {
   getDisciplineSettings,
@@ -121,7 +124,10 @@ export default function DisciplineTracker({
   const load = async () => {
     try {
       const result = await listDisciplineIncidents({ fromDateKey: windowStart, toDateKey: dateKey });
-      setIncidents(result.incidents || []);
+      const listed = result.incidents || [];
+      const listedIds = new Set(listed.map((entry) => entry.id));
+      // A tap still saving is kept: a refresh must not drop it mid-save.
+      setIncidents((current) => [...listed, ...current.filter((entry) => entry.saving && !listedIds.has(entry.id))]);
       setFormStatus(result.formStatus || null);
       setFamilyMessages(result.familyMessages || []);
       setMessaging(result.familyMessaging || { mode: 'off', testDistrictIds: [] });
@@ -131,6 +137,18 @@ export default function DisciplineTracker({
     }
   };
   useEffect(() => { load(); }, [dateKey]);
+  // The backend sends each class's taps to the district form after the
+  // period ends. While any of today's waits or is being sent, look again
+  // every minute (only while this tab is showing), so "Sent", a failure's
+  // recovery buttons, and a changed-form warning appear without leaving.
+  const awaitingForm = isToday && needsFormRefresh(incidents, today);
+  useEffect(() => {
+    if (!awaitingForm) return undefined;
+    const timer = setInterval(() => {
+      if (document.visibilityState === 'visible') load();
+    }, FORM_REFRESH_MS);
+    return () => clearInterval(timer);
+  }, [awaitingForm, dateKey]);
   // The SchoolStatus extension works through this screen while it is open:
   // window.mathmasterFamilyMessages. Each of its calls refreshes the list, so
   // the teacher watches every message go from queued to sent.
@@ -184,9 +202,7 @@ export default function DisciplineTracker({
     try {
       const result = await voidDisciplineIncident({ incidentId: incident.id });
       replace(incident.id, result);
-      setMessage(result.alreadySubmitted
-        ? { tone: 'warning', text: `Undone in MathMaster. It had already been sent to the district form, which MathMaster cannot change: let the form's owner know if it should come off the district record.` }
-        : { tone: 'success', text: `${violationLabel(incident)} undone. It will not be sent.` });
+      setMessage(undoNotice({ label: violationLabel(incident), alreadySubmitted: result.alreadySubmitted, maybeSubmitted: result.maybeSubmitted }));
     } catch (error) {
       setMessage({ tone: 'danger', text: error.message });
     }

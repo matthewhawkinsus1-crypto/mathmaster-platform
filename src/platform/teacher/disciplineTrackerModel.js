@@ -30,6 +30,27 @@ export const formStateWords = (incident = {}) => {
   return { label: 'Sends after class', tone: 'neutral' };
 };
 
+/**
+ * What the teacher is told after an undo. MathMaster cannot take anything
+ * off the district form: a tap already sent, or one whose send got no answer
+ * (`unknown`, which Google may have recorded), may need the form's owner.
+ */
+export const undoNotice = ({ label, alreadySubmitted = false, maybeSubmitted = false }) => {
+  if (alreadySubmitted) return { tone: 'warning', text: 'Undone in MathMaster. It had already been sent to the district form, which MathMaster cannot change: let the form\'s owner know if it should come off the district record.' };
+  if (maybeSubmitted) return { tone: 'warning', text: 'Undone in MathMaster. Its send to the district form got no answer, so the form may have it: check the form\'s responses, and let the form\'s owner know if it should come off the district record.' };
+  return { tone: 'success', text: `${label} undone. It will not be sent.` };
+};
+
+/**
+ * Whether the screen should look again for the backend's automatic sends:
+ * a tap of today that waits for or is in the middle of its send to the form.
+ * The batch runs after each class period, while the screen may stay open.
+ */
+export const FORM_REFRESH_MS = 60000;
+export const needsFormRefresh = (incidents = [], today) => (incidents || []).some((incident) => (
+  !incident.saving && !isVoidedIncident(incident) && incident.dateKey === today && ['pending', 'sending'].includes(incident.form?.state || 'pending')
+));
+
 /** The day's taps for one class, by student, oldest first, without undone ones. */
 export const dayIncidentsByStudent = (incidents = [], { classId, dateKey }) => {
   const byStudent = new Map();
