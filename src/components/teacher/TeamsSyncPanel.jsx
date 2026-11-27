@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import {
   describeTeamsSyncState,
   formatTeamsSections,
@@ -21,7 +21,9 @@ import {
  * screen never touches TEAMS.
  *
  * It loads nothing until the teacher opens it, so Grade Export costs no extra
- * call for a teacher who does not use the sync. Grades are sent only once
+ * call for a teacher who does not use the sync. Once open, a class that joins
+ * the list later (Grade Export's class filter changed) is loaded when it
+ * appears, so no card is left at "Checking…". Grades are sent only once
  * Grade Export's own history has loaded (`ready`), so the sync starts from
  * the same Practice Pass and extension state the export uses.
  */
@@ -38,6 +40,8 @@ export default function TeamsSyncPanel({
   const [drafts, setDrafts] = useState({});
   const [working, setWorking] = useState(null);
   const [notices, setNotices] = useState({});
+  // Classes whose sync state has been asked for, once each.
+  const requested = useRef(new Set());
 
   const notice = (classId, value) => setNotices((current) => ({ ...current, [classId]: value }));
 
@@ -54,8 +58,17 @@ export default function TeamsSyncPanel({
   const onToggle = (event) => {
     if (!event.currentTarget.open || opened) return;
     setOpened(true);
-    classes.forEach((entry) => load(entry.classId));
   };
+
+  const classIds = classes.map((entry) => entry.classId).join('|');
+  useEffect(() => {
+    if (!opened) return;
+    classIds.split('|').filter(Boolean).forEach((classId) => {
+      if (requested.current.has(classId)) return;
+      requested.current.add(classId);
+      load(classId);
+    });
+  }, [opened, classIds]);
 
   const saveSections = async (entry) => {
     const parsed = parseTeamsSectionsDraft(drafts[entry.classId]);

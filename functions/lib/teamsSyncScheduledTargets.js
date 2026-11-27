@@ -20,6 +20,10 @@
  *   studentAssignmentOverrides by class       each student's private controls
  *   grades where classId                      the class's students (summaries:
  *                                             grading reads only those)
+ *   grades where assignedTeacherEmail         every student the teacher holds,
+ *                                             as Grade Export's roster reads
+ *                                             them: a district ID two of them
+ *                                             carry holds both back
  *   gradeTransferSnapshots by class           export history
  *   classPointRewardRedemptions by class      Practice Passes
  *   settings/gradingPeriods                   the current marking period
@@ -72,8 +76,22 @@ const plainDate = (value) => {
 };
 const docsOf = (snapshot) => snapshot.docs.map((entry) => ({ id: entry.id, ...entry.data() }));
 
-/** Read everything one class's targets are built from. */
-async function readTeamsSyncRecords(db, classId) {
+const teacherEmailOf = (classRecord) => String(classRecord?.teacherOfRecord || "").trim().toLowerCase();
+
+/**
+ * Every student the teacher holds (the roster Grade Export reads: grades
+ * where assignedTeacherEmail), with only what the shared-district-ID check
+ * and the class filter read.
+ */
+async function readTeacherRoster(db, email) {
+  return docsOf(await db.collection("grades").where("assignedTeacherEmail", "==", email).select("sisStudentId", "classId").get());
+}
+
+/**
+ * Read everything one class's targets are built from. `rosterFor(email)`
+ * reads the teacher's roster; a run passes one that reads each teacher once.
+ */
+async function readTeamsSyncRecords(db, classId, { rosterFor = (email) => readTeacherRoster(db, email) } = {}) {
   const [classSnapshot, byClass, individually, controls, students, snapshots, redemptions, periods] = await Promise.all([
     db.collection("classes").doc(classId).get(),
     db.collection("assignments").where("assignedClassIds", "array-contains", classId).get(),
@@ -86,12 +104,15 @@ async function readTeamsSyncRecords(db, classId) {
   ]);
   const assignments = new Map();
   [...docsOf(byClass), ...docsOf(individually)].forEach((entry) => assignments.set(entry.id, entry));
+  const classRecord = classSnapshot.exists ? classSnapshot.data() || {} : null;
+  const email = teacherEmailOf(classRecord);
   return {
     classId,
-    classRecord: classSnapshot.exists ? classSnapshot.data() || {} : null,
+    classRecord,
     assignmentDocs: [...assignments.values()],
     controlDocs: controls.docs.map((entry) => entry.data()),
     studentDocs: docsOf(students),
+    rosterStudentDocs: email ? await rosterFor(email) : [],
     // As listGradeTransferState hands them to the browser.
     snapshotDocs: docsOf(snapshots).map((entry) => ({
       ...entry, createdAt: plainDate(entry.createdAt), uploadConfirmedAt: plainDate(entry.uploadConfirmedAt),
@@ -119,11 +140,17 @@ async function publishScheduledTeamsSyncTargets({ db, publish, now = Date.now(),
   const published = [];
   const skipped = [];
   const failed = [];
+  // A teacher with several linked classes has their roster read once a run.
+  const rosters = new Map();
+  const rosterFor = (email) => {
+    if (!rosters.has(email)) rosters.set(email, readTeacherRoster(db, email));
+    return rosters.get(email);
+  };
   for (const entry of linked) {
     try {
       // eslint-disable-next-line no-await-in-loop
-      const records = await readTeamsSyncRecords(db, entry.classId);
-      const email = String(records.classRecord?.teacherOfRecord || "").trim().toLowerCase();
+      const records = await readTeamsSyncRecords(db, entry.classId, { rosterFor });
+      const email = teacherEmailOf(records.classRecord);
       if (!records.classRecord || records.classRecord.status === "archived" || !email) {
         skipped.push({ classId: entry.classId, reason: "class missing, archived or without a teacher of record" });
         continue;
@@ -149,6 +176,7 @@ module.exports = {
   REPO_ROOT,
   targetBuilderRoot,
   loadTeamsSyncTargetBuilder,
+  readTeacherRoster,
   readTeamsSyncRecords,
   publishScheduledTeamsSyncTargets,
 };

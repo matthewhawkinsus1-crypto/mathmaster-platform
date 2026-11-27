@@ -50,6 +50,15 @@ const records = () => ({
     { id: 'u2', sisStudentId: '1500102', classId: 'c1', gradesByAssignment: { a1: all('expired') } },
     { id: 'u3', sisStudentId: '1500103', classId: 'c1', gradesByAssignment: { a1: all('correct') } },
   ],
+  // The teacher's whole roster, as the job reads it (grades where
+  // assignedTeacherEmail; district ID and class only): this class's students
+  // and one in another class.
+  rosterStudentDocs: [
+    { id: 'u1', sisStudentId: '1500101', classId: 'c1' },
+    { id: 'u2', sisStudentId: '1500102', classId: 'c1' },
+    { id: 'u3', sisStudentId: '1500103', classId: 'c1' },
+    { id: 'u9', sisStudentId: '1500109', classId: 'c2' },
+  ],
   // u2's extension lives only in private storage: the screen merges it in.
   controlDocs: [{ assignmentId: 'a1', studentId: 'u2', classId: 'c1', lateDueAt: '2026-11-25T23:59:00Z' }],
   // u3 redeemed a Practice Pass on a1.
@@ -66,6 +75,11 @@ const records = () => ({
 });
 
 // What Grade Export assembles in the browser (TeacherWorkspace → GradeTransferCenter).
+// Its students are every student the teacher holds, full records for all.
+const screenRoster = (input) => [
+  ...input.studentDocs,
+  ...input.rosterStudentDocs.filter((entry) => !input.studentDocs.some((student) => student.id === entry.id)),
+];
 const fromTheScreen = (input) => {
   const controls = controlsByAssignment(input.controlDocs, [input.classId]);
   const settings = normalizeGradingPeriodSettings(input.gradingPeriodSettings);
@@ -73,7 +87,7 @@ const fromTheScreen = (input) => {
     classId: input.classId,
     classes: [{ classId: input.classId, ...input.classRecord }],
     assignments: projectTeacherAssignments({ assignments: input.assignmentDocs, controls }),
-    students: input.studentDocs,
+    students: screenRoster(input),
     teacherEmail: input.classRecord.teacherOfRecord,
     snapshots: input.snapshotDocs,
     practicePasses: new Set(input.redemptionDocs.filter((entry) => entry.status === 'redeemed').map((entry) => `${entry.studentId}__${entry.classId}__${entry.assignmentId}`)),
@@ -93,6 +107,20 @@ test('from the same records, the server builds exactly what the teacher\'s scree
   assert.deepEqual(classwork.withheld.map((row) => row.sisStudentId), ['1500102'], 'the private extension holds u2');
   const practice = server.find((target) => target.key.endsWith('__practice'));
   assert.deepEqual(practice.excused.map((row) => row.sisStudentId), ['1500103'], 'the Practice Pass excuses u3');
+});
+
+test('a district ID shared with a student in another of the teacher\'s classes holds the grade back, as Grade Export does', () => {
+  const input = records();
+  // u9 in period 2 carries u3's district ID (with a leading zero).
+  input.rosterStudentDocs = input.rosterStudentDocs.map((entry) => (entry.id === 'u9' ? { ...entry, sisStudentId: '01500103' } : entry));
+  const server = buildTeamsSyncTargetsFromRecords({ ...input, now: NOW });
+  assert.deepEqual(server, fromTheScreen(input), 'the server holds back what the screen holds back');
+  for (const target of server) {
+    assert.ok(!target.rows.some((row) => row.sisStudentId === '1500103'), `${target.key}: no grade under the shared district ID`);
+  }
+  // Without the teacher's roster the collision is invisible: that was the bug.
+  const classOnly = buildTeamsSyncTargetsFromRecords({ ...input, rosterStudentDocs: [], now: NOW });
+  assert.ok(classOnly.some((target) => target.rows.some((row) => row.sisStudentId === '1500103')));
 });
 
 test('a private control of another class is not applied', () => {
@@ -129,6 +157,8 @@ const fakeDb = (collections) => {
   const docsOf = (name) => Object.entries(collections[name] || {}).map(([id, data]) => ({ id, data: () => data, exists: true }));
   const query = (name, filters = []) => ({
     where: (field, op, value) => query(name, [...filters, { field, op, value }]),
+    // Field masks are not simulated: every field comes back.
+    select: () => query(name, filters),
     get: async () => ({
       docs: docsOf(name).filter((entry) => filters.every(({ field, op, value }) => (op === 'array-contains'
         ? (entry.data()[field] || []).includes(value)
@@ -159,8 +189,11 @@ const firestoreFor = (input) => fakeDb({
   },
   assignments: Object.fromEntries(input.assignmentDocs.map((entry) => [entry.id, entry])),
   grades: {
-    ...Object.fromEntries(input.studentDocs.map((entry) => [entry.id, entry])),
-    'u-broken': { classId: 'broken', sisStudentId: '1500199' },
+    ...Object.fromEntries(input.rosterStudentDocs.map((entry) => [entry.id, { ...entry, assignedTeacherEmail: 'teacher@school.org' }])),
+    ...Object.fromEntries(input.studentDocs.map((entry) => [entry.id, { ...entry, assignedTeacherEmail: 'teacher@school.org' }])),
+    'u-broken': { classId: 'broken', sisStudentId: '1500199', assignedTeacherEmail: 'teacher@school.org' },
+    // Another teacher's student under u3's district ID: not this teacher's roster.
+    'u-elsewhere': { classId: 'c9', sisStudentId: '1500103', assignedTeacherEmail: 'other@school.org' },
   },
   studentAssignmentOverrides: { o1: input.controlDocs[0] },
   classPointRewardRedemptions: Object.fromEntries(input.redemptionDocs.map((entry, index) => [`r${index}`, entry])),
@@ -186,6 +219,29 @@ test('a scheduled run publishes every linked class with the same targets, and sk
   assert.deepEqual(calls[0].targetsInput, fromTheScreen(input), 'what the schedule publishes is what the screen would send');
   assert.deepEqual(result.skipped.map((entry) => entry.classId).sort(), ['archived', 'empty']);
   assert.deepEqual(result.failed.map((entry) => entry.classId), ['broken'], 'one class failing does not stop the others');
+});
+
+test('a scheduled run reads each teacher\'s roster once and holds back a district ID shared across their classes', async () => {
+  const input = records();
+  input.rosterStudentDocs = input.rosterStudentDocs.map((entry) => (entry.id === 'u9' ? { ...entry, sisStudentId: '1500103' } : entry));
+  const db = firestoreFor(input);
+  let rosterReads = 0;
+  const counted = {
+    collection: (name) => {
+      const ref = db.collection(name);
+      if (name !== 'grades') return ref;
+      return { ...ref, where: (field, ...rest) => { if (field === 'assignedTeacherEmail') rosterReads += 1; return ref.where(field, ...rest); } };
+    },
+  };
+  const calls = [];
+  await scheduled.publishScheduledTeamsSyncTargets({
+    db: counted, now: NOW, logger: { warn() {} },
+    publish: async (call) => { calls.push(call); return { published: call.targetsInput.length }; },
+  });
+  const c1 = calls.find((call) => call.classId === 'c1');
+  assert.deepEqual(c1.targetsInput, fromTheScreen(input));
+  assert.ok(c1.targetsInput.every((target) => !target.rows.some((row) => row.sisStudentId === '1500103')));
+  assert.equal(rosterReads, 1, 'four linked classes of one teacher, one roster read');
 });
 
 test('without a deployed builder the run publishes nothing and says so', async () => {

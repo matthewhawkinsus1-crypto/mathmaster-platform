@@ -115,13 +115,15 @@ export const buildTeamsSyncTargets = ({
  *
  *   assignments    this class's, with each student's private controls merged
  *                  in (teacherClassControls.js projectTeacherAssignments)
- *   students       grades/{id} records of the class
+ *   students       grades/{id} records of the class, plus the teacher's
+ *                  whole roster (grades where assignedTeacherEmail, district
+ *                  ID and class only) for the shared-district-ID check
  *   snapshots      Grade Transfer's export history (listGradeTransferState)
  *   practicePasses redeemed Practice Pass rewards (listGradeTransferState)
  *   marking period the current one (settings/gradingPeriods)
  */
 export const buildTeamsSyncTargetsFromRecords = ({
-  classId, classRecord = {}, assignmentDocs = [], studentDocs = [], snapshotDocs = [], redemptionDocs = [],
+  classId, classRecord = {}, assignmentDocs = [], studentDocs = [], rosterStudentDocs = [], snapshotDocs = [], redemptionDocs = [],
   controlDocs = [], gradingPeriodSettings = {}, now = Date.now(),
 } = {}) => {
   const byAssignment = {};
@@ -137,11 +139,20 @@ export const buildTeamsSyncTargetsFromRecords = ({
     .map((entry) => `${text(entry.studentId)}__${text(entry.classId)}__${text(entry.assignmentId)}`)
     .filter((key) => !key.startsWith('__')));
   const settings = normalizeGradingPeriodSettings(gradingPeriodSettings || {});
+  // Grade Export holds the teacher's whole roster, and a district ID two of
+  // those students carry holds both back in every class
+  // (projectGradeTransferUnits sharedSisStudentIds). The roster rides along
+  // for that check only: each unit still lists this class's students alone.
+  const students = new Map();
+  [...(studentDocs || []), ...(rosterStudentDocs || [])].forEach((student) => {
+    const id = text(student?.id);
+    if (id && !students.has(id)) students.set(id, student);
+  });
   return buildTeamsSyncTargets({
     classId,
     classes: [{ ...classRecord, classId }],
     assignments,
-    students: studentDocs || [],
+    students: [...students.values()],
     teacherEmail: text(classRecord.teacherOfRecord).toLowerCase(),
     snapshots: snapshotDocs || [],
     practicePasses,

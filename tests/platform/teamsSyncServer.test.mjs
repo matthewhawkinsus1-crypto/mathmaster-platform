@@ -279,6 +279,32 @@ test('published rows are kept only for this class\'s students under their own di
   refuse({ countedWeight: 0 }, /#Count/);
 });
 
+test('no grade is stored under a district ID two of the teacher\'s students carry, in any of their classes', () => {
+  const teacherRoster = [
+    ...students,
+    { id: 'u-eve', sisStudentId: '01500103' }, // another class, u-cal's number with a leading zero
+    { id: 'u-fay', sisStudentId: '1500300' },
+  ];
+  const guarded = teamsRosterIndex(students, { sharedWith: teacherRoster });
+  assert.equal(guarded.has('u-cal'), false, 'u-cal shares a district ID with a student in another class');
+  assert.deepEqual([...guarded.keys()], ['u-ada', 'u-ben', 'u-dee', '1500105']);
+  // The class's own students appear in both lists: that alone is not a collision.
+  assert.deepEqual([...teamsRosterIndex(students, { sharedWith: students }).keys()], [...roster.keys()]);
+  // Two students in the class itself under one number: both held back.
+  assert.deepEqual([...teamsRosterIndex([...students, { id: 'u-gus', sisStudentId: '1500101' }]).keys()], ['u-ben', 'u-cal', 'u-dee', '1500105']);
+
+  const { targets, droppedRows } = normalizeTeamsTargets({
+    classId: CLASS,
+    roster: guarded,
+    targets: [{
+      key: `${CLASS}__lesson__dol`, name: 'Lesson - DOL', category: 'Daily', dueDate: '2026-11-18', closed: true,
+      rows: [{ studentId: 'u-ada', sisStudentId: '1500101', grade: 90 }, { studentId: 'u-cal', sisStudentId: '1500103', grade: 100 }],
+    }],
+  });
+  assert.equal(droppedRows, 1);
+  assert.deepEqual(targets[0].rows.map((row) => row.studentId), ['u-ada']);
+});
+
 test('TEAMS sections and read-backs from the browser are validated and bounded', () => {
   assert.deepEqual(normalizeTeamsSections([{ sectionRef: ' 15001/05 ', label: 'Period 5' }, '15001/55']), [
     { sectionRef: '15001/05', label: 'Period 5' }, { sectionRef: '15001/55', label: '' },

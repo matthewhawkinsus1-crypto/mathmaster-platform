@@ -33,7 +33,7 @@ import {
   teamsAssignmentName,
   teamsOpFile,
 } from './teamsSyncEngine.mjs';
-import { effectiveDistrictStudentId, isValidDistrictStudentId } from './studentDistrictId.mjs';
+import { canonicalDistrictStudentId, effectiveDistrictStudentId, isValidDistrictStudentId } from './studentDistrictId.mjs';
 
 export const TEAMS_SYNC_LIMITS = Object.freeze({
   sectionsPerClass: 3,
@@ -103,10 +103,29 @@ export const normalizeTeamsCapabilities = (input = null) => {
 /**
  * The class's students as the server knows them: studentId -> district ID.
  * `students` are grades/{id} records ({ id, sisStudentId }).
+ *
+ * `sharedWith` is every student the teacher holds (grades where
+ * assignedTeacherEmail, the roster Grade Export checks). A district ID that
+ * two different students carry there or in the class (leading zeros ignored)
+ * is left out of the index, so no grade is stored under it: two children
+ * under one district ID collide in TEAMS whichever class each is in, and
+ * Grade Export holds both back (gradeTransferModel.js sharedSisStudentIds).
  */
-export const teamsRosterIndex = (students = []) => new Map((students || [])
-  .map((student) => [text(student.id ?? student.studentId), effectiveDistrictStudentId(student)])
-  .filter(([id, sis]) => id && isValidDistrictStudentId(sis)));
+export const teamsRosterIndex = (students = [], { sharedWith = [] } = {}) => {
+  const idOf = (student) => text(student?.id ?? student?.studentId);
+  const holders = new Map();
+  [...(students || []), ...(sharedWith || [])].forEach((student) => {
+    const canonical = canonicalDistrictStudentId(effectiveDistrictStudentId(student || {}));
+    const id = idOf(student);
+    if (!canonical || !id) return;
+    if (!holders.has(canonical)) holders.set(canonical, new Set());
+    holders.get(canonical).add(id);
+  });
+  return new Map((students || [])
+    .map((student) => [idOf(student), effectiveDistrictStudentId(student || {})])
+    .filter(([id, sis]) => id && isValidDistrictStudentId(sis))
+    .filter(([, sis]) => (holders.get(canonicalDistrictStudentId(sis))?.size || 0) <= 1));
+};
 
 /**
  * Validate what Grade Transfer published for one class. A row is kept only

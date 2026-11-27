@@ -1,7 +1,8 @@
 // Grade Export's "Automatic TEAMS sync" panel (#612). The words and checks
 // are the pure model (teamsSyncPanelModel.js), tested directly. The screen is
 // .jsx, which node cannot render, so its wiring is pinned by region: it loads
-// only when opened, sends only after the export history loaded, and sends
+// only when opened (and then each class once, including one added later),
+// sends only after the export history loaded, and sends
 // what an export of this marking period would.
 
 import assert from 'node:assert/strict';
@@ -118,10 +119,17 @@ test('Grade Export shows the panel and builds targets exactly as an export of th
 
 test('the panel loads only when opened, validates sections first, and sends only when linked and ready', () => {
   const source = executableSource(panel());
-  assert.doesNotMatch(source, /useEffect/, 'no load on mount');
   const toggle = region(source, 'const onToggle = (event) => {', '};', 'onToggle');
   assert.match(toggle, /if \(!event\.currentTarget\.open \|\| opened\) return;/);
-  assert.match(toggle, /classes\.forEach\(\(entry\) => load\(entry\.classId\)\)/);
+  assert.match(toggle, /setOpened\(true\)/);
+  assert.doesNotMatch(toggle, /load\(/, 'opening only marks the panel open; the effect below loads');
+  // The one effect loads nothing until the panel is open, then each class
+  // once, including a class that joins the list afterwards.
+  assert.equal(source.match(/useEffect\(/g)?.length, 1);
+  const effect = region(source, 'useEffect(() => {', '}, [opened, classIds]);', 'the load effect');
+  assert.ok(effect.indexOf('if (!opened) return;') >= 0 && effect.indexOf('if (!opened) return;') < effect.indexOf('load(classId)'), 'no load on mount');
+  assert.match(effect, /if \(requested\.current\.has\(classId\)\) return;\s*requested\.current\.add\(classId\);\s*load\(classId\);/);
+  assert.match(source, /const classIds = classes\.map\(\(entry\) => entry\.classId\)\.join\('\|'\);/);
   assert.match(region(source, '<details', '>', 'the disclosure'), /onToggle=\{onToggle\}/);
   const save = region(source, 'const saveSections = async (entry) => {', 'const sendGrades', 'saveSections');
   assert.ok(save.indexOf('parseTeamsSectionsDraft(') < save.indexOf('setTeamsSyncSections('), 'checked before it is sent');

@@ -48,13 +48,16 @@ test('a sync step reads, plans and writes inside one transaction', () => {
 test('published grades are checked against the class roster on the server, by the button and the schedule alike', () => {
   const write = body('writeTeamsSyncTargets');
   assert.match(write, /collection\("grades"\)\.where\("classId", "==", classId\)/);
-  assert.match(write, /module\.teamsRosterIndex\(/);
+  // ...and against every student the teacher holds: a district ID two of
+  // them carry is left out of the index, so no grade is stored under it.
+  assert.match(write, /collection\("grades"\)\.where\("assignedTeacherEmail", "==", rosterEmail\)\.select\("sisStudentId"\)/);
+  assert.match(write, /module\.teamsRosterIndex\(recordsOf\(members\), \{ sharedWith: recordsOf\(teacherRoster\) \}\)/);
   assert.match(write, /module\.normalizeTeamsTargets\(\{[\s\S]*roster,/);
   // Only changed targets are rewritten.
   assert.match(write, /const changed = targets\.filter\(\(target\) => stored\.get\(teamsSyncDocId\(classId, target\.key\)\) !== JSON\.stringify\(teamsSyncPlain\(target\)\)\);/);
   assert.match(write, /\.\.\.changed\.map\(\(target\) => \(batch\) => batch\.set\(/);
   // The button passes the class the authority check returned.
-  assert.match(body('publishTeamsSyncTargets'), /writeTeamsSyncTargets\(\{\s*db, module, classId: authority\.classId, email: authority\.email,/);
+  assert.match(body('publishTeamsSyncTargets'), /writeTeamsSyncTargets\(\{\s*db, module, classId: authority\.classId, email: authority\.email, teacherOfRecord: authority\.classData\.teacherOfRecord,/);
   // The schedule writes through the same function, never its own.
   const schedule = body('publishTeamsSyncTargetsOnSchedule');
   assert.match(schedule, /publish: \(\{ classId, email, targetsInput, publishedBy \}\) => writeTeamsSyncTargets\(\{ db, module, classId, email, targetsInput, publishedBy \}\)/);

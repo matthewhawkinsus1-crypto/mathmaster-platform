@@ -3846,15 +3846,25 @@ exports.setTeamsSyncSections = onCall(async (request) => {
  * Validate and store one class's published targets, replacing its set. Used
  * by "Send current grades" (publishTeamsSyncTargets) and by the scheduled
  * publish, which build them with the same code. A row is kept only when its
- * student is on this class's roster under that district ID
- * (normalizeTeamsTargets). A target that has not changed is not rewritten:
+ * student is on this class's roster under that district ID, and no other
+ * student of this teacher carries that district ID (teamsRosterIndex,
+ * normalizeTeamsTargets). A target that has not changed is not rewritten:
  * the schedule runs every 30 minutes and most runs change nothing.
  */
-async function writeTeamsSyncTargets({ db, module, classId, email, targetsInput, publishedBy }) {
+async function writeTeamsSyncTargets({ db, module, classId, email, teacherOfRecord = email, targetsInput, publishedBy }) {
   const classRef = db.collection("teamsSyncClasses").doc(classId);
-  const classState = (await classRef.get()).data() || {};
-  const members = await db.collection("grades").where("classId", "==", classId).select("sisStudentId").get();
-  const roster = module.teamsRosterIndex(members.docs.map((entry) => ({ id: entry.id, ...entry.data() })));
+  const recordsOf = (snapshot) => snapshot.docs.map((entry) => ({ id: entry.id, ...entry.data() }));
+  // The teacher's whole roster, whoever is publishing (a root administrator
+  // publishes for the class's teacher of record).
+  const rosterEmail = String(teacherOfRecord || "").trim().toLowerCase();
+  const [classState, members, teacherRoster] = await Promise.all([
+    classRef.get().then((snapshot) => snapshot.data() || {}),
+    db.collection("grades").where("classId", "==", classId).select("sisStudentId").get(),
+    rosterEmail
+      ? db.collection("grades").where("assignedTeacherEmail", "==", rosterEmail).select("sisStudentId").get()
+      : Promise.resolve({ docs: [] }),
+  ]);
+  const roster = module.teamsRosterIndex(recordsOf(members), { sharedWith: recordsOf(teacherRoster) });
   const { targets, droppedRows } = teamsSyncInput(module, () => module.normalizeTeamsTargets({
     targets: targetsInput,
     classId,
@@ -3900,7 +3910,8 @@ exports.publishTeamsSyncTargets = onCall(async (request) => {
   const module = await teamsSyncServer();
   const authority = await gradeTransferClassAuthority(db, request, request.data?.classId);
   return writeTeamsSyncTargets({
-    db, module, classId: authority.classId, email: authority.email, targetsInput: request.data?.targets, publishedBy: request.auth.uid,
+    db, module, classId: authority.classId, email: authority.email, teacherOfRecord: authority.classData.teacherOfRecord,
+    targetsInput: request.data?.targets, publishedBy: request.auth.uid,
   });
 });
 
