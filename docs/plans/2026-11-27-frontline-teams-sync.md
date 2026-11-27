@@ -46,10 +46,11 @@ search-engine excerpts of those pages. Each is marked with how firm it is.
 | The Import only fills an assignment that already exists. Third-party Schoology→Frontline tooling says to *"create assignments in Frontline SIS that match"* first, matching on Frontline Local ID, ignoring blanks and mapping codes such as Excused/Missing to district codes. | teachertools.me (third party) | Corroborated, not vendor |
 | An assignment in a **category with no weight does not count** toward the average. Category weights should total 100. | Donna ISD TEAMS guide; a Texas-district TEAMS gradebook handout | Documented (category level) |
 | The per-assignment weight is the **`#Count`** field (default 1). **`#Count` 0 is accepted when the assignment is created** and is still 0 after reopening. | Live check on DeSoto production, period 01, 2026-11-26 | **Observed** |
-| A grade with `#Count` 0 is **not factored into the average**. | The DeSoto teacher who owns #612 | **Teacher-confirmed.** Not observed with scores, because none were entered. |
+| A grade with `#Count` 0 is **not factored into the average**, and students and parents **can see the score**. | The DeSoto teacher who owns #612, 2026-11-27 | **Teacher-confirmed** |
 | Assignment names are stored to at most **64 characters**. The editor stops taking input at 64. | Live check | **Observed** |
 | The Import dialog ("Import file of assignment grades") has: Delimiter (Comma by default, or Tab), Text Qualifier (None by default, or Quote), Student ID Column 1, Grade Column 2, Header Row (No by default), and **Overwrite existing grades?** (No by default). | Live check | **Observed.** The two-column, no-header file MathMaster ships matches every default. |
-| How Overwrite Yes/No actually treats an existing grade | MathMaster's own MANIFEST (PRs #262, #400), written from teacher use | Option observed. Behaviour with scores not yet tested. |
+| **Overwrite Yes** replaces existing grades with the imported ones. **A blank grade in an Overwrite file clears the cell.** | Teacher, 2026-11-27 | **Teacher-confirmed.** The engine clears cells this way (`teamsClearCsv`); TEAMS needs no separate clear action. |
+| An assignment's **assign and due dates must be inside the marking period**. The "Data Entry Date Range" does not restrict score entry. | Teacher, 2026-11-27 | **Teacher-confirmed.** A lesson assigned in the previous period starts on the due period's first day. |
 | New-row defaults: Scale Value 100, Maximum Value 100, Alpha Grades Only N, High/Low Drop N, Extra Credit Only N, GB Grading Cycle = the current six weeks. | Live check | **Observed** |
 | The Assignments grid saves a row **when focus leaves it**. There is no Save button; the page posts to an internal `/grading/JSON-RPC`. | Live check | **Observed.** A likely cause of the pilot's "saved, then blank" cells. |
 | Frontline SIS holds **Ed-Fi** SIS API certification (Data Standard v4) for Texas clients, valid through 2025-04-17 on the registry. | Ed-Fi Alliance partner page and registry | Documented, but it is SIS → state reporting (outbound), **not** a gradebook write-in |
@@ -222,15 +223,20 @@ persists.
 3. ~~Maximum assignment-name length?~~ **64 characters** (observed). The
    engine now fits names to 64 (`teamsAssignmentName`).
    ~~Import options?~~ **Recorded** (see the facts table).
-   Still open: how Overwrite Yes/No treats an existing grade; whether a blank
-   in a file ever clears a cell; which exempt/missing codes exist; whether
-   Daily/Test weights are fixed by the district.
-4. **The Data Entry Date Range** for the 3rd Six Weeks is 12-08-2026 to
-   01-05-2027, while its grading cycle runs 11-02-2026 to 12-18-2026.
-   Creating an assignment before that range was allowed. Does the range
-   block *score* entry or Import before 12-08? If it does, open-lesson
-   provisional scores cannot post early in a cycle, and the engine must hold
-   them until the range opens.
+   ~~Overwrite, and blanks?~~ **Answered** (teacher): Overwrite Yes replaces
+   existing grades, and a blank clears a cell.
+   **One assumption to confirm before the first live write:** Overwrite Yes
+   changes only the students *listed in the file* and leaves every other
+   student's grade alone. The engine's correction and clear files list only
+   cells MathMaster owns. If Overwrite also blanked students missing from the
+   file, every correction would need the full roster, re-sending everyone
+   else's current TEAMS value.
+   Still open: which exempt/missing codes exist; whether Daily/Test weights
+   are fixed by the district.
+4. ~~Does the Data Entry Date Range block score entry?~~ **No** (teacher).
+   Only the assign and due dates must fall inside the marking period. The
+   engine moves an assigned date from an earlier period to the due period's
+   first day.
 5. Does the district permit a teacher-installed extension to drive TEAMS
    screens for the teacher? A browser adapter should use the Import dialog,
    which is a documented teacher function. It should not call the internal
@@ -258,10 +264,34 @@ session on the teacher's computer.
    in-page confirmation, and after reopening it was gone from both the
    Assignments list and the gradebook.
 
-The next live check, if the teacher allows it, needs one or two scores at
-`#Count` 0, cleared afterwards. It would settle the questions above that a
-live check can answer: the 0 → 1 switch, Overwrite, blank-clears, and the Data
-Entry Date Range. Parents may briefly see such an assignment in the portal.
+The teacher has since answered Overwrite, blank-clears, `#Count` 0
+visibility and the date rule from experience (see the facts table). What
+remains for a live write is the one assumption under question 3: Overwrite
+Yes leaves students who are not in the file alone.
+
+## A backend for one teacher
+
+No Frontline backend is known for DeSoto, so the teacher asked for one built
+for this use case. TEAMS is reachable only through its teacher web pages.
+Anything MathMaster builds therefore acts *as the teacher*, through those
+pages. The choice is where that runs:
+
+| | **E. MathMaster backend + teacher's Chrome as the hands** (recommended) | **F. MathMaster backend that signs in to TEAMS itself** |
+| --- | --- | --- |
+| What runs where | MathMaster's server holds the ledger and computes each plan. A small Chrome extension in the teacher's signed-in TEAMS tab reads the gradebook, uploads the Import files, and reports the read-back. | A server job (a headless browser) signs in to TEAMS as the teacher on a schedule and does the same. |
+| Teacher actions | None while Chrome is open and TEAMS is signed in. Otherwise, sign in to TEAMS once a day. | None |
+| Update delay | Minutes while TEAMS is open; otherwise the next sign-in | Nightly, or every few hours |
+| Credentials | Never leave the teacher's browser | The district password (and any MFA) stored on MathMaster's server |
+| Risk | The extension breaks if TEAMS's screens change; it fails visibly. | It breaks the same way, but unattended, and with a credential that opens every student's record in TEAMS. District SSO or MFA can stop it outright. Likely against the district's acceptable-use policy. |
+
+Both use the Import dialog, a documented teacher function, and not the
+internal `/grading/JSON-RPC`. Both reuse this engine unchanged. Only the
+adapter differs.
+
+E is recommended: the same automation with no district password stored on
+MathMaster. F should only be built with the district's written approval.
+
+## Smallest next implementation PR
 
 ## Smallest next implementation PR
 

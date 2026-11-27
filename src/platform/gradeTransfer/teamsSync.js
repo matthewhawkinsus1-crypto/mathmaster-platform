@@ -128,6 +128,29 @@ export const teamsAssignmentName = (title, label = '') => {
 const sameName = (left, right) => text(left).toLowerCase().replace(/\s+/g, ' ') === text(right).toLowerCase().replace(/\s+/g, ' ');
 
 /** A calendar date in the district's zone. TEAMS dates are days, not instants. */
+/**
+ * The Import file that clears cells: one "id," row (blank grade) per student,
+ * imported with "Overwrite existing grades?" Yes. Only ever built for cells
+ * MathMaster owns and has just read back unchanged.
+ */
+export const teamsClearCsv = (sisStudentIds = []) => {
+  const ids = (sisStudentIds || []).map(text);
+  if (ids.some((id) => !/^\d+$/.test(id))) throw new Error('Invalid TEAMS clear row.');
+  return ids.map((id) => `${id},`).join('\r\n') + (ids.length ? '\r\n' : '');
+};
+
+/**
+ * What DeSoto ISD's TEAMS supports, as observed on one live test assignment
+ * (2026-11-26) and confirmed by the teacher (2026-11-27):
+ * - #Count 0 is accepted at creation; the score shows to students and
+ *   parents but is not factored into the average.
+ * - A blank grade imported with Overwrite Yes clears that cell.
+ */
+export const DESOTO_TEAMS_CAPABILITIES = Object.freeze({
+  provisional: 'assignment-weight-zero',
+  canClearCells: true,
+});
+
 export const teamsDay = (value, timeZone = 'America/Chicago') => {
   if (!value) return '';
   if (typeof value === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(value)) return value;
@@ -209,7 +232,11 @@ export const planTeamsTarget = ({ target, ledgerEntry = {}, gradebook, capabilit
       type: 'createColumn', key: target.key, sectionRef: target.teamsSectionRef,
       spec: {
         name: columnName, category: target.category, markingPeriod: period.id,
-        assignedDate: text(target.assignedDate) || dueDate, dueDate, weight, maxScore: 100,
+        // TEAMS needs both dates inside the marking period (teacher, 2026-11-27).
+        // The period is chosen by due date; a lesson assigned in the previous
+        // period starts on this period's first day.
+        assignedDate: [text(target.assignedDate) || dueDate, period.start].filter(Boolean).sort().pop(),
+        dueDate, weight, maxScore: 100,
       },
     });
     (target.rows || []).forEach((row) => cell(row, TEAMS_CELL_STATUS.QUEUED, 'Waiting for the TEAMS assignment'));
@@ -478,7 +505,11 @@ export const runTeamsSync = async ({
           });
         } else if (op.type === 'clearScores') {
           op.sisStudentIds.forEach((sis) => { entry.cells[sis] = { ...entry.cells[sis], pendingClear: true }; });
-          await adapter.clearScores(op.columnId, op.sisStudentIds);
+          // TEAMS has no clear action of its own on this route. A blank grade
+          // imported with "Overwrite existing grades?" Yes clears the cell
+          // (teacher, 2026-11-27). An adapter with a real clear uses that.
+          if (typeof adapter.clearScores === 'function') await adapter.clearScores(op.columnId, op.sisStudentIds);
+          else await adapter.importScores(op.columnId, teamsClearCsv(op.sisStudentIds), { overwrite: true });
         } else if (op.type === 'setWeight') {
           entry.pendingWeight = op.weight;
           await adapter.setColumnWeight(op.columnId, op.weight);

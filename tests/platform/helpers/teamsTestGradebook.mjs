@@ -18,8 +18,12 @@
 //                to comma, no qualifier, ID column 1, grade column 2, no
 //                header, "Overwrite existing grades?" No.
 //   teacher:     a #Count-0 grade is not factored into the average.
-//   unverified:  clearing a cell (`canClearCells`) and how TEAMS really
-//                rounds averages.
+//   teacher, 2026-11-27: Overwrite Yes replaces the grades of the students in
+//                the file, and a blank in an Overwrite file clears the cell; a
+//                #Count-0 score is visible to students and parents but not
+//                averaged; assign and due dates must be inside the marking
+//                period.
+//   unverified:  how TEAMS really rounds averages.
 //
 // Faults reproduce what the browser pilot saw: a save that reports success and
 // reopens blank (`phantomSaves`), a connection lost part-way through a file
@@ -35,6 +39,8 @@ export const createTeamsTestGradebook = ({
   sections = {},
   allowZeroAssignmentWeight = true,
   canClearCells = false,
+  // DeSoto's route: no separate clear action, only the Import.
+  importOnly = false,
   faults = {},
 } = {}) => {
   const state = { sections: clone(sections), columns: new Map(), cells: new Map(), nextId: 1 };
@@ -79,6 +85,9 @@ export const createTeamsTestGradebook = ({
       const period = (section(ref).markingPeriods || []).find((item) => item.id === spec.markingPeriod);
       if (!period) throw new Error('Marking period not found');
       if (period.locked) throw new Error('Marking period is locked');
+      for (const date of [spec.assignedDate, spec.dueDate]) {
+        if (date && (date < period.start || date > period.end)) throw new Error('Assign and due dates must be inside the marking period');
+      }
       if (!(section(ref).categories || {})[spec.category]) throw new Error(`Category ${spec.category} is not set up for this class`);
       if (Number(spec.weight) === 0 && !allowZeroAssignmentWeight) throw new Error('Assignment weight must be greater than 0');
       const id = `A${state.nextId++}`;
@@ -112,7 +121,10 @@ export const createTeamsTestGradebook = ({
         }
         const [sis, grade] = line.split(',').map(text);
         if (!enrolled(target.sectionRef, sis, target.dueDate)) { errors.push({ sisStudentId: sis, reason: 'Student not scheduled in class on due date' }); continue; }
-        if (grade === '') continue; // blanks are skipped, never written
+        // A blank clears the cell when Overwrite is Yes, and is skipped when
+        // it is No (teacher, 2026-11-27). Students not in the file are never
+        // touched.
+        if (grade === '') { if (overwrite) cells.delete(sis); continue; }
         if (cells.has(sis) && text(cells.get(sis)) !== '' && !overwrite) { errors.push({ sisStudentId: sis, reason: 'Grade exists (overwrite not selected)' }); continue; }
         const phantom = pendingFaults.phantomSaves.get(sis) || 0;
         if (phantom > 0) { pendingFaults.phantomSaves.set(sis, phantom - 1); added += 1; continue; } // "saved", reopens blank
@@ -122,6 +134,8 @@ export const createTeamsTestGradebook = ({
       return { added, errors };
     },
 
+    // Optional: only routes with a clear action of their own. DeSoto's
+    // Import route has none; the engine clears with a blank Overwrite file.
     async clearScores(id, sisIds) {
       calls.clearScores += 1;
       if (!canClearCells) throw new Error('Clearing grades is not available on this route');
@@ -171,5 +185,6 @@ export const createTeamsTestGradebook = ({
       return categoryWeightUsed ? Math.round((weighted / categoryWeightUsed) * 100) / 100 : null;
     },
   };
+  if (importOnly) delete api.clearScores;
   return api;
 };

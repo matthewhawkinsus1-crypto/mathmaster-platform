@@ -8,6 +8,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import {
+  DESOTO_TEAMS_CAPABILITIES,
   PROVISIONAL_MODE,
   TEAMS_CELL_STATUS,
   TEAMS_EXCEPTION,
@@ -15,6 +16,7 @@ import {
   runTeamsSync,
   TEAMS_ASSIGNMENT_NAME_MAX,
   teamsAssignmentName,
+  teamsClearCsv,
   teamsDay,
   teamsTargetFromTransferUnit,
 } from '../../src/platform/gradeTransfer/teamsSync.js';
@@ -451,4 +453,34 @@ test('a provisional value for a student missing from every list is still caught 
   // Cal left the class: the closing target does not mention him at all.
   result = await runTeamsSync({ targets: [target({ closed: true, rows: rows({ [ADA]: 90 }) })], ledger: result.ledger, adapter: gradebook, capabilities: ZERO_WEIGHT, now });
   assert.ok(result.exceptions.some((item) => item.code === TEAMS_EXCEPTION.PROVISIONAL_SCORE_WILL_COUNT && item.sisStudentId === CAL));
+});
+
+// DeSoto's TEAMS, confirmed by the teacher on 2026-11-27: the Import is the
+// only route, a blank with Overwrite Yes clears a cell, and #Count 0 shows the
+// score without averaging it.
+test('on the Import-only route, an extended student\'s provisional score is cleared with a blank Overwrite file', async () => {
+  const { gradebook, bell } = seededGradebook({ importOnly: true });
+  assert.equal(typeof gradebook.clearScores, 'undefined');
+  const now = clock();
+  let result = await runTeamsSync({ targets: [target({ rows: rows({ [ADA]: 70, [EVE]: 50 }) })], adapter: gradebook, capabilities: DESOTO_TEAMS_CAPABILITIES, now });
+  const [column] = gradebook.columnsNamed(REF, 'Nth Roots - Classwork');
+  assert.equal(gradebook.cell(column.id, EVE), 50, 'provisional score is visible');
+  result = await runTeamsSync({
+    targets: [target({ closed: true, rows: rows({ [ADA]: 85 }), withheld: [{ studentId: `s${EVE}`, sisStudentId: EVE }] })],
+    ledger: result.ledger, adapter: gradebook, capabilities: DESOTO_TEAMS_CAPABILITIES, now,
+  });
+  assert.equal(gradebook.cell(column.id, EVE), undefined, 'cleared before it could count');
+  assert.equal(gradebook.cell(column.id, ADA), 85);
+  assert.equal(gradebook.columnsNamed(REF, 'Nth Roots - Classwork')[0].weight, 1);
+  assert.equal(gradebook.cell(bell, EVE), 85, 'a clear file touches only the cells it names');
+  assert.deepEqual(result.exceptions, []);
+  assert.equal(teamsClearCsv([EVE]), `${EVE},\r\n`);
+  assert.throws(() => teamsClearCsv(['bad id']));
+});
+
+test('a lesson assigned in the previous marking period starts on the first day of the due date\'s period', async () => {
+  const { gradebook } = seededGradebook();
+  await runTeamsSync({ targets: [target({ assignedDate: '2026-10-14', dueDate: '2026-10-21', closed: true, rows: rows({ [ADA]: 90 }) })], adapter: gradebook, capabilities: ZERO_WEIGHT, now: clock() });
+  const [column] = gradebook.columnsNamed(REF, 'Nth Roots - Classwork');
+  assert.deepEqual([column.markingPeriod, column.assignedDate, column.dueDate], [MP2, '2026-10-19', '2026-10-21']);
 });
