@@ -38,7 +38,11 @@ const sourceFiles = (relativeDir) => {
   const out = [];
   const walk = (dir) => {
     for (const entry of readdirSync(new URL(`${dir}/`, ROOT), { withFileTypes: true })) {
-      if (entry.name === 'node_modules') continue;
+      // functions/vendor/ holds generated, gitignored copies of src/ and
+      // functions/shared/ modules (the weekly planner's and the TEAMS sync
+      // builder's, copied at predeploy). Their originals are read here
+      // already; reading a copy would name it as a second asker.
+      if (entry.name === 'node_modules' || (dir === 'functions' && entry.name === 'vendor')) continue;
       const child = `${dir}/${entry.name}`;
       if (entry.isDirectory()) walk(child);
       else if (/\.(?:js|jsx|mjs)$/.test(entry.name)) out.push(child);
