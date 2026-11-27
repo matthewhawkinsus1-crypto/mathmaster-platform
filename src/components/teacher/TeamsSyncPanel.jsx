@@ -129,11 +129,14 @@ export default function TeamsSyncPanel({
               </div>
               {status.details.map((line) => <div key={line} className="tw-small tw-muted">{line}</div>)}
               <div className="tw-row" style={{ alignItems: 'flex-end' }}>
-                <label htmlFor={inputId} className="tw-small tw-strong" style={{ display: 'grid', gap: 4, flex: '1 1 240px', maxWidth: 360 }}>
+                {/* minWidth 0 and a minmax(0, 1fr) column let the field shrink to a phone
+                    at 200% text; otherwise the input's own width holds it at 360px. */}
+                <label htmlFor={inputId} className="tw-small tw-strong" style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr)', gap: 4, flex: '1 1 240px', minWidth: 0, maxWidth: 360 }}>
                   TEAMS section(s)
                   <input
                     id={inputId}
                     className="tw-input"
+                    style={{ width: '100%', minWidth: 0, boxSizing: 'border-box' }}
                     value={drafts[entry.classId] ?? ''}
                     placeholder="e.g. 15001/05"
                     disabled={!state || isWorking}
