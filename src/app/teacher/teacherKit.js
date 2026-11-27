@@ -27,7 +27,6 @@ export {
   runStudentControlsCalls,
 } from '../../platform/assessment/dolAttemptGrantClient.js';
 export { buildAttendanceCorrectionReviewEvent, resolveReturnCheckIns } from '../../platform/attendance/returnCheckIn.js';
-export { buildStudentExtensionPatch, reconcileAssignmentExtensionsForCorrection } from '../../platform/attendance/extensionReconciliation.js';
 export { normalizeLessonPublishingIntentV5 } from '../../platform/authoring/lessonPublishingIntent.js';
 export {
   assignmentNeedsStudentForWorksheet,

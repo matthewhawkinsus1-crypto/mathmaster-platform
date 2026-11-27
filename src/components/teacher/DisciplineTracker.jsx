@@ -30,10 +30,13 @@ import {
   submitDisciplineFormsNow,
   voidDisciplineIncident,
 } from '../../platform/teacher/disciplineStore.js';
-import { authorizedGradeTransferClasses, gradeTransferRoster } from '../../platform/gradeTransfer/gradeTransferScope.js';
+// Through the projection, which a teacher's first page already loads: imported
+// directly, gradeTransferScope.js would become a first-load file of its own.
+import { authorizedGradeTransferClasses, gradeTransferRoster } from '../../platform/gradeTransfer/gradeTransferProjection.js';
 import { authoritativeSisStudentId } from '../../platform/gradeTransfer/gradeTransferModel.js';
 import { compareStudentsByName, formatStudentName, studentSearchText } from '../../platform/studentName.js';
 import './teacherWorkspace.css';
+import './disciplineTracker.css';
 
 /*
  * DISCIPLINE TRACKER.
