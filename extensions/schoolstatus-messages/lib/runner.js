@@ -4,28 +4,36 @@
 //
 // EVERY MESSAGE SENT THROUGH SCHOOLSTATUS REACHES A REAL FAMILY'S PHONE.
 // So the loop is built around one rule: Send is pressed in exactly one place
-// (`pressSendOnce`), only right after MathMaster's `start` succeeded, and at
-// most once per message. A message whose Send may have been pressed and whose
-// result was not seen is reported `unknown`; the server never hands it out
-// again by itself, and this loop never presses Send for it again.
+// (`pressSendOnce`), only after MathMaster's `start` succeeded, and at most
+// once per guardian per message. A message whose Send may have been pressed
+// and whose result was not seen is reported `unknown`; the server never hands
+// it out again by itself, and this loop never presses Send for it again.
 //
-// For each message (docs/plans/2026-11-27-schoolstatus-extension-brief.md):
+// The owner chose (2026-11-27): one text to each parent or guardian, through
+// the Text button on the student's Contacts tab. For each message
+// (docs/plans/2026-11-27-schoolstatus-extension-brief.md):
 //   1. claim the next message (or stop: none left);
-//   2. find the student by district ID, and check the name SchoolStatus shows;
-//      no match, several, a mismatch or no guardian: `failed`, nothing typed;
-//   3. open a new message to the guardians, and paste the body exactly;
-//   4. in test mode, the teacher confirms this exact message in the panel;
-//      no confirmation: discard and `release`;
-//   5. `start`; refused: discard, never press Send;
-//   6. press Send once;
-//   7. SchoolStatus's own confirmation: `sent`; not seen: `unknown`;
+//   2. find the student by district ID, and check the SIS ID and the name
+//      SchoolStatus shows; list the parents and guardians it can text; no
+//      match, several, a mismatch or no guardian: `failed`, nothing typed;
+//   3. open the first guardian's text, and paste the body exactly;
+//   4. in test mode, the teacher confirms this exact message and who gets
+//      it, in the panel; no confirmation: discard and `release`;
+//   5. `start`, once; refused: discard, never press Send;
+//   6. each guardian in turn: paste, press Send once, and see the text in
+//      SchoolStatus's conversation (SchoolStatus marks one it could not
+//      deliver "undelivered");
+//   7. `sent` when at least one guardian got it, `failed` when none did,
+//      `unknown` when a Send was pressed and its text not seen;
 //   8. back to the starting page, next message.
 //
 // Two adapters, so the loop is the same in Chrome and in a test:
 //   mathmaster: status(), claim({ runnerId }), start(ids), report(ids + …), release(ids + …)
-//   schoolstatus: where(), findStudent({ sisStudentId, studentName }),
-//     openComposer(), fill({ subject, body }), discard(), pressSend(),
-//     confirmSent(), home()
+//   schoolstatus: where(), findStudent({ sisStudentId, studentName }) ->
+//     { ok, reason, guardians: [{ index, relationship }], skipped },
+//     openThread(guardian) -> { ok, reason, maxLength }, fill({ body }),
+//     discard(), pressSend(), confirmSent() -> { seen, delivered, reason },
+//     home()
 // An adapter method throws an error with `stopRun: true` for anything that
 // ends the run (signed out, a page it does not recognize). The loop never
 // guesses.
@@ -61,12 +69,13 @@ export const sameStudentName = (expected, shown) => {
 
 /**
  * The one place Send is pressed. `state.started` must be set by a successful
- * `start` for this message; `state.pressed` makes a second press impossible.
+ * `start` for this message; `state.pressed` (one entry per guardian) makes a
+ * second press for the same guardian impossible.
  */
-const pressSendOnce = async (schoolstatus, state) => {
+const pressSendOnce = async (schoolstatus, state, guardianIndex) => {
   if (!state.started) throw new Error('Refusing to press Send: MathMaster has not started this message.');
-  if (state.pressed) throw new Error('Refusing to press Send twice for one message.');
-  state.pressed = true;
+  if (state.pressed.has(guardianIndex)) throw new Error('Refusing to press Send twice to one guardian.');
+  state.pressed.add(guardianIndex);
   await schoolstatus.pressSend();
 };
 
@@ -105,7 +114,7 @@ export const runFamilyMessages = async ({
     const ids = { runnerId, messageId: message.messageId, attemptId: message.attemptId };
     const testMode = message.mode === 'test' || claimed.mode === 'test' || runMode === 'test';
     const label = `Message ${shortId(message.messageId)} (district ID ${message.sisStudentId})`;
-    const state = { started: false, pressed: false };
+    const state = { started: false, pressed: new Set() };
 
     const fail = async (reason) => {
       await mathmaster.report({ ...ids, outcome: 'failed', reason });
@@ -120,30 +129,34 @@ export const runFamilyMessages = async ({
     const discardQuietly = async () => {
       try { await schoolstatus.discard(); } catch { /* the composer may already be gone */ }
     };
+    const body = String(message.body || '');
+    // What happened to each guardian's text, once started.
+    const results = [];
 
     try {
       log(`${label}: finding the student in SchoolStatus…`);
       const found = await schoolstatus.findStudent({ sisStudentId: message.sisStudentId, studentName: message.studentName });
-      if (!found?.ok) {
-        await fail(found?.reason || 'The student was not found in SchoolStatus.');
+      const guardians = found?.ok ? (found.guardians || []) : [];
+      if (!found?.ok || !guardians.length) {
+        await fail(found?.ok ? 'SchoolStatus lists no parent or guardian who can get a text.' : (found?.reason || 'The student was not found in SchoolStatus.'));
         await schoolstatus.home();
         continue;
       }
-      const composer = await schoolstatus.openComposer();
-      if (!composer?.ok) {
+      if (found.skipped) log(`${label}: ${found.skipped} other contact(s) are not texted (not a parent or guardian, or no phone for texts).`);
+
+      const first = await schoolstatus.openThread(guardians[0]);
+      if (!first?.ok) {
         await discardQuietly();
-        await fail(composer?.reason || 'SchoolStatus did not open a message to the guardians.');
+        await fail(first?.reason || 'SchoolStatus did not open a text to the guardian.');
         await schoolstatus.home();
         continue;
       }
-      const body = String(message.body || '');
-      if (Number.isFinite(composer.maxLength) && composer.maxLength > 0 && body.length > composer.maxLength) {
-        await discardQuietly();
-        await fail(`The message is ${body.length} characters; SchoolStatus allows ${composer.maxLength}.`);
+      if (Number.isFinite(first.maxLength) && first.maxLength > 0 && body.length > first.maxLength) {
+        await fail(`The message is ${body.length} characters; SchoolStatus allows ${first.maxLength}.`);
         await schoolstatus.home();
         continue;
       }
-      await schoolstatus.fill({ subject: String(message.subject || ''), body });
+      await schoolstatus.fill({ body });
 
       if (testMode) {
         log(`${label}: waiting for you to confirm the test message in this panel…`);
@@ -151,9 +164,9 @@ export const runFamilyMessages = async ({
           messageId: message.messageId,
           sisStudentId: message.sisStudentId,
           studentName: message.studentName,
-          recipientCount: composer.recipientCount,
-          channel: composer.channel || '',
-          subject: message.subject || '',
+          recipientCount: guardians.length,
+          recipients: guardians.map((guardian) => guardian.relationship),
+          channel: 'text',
           body,
         });
         if (confirmed !== true) {
@@ -185,28 +198,54 @@ export const runFamilyMessages = async ({
       }
       state.started = true;
 
-      await pressSendOnce(schoolstatus, state);
+      let unseen = '';
+      for (const [index, guardian] of guardians.entries()) {
+        if (index > 0) {
+          // eslint-disable-next-line no-await-in-loop
+          const thread = await schoolstatus.openThread(guardian);
+          if (!thread?.ok) {
+            results.push({ delivered: false, reason: thread?.reason || 'not opened' });
+            continue;
+          }
+          // eslint-disable-next-line no-await-in-loop
+          await schoolstatus.fill({ body });
+        }
+        // eslint-disable-next-line no-await-in-loop
+        await pressSendOnce(schoolstatus, state, index);
+        // eslint-disable-next-line no-await-in-loop
+        const seen = await schoolstatus.confirmSent();
+        if (!seen?.seen) {
+          unseen = seen?.reason || 'SchoolStatus did not show the text in the conversation.';
+          break;
+        }
+        results.push({ delivered: seen.delivered !== false, reason: seen.reason || '' });
+      }
 
-      const seen = await schoolstatus.confirmSent();
-      if (seen?.seen) {
-        await mathmaster.report({
-          ...ids,
-          outcome: 'sent',
-          confirmation: { recipientCount: Number(seen.recipientCount) || Number(composer.recipientCount) || 0, channel: seen.channel || composer.channel || '' },
-        });
-        counts.sent += 1;
-        log(`${label}: sent${testMode ? ' (test)' : ''}, ${Number(seen.recipientCount) || Number(composer.recipientCount) || 0} recipient(s).`);
-      } else {
-        await mathmaster.report({ ...ids, outcome: 'unknown', reason: seen?.reason || 'SchoolStatus did not show the message as sent.' });
+      const delivered = results.filter((result) => result.delivered).length;
+      const note = `Texted ${delivered} of ${guardians.length} parent(s)/guardian(s) through SchoolStatus.`;
+      if (unseen) {
+        await mathmaster.report({ ...ids, outcome: 'unknown', reason: `${unseen} ${note}`.slice(0, 280) });
         counts.unknown += 1;
-        log(`${label}: UNKNOWN. Check SchoolStatus, then choose "It was sent" or "Send again" on the Discipline Tracker.`);
+        log(`${label}: UNKNOWN. ${note} Check SchoolStatus, then choose "It was sent" or "Send again" on the Discipline Tracker.`);
+        // The page is not where the extension expects it.
+        await schoolstatus.home();
+        return finish(true, 'A text was not seen in SchoolStatus after Send.');
+      }
+      if (delivered > 0) {
+        await mathmaster.report({ ...ids, outcome: 'sent', confirmation: { recipientCount: delivered, channel: 'text', note } });
+        counts.sent += 1;
+        log(`${label}: sent${testMode ? ' (test)' : ''}. ${note}`);
+      } else {
+        await mathmaster.report({ ...ids, outcome: 'failed', reason: `SchoolStatus could not deliver the text to any parent or guardian. ${note}`.slice(0, 280) });
+        counts.failed += 1;
+        log(`${label}: not delivered to any parent or guardian.`);
       }
       await schoolstatus.home();
     } catch (error) {
       const reason = reasonOf(error);
       try {
-        if (state.pressed) {
-          // Send may have gone out: only the teacher can tell.
+        if (state.pressed.size) {
+          // A Send may have gone out: only the teacher can tell.
           await mathmaster.report({ ...ids, outcome: 'unknown', reason });
           counts.unknown += 1;
           log(`${label}: UNKNOWN after Send (${reason}). Check SchoolStatus, then choose on the Discipline Tracker.`);

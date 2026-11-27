@@ -28,7 +28,7 @@ const runnerId = async () => {
 };
 
 const mathmaster = async () => mathmasterAdapter(callMathMaster(await findTab(MATHMASTER_URLS, 'MathMaster')));
-const schoolstatus = async () => createSchoolStatusAdapter({ run: runInSchoolStatus(await findTab(SCHOOLSTATUS_URLS, 'SchoolStatus'), schoolStatusPage), log });
+const schoolstatus = async () => createSchoolStatusAdapter({ run: runInSchoolStatus(await findTab(SCHOOLSTATUS_URLS, 'SchoolStatus'), schoolStatusPage) });
 
 let running = false;
 let stopRequested = false;
@@ -73,8 +73,9 @@ const confirmTest = (preview) => new Promise((resolve) => {
   const card = $('#confirm');
   $('#c-student').textContent = preview.studentName || '';
   $('#c-id').textContent = preview.sisStudentId || '';
-  $('#c-recipients').textContent = `${Number(preview.recipientCount) || 0}${preview.channel ? ` (${preview.channel})` : ''}`;
-  $('#c-body').textContent = preview.subject ? `${preview.subject}\n\n${preview.body}` : preview.body;
+  const recipients = preview.recipients || [];
+  $('#c-recipients').textContent = `${recipients.length} text${recipients.length === 1 ? '' : 's'}, one to each: ${recipients.join(', ')}`;
+  $('#c-body').textContent = preview.body;
   card.hidden = false;
   card.scrollIntoView({ block: 'center' });
   const done = (answer) => {

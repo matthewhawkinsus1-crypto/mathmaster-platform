@@ -29,38 +29,42 @@ const mathmasterFor = (db, clock) => ({
   release: ({ messageId, attemptId, reason }) => outbox.releaseFamilyMessage({ db, teacherEmail: TEACHER, messageId, attemptId, reason, nowMs: clock.now }),
 });
 
-// A fake SchoolStatus: one roster, a composer, and a record of everything
-// typed and every Send press. `script` overrides any step.
+// A fake SchoolStatus: one roster, each student's contacts, a composer per
+// guardian, and a record of everything typed and every Send press (with whom
+// it went to). `script` overrides any step; `delivery` gives each guardian's
+// result after Send.
 const fakeSchoolStatus = (script = {}) => {
   const page = {
-    presses: 0,
+    presses: [],
     typed: [],
     discarded: 0,
-    composerOpen: false,
-    roster: { 1500101: { name: 'Lovelace, Ada M', guardians: 2 } },
-    async where() { return script.where ? script.where() : { page: 'home' }; },
+    open: null,
+    delivery: {},
+    roster: { 1500101: { name: 'Lovelace, Ada M', guardians: [{ index: 0, relationship: 'Mother' }, { index: 1, relationship: 'Father' }] } },
+    async where() { return script.where ? script.where() : { page: 'app' }; },
     async findStudent({ sisStudentId, studentName }) {
       if (script.findStudent) return script.findStudent({ sisStudentId, studentName });
       const student = page.roster[sisStudentId];
       if (!student) return { ok: false, reason: 'No SchoolStatus student has that district ID.' };
       if (!sameStudentName(studentName, student.name)) return { ok: false, reason: 'The name SchoolStatus shows does not match.' };
-      if (!student.guardians) return { ok: false, reason: 'SchoolStatus lists no guardian with a contact method.' };
-      return { ok: true };
+      return { ok: true, guardians: student.guardians, skipped: 0 };
     },
-    async openComposer() {
-      if (script.openComposer) return script.openComposer();
-      page.composerOpen = true;
-      return { ok: true, recipientCount: 2, channel: 'text' };
+    async openThread(guardian) {
+      if (script.openThread) return script.openThread(guardian);
+      page.open = guardian.index;
+      return { ok: true, maxLength: script.maxLength ?? 480 };
     },
-    async fill({ subject, body }) { page.typed.push({ subject, body }); },
-    async discard() { page.composerOpen = false; page.discarded += 1; },
+    async fill({ body }) { page.typed.push({ to: page.open, body }); },
+    async discard() { page.discarded += 1; },
     async pressSend() {
-      page.presses += 1;
-      if (script.pressSend) return script.pressSend();
-      page.composerOpen = false;
+      page.presses.push(page.open);
+      if (script.pressSend) return script.pressSend(page.open);
       return undefined;
     },
-    async confirmSent() { return script.confirmSent ? script.confirmSent() : { seen: true, recipientCount: 2, channel: 'text' }; },
+    async confirmSent() {
+      if (script.confirmSent) return script.confirmSent(page.open);
+      return page.delivery[page.open] || { seen: true, delivered: true };
+    },
     async home() {},
   };
   return page;
@@ -76,20 +80,22 @@ const run = (mathmaster, schoolstatus, overrides = {}) => runFamilyMessages({
   mathmaster, schoolstatus, runnerId: RUNNER, confirmTest: async () => true, ...overrides,
 });
 
-test('test mode, confirmed: one Send, reported sent, exactly one Parent Contacts record', async () => {
+test('test mode, confirmed: one text to each parent or guardian, reported sent, exactly one Parent Contacts record', async () => {
   const { db, mathmaster } = await setUp();
   const page = fakeSchoolStatus();
   const previews = [];
   const lines = [];
   const result = await run(mathmaster, page, { confirmTest: async (preview) => { previews.push(preview); return true; }, log: (line) => lines.push(line) });
   assert.deepEqual(result.counts, { sent: 1, failed: 0, unknown: 0, released: 0, notStarted: 0 });
-  assert.equal(page.presses, 1);
-  assert.equal(previews.length, 1, 'the teacher saw this message before Send');
+  assert.deepEqual(page.presses, [0, 1], 'one Send per guardian, never two to the same one');
+  assert.equal(previews.length, 1, 'the teacher saw this message before any Send');
   assert.equal(previews[0].body, page.typed[0].body, 'and it is exactly what was pasted');
-  assert.equal(previews[0].recipientCount, 2);
+  assert.deepEqual(previews[0].recipients, ['Mother', 'Father'], 'and who gets it');
+  assert.ok(page.typed.every((entry) => entry.body === previews[0].body), 'every guardian gets the same text');
   const [stored] = messagesIn(db);
   assert.equal(stored.state, 'sent');
-  assert.equal(contactsIn(db).length, 1);
+  assert.deepEqual(stored.confirmation, { recipientCount: 2, channel: 'text', note: 'Texted 2 of 2 parent(s)/guardian(s) through SchoolStatus.' });
+  assert.equal(contactsIn(db).length, 1, 'one Parent Contacts record for the family, not one per text');
   // The log names no student and carries no message text.
   const log = lines.join('\n');
   assert.doesNotMatch(log, /Ada|Lovelace/);
@@ -100,7 +106,7 @@ test('test mode: no Send without the teacher\'s confirmation; a refusal gives th
   const { db, mathmaster } = await setUp();
   const page = fakeSchoolStatus();
   const result = await run(mathmaster, page, { confirmTest: async () => false, maxMessages: 1 });
-  assert.equal(page.presses, 0);
+  assert.deepEqual(page.presses, []);
   assert.equal(result.counts.released, 1);
   assert.equal(page.discarded, 1, 'the typed message is discarded, not left in the composer');
   assert.equal(messagesIn(db)[0].state, 'queued', 'back in the queue');
@@ -119,7 +125,7 @@ test('when start is refused, Send is never pressed', async () => {
       return mathmaster.start(ids);
     },
   }, page);
-  assert.equal(page.presses, 0);
+  assert.deepEqual(page.presses, []);
   assert.equal(result.counts.notStarted, 1);
   assert.equal(page.discarded, 1);
   assert.equal(messagesIn(db)[0].state, 'cancelled');
@@ -135,15 +141,15 @@ test('the switch turned off while a message waits: no Send, and the run stops', 
       return true;
     },
   });
-  assert.equal(page.presses, 0);
+  assert.deepEqual(page.presses, []);
   assert.equal(result.stopped, true);
   assert.match(result.reason, /switch is now off/);
 });
 
 for (const [name, roster, reason] of [
   ['no SchoolStatus student with that district ID', {}, /No SchoolStatus student/],
-  ['the name SchoolStatus shows is another student', { 1500101: { name: 'Lovelace, Grace', guardians: 2 } }, /does not match/],
-  ['no guardian with a contact method', { 1500101: { name: 'Ada Lovelace', guardians: 0 } }, /no guardian/],
+  ['the name SchoolStatus shows is another student', { 1500101: { name: 'Lovelace, Grace', guardians: [{ index: 0, relationship: 'Mother' }] } }, /does not match/],
+  ['no parent or guardian who can get a text', { 1500101: { name: 'Ada Lovelace', guardians: [] } }, /no parent or guardian/],
 ]) {
   test(`${name}: failed, nothing typed, no Send`, async () => {
     const { db, mathmaster } = await setUp();
@@ -151,7 +157,7 @@ for (const [name, roster, reason] of [
     page.roster = roster;
     const result = await run(mathmaster, page);
     assert.equal(result.counts.failed, 1);
-    assert.equal(page.presses, 0);
+    assert.deepEqual(page.presses, []);
     assert.deepEqual(page.typed, []);
     const [stored] = messagesIn(db);
     assert.equal(stored.state, 'failed');
@@ -161,9 +167,9 @@ for (const [name, roster, reason] of [
 
 test('a body longer than SchoolStatus allows: failed with the limit, nothing typed', async () => {
   const { db, mathmaster } = await setUp();
-  const page = fakeSchoolStatus({ openComposer: async () => ({ ok: true, recipientCount: 2, channel: 'text', maxLength: 40 }) });
+  const page = fakeSchoolStatus({ maxLength: 40 });
   await run(mathmaster, page);
-  assert.equal(page.presses, 0);
+  assert.deepEqual(page.presses, []);
   assert.deepEqual(page.typed, []);
   assert.match(messagesIn(db)[0].reason, /SchoolStatus allows 40/);
 });
@@ -172,7 +178,7 @@ test('no confirmation after Send: unknown, and the next claim does not return it
   const { db, clock, mathmaster } = await setUp();
   const page = fakeSchoolStatus({ confirmSent: async () => ({ seen: false }) });
   const result = await run(mathmaster, page);
-  assert.equal(page.presses, 1);
+  assert.deepEqual(page.presses, [0], 'stops at the first text it could not see: the second guardian is not texted');
   assert.equal(result.counts.unknown, 1);
   assert.equal(messagesIn(db)[0].state, 'unknown');
   assert.equal(contactsIn(db).length, 0, 'not logged as a contact: it may not have gone out');
@@ -186,7 +192,7 @@ test('the page fails right after Send: unknown, one press, and the run stops', a
   const { db, mathmaster } = await setUp();
   const page = fakeSchoolStatus({ pressSend: async () => { throw new Error('The SchoolStatus tab reloaded.'); } });
   const result = await run(mathmaster, page);
-  assert.equal(page.presses, 1);
+  assert.deepEqual(page.presses, [0]);
   assert.equal(result.stopped, true);
   assert.equal(messagesIn(db)[0].state, 'unknown');
 });
@@ -197,16 +203,16 @@ test('signed out before a claim: the run stops and nothing is claimed', async ()
   const result = await run(mathmaster, page);
   assert.equal(result.stopped, true);
   assert.match(result.reason, /signed out/);
-  assert.equal(page.presses, 0);
+  assert.deepEqual(page.presses, []);
   assert.equal(messagesIn(db)[0].state, 'queued');
 });
 
 test('an unknown page after the claim: the run stops and the message is given back', async () => {
   const { db, mathmaster } = await setUp();
-  const page = fakeSchoolStatus({ openComposer: async () => { throw stopRun('This SchoolStatus page is not one the extension knows.'); } });
+  const page = fakeSchoolStatus({ openThread: async () => { throw stopRun('This SchoolStatus page is not one the extension knows.'); } });
   const result = await run(mathmaster, page);
   assert.equal(result.stopped, true);
-  assert.equal(page.presses, 0);
+  assert.deepEqual(page.presses, []);
   assert.equal(result.counts.released, 1);
   assert.equal(messagesIn(db)[0].state, 'queued');
 });
@@ -216,7 +222,7 @@ test('Stop between confirming and starting: no Send, given back', async () => {
   let stop = false;
   const page = fakeSchoolStatus();
   const result = await run(mathmaster, page, { confirmTest: async () => { stop = true; return true; }, shouldStop: () => stop });
-  assert.equal(page.presses, 0);
+  assert.deepEqual(page.presses, []);
   assert.equal(result.stopped, true);
   assert.equal(messagesIn(db)[0].state, 'queued');
 });
@@ -226,7 +232,44 @@ test('off: the run does nothing', async () => {
   const result = await run(mathmasterFor(world({ mode: null }), { now: at('09:05') }), page);
   assert.equal(result.stopped, true);
   assert.match(result.reason, /turned off/);
-  assert.equal(page.presses, 0);
+  assert.deepEqual(page.presses, []);
+});
+
+test('one guardian\'s text undelivered: sent, counting only the guardian who got it', async () => {
+  const { db, mathmaster } = await setUp();
+  const page = fakeSchoolStatus();
+  page.delivery[1] = { seen: true, delivered: false, reason: 'undelivered' };
+  const result = await run(mathmaster, page);
+  assert.equal(result.counts.sent, 1);
+  assert.deepEqual(page.presses, [0, 1]);
+  const [stored] = messagesIn(db);
+  assert.equal(stored.state, 'sent');
+  assert.equal(stored.confirmation.recipientCount, 1);
+  assert.match(stored.confirmation.note, /^Texted 1 of 2 /);
+  assert.equal(contactsIn(db).length, 1);
+});
+
+test('every guardian\'s text undelivered: failed, and no Parent Contacts record', async () => {
+  const { db, mathmaster } = await setUp();
+  const page = fakeSchoolStatus();
+  page.delivery[0] = { seen: true, delivered: false };
+  page.delivery[1] = { seen: true, delivered: false };
+  const result = await run(mathmaster, page);
+  assert.equal(result.counts.failed, 1);
+  assert.equal(messagesIn(db)[0].state, 'failed');
+  assert.match(messagesIn(db)[0].reason, /could not deliver the text to any parent or guardian/);
+  assert.equal(contactsIn(db).length, 0);
+});
+
+test('the second guardian\'s text not seen: unknown, each guardian pressed at most once, and the run stops', async () => {
+  const { db, mathmaster } = await setUp();
+  const page = fakeSchoolStatus({ confirmSent: async (open) => (open === 1 ? { seen: false } : { seen: true, delivered: true }) });
+  const result = await run(mathmaster, page);
+  assert.deepEqual(page.presses, [0, 1]);
+  assert.equal(result.counts.unknown, 1);
+  assert.equal(result.stopped, true);
+  assert.equal(messagesIn(db)[0].state, 'unknown');
+  assert.match(messagesIn(db)[0].reason, /Texted 1 of 2/, 'the teacher is told one text was seen');
 });
 
 test('names match on first and last name, either order, ignoring case, spaces, accents and middle names', () => {
@@ -244,13 +287,13 @@ test('the extension presses Send in exactly one place, right after a successful 
   assert.equal(source.match(/\.pressSend\(/g)?.length, 1, 'one call to the page\'s Send');
   const once = source.slice(source.indexOf('const pressSendOnce = async'), source.indexOf('export const runFamilyMessages'));
   assert.match(once, /if \(!state\.started\) throw/);
-  assert.match(once, /if \(state\.pressed\) throw/);
-  assert.ok(once.indexOf('state.pressed = true;') < once.indexOf('await schoolstatus.pressSend();'), 'marked pressed before the press, so a throw mid-press is unknown');
+  assert.match(once, /if \(state\.pressed\.has\(guardianIndex\)\) throw/);
+  assert.ok(once.indexOf('state.pressed.add(guardianIndex);') < once.indexOf('await schoolstatus.pressSend();'), 'marked pressed before the press, so a throw mid-press is unknown');
   const loop = source.slice(source.indexOf('export const runFamilyMessages'));
   assert.equal(loop.match(/pressSendOnce\(/g)?.length, 1);
   const start = loop.indexOf('await mathmaster.start(ids);');
   const started = loop.indexOf('state.started = true;');
-  const press = loop.indexOf('await pressSendOnce(schoolstatus, state);');
+  const press = loop.indexOf('await pressSendOnce(schoolstatus, state, index);');
   assert.ok(start > 0 && start < started && started < press, 'start, then started, then the press');
   // A refused start continues past the press (no fallthrough into Send).
   const refused = loop.slice(start, started);

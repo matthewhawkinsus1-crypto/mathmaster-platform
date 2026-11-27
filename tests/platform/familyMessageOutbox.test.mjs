@@ -33,8 +33,8 @@ test('test mode: only the test student is queued, with the tracker\'s own wordin
   assert.equal(message.mode, 'test');
   assert.equal(message.sisStudentId, '1500101');
   assert.equal(message.studentName, 'Ada Lovelace');
-  assert.match(message.body, /^Hello, this is Mr\. Hawkins, Ada's Algebra I teacher\./);
-  assert.match(message.body, /Ada arrived late to class at 8:05 AM\./);
+  assert.match(message.body, /^Mr\. Hawkins \(Algebra I\): On Mon, 11\/30, Ada arrived late to class at 8:05 AM\./);
+  assert.ok(message.body.length <= 480, 'one SchoolStatus text');
   assert.doesNotMatch(message.body, /Ben|Ortiz|Lovelace/, 'only this student, by first name');
   assert.match(message.id, /^[0-9a-f]{32}_1$/);
   // Queued again unchanged: nothing new, still one message.

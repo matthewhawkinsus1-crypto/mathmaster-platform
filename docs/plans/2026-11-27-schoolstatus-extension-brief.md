@@ -243,14 +243,23 @@ Break each of these once and confirm the test fails.
 6. Write what was checked into the README and the PR. The teacher decides
    when to switch to **Live**.
 
-## Not decided yet (ask the teacher)
+## Decided with the teacher (2026-11-27)
 
-- SchoolStatus's exact origin and sign-in (district SSO?), and whether
-  messages to guardians go out as SMS, email or app messages by default.
-- Whether SchoolStatus translates messages for families with another home
-  language, and whether MathMaster should say anything about it.
-- Whether replies from families should come back to MathMaster. Nothing is
-  built for that; Parent Contacts records the send only.
-- Whether queued messages should go out by themselves while the panel is
-  open, or only when the teacher presses **Send queued messages**.
-  Start with the button.
+- **Origin:** `https://secure.schoolstatus.com` (SchoolStatus Classic). The
+  teacher signs in there, and its sign-in page is on `www.schoolstatus.com`.
+- **How a message goes out:** one **text to each parent or guardian**,
+  through the Text button on the student's Contacts tab, not a broadcast. A
+  message is `sent` when at least one guardian's text went through, and
+  `failed` when SchoolStatus marked every one *undelivered*.
+- **Length:** a SchoolStatus text holds 480 characters. MathMaster's message
+  is now one short paragraph that never exceeds that (`FAMILY_TEXT_MAX`).
+- **Translation:** SchoolStatus auto-translates each text to the contact's
+  preferred language. MathMaster says nothing about it.
+- **Replies** from families stay in SchoolStatus. Nothing is built for them.
+- **Sending** starts only when the teacher presses **Send queued messages**.
+- **Test student:** none exists yet. One is needed whose guardian contact is
+  the teacher's own phone (ask the district for a test record). Until then
+  nothing is sent.
+
+What was checked live, and what still needs the test student:
+`extensions/schoolstatus-messages/README.md`.

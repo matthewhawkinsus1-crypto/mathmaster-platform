@@ -9,6 +9,7 @@ import { readFileSync } from 'node:fs';
 import {
   DISTRICT_VIOLATION_FORM,
   DisciplineInputError,
+  FAMILY_TEXT_MAX,
   VIOLATION_TYPES,
   checkDistrictForm,
   classifyFormReply,
@@ -184,18 +185,35 @@ test('the family message is factual, courteous, about one student, and covers th
     ],
   });
   assert.equal(message.subject, 'Ada: Tardy and ID Violation on Mon, 11/30');
-  assert.equal(message.body, [
-    "Hello, this is Mr. Hawkins, Ada's Algebra I teacher.",
-    'I want to let you know that on Monday, November 30, Ada arrived late to class at 8:05 AM and was not displaying their student ID on a lanyard at 8:30 AM.',
-    'Students are expected to be in the classroom when the bell rings so they do not miss the start of the lesson.',
-    'Students are expected to wear their student ID on a lanyard, visible, for the entire school day.',
-    'Thank you for reviewing this with Ada. Please reply to this message if you have any questions.',
-    'Mr. Hawkins',
-  ].join('\n\n'));
+  // One SchoolStatus text (the owner's short form, 2026-11-27): who and which
+  // class, what was observed and when, the expectations, an invitation to reply.
+  assert.equal(message.body, "Mr. Hawkins (Algebra I): On Mon, 11/30, Ada arrived late to class at 8:05 AM and was not displaying their student ID on a lanyard at 8:30 AM. Students are expected to be in class when the bell rings and wear their student ID on a lanyard, visible, all day. Please review this with Ada. Reply here with any questions.");
+  assert.ok(message.body.length <= FAMILY_TEXT_MAX);
   assert.doesNotMatch(message.body, /Lovelace|1500101/, 'a first name only, no ID');
   const swapping = parentMessage({ student: { firstName: 'Cal', lastName: 'Reyes' }, dateKey: '2026-11-30', incidents: [incident({ type: 'dressCode', detail: 'swapping', occurredAtMs: at('11:00') })] });
   assert.match(swapping.body, /Cal was changing in and out of dress code during the school day at 11:00 AM\./);
-  assert.match(swapping.body, /remain in dress code for the entire school day/);
+  assert.match(swapping.body, /stay in dress code all day, including between classes/);
+  assert.match(swapping.body, /^Cal's teacher: On Mon, 11\/30, /, 'no teacher name saved: still says who is writing');
+});
+
+test('a family message always fits one SchoolStatus text, however long the day', () => {
+  const kinds = [['tardy', ''], ['dressCode', 'swapping'], ['idViolation', 'notVisibleAllDay'], ['deviceCollected', ''], ['dressCode', ''], ['idViolation', 'idRemoved']];
+  const day = kinds.flatMap(([type, detail], index) => [0, 1, 2].map((k) => incident({ type, detail, occurredAtMs: at(`${String(8 + index).padStart(2, '0')}:${String(5 + k * 20).padStart(2, '0')}`) })));
+  const long = { student: { firstName: 'Maximiliana-Josefina', lastName: 'Featherstonehaugh' }, dateKey: '2026-11-30', teacherName: 'Mrs. Alexandria Hawkins-Montgomery', classLabel: 'Algebra II Honors Period 7 (Inclusion)' };
+  const worst = parentMessage({ ...long, incidents: day });
+  assert.ok(worst.body.length <= FAMILY_TEXT_MAX, `${worst.body.length} characters`);
+  assert.doesNotMatch(worst.body, /…$/, 'shortened by leaving parts out, never cut mid-sentence');
+  assert.match(worst.body, /Reply here with any questions\.$/);
+  // A busy day loses the class name first, and keeps every observation.
+  const busy = parentMessage({ ...long, incidents: day.slice(0, 8) });
+  assert.ok(busy.body.length <= FAMILY_TEXT_MAX);
+  assert.doesNotMatch(busy.body, /Algebra II Honors/);
+  assert.match(busy.body, /arrived late to class at 8:05 AM, 8:25 AM and 8:45 AM/, 'one kind, every time it happened');
+  // An ordinary day keeps everything.
+  const ordinary = parentMessage({ ...long, incidents: day.slice(0, 1) });
+  assert.match(ordinary.body, /\(Algebra II Honors Period 7 \(Inclusion\)\)/);
+  assert.match(ordinary.body, /Students are expected to be in class when the bell rings\./);
+  assert.match(ordinary.body, /Please review this with Maximiliana-Josefina\./);
 });
 
 test('the principal report lists each repeat offender with ID, every date and time, and the family contact', () => {
