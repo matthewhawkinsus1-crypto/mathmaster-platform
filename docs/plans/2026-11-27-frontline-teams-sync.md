@@ -345,9 +345,19 @@ step reads and writes them in one transaction. Their deploy needs
    calls `teamsSyncStep` until `done`, on a timer while TEAMS is signed in.
    It authenticates to MathMaster as the teacher. Building it needs a session
    on the teacher's computer, where TEAMS's pages can be seen.
-2. **Grade Transfer wiring.** A place to enter each class's TEAMS section(s),
-   publishing on open and after grade changes, and a preview from the last
-   read-back.
+2. ~~**Grade Transfer wiring.**~~ Done: Grade Export's **Automatic TEAMS
+   sync** panel (`components/teacher/TeamsSyncPanel.jsx`, words and checks in
+   `teamsSyncPanelModel.js`). Per class, it lets the teacher enter the TEAMS
+   section(s), with both for an inclusion class. **Send current grades to the
+   sync** publishes this marking period's lessons, from the same students,
+   history, Practice Passes and deadlines as an export. The panel shows where
+   the sync stands and the last sync's *needs your decision* list, by lesson,
+   TEAMS section and student. It loads nothing until opened, and sends only
+   once the export history has loaded.
+3. **Publishing without the teacher.** Today grades reach the sync when the
+   teacher presses Send. A scheduled server job that builds the same targets
+   would remove that step; it needs Grade Transfer's projection to run on the
+   server.
 
 If Frontline ever offers a supported write API (route A), it replaces the
 extension, and the engine and server stay as they are.

@@ -79,6 +79,8 @@ export const buildTeamsSyncTargets = ({
   classId, classes = [], assignments = [], students = [], teacherEmail = '', isRootAdmin = false,
   snapshots = [], practicePasses = new Set(), now = Date.now(), dueOnOrAfter = '', timeZone = 'America/Chicago',
   resolveStudentFinalDeadline,
+  // (assignment) => boolean: e.g. "in the current marking period". Absent: all.
+  includeAssignment = null,
 } = {}) => {
   const options = { classes, assignments, students, teacherEmail, isRootAdmin, snapshots, practicePasses, ...(resolveStudentFinalDeadline ? { resolveStudentFinalDeadline } : {}) };
   const current = projectGradeTransferUnits({ ...options, now }).units.filter((unit) => unit.classId === classId);
@@ -89,6 +91,7 @@ export const buildTeamsSyncTargets = ({
   return current
     .flatMap((unit) => unit.sectionUnits || [unit])
     .filter((part) => part.ordinaryDeadline !== null && part.ordinaryDeadline !== undefined)
+    .filter((part) => typeof includeAssignment !== 'function' || includeAssignment(byId.get(part.assignmentId) || null))
     .map((part) => teamsTargetFromTransferUnit({
       unit: part,
       assignment: byId.get(part.assignmentId) || {},
