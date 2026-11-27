@@ -3842,34 +3842,47 @@ exports.setTeamsSyncSections = onCall(async (request) => {
   return { classId: authority.classId, sections, capabilities };
 });
 
-exports.publishTeamsSyncTargets = onCall(async (request) => {
-  await requireTeacher(request);
-  const db = getFirestore();
-  const module = await teamsSyncServer();
-  const authority = await gradeTransferClassAuthority(db, request, request.data?.classId);
-  const classRef = db.collection("teamsSyncClasses").doc(authority.classId);
+/**
+ * Validate and store one class's published targets, replacing its set. Used
+ * by "Send current grades" (publishTeamsSyncTargets) and by the scheduled
+ * publish, which build them with the same code. A row is kept only when its
+ * student is on this class's roster under that district ID
+ * (normalizeTeamsTargets). A target that has not changed is not rewritten:
+ * the schedule runs every 30 minutes and most runs change nothing.
+ */
+async function writeTeamsSyncTargets({ db, module, classId, email, targetsInput, publishedBy }) {
+  const classRef = db.collection("teamsSyncClasses").doc(classId);
   const classState = (await classRef.get()).data() || {};
-  const members = await db.collection("grades").where("classId", "==", authority.classId).select("sisStudentId").get();
+  const members = await db.collection("grades").where("classId", "==", classId).select("sisStudentId").get();
   const roster = module.teamsRosterIndex(members.docs.map((entry) => ({ id: entry.id, ...entry.data() })));
   const { targets, droppedRows } = teamsSyncInput(module, () => module.normalizeTeamsTargets({
-    targets: request.data?.targets,
-    classId: authority.classId,
+    targets: targetsInput,
+    classId,
     roster,
     sectionCount: (classState.sections || []).length || 1,
   }));
 
   // Replace this class's published set: a lesson section no longer published
   // stops being synced (its ledger stays, so TEAMS values stay recognised).
-  const existing = await db.collection("teamsSyncTargets").where("classId", "==", authority.classId).select().get();
-  const keep = new Set(targets.map((target) => teamsSyncDocId(authority.classId, target.key)));
+  const existing = await db.collection("teamsSyncTargets").where("classId", "==", classId).get();
+  const stored = new Map(existing.docs.map((entry) => [entry.id, JSON.stringify(entry.data()?.target ?? null)]));
+  const keep = new Set(targets.map((target) => teamsSyncDocId(classId, target.key)));
+  const changed = targets.filter((target) => stored.get(teamsSyncDocId(classId, target.key)) !== JSON.stringify(teamsSyncPlain(target)));
+  const removed = existing.docs.filter((entry) => !keep.has(entry.id));
+  const anyChange = changed.length > 0 || removed.length > 0 || Number(classState.targetCount || 0) !== targets.length;
   const writes = [
-    ...targets.map((target) => (batch) => batch.set(
-      db.collection("teamsSyncTargets").doc(teamsSyncDocId(authority.classId, target.key)),
-      { classId: authority.classId, key: target.key, target: teamsSyncPlain(target), publishedAt: FieldValue.serverTimestamp(), publishedByUid: request.auth.uid },
+    ...changed.map((target) => (batch) => batch.set(
+      db.collection("teamsSyncTargets").doc(teamsSyncDocId(classId, target.key)),
+      { classId, key: target.key, target: teamsSyncPlain(target), publishedAt: FieldValue.serverTimestamp(), publishedBy },
     )),
-    ...existing.docs.filter((entry) => !keep.has(entry.id)).map((entry) => (batch) => batch.delete(entry.ref)),
+    ...removed.map((entry) => (batch) => batch.delete(entry.ref)),
     (batch) => batch.set(classRef, {
-      classId: authority.classId, teacherOfRecord: authority.email, targetCount: targets.length, targetsPublishedAt: FieldValue.serverTimestamp(),
+      classId,
+      teacherOfRecord: email,
+      targetCount: targets.length,
+      targetsCheckedAt: FieldValue.serverTimestamp(),
+      targetsCheckedBy: publishedBy === "schedule" ? "schedule" : "teacher",
+      ...(anyChange ? { targetsPublishedAt: FieldValue.serverTimestamp() } : {}),
     }, { merge: true }),
   ];
   for (let index = 0; index < writes.length; index += 400) {
@@ -3878,7 +3891,44 @@ exports.publishTeamsSyncTargets = onCall(async (request) => {
     // eslint-disable-next-line no-await-in-loop
     await batch.commit();
   }
-  return { classId: authority.classId, published: targets.length, droppedRows };
+  return { classId, published: targets.length, changed: changed.length, removed: removed.length, droppedRows };
+}
+
+exports.publishTeamsSyncTargets = onCall(async (request) => {
+  await requireTeacher(request);
+  const db = getFirestore();
+  const module = await teamsSyncServer();
+  const authority = await gradeTransferClassAuthority(db, request, request.data?.classId);
+  return writeTeamsSyncTargets({
+    db, module, classId: authority.classId, email: authority.email, targetsInput: request.data?.targets, publishedBy: request.auth.uid,
+  });
+});
+
+/*
+ * Every linked class's TEAMS sync grades, rebuilt on the server with the
+ * builder Grade Export runs (functions/lib/teamsSyncScheduledTargets.js), so
+ * the extension in the teacher's TEAMS tab always has current grades without
+ * anyone pressing "Send current grades". School hours, Central time.
+ */
+exports.publishTeamsSyncTargetsOnSchedule = onSchedule({
+  schedule: "every 30 minutes from 06:00 to 22:00",
+  timeZone: "America/Chicago",
+  timeoutSeconds: 300,
+}, async () => {
+  const db = getFirestore();
+  const module = await teamsSyncServer();
+  const { publishScheduledTeamsSyncTargets } = require("./lib/teamsSyncScheduledTargets");
+  const result = await publishScheduledTeamsSyncTargets({
+    db,
+    logger,
+    publish: ({ classId, email, targetsInput, publishedBy }) => writeTeamsSyncTargets({ db, module, classId, email, targetsInput, publishedBy }),
+  });
+  logger.info("TEAMS sync scheduled publish", {
+    builder: result.builder,
+    published: result.published.map((entry) => ({ classId: entry.classId, targets: entry.published, changed: entry.changed, droppedRows: entry.droppedRows })),
+    skipped: result.skipped,
+    failed: result.failed,
+  });
 });
 
 exports.teamsSyncStep = onCall(async (request) => {
@@ -3943,6 +3993,8 @@ exports.getTeamsSyncState = onCall(async (request) => {
     capabilities: classState.capabilities || null,
     targetCount: Number(classState.targetCount || 0),
     targetsPublishedAt: serializableGradeTransferDate(classState.targetsPublishedAt),
+    targetsCheckedAt: serializableGradeTransferDate(classState.targetsCheckedAt),
+    targetsCheckedBy: classState.targetsCheckedBy || null,
     lastStep: classState.lastStep || null,
     batchLeasedUntil: classState.issued?.leaseUntil ? new Date(Number(classState.issued.leaseUntil)).toISOString() : null,
   };

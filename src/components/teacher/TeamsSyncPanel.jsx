@@ -98,14 +98,15 @@ export default function TeamsSyncPanel({
     <details className="tw-disclosure" data-teams-sync-panel onToggle={onToggle}>
       <summary>
         Automatic TEAMS sync
-        <span className="tw-small tw-muted" style={{ fontWeight: 600 }}>Link classes to TEAMS and send grades without a file</span>
+        <span className="tw-small tw-muted" style={{ fontWeight: 600 }}>Link classes to TEAMS; grades go there without a file</span>
       </summary>
       <div className="tw-disclosure__body tw-stack" style={{ gap: 12 }}>
         <p className="tw-small tw-muted" style={{ margin: 0 }}>
           The MathMaster extension in your signed-in TEAMS tab creates each lesson&apos;s Warm-Up, Classwork, Practice and DOL
           assignments and imports the grades. While a lesson is open, scores show in TEAMS at #Count 0 and do not count toward
           the average. When it closes, #Count changes to 1 once. Grades you typed in TEAMS are never overwritten. Your TEAMS
-          password never leaves your browser.
+          password never leaves your browser. MathMaster sends each linked class&apos;s current grades to the sync every 30 minutes
+          from 6 am to 10 pm; Send now does it right away.
         </p>
         <p className="tw-small tw-muted" style={{ margin: 0 }}>
           A class whose inclusion students TEAMS keeps in their own section has two TEAMS sections: enter both, separated by a
@@ -148,7 +149,7 @@ export default function TeamsSyncPanel({
                   title={!ready ? 'Waiting for the export history to load' : undefined}
                   onClick={() => sendGrades(entry)}
                 >
-                  Send current grades to the sync
+                  Send now
                 </button>
               </div>
               {notices[entry.classId] && <div role="status" className="tw-notice" data-tone={notices[entry.classId].tone}>{notices[entry.classId].text}</div>}

@@ -627,6 +627,8 @@ const handlers = {
       capabilities: state.capabilities || null,
       targetCount: Number(state.targetCount || 0),
       targetsPublishedAt: state.targetsPublishedAt || null,
+      targetsCheckedAt: state.targetsPublishedAt || null,
+      targetsCheckedBy: state.targetsPublishedAt ? 'teacher' : null,
       lastStep: state.lastStep || null,
       batchLeasedUntil: state.issued?.leaseUntil ? new Date(Number(state.issued.leaseUntil)).toISOString() : null,
     };

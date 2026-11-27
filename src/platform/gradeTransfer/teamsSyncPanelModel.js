@@ -28,6 +28,9 @@ export const formatTeamsSections = (sections = []) => (sections || []).map((entr
 
 const listed = (items) => (items.length <= 1 ? items.join('') : `${items.slice(0, -1).join(', ')} and ${items[items.length - 1]}`);
 
+// The scheduled publish (gradingFunctions.js publishTeamsSyncTargetsOnSchedule).
+const AUTOMATIC = 'MathMaster sends current grades automatically every 30 minutes from 6 am to 10 pm';
+
 export const relativeTime = (iso, now = Date.now()) => {
   const at = Date.parse(iso || '');
   if (!Number.isFinite(at)) return '';
@@ -52,10 +55,13 @@ export const describeTeamsSyncState = (state = null, { now = Date.now() } = {}) 
   }
   const details = [`TEAMS section${sections.length === 1 ? '' : 's'} ${listed(sections)}${sections.length > 1 ? ': each student\'s grade goes to the section TEAMS lists them in' : ''}.`];
   if (!state.targetCount) {
-    details.push('No grades sent to the sync yet.');
+    details.push(`No grades sent to the sync yet. ${AUTOMATIC}, or press Send now.`);
     return { tone: 'neutral', headline: 'Linked, nothing sent yet', details };
   }
-  details.push(`${state.targetCount} lesson section${state.targetCount === 1 ? '' : 's'} sent to the sync${state.targetsPublishedAt ? ` ${relativeTime(state.targetsPublishedAt, now)}` : ''}.`);
+  details.push(`${state.targetCount} lesson section${state.targetCount === 1 ? '' : 's'} in the sync${state.targetsPublishedAt ? `, last changed ${relativeTime(state.targetsPublishedAt, now)}` : ''}.`);
+  details.push(state.targetsCheckedBy === 'schedule' && state.targetsCheckedAt
+    ? `${AUTOMATIC}; last checked ${relativeTime(state.targetsCheckedAt, now)}.`
+    : `${AUTOMATIC}.`);
   const leased = Date.parse(state.batchLeasedUntil || '');
   if (Number.isFinite(leased) && leased > now) {
     return { tone: 'primary', headline: 'Syncing in a TEAMS tab now', details };
@@ -114,7 +120,7 @@ export const groupTeamsExceptions = (exceptions = [], labelFor = (row) => row.si
   return groups.filter((group) => group.items.length);
 };
 
-/** What "Send current grades" reports back. */
+/** What "Send now" reports back. */
 export const publishResultMessage = ({ published = 0, droppedRows = 0 } = {}, className = 'this class') => {
   const sent = `Sent ${published} lesson section${published === 1 ? '' : 's'} for ${className} to the sync.`;
   const next = ' The MathMaster extension in your TEAMS tab applies them on its next run.';

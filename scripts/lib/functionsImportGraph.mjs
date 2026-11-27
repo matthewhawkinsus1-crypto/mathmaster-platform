@@ -101,6 +101,17 @@ export const COMPUTED_LOADERS = Object.freeze([
     relativeTo: 'repository',
     describe: 'the weekly planner (PLANNER_ENTRIES, vendored into functions/vendor at predeploy)',
   }),
+  Object.freeze({
+    file: 'functions/lib/teamsSyncScheduledTargets.js',
+    within: 'loadTeamsSyncTargetBuilder',
+    map: 'TARGET_BUILDER_ENTRIES',
+    // import(pathToFileURL(path.join(root, TARGET_BUILDER_ENTRIES.teamsSync)).href),
+    // where root is the repository, or the copy that
+    // scripts/sync-functions-teams-sync.mjs vendors into functions/vendor at
+    // predeploy, in the repository's own layout.
+    relativeTo: 'repository',
+    describe: 'the TEAMS sync target builder (TARGET_BUILDER_ENTRIES, vendored into functions/vendor at predeploy)',
+  }),
 ]);
 
 /*

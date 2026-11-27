@@ -40,7 +40,10 @@ test('each class says plainly where its sync stands', () => {
   assert.match(said(linked).details[0], /15001\/05 and 15001\/55: each student's grade goes to the section TEAMS lists them in/);
   const sent = { ...linked, targetCount: 12, targetsPublishedAt: minutesAgo(5) };
   assert.equal(said(sent).headline, 'Waiting for TEAMS');
-  assert.match(said(sent).details[1], /12 lesson sections sent to the sync 5 min ago/);
+  assert.match(said(sent).details[1], /12 lesson sections in the sync, last changed 5 min ago/);
+  assert.match(said(sent).details[2], /automatically every 30 minutes from 6 am to 10 pm\.$/);
+  assert.match(said({ ...sent, targetsCheckedBy: 'schedule', targetsCheckedAt: minutesAgo(12) }).details[2], /automatically every 30 minutes .*; last checked 12 min ago\./);
+  assert.match(said(linked).details.at(-1), /No grades sent to the sync yet\. MathMaster sends current grades automatically .*, or press Send now\./);
   assert.equal(said({ ...sent, batchLeasedUntil: new Date(NOW + 60000).toISOString() }).headline, 'Syncing in a TEAMS tab now');
   const done = { ...sent, lastStep: { at: minutesAgo(90), status: 'done', exceptionCount: 0, unreadSections: [] } };
   assert.deepEqual([said(done).tone, said(done).headline], ['success', 'Last sync 2 hours ago: TEAMS matches MathMaster']);

@@ -354,10 +354,30 @@ step reads and writes them in one transaction. Their deploy needs
    the sync stands and the last sync's *needs your decision* list, by lesson,
    TEAMS section and student. It loads nothing until opened, and sends only
    once the export history has loaded.
-3. **Publishing without the teacher.** Today grades reach the sync when the
-   teacher presses Send. A scheduled server job that builds the same targets
-   would remove that step; it needs Grade Transfer's projection to run on the
-   server.
+3. ~~**Publishing without the teacher.**~~ Done:
+   `publishTeamsSyncTargetsOnSchedule` runs every 30 minutes from 6 am to
+   10 pm, Central time. It rebuilds each linked class's targets on the server
+   and publishes only what changed. It uses **the same builder Grade Export
+   runs** (`buildTeamsSyncTargetsFromRecords`), and reads the records the
+   screen reads:
+   - the class's lessons, including those assigned to students one by one;
+   - each student's private controls;
+   - the roster;
+   - export history and Practice Passes;
+   - the current marking period.
+
+   A test pins that the server and the screen build identical targets from
+   the same records.
+
+   The builder lives in `src/`, so `scripts/sync-functions-teams-sync.mjs`
+   copies its 71-file module closure into `functions/vendor/` at predeploy,
+   as the weekly planner already does. The release planner treats a change to
+   any of those files as a Functions change.
+
+   A class is skipped, and keeps what it had, when it is archived, has no
+   teacher of record, or no student was read. One failing class never stops
+   the others. Without a deployed builder the job publishes nothing and logs
+   a warning. **Send now** on Grade Export still sends immediately.
 
 If Frontline ever offers a supported write API (route A), it replaces the
 extension, and the engine and server stay as they are.
