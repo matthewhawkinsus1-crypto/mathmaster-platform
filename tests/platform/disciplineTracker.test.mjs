@@ -257,6 +257,10 @@ test('the principal report says which violations are not on the district form ye
   assert.match(report.body, /- Mon, 11\/30 8:10 AM: Dress Code \(may not be on the district form: its send got no answer\)/);
   assert.match(report.body, /- Tue, 12\/1 9:15 AM: Device Collected \(not on the district form: the send failed\)/);
   assert.match(report.body, /- Tue, 12\/1 10:15 AM: Tardy \(not yet on the district form\)/);
+  // A SchoolStatus test student's violations are never posted (testOnly).
+  const test = principalReport({ offenders: repeatOffenders({ incidents: list.map((entry) => ({ ...entry, form: { state: 'testOnly' } })), asOfDateKey: '2026-12-01' }), studentsById: students, asOfDateKey: '2026-12-01' });
+  assert.match(test.body, /Tardy \(a SchoolStatus test student: never sent to the district form\)/);
+  assert.doesNotMatch(test.body, /not yet on the district form/);
 });
 
 test('the Outlook link opens a filled-in message for the teacher to review and send', () => {

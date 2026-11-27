@@ -476,6 +476,7 @@ const reportFormNote = (incident = {}) => {
   if (state === 'submitted') return '';
   if (state === 'unknown') return ' (may not be on the district form: its send got no answer)';
   if (state === 'failed') return ' (not on the district form: the send failed)';
+  if (state === 'testOnly') return ' (a SchoolStatus test student: never sent to the district form)';
   return ' (not yet on the district form)';
 };
 
