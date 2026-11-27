@@ -19,7 +19,10 @@ test('every TEAMS sync callable checks the teacher of record before it touches a
     const source = body(name);
     const teacher = source.indexOf('await requireTeacher(request)');
     const authority = source.indexOf('await gradeTransferClassAuthority(db, request, request.data?.classId)');
-    const firstCollection = source.indexOf('.collection("teamsSync');
+    // A callable touches TEAMS sync state itself, or through the one shared
+    // write (writeTeamsSyncTargets); either way only after the check.
+    const firstCollection = [source.indexOf('.collection("teamsSync'), source.indexOf('writeTeamsSyncTargets(')]
+      .filter((index) => index >= 0).sort((a, b) => a - b)[0] ?? -1;
     assert.ok(teacher >= 0, `${name} requires a teacher`);
     assert.ok(authority > teacher, `${name} checks the teacher of record`);
     assert.ok(firstCollection > authority, `${name} reads or writes TEAMS sync state only after the authority check`);
@@ -42,11 +45,23 @@ test('a sync step reads, plans and writes inside one transaction', () => {
   assert.doesNotMatch(inside, /\bbatch\(\)/, 'no write outside the transaction');
 });
 
-test('published grades are checked against the class roster on the server', () => {
-  const source = body('publishTeamsSyncTargets');
-  assert.match(source, /collection\("grades"\)\.where\("classId", "==", authority\.classId\)/);
-  assert.match(source, /module\.teamsRosterIndex\(/);
-  assert.match(source, /module\.normalizeTeamsTargets\(\{[\s\S]*roster,/);
+test('published grades are checked against the class roster on the server, by the button and the schedule alike', () => {
+  const write = body('writeTeamsSyncTargets');
+  assert.match(write, /collection\("grades"\)\.where\("classId", "==", classId\)/);
+  // ...and against every student the teacher holds: a district ID two of
+  // them carry is left out of the index, so no grade is stored under it.
+  assert.match(write, /collection\("grades"\)\.where\("assignedTeacherEmail", "==", rosterEmail\)\.select\("sisStudentId"\)/);
+  assert.match(write, /module\.teamsRosterIndex\(recordsOf\(members\), \{ sharedWith: recordsOf\(teacherRoster\) \}\)/);
+  assert.match(write, /module\.normalizeTeamsTargets\(\{[\s\S]*roster,/);
+  // Only changed targets are rewritten.
+  assert.match(write, /const changed = targets\.filter\(\(target\) => stored\.get\(teamsSyncDocId\(classId, target\.key\)\) !== JSON\.stringify\(teamsSyncPlain\(target\)\)\);/);
+  assert.match(write, /\.\.\.changed\.map\(\(target\) => \(batch\) => batch\.set\(/);
+  // The button passes the class the authority check returned.
+  assert.match(body('publishTeamsSyncTargets'), /writeTeamsSyncTargets\(\{\s*db, module, classId: authority\.classId, email: authority\.email, teacherOfRecord: authority\.classData\.teacherOfRecord,/);
+  // The schedule writes through the same function, never its own.
+  const schedule = body('publishTeamsSyncTargetsOnSchedule');
+  assert.match(schedule, /publish: \(\{ classId, email, targetsInput, publishedBy \}\) => writeTeamsSyncTargets\(\{ db, module, classId, email, targetsInput, publishedBy \}\)/);
+  assert.doesNotMatch(schedule, /collection\("teamsSync/, 'no write of its own');
 });
 
 test('the TEAMS sync collections are server-only in the rules', () => {

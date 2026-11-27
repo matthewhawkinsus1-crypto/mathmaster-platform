@@ -20,6 +20,13 @@ import {
   normalizeViolationInput,
 } from '../../../functions/shared/disciplineTracker.mjs';
 import {
+  TeamsSyncInputError,
+  normalizeTeamsSections,
+  normalizeTeamsTargets,
+  teamsRosterIndex,
+  teamsSyncStep as runTeamsSyncStep,
+} from '../../../functions/shared/teamsSyncServer.mjs';
+import {
   ASSIGNMENT_OVERRIDE_ARCHIVES_COLLECTION,
   OVERRIDE_CHANGE,
   OVERRIDE_MIGRATION_ID,
@@ -86,6 +93,16 @@ const requireStudent = () => {
   if (!studentId) throw rejection('permission-denied', 'A student session is required.');
   return studentId;
 };
+// The TEAMS sync's input errors answer invalid-argument, as on the server.
+const teamsSyncHarnessInput = (fn) => {
+  try {
+    return fn();
+  } catch (error) {
+    if (error instanceof TeamsSyncInputError) throw rejection('invalid-argument', error.message);
+    throw error;
+  }
+};
+
 // The class's teacher of record (the harness teacher) or a refusal, as the
 // server's requireClassTeacher decides.
 const requireClassTeacher = (classId) => {
@@ -651,6 +668,46 @@ const handlers = {
     return { submitted: [...students].map((key) => ({ key })), waiting: [], blocked: [], retry: [], failed: [], unknown: [], formProblems: [] };
   },
   resolveDisciplineFormState: () => ({ changed: [] }),
+  // The TEAMS sync (#612): the real pure server module, a class's state in one
+  // harness document (the server splits it across three collections).
+  setTeamsSyncSections: ({ classId, sections } = {}) => {
+    const cls = requireClassTeacher(classId);
+    const clean = teamsSyncHarnessInput(() => normalizeTeamsSections(sections));
+    harnessStore.set(`teamsSyncClasses/${cls}`, { ...(harnessStore.get(`teamsSyncClasses/${cls}`) || {}), classId: cls, sections: clean, issued: null });
+    return { classId: cls, sections: clean };
+  },
+  publishTeamsSyncTargets: ({ classId, targets } = {}) => {
+    const cls = requireClassTeacher(classId);
+    const state = harnessStore.get(`teamsSyncClasses/${cls}`) || {};
+    const roster = teamsRosterIndex(rosterPaths().map((path) => ({ id: path.split('/')[1], ...harnessStore.get(path) })).filter((student) => student.classId === cls));
+    const result = teamsSyncHarnessInput(() => normalizeTeamsTargets({ targets, classId: cls, roster, sectionCount: (state.sections || []).length || 1 }));
+    harnessStore.set(`teamsSyncClasses/${cls}`, { ...state, classId: cls, targets: result.targets, targetCount: result.targets.length, targetsPublishedAt: new Date().toISOString() });
+    return { classId: cls, published: result.targets.length, droppedRows: result.droppedRows };
+  },
+  getTeamsSyncState: ({ classId } = {}) => {
+    const cls = requireClassTeacher(classId);
+    const state = harnessStore.get(`teamsSyncClasses/${cls}`) || {};
+    return {
+      classId: cls,
+      sections: state.sections || [],
+      capabilities: state.capabilities || null,
+      targetCount: Number(state.targetCount || 0),
+      targetsPublishedAt: state.targetsPublishedAt || null,
+      targetsCheckedAt: state.targetsPublishedAt || null,
+      targetsCheckedBy: state.targetsPublishedAt ? 'teacher' : null,
+      lastStep: state.lastStep || null,
+      batchLeasedUntil: state.issued?.leaseUntil ? new Date(Number(state.issued.leaseUntil)).toISOString() : null,
+    };
+  },
+  teamsSyncStep: ({ classId, runnerId, readbacks, outcomes, dryRun } = {}) => {
+    const cls = requireClassTeacher(classId);
+    const state = harnessStore.get(`teamsSyncClasses/${cls}`) || {};
+    const result = teamsSyncHarnessInput(() => runTeamsSyncStep({
+      classState: state, targets: state.targets || [], ledger: state.ledger || {}, readbacks, outcomes, runnerId, now: Date.now(), dryRun: dryRun === true,
+    }));
+    if (result.changed) harnessStore.set(`teamsSyncClasses/${cls}`, { ...state, ...JSON.parse(JSON.stringify(result.classState)), ledger: JSON.parse(JSON.stringify(result.ledger)) });
+    return result.response;
+  },
   listGradeTransferState: ({ classIds = [] } = {}) => ({
     snapshots: harnessStore.paths('gradeTransferSnapshots/')
       .map((path) => ({ id: path.split('/')[1], ...harnessStore.get(path) }))

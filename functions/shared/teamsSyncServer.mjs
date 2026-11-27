@@ -33,7 +33,7 @@ import {
   teamsAssignmentName,
   teamsOpFile,
 } from './teamsSyncEngine.mjs';
-import { effectiveDistrictStudentId, isValidDistrictStudentId } from './studentDistrictId.mjs';
+import { canonicalDistrictStudentId, effectiveDistrictStudentId, isValidDistrictStudentId } from './studentDistrictId.mjs';
 
 export const TEAMS_SYNC_LIMITS = Object.freeze({
   sectionsPerClass: 3,
@@ -103,10 +103,29 @@ export const normalizeTeamsCapabilities = (input = null) => {
 /**
  * The class's students as the server knows them: studentId -> district ID.
  * `students` are grades/{id} records ({ id, sisStudentId }).
+ *
+ * `sharedWith` is every student the teacher holds (grades where
+ * assignedTeacherEmail, the roster Grade Export checks). A district ID that
+ * two different students carry there or in the class (leading zeros ignored)
+ * is left out of the index, so no grade is stored under it: two children
+ * under one district ID collide in TEAMS whichever class each is in, and
+ * Grade Export holds both back (gradeTransferModel.js sharedSisStudentIds).
  */
-export const teamsRosterIndex = (students = []) => new Map((students || [])
-  .map((student) => [text(student.id ?? student.studentId), effectiveDistrictStudentId(student)])
-  .filter(([id, sis]) => id && isValidDistrictStudentId(sis)));
+export const teamsRosterIndex = (students = [], { sharedWith = [] } = {}) => {
+  const idOf = (student) => text(student?.id ?? student?.studentId);
+  const holders = new Map();
+  [...(students || []), ...(sharedWith || [])].forEach((student) => {
+    const canonical = canonicalDistrictStudentId(effectiveDistrictStudentId(student || {}));
+    const id = idOf(student);
+    if (!canonical || !id) return;
+    if (!holders.has(canonical)) holders.set(canonical, new Set());
+    holders.get(canonical).add(id);
+  });
+  return new Map((students || [])
+    .map((student) => [idOf(student), effectiveDistrictStudentId(student || {})])
+    .filter(([id, sis]) => id && isValidDistrictStudentId(sis))
+    .filter(([, sis]) => (holders.get(canonicalDistrictStudentId(sis))?.size || 0) <= 1));
+};
 
 /**
  * Validate what Grade Transfer published for one class. A row is kept only
@@ -315,6 +334,14 @@ export const teamsSyncStep = ({
     return { opId, op, wire: wireOp(op, opId, plan) };
   });
 
+  // Every exception names its lesson and TEAMS section, so a teacher reading
+  // "needs your decision" knows where to look in TEAMS.
+  const lessonOf = new Map(routed.map((target) => [target.key, target.name]));
+  const sectionOfPlan = new Map(plans.map((plan) => [plan.key, { targetKey: plan.targetKey || plan.key, sectionRef: plan.sectionRef || null }]));
+  const exceptions = plans.flatMap((plan) => plan.exceptions).map((item) => {
+    const where = sectionOfPlan.get(item.key) || { targetKey: item.key, sectionRef: null };
+    return { ...item, targetKey: where.targetKey, sectionRef: where.sectionRef, lesson: lessonOf.get(where.targetKey) || '' };
+  });
   const response = {
     status: ops.length ? 'work' : 'done',
     stepId: dryRun ? null : stepId,
@@ -323,7 +350,7 @@ export const teamsSyncStep = ({
     remainingOps: Math.max(0, planned.length - batch.length),
     unreadSections: linked.filter((ref) => !gradebooks.has(ref)),
     summary: summarizeTeamsPlans(plans),
-    exceptions: plans.flatMap((plan) => plan.exceptions),
+    exceptions,
     plans: compactPlans(plans),
   };
   if (dryRun) return { classState, ledger, changed: false, response };
@@ -341,6 +368,18 @@ export const teamsSyncStep = ({
       status: response.status,
       summary: response.summary,
       exceptionCount: response.exceptions.length,
+      // What Grade Transfer shows as "needs your decision": the first 60,
+      // with only what a teacher needs to find each one in TEAMS.
+      exceptions: response.exceptions.slice(0, 60).map((item) => ({
+        code: item.code,
+        message: item.message,
+        lesson: item.lesson,
+        sectionRef: item.sectionRef,
+        studentId: item.studentId || '',
+        sisStudentId: item.sisStudentId || '',
+        ...(item.teams !== undefined ? { teams: item.teams } : {}),
+        ...(item.mathmaster !== undefined ? { mathmaster: item.mathmaster } : {}),
+      })),
       unreadSections: response.unreadSections,
     },
   };

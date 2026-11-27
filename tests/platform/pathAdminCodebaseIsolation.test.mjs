@@ -44,6 +44,9 @@ test('path-admin is an additive Firebase Functions codebase of its own', () => {
     // Student push I, item 5: the freeze plans a short week with the
     // browser's own planner, copied into functions/vendor/ (gitignored).
     'node scripts/sync-functions-weekly-planner.mjs',
+    // #612: the scheduled TEAMS sync publish builds targets with Grade
+    // Transfer's own builder, copied into functions/vendor/ the same way.
+    'node scripts/sync-functions-teams-sync.mjs',
   ]);
 });
 
