@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   REPEAT_RULE,
   VIOLATION_TYPES,
@@ -15,6 +15,8 @@ import {
 import {
   dayIncidentsByStudent,
   daySummary,
+  draftsWithFamilyMessages,
+  familyMessageWords,
   formStateWords,
   newTapId,
   parentDrafts,
@@ -23,10 +25,13 @@ import {
 import {
   getDisciplineSettings,
   listDisciplineIncidents,
+  queueFamilyMessages,
   recordDisciplineIncident,
   resolveDisciplineFormState,
+  resolveFamilyMessage,
   saveDisciplineSettings,
   setDisciplineIncidentDetail,
+  setFamilyMessagingMode,
   submitDisciplineFormsNow,
   voidDisciplineIncident,
 } from '../../platform/teacher/disciplineStore.js';
@@ -47,8 +52,12 @@ import './disciplineTracker.css';
  *   - after the class period ends, the backend fills in the district's Campus
  *     Violation Tracker form, one response per student, with every category
  *     they had in that class that day (functions/lib/disciplineFormBatch.js);
- *   - "Messages to families" drafts one message per student for the day;
- *     logging it as sent records it in Parent Contacts;
+ *   - "Messages to families" drafts one message per student for the day.
+ *     Send to families queues them; the MathMaster extension in the
+ *     teacher's Chrome sends each one from their signed-in SchoolStatus
+ *     (window.mathmasterFamilyMessages, installed while this screen is open)
+ *     and a sent message is logged in Parent Contacts by the server. A
+ *     message can still be copied and logged by hand;
  *   - "Principal report" lists repeat offenders with every date and time and
  *     how each family was contacted, ready to open in Outlook.
  *
@@ -61,6 +70,15 @@ const SEND_METHODS = [
   { id: 'email', label: 'Email', notes: 'Sent by email' },
   { id: 'phone', label: 'Phone call', notes: 'Phone call' },
 ];
+
+const QUEUE_WORDS = {
+  testModeSkipped: 'not a test student',
+  noDistrictId: 'no district ID',
+  alreadySent: 'already sent',
+  inFlight: 'being sent',
+  needsTeacher: 'waiting for you to check SchoolStatus',
+  notOnRoster: 'not on the roster',
+};
 
 const copyText = async (value) => {
   try {
@@ -93,6 +111,9 @@ export default function DisciplineTracker({
   const [busy, setBusy] = useState(false);
   const [settings, setSettings] = useState({ principalEmail: '', principalName: '', teacherName: '' });
   const [settingsDraft, setSettingsDraft] = useState(null);
+  const [familyMessages, setFamilyMessages] = useState([]);
+  const [messaging, setMessaging] = useState({ mode: 'off', testDistrictIds: [] });
+  const [switchDraft, setSwitchDraft] = useState(null);
 
   const isToday = dateKey === today;
   const windowStart = schoolDaysEndingOn(dateKey, REPEAT_RULE.totalSchoolDays)[0] || dateKey;
@@ -102,12 +123,27 @@ export default function DisciplineTracker({
       const result = await listDisciplineIncidents({ fromDateKey: windowStart, toDateKey: dateKey });
       setIncidents(result.incidents || []);
       setFormStatus(result.formStatus || null);
+      setFamilyMessages(result.familyMessages || []);
+      setMessaging(result.familyMessaging || { mode: 'off', testDistrictIds: [] });
       setLoaded(true);
     } catch (error) {
       setMessage({ tone: 'danger', text: `Violations could not load: ${error.message}` });
     }
   };
   useEffect(() => { load(); }, [dateKey]);
+  // The SchoolStatus extension works through this screen while it is open:
+  // window.mathmasterFamilyMessages. Each of its calls refreshes the list, so
+  // the teacher watches every message go from queued to sent.
+  const loadRef = useRef(load);
+  loadRef.current = load;
+  useEffect(() => {
+    let undo = () => {};
+    let closed = false;
+    import('../../platform/teacher/familyMessageBridge.js').then(({ createFamilyMessageBridge, installFamilyMessageBridge }) => {
+      if (!closed) undo = installFamilyMessageBridge(createFamilyMessageBridge({ onChange: () => loadRef.current() }));
+    }).catch(() => {});
+    return () => { closed = true; undo(); };
+  }, []);
   useEffect(() => {
     getDisciplineSettings().then((value) => setSettings({ principalEmail: '', principalName: '', teacherName: '', ...value })).catch(() => {});
   }, []);
@@ -189,9 +225,56 @@ export default function DisciplineTracker({
     }
   };
 
-  const drafts = useMemo(() => parentDrafts({
-    incidents, classId, dateKey, studentsById, teacherName: signature, classLabel, contacts,
-  }), [incidents, classId, dateKey, studentsById, signature, classLabel, contacts]);
+  const drafts = useMemo(() => draftsWithFamilyMessages({
+    drafts: parentDrafts({ incidents, classId, dateKey, studentsById, teacherName: signature, classLabel, contacts }),
+    messages: familyMessages, messaging, classId, dateKey, teacherName: signature, classLabel,
+  }), [incidents, classId, dateKey, studentsById, signature, classLabel, contacts, familyMessages, messaging]);
+  const sendable = drafts.filter((draft) => draft.canQueue);
+  const isClassTeacher = String(activeClass?.teacherOfRecord || '').trim().toLowerCase() === String(teacherEmail || '').trim().toLowerCase();
+
+  // Send to families: queue the day's messages (all, or one student's). The
+  // server builds each one from the stored violations and the switch decides
+  // who may get one; the extension sends them from the teacher's SchoolStatus.
+  const sendToFamilies = async (studentIds = null) => {
+    setBusy(true);
+    try {
+      const result = await queueFamilyMessages({ classId, dateKey, studentIds });
+      await load();
+      const queued = (result.results || []).filter((entry) => ['queued', 'updated'].includes(entry.status)).length;
+      const skipped = (result.results || []).filter((entry) => QUEUE_WORDS[entry.status]);
+      const why = [...new Set(skipped.map((entry) => QUEUE_WORDS[entry.status]))].join(', ');
+      setMessage({
+        tone: queued ? 'success' : 'warning',
+        text: `${queued ? `Queued ${queued} message${queued === 1 ? '' : 's'}${result.mode === 'test' ? ' (test mode)' : ''}. They go out when the MathMaster SchoolStatus extension runs in your Chrome, and each one sent is logged in Parent Contacts.` : 'Nothing was queued.'}${skipped.length ? ` ${skipped.length} not queued: ${why}.` : ''}`,
+      });
+    } catch (error) {
+      setMessage({ tone: 'danger', text: error.message });
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const resolveMessage = async (familyMessage, action) => {
+    try {
+      await resolveFamilyMessage({ messageId: familyMessage.id, action });
+      await load();
+      if (action === 'markSent') setMessage({ tone: 'success', text: 'Recorded as sent and logged in Parent Contacts.' });
+    } catch (error) {
+      setMessage({ tone: 'danger', text: error.message });
+    }
+  };
+
+  const saveSwitch = async () => {
+    if (switchDraft.mode === 'live' && !window.confirm('Live: every family message you queue goes to the real guardians in SchoolStatus. Have you checked the test messages?')) return;
+    try {
+      const saved = await setFamilyMessagingMode(switchDraft);
+      setMessaging(saved);
+      setSwitchDraft(null);
+      setMessage({ tone: 'success', text: `SchoolStatus sending is ${saved.mode}.` });
+    } catch (error) {
+      setMessage({ tone: 'danger', text: error.message });
+    }
+  };
 
   const logSent = async (draft, method) => {
     if (typeof onRecordContact !== 'function') return;
@@ -205,7 +288,7 @@ export default function DisciplineTracker({
         occurredAt: new Date().toISOString(),
         method: choice.id,
         category: draft.contactCategory,
-        notes: `${choice.notes}. ${draft.message.subject}`,
+        notes: `${choice.notes}. ${draft.shownMessage.subject}`,
         outcome: 'Discipline message sent',
         followUpDate: '',
       });
@@ -361,26 +444,88 @@ export default function DisciplineTracker({
       </summary>
       <div className="tw-disclosure__body tw-stack" style={{ gap: 12 }}>
         <p className="tw-small tw-muted" style={{ margin: 0 }}>
-          One message per student, for the whole day. Send it through SchoolStatus (or email), then log it here so it appears in Parent Contacts and in the principal report.
+          One message per student, for the whole day. <strong>Send to families</strong> queues them; the MathMaster SchoolStatus extension sends each one from your SchoolStatus while this screen is open in Chrome, and logs it in Parent Contacts. You can still copy a message and log it yourself.
         </p>
-        {drafts.map((draft) => (
-          <div key={draft.studentId} className="tw-card tw-stack" style={{ gap: 6 }} data-discipline-draft={draft.studentId}>
-            <div className="tw-row">
-              <strong>{formatStudentName(draft.student)}</strong>
-              {draft.contacted
-                ? <span className="tw-pill" data-tone="success">Family contacted {disciplineTime(draft.contacted.atMs)} ({draft.contacted.method})</span>
-                : <span className="tw-pill" data-tone="neutral">Not contacted yet</span>}
-            </div>
-            <div className="tw-small tw-strong">{draft.message.subject}</div>
-            <textarea className="tw-input" readOnly rows={6} value={draft.message.body} aria-label={`Message to ${formatStudentName(draft.student, { lastFirst: false })}'s family`} style={{ width: '100%', fontFamily: 'inherit' }} />
-            <div className="tw-row">
-              <button type="button" className="tw-btn tw-btn--sm" onClick={async () => setMessage((await copyText(draft.message.body)) ? { tone: 'success', text: 'Message copied.' } : { tone: 'warning', text: 'Copy was blocked: select the message and copy it.' })}>Copy message</button>
-              {onRecordContact && SEND_METHODS.map((method) => (
-                <button key={method.id} type="button" className="tw-btn tw-btn--sm tw-btn--quiet" onClick={() => logSent(draft, method.id)}>Log as sent: {method.label}</button>
-              ))}
-            </div>
+        {messaging.mode === 'off' && <div role="status" className="tw-notice">Sending through SchoolStatus is not turned on yet. Copy the message, send it yourself, then log it here.</div>}
+        {messaging.mode === 'test' && (
+          <div role="status" className="tw-notice" data-tone="warning" data-family-test-mode>
+            Test mode: only the test student{messaging.testDistrictIds.length === 1 ? '' : 's'} ({messaging.testDistrictIds.map((id) => `ID ${id}`).join(', ')}) can be sent to. Every other message stays a draft.
           </div>
-        ))}
+        )}
+        {messaging.mode !== 'off' && isClassTeacher && (
+          <div className="tw-row">
+            <button type="button" className="tw-btn tw-btn--sm tw-btn--primary" disabled={busy || !sendable.length} onClick={() => sendToFamilies()} data-send-to-families>
+              {busy ? 'Queueing…' : `Send to families${sendable.length ? ` (${sendable.length})` : ''}`}
+            </button>
+          </div>
+        )}
+        {isRootAdmin && (
+          <div className="tw-card tw-card--muted tw-stack" style={{ gap: 6 }} data-family-switch>
+            {switchDraft ? (
+              <div className="tw-row" style={{ alignItems: 'flex-end' }}>
+                <label className="tw-small tw-strong" style={{ display: 'grid', gap: 4 }}>
+                  SchoolStatus sending
+                  <select className="tw-select" value={switchDraft.mode} onChange={(event) => setSwitchDraft((current) => ({ ...current, mode: event.target.value }))}>
+                    <option value="off">Off</option>
+                    <option value="test">Test (test students only)</option>
+                    <option value="live">Live (every family)</option>
+                  </select>
+                </label>
+                <label className="tw-small tw-strong" style={{ display: 'grid', gap: 4, flex: '1 1 200px' }}>
+                  Test students&apos; district IDs
+                  <input className="tw-input" value={switchDraft.testDistrictIds} onChange={(event) => setSwitchDraft((current) => ({ ...current, testDistrictIds: event.target.value }))} />
+                </label>
+                <button type="button" className="tw-btn tw-btn--sm tw-btn--primary" onClick={saveSwitch}>Save</button>
+                <button type="button" className="tw-btn tw-btn--sm" onClick={() => setSwitchDraft(null)}>Cancel</button>
+                <p className="tw-small tw-muted" style={{ margin: 0, flexBasis: '100%' }}>
+                  In test mode, messages go only to the test students&apos; families in SchoolStatus, so choose a student whose guardian contact is your own phone. A test student&apos;s violations are never sent to the district form while test mode is on.
+                </p>
+              </div>
+            ) : (
+              <div className="tw-row tw-small">
+                <span>SchoolStatus sending (administrator): <strong>{messaging.mode}</strong>{messaging.mode === 'test' ? `, test IDs ${messaging.testDistrictIds.join(', ')}` : ''}</span>
+                <button type="button" className="tw-link" onClick={() => setSwitchDraft({ mode: messaging.mode, testDistrictIds: messaging.testDistrictIds.join(', ') })}>Change</button>
+              </div>
+            )}
+          </div>
+        )}
+        {drafts.map((draft) => {
+          const state = familyMessageWords(draft.latestMessage);
+          const who = formatStudentName(draft.student, { lastFirst: false });
+          return (
+            <div key={draft.studentId} className="tw-card tw-stack" style={{ gap: 6 }} data-discipline-draft={draft.studentId}>
+              <div className="tw-row">
+                <strong>{formatStudentName(draft.student)}</strong>
+                {draft.contacted
+                  ? <span className="tw-pill" data-tone="success">Family contacted {disciplineTime(draft.contacted.atMs)} ({draft.contacted.method})</span>
+                  : <span className="tw-pill" data-tone="neutral">Not contacted yet</span>}
+                <span className="tw-pill" data-tone={state.tone} data-family-message-state={draft.latestMessage?.state || 'draft'}>{state.label}</span>
+              </div>
+              {draft.followUp && <div className="tw-small tw-muted">A follow-up for the violations after the last message sent.</div>}
+              <div className="tw-small tw-strong">{draft.shownMessage.subject}</div>
+              <textarea className="tw-input" readOnly rows={6} value={draft.shownMessage.body} aria-label={`Message to ${who}'s family`} style={{ width: '100%', fontFamily: 'inherit' }} />
+              {draft.blockedReason && messaging.mode !== 'off' && <div className="tw-small tw-muted">{draft.blockedReason}</div>}
+              <div className="tw-row">
+                {messaging.mode !== 'off' && isClassTeacher && draft.canQueue && (
+                  <button type="button" className="tw-btn tw-btn--sm tw-btn--primary" disabled={busy} onClick={() => sendToFamilies([draft.studentId])}>Send to family</button>
+                )}
+                {draft.cancellable.map((familyMessage) => (
+                  <button key={familyMessage.id} type="button" className="tw-btn tw-btn--sm" onClick={() => resolveMessage(familyMessage, 'cancel')}>Cancel sending</button>
+                ))}
+                {draft.needsDecision.map((familyMessage) => (
+                  <span key={familyMessage.id} className="tw-row" style={{ gap: 6 }}>
+                    <button type="button" className="tw-btn tw-btn--sm" onClick={() => resolveMessage(familyMessage, 'requeue')}>Send again</button>
+                    <button type="button" className="tw-btn tw-btn--sm" onClick={() => resolveMessage(familyMessage, 'markSent')}>It was sent</button>
+                  </span>
+                ))}
+                <button type="button" className="tw-btn tw-btn--sm" onClick={async () => setMessage((await copyText(draft.shownMessage.body)) ? { tone: 'success', text: 'Message copied.' } : { tone: 'warning', text: 'Copy was blocked: select the message and copy it.' })}>Copy message</button>
+                {onRecordContact && SEND_METHODS.map((method) => (
+                  <button key={method.id} type="button" className="tw-btn tw-btn--sm tw-btn--quiet" onClick={() => logSent(draft, method.id)}>Log as sent: {method.label}</button>
+                ))}
+              </div>
+            </div>
+          );
+        })}
         {drafts.length === 0 && <div className="tw-small tw-muted">No violations for {classLabel} on this day.</div>}
       </div>
     </details>

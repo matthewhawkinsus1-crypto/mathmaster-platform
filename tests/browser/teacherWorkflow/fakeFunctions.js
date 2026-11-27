@@ -17,8 +17,26 @@ import { TEACHER_EMAIL } from './fixture.js';
 import {
   DisciplineInputError,
   disciplineDateKey,
+  formStudentName,
+  isVoidedIncident,
   normalizeViolationInput,
 } from '../../../functions/shared/disciplineTracker.mjs';
+import {
+  FamilyMessageError,
+  claimFamilyMessage,
+  districtIdOf,
+  familyMessageDraft,
+  familyMessageKey,
+  familyMessageView,
+  messagingGate,
+  normalizeMessagingSettings,
+  parentContactForFamilyMessage,
+  planFamilyMessageQueue,
+  releaseFamilyMessage,
+  reportFamilyMessage,
+  startFamilyMessageSend,
+  teacherFamilyMessageAction,
+} from '../../../functions/shared/familyMessages.mjs';
 import {
   ASSIGNMENT_OVERRIDE_ARCHIVES_COLLECTION,
   OVERRIDE_CHANGE,
@@ -102,6 +120,27 @@ const documentsWhere = (collectionName, fields) => harnessStore.paths(`${collect
   .map((path) => ({ id: path.split('/')[1], ...harnessStore.get(path) }))
   .filter((entry) => Object.entries(fields).every(([key, value]) => entry[key] === value));
 const plainTimes = (entry) => ({ ...entry, createdAt: iso(entry.createdAt), updatedAt: iso(entry.updatedAt) });
+// Family messages: the queue's refusals as the callables give them.
+const familyMessageFake = (fn) => {
+  try {
+    return fn();
+  } catch (error) {
+    if (error instanceof FamilyMessageError) throw rejection(error.code, error.message);
+    throw error;
+  }
+};
+const familyMessageRecord = (messageId) => {
+  const stored = harnessStore.get(`familyMessages/${messageId}`);
+  if (!stored || lower(stored.teacherOfRecord) !== lower(TEACHER_EMAIL)) throw rejection('not-found', 'That message was not found.');
+  return { id: messageId, ...stored };
+};
+const writeFamilyContact = (message, logContact, nowMs) => {
+  harnessStore.set(`parentContactLogs/familyMessage_${message.id}`, {
+    ...parentContactForFamilyMessage(message, { ...logContact, nowMs }),
+    createdAtServer: Timestamp.now(),
+  });
+  harnessStore.update(`familyMessages/${message.id}`, { parentContactId: `familyMessage_${message.id}` });
+};
 // Scenario knobs: fail the next N snapshot saves; make weekly Path fail like production did.
 harness.failNextPersists = harness.failNextPersists || 0;
 harness.weeklyPathFails = new URLSearchParams(window.location.search).get('weeklyPath') !== 'ok';
@@ -634,7 +673,105 @@ const handlers = {
       .map((path) => ({ id: path.split('/')[1], ...harnessStore.get(path) }))
       .filter((entry) => entry.teacherOfRecord === lower(TEACHER_EMAIL) && entry.dateKey >= fromDateKey && entry.dateKey <= toDateKey),
     formStatus: harnessStore.get('disciplineStatus/form') || null,
+    familyMessages: harnessStore.paths('familyMessages/')
+      .map((path) => familyMessageView({ id: path.split('/')[1], ...harnessStore.get(path) }, Date.now()))
+      .filter((entry) => entry.dateKey >= fromDateKey && entry.dateKey <= toDateKey),
+    familyMessaging: normalizeMessagingSettings(harnessStore.get('disciplineStatus/familyMessaging') || {}),
   }),
+  // Family messages through SchoolStatus (functions/lib/familyMessageOutbox.js),
+  // on the same pure rules. Nothing leaves the browser: the harness plays the
+  // extension through window.mathmasterFamilyMessages.
+  queueFamilyMessages: ({ classId, dateKey, studentIds = null } = {}) => familyMessageFake(() => {
+    const cls = requireClassTeacher(classId);
+    const settings = normalizeMessagingSettings(harnessStore.get('disciplineStatus/familyMessaging') || {});
+    if (settings.mode === 'off') throw new FamilyMessageError('Sending to families through SchoolStatus is not turned on yet.');
+    const nowMs = Date.now();
+    const classRecord = harnessStore.get(`classes/${cls}`) || {};
+    const incidents = documentsWhere('disciplineIncidents', { classId: cls, dateKey })
+      .filter((entry) => !studentIds || studentIds.includes(entry.studentId))
+      .sort((left, right) => left.occurredAtMs - right.occurredAtMs);
+    const byStudent = new Map();
+    incidents.forEach((entry) => byStudent.set(entry.studentId, [...(byStudent.get(entry.studentId) || []), entry]));
+    const teacherName = harnessStore.get(`disciplineSettings/${lower(TEACHER_EMAIL)}`)?.teacherName || '';
+    const results = [...byStudent].map(([studentId, list]) => {
+      const student = harnessStore.get(`grades/${studentId}`) || {};
+      const sisStudentId = districtIdOf(studentId, student);
+      const gate = messagingGate(settings, sisStudentId);
+      if (!gate.allowed) return { studentId, status: settings.mode === 'test' && sisStudentId ? 'testModeSkipped' : 'noDistrictId' };
+      const messageKey = familyMessageKey({ classId: cls, dateKey, studentId });
+      const existing = documentsWhere('familyMessages', { messageKey });
+      const plan = planFamilyMessageQueue({ incidents: list, messages: existing, nowMs });
+      if (plan.action === 'none') return { studentId, status: plan.why };
+      const covered = list.filter((entry) => plan.incidentIds.includes(entry.id));
+      const draft = familyMessageDraft({ student: { id: studentId, ...student }, incidents: covered, dateKey, teacherName, classLabel: classRecord.name || classRecord.period || cls });
+      const messageId = plan.messageId || `${Array.from({ length: 32 }, () => Math.floor(Math.random() * 16).toString(16)).join('')}_${plan.sequence}`;
+      harnessStore.set(`familyMessages/${messageId}`, {
+        ...harnessStore.get(`familyMessages/${messageId}`),
+        messageKey, sequence: plan.sequence, teacherOfRecord: lower(TEACHER_EMAIL), classId: cls, classLabel: classRecord.name || classRecord.period || cls,
+        classPeriod: classRecord.period || '', studentId, studentName: formStudentName({ id: studentId, ...student }), sisStudentId, dateKey,
+        incidentIds: plan.incidentIds, subject: draft.subject, body: draft.body, contactCategory: draft.contactCategory, mode: gate.mode,
+        state: 'queued', reason: null, attempt: null, queuedAtMs: nowMs, queuedByEmail: lower(TEACHER_EMAIL),
+      });
+      return { studentId, status: 'queued', messageId, sequence: plan.sequence };
+    });
+    return { mode: settings.mode, results };
+  }),
+  resolveFamilyMessage: ({ messageId, action } = {}) => familyMessageFake(() => {
+    const stored = familyMessageRecord(messageId);
+    const nowMs = Date.now();
+    const { update, logContact } = teacherFamilyMessageAction(stored, { action, nowMs, by: lower(TEACHER_EMAIL) });
+    harnessStore.update(`familyMessages/${messageId}`, update);
+    if (logContact) writeFamilyContact({ ...stored, ...update }, logContact, nowMs);
+    return familyMessageView({ ...stored, ...update }, nowMs);
+  }),
+  familyMessageOutbox: ({ action, runnerId = '', messageId = '', attemptId = '', outcome = '', reason = '', confirmation = {} } = {}) => familyMessageFake(() => {
+    const nowMs = Date.now();
+    const settings = normalizeMessagingSettings(harnessStore.get('disciplineStatus/familyMessaging') || {});
+    if (action === 'status') return { mode: settings.mode, testDistrictIds: settings.testDistrictIds, queued: documentsWhere('familyMessages', { state: 'queued' }).length, inFlight: 0, needsTeacher: 0 };
+    if (action === 'claim') {
+      const queued = documentsWhere('familyMessages', { teacherOfRecord: lower(TEACHER_EMAIL) })
+        .filter((entry) => familyMessageView(entry, nowMs).state === 'queued')
+        .sort((left, right) => left.queuedAtMs - right.queuedAtMs);
+      for (const stored of queued) {
+        const student = harnessStore.get(`grades/${stored.studentId}`) || {};
+        const decision = claimFamilyMessage(stored, {
+          runnerId, attemptId: `harness-${Math.random().toString(36).slice(2, 12)}`, nowMs,
+          current: {
+            settings, callerEmail: lower(TEACHER_EMAIL), teacherOfRecord: lower(harnessStore.get(`classes/${stored.classId}`)?.teacherOfRecord),
+            onRoster: student.classId === stored.classId, sisStudentId: districtIdOf(stored.studentId, student),
+            studentName: formStudentName({ id: stored.studentId, ...student }),
+            voidedIncidentIds: (stored.incidentIds || []).filter((id) => isVoidedIncident(harnessStore.get(`disciplineIncidents/${id}`))),
+          },
+        });
+        if (decision.update) harnessStore.update(`familyMessages/${stored.id}`, decision.update);
+        if (decision.handout) return { mode: settings.mode, message: decision.handout, held: 0 };
+      }
+      return { mode: settings.mode, message: null, held: 0 };
+    }
+    const stored = familyMessageRecord(messageId);
+    if (action === 'start') {
+      const gate = messagingGate(settings, stored.sisStudentId);
+      if (!gate.allowed) throw new FamilyMessageError(`Do not send: ${gate.reason}`);
+      const update = startFamilyMessageSend(stored, { attemptId, nowMs });
+      harnessStore.update(`familyMessages/${messageId}`, update);
+      return { messageId, state: 'sending', leaseUntilMs: update.attempt.leaseUntilMs, mode: gate.mode };
+    }
+    if (action === 'release') {
+      const update = releaseFamilyMessage(stored, { attemptId, reason, nowMs });
+      if (update) harnessStore.update(`familyMessages/${messageId}`, update);
+      return { messageId, released: Boolean(update) };
+    }
+    if (action === 'report') {
+      const { update, logContact } = reportFamilyMessage(stored, { attemptId, outcome, reason, confirmation, nowMs });
+      harnessStore.update(`familyMessages/${messageId}`, update);
+      if (logContact) writeFamilyContact({ ...stored, ...update }, logContact, nowMs);
+      return { messageId, state: update.state };
+    }
+    throw rejection('invalid-argument', 'Choose status, claim, start, report or release.');
+  }),
+  setFamilyMessagingMode: () => {
+    throw rejection('permission-denied', 'This action is restricted to the MathMaster root administrator.');
+  },
   getDisciplineSettings: () => ({ principalEmail: '', principalName: '', teacherName: '', ...(harnessStore.get(`disciplineSettings/${lower(TEACHER_EMAIL)}`) || {}) }),
   saveDisciplineSettings: (settings = {}) => {
     const saved = { principalEmail: String(settings.principalEmail || ''), principalName: String(settings.principalName || ''), teacherName: String(settings.teacherName || '') };

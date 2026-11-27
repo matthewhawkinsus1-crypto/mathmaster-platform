@@ -12,11 +12,14 @@ import {
   contactForDay,
   dayIncidentsByStudent,
   daySummary,
+  draftsWithFamilyMessages,
+  familyMessageWords,
   formStateWords,
   newTapId,
   parentDrafts,
   recentViolationCount,
 } from '../../src/platform/teacher/disciplineTrackerModel.js';
+import { createFamilyMessageBridge, installFamilyMessageBridge } from '../../src/platform/teacher/familyMessageBridge.js';
 import { componentSource, executableSource, region } from './helpers/sourceContract.mjs';
 
 const at = (hhmm, day = '2026-11-30') => Date.parse(`${day}T${hhmm}:00-06:00`);
@@ -31,6 +34,7 @@ test('each tap says where it is with the district form', () => {
   assert.deepEqual(formStateWords(tap({ form: { state: 'submitted' } })), { label: 'Sent to district form', tone: 'success' });
   assert.equal(formStateWords(tap({ form: { state: 'unknown' } })).tone, 'warning');
   assert.equal(formStateWords(tap({ form: { state: 'failed', reason: 'The form refused the response (400).' } })).label, 'Not sent: The form refused the response (400).');
+  assert.equal(formStateWords(tap({ form: { state: 'testOnly' } })).label, 'Test student: not sent to the district form');
 });
 
 test('the day view: this class, this day, oldest first, undone taps gone', () => {
@@ -116,4 +120,89 @@ test('a family message logged here is a Parent Contacts record; the principal re
   assert.match(log, /outcome: 'Discipline message sent',/);
   assert.match(source, /href=\{outlookComposeUrl\(\{ to: settings\.principalEmail, subject: report\.subject, body: report\.body \}\)\}/);
   assert.match(source, /repeatOffenders\(\{ incidents, asOfDateKey: dateKey \}\)/);
+});
+
+/* ------------------------------------------------------------ Send to families */
+
+const ADA = { id: 'u-ada', firstName: 'Ada', lastName: 'Lovelace', sisStudentId: '1500101' };
+const BEN = { id: 'u-ben', firstName: 'Ben', lastName: 'Ortiz', sisStudentId: '1500102' };
+const familyDrafts = (incidents, messages = [], messaging = { mode: 'test', testDistrictIds: ['1500101'] }) => draftsWithFamilyMessages({
+  drafts: parentDrafts({ incidents, classId: 'c1', dateKey: '2026-11-30', studentsById: new Map([['u-ada', ADA], ['u-ben', BEN]]), teacherName: 'Mr. Hawkins', classLabel: 'Algebra I' }),
+  messages, messaging, classId: 'c1', dateKey: '2026-11-30', teacherName: 'Mr. Hawkins', classLabel: 'Algebra I',
+});
+const kept = (overrides = {}) => ({ id: 'm1', messageKey: 'c1|2026-11-30|u-ada', sequence: 1, incidentIds: ['a'], state: 'queued', mode: 'test', subject: 's', body: 'b', ...overrides });
+
+test('each family message says where it is', () => {
+  assert.equal(familyMessageWords(null).label, 'Draft');
+  assert.match(familyMessageWords(kept()).label, /^Queued \(test\): goes out when the SchoolStatus extension runs/);
+  assert.equal(familyMessageWords(kept({ state: 'sent', mode: 'live', sentAtMs: at('09:12') })).label, 'Sent through SchoolStatus 9:12 AM');
+  assert.equal(familyMessageWords(kept({ state: 'unknown' })).tone, 'warning');
+  assert.equal(familyMessageWords(kept({ state: 'failed', reason: 'No student with that district ID in SchoolStatus' })).label, 'Not sent: No student with that district ID in SchoolStatus');
+});
+
+test('a draft can be sent only under the switch, once, and a later violation becomes a follow-up', () => {
+  const taps = [tap({ id: 'a' }), tap({ id: 'b', studentId: 'u-ben' })];
+  // Off: nothing can be sent.
+  const off = familyDrafts(taps, [], { mode: 'off' });
+  assert.deepEqual(off.map((draft) => draft.canQueue), [false, false]);
+  assert.match(off[0].blockedReason, /not turned on/);
+  // Test: only the test student.
+  const testMode = familyDrafts(taps);
+  assert.deepEqual(testMode.map((draft) => [draft.studentId, draft.canQueue]), [['u-ada', true], ['u-ben', false]]);
+  assert.match(testMode[1].blockedReason, /Test mode/);
+  assert.equal(testMode[0].shownMessage.body, testMode[0].message.body, 'the text shown is the text that will be sent');
+  // Queued: not queued twice, and it can be cancelled.
+  const queued = familyDrafts(taps, [kept()]);
+  assert.equal(queued[0].canQueue, false);
+  assert.deepEqual(queued[0].cancellable.map((message) => message.id), ['m1']);
+  // Sent: the sent text is shown and nothing more goes out...
+  const sent = familyDrafts(taps, [kept({ state: 'sent', body: 'what went out' })]);
+  assert.equal(sent[0].canQueue, false);
+  assert.equal(sent[0].shownMessage.body, 'what went out');
+  // ...until a later violation, which is a follow-up about only that one.
+  const later = familyDrafts([...taps, tap({ id: 'c', type: 'deviceCollected', occurredAtMs: at('10:00') })], [kept({ state: 'sent' })]);
+  assert.equal(later[0].canQueue, true);
+  assert.equal(later[0].followUp, true);
+  assert.match(later[0].shownMessage.body, /electronic device collected during class at 10:00 AM/);
+  assert.doesNotMatch(later[0].shownMessage.body, /arrived late/);
+  // Possibly sent: the teacher decides.
+  assert.deepEqual(familyDrafts(taps, [kept({ state: 'unknown' })])[0].needsDecision.map((message) => message.id), ['m1']);
+  assert.equal(familyDrafts(taps, [kept({ state: 'unknown' })])[0].canQueue, false);
+});
+
+test('the extension\'s bridge passes on only the protocol\'s fields, and the screen catches up after each call', async () => {
+  const calls = [];
+  let changes = 0;
+  const bridge = createFamilyMessageBridge({ api: { familyMessageOutbox: async (payload) => { calls.push(payload); return { ok: true }; } }, onChange: () => { changes += 1; } });
+  assert.equal(bridge.version, 1);
+  await bridge.claim({ runnerId: 'ext-runner-a', teacherEmail: 'someone@else.org' });
+  await bridge.start({ runnerId: 'ext-runner-a', messageId: 'm1', attemptId: 'attempt-1', body: 'injected' });
+  await bridge.report({ runnerId: 'ext-runner-a', messageId: 'm1', attemptId: 'attempt-1', outcome: 'sent', confirmation: { recipientCount: 2, channel: 'text', guardianPhone: '555' } });
+  assert.deepEqual(calls, [
+    { action: 'claim', runnerId: 'ext-runner-a' },
+    { action: 'start', runnerId: 'ext-runner-a', messageId: 'm1', attemptId: 'attempt-1' },
+    { action: 'report', runnerId: 'ext-runner-a', messageId: 'm1', attemptId: 'attempt-1', outcome: 'sent', reason: '', confirmation: { recipientCount: 2, channel: 'text', note: '' } },
+  ]);
+  assert.equal(changes, 3);
+  await bridge.status();
+  assert.equal(changes, 3, 'asking for the status does not reload the screen');
+  const target = {};
+  const undo = installFamilyMessageBridge(bridge, target);
+  assert.equal(target.mathmasterFamilyMessages, bridge);
+  undo();
+  assert.equal('mathmasterFamilyMessages' in target, false);
+});
+
+test('Send to families queues through the server, only for the class\'s own teacher, and the switch is the administrator\'s', () => {
+  const source = screen();
+  const send = region(source, 'const sendToFamilies = async (studentIds = null) => {', 'const resolveMessage', 'sendToFamilies');
+  assert.match(send, /await queueFamilyMessages\(\{ classId, dateKey, studentIds \}\)/);
+  assert.match(source, /\{messaging\.mode !== 'off' && isClassTeacher && \(\s*<div className="tw-row">\s*<button[^>]*onClick=\{\(\) => sendToFamilies\(\)\}/);
+  assert.match(source, /\{messaging\.mode !== 'off' && isClassTeacher && draft\.canQueue && \(/);
+  assert.match(source, /\{isRootAdmin && \(\s*<div className="tw-card tw-card--muted tw-stack"[^>]*data-family-switch>/);
+  assert.match(region(source, 'const saveSwitch = async () => {', 'if (!myClasses.length)', 'saveSwitch'), /switchDraft\.mode === 'live' && !window\.confirm\(/);
+  // The extension works through this screen while it is open, and the bridge goes when it closes.
+  const bridge = region(source, "import('../../platform/teacher/familyMessageBridge.js')", 'const activeClass', 'bridge');
+  assert.match(bridge, /installFamilyMessageBridge\(createFamilyMessageBridge\(\{ onChange: \(\) => loadRef\.current\(\) \}\)\)/);
+  assert.match(bridge, /return \(\) => \{ closed = true; undo\(\); \};/);
 });

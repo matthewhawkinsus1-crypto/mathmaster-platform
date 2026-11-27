@@ -20,3 +20,11 @@ export const submitDisciplineFormsNow = ({ classId = '', dateKey = '' } = {}) =>
   call('submitDisciplineFormsNow', { ...(classId ? { classId } : {}), ...(dateKey ? { dateKey } : {}) })
 );
 export const resolveDisciplineFormState = ({ incidentIds, action }) => call('resolveDisciplineFormState', { incidentIds, action });
+
+// Messages to families through SchoolStatus (functions/lib/familyMessageOutbox.js).
+export const queueFamilyMessages = ({ classId, dateKey, studentIds = null }) => (
+  call('queueFamilyMessages', { classId, dateKey, ...(Array.isArray(studentIds) ? { studentIds } : {}) })
+);
+export const resolveFamilyMessage = ({ messageId, action }) => call('resolveFamilyMessage', { messageId, action });
+export const familyMessageOutbox = (payload) => call('familyMessageOutbox', payload);
+export const setFamilyMessagingMode = ({ mode, testDistrictIds = [] }) => call('setFamilyMessagingMode', { mode, testDistrictIds });
