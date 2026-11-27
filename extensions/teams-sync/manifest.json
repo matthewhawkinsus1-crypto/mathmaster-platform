@@ -1,0 +1,15 @@
+{
+  "manifest_version": 3,
+  "name": "MathMaster TEAMS Sync",
+  "version": "0.2.0",
+  "description": "Sends MathMaster grades to your DeSoto TEAMS gradebook through your own signed-in TEAMS tab.",
+  "permissions": ["scripting", "storage"],
+  "host_permissions": [
+    "https://mathmaster-aleks.web.app/*",
+    "https://mathmasterlearning.com/*",
+    "https://desoto.teams.hosting/*"
+  ],
+  "action": { "default_title": "Open MathMaster TEAMS Sync" },
+  "background": { "service_worker": "background.js", "type": "module" },
+  "minimum_chrome_version": "116"
+}

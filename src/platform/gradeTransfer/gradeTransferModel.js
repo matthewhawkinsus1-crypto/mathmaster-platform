@@ -4,7 +4,7 @@ import {
   effectiveDistrictStudentId,
   isValidDistrictStudentId,
 } from '../../../functions/shared/studentDistrictId.mjs';
-import { teamsImportCsv } from '../../../functions/shared/teamsSyncEngine.mjs';
+import { teamsImportCsv } from '../../../functions/shared/teamsImportFile.mjs';
 import {
   STUDENT_NAME_UNAVAILABLE,
   formatStudentLabel,

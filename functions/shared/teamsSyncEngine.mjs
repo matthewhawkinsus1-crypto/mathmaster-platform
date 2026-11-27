@@ -37,6 +37,7 @@
 // always newer than a copy.
 
 import { isValidDistrictStudentId } from './studentDistrictId.mjs';
+import { teamsImportCsv } from './teamsImportFile.mjs';
 
 export const PROVISIONAL_MODE = Object.freeze({
   // A column MathMaster created is posted at assignment weight 0 while the
@@ -456,10 +457,9 @@ const reconcileEntry = ({ entry, plan, gradebook, at, target }) => {
  * 2, no header row; observed 2026-11-26). Grade Transfer's ZIP uses the same
  * function (gradeTransferModel.teamsCsv).
  */
-export const teamsImportCsv = (rows) => (rows || []).map((row) => {
-  if (!isValidDistrictStudentId(row.sisStudentId) || !Number.isInteger(row.grade) || row.grade < 0 || row.grade > 100) throw new Error('Invalid TEAMS export row.');
-  return `${row.sisStudentId},${row.grade}`;
-}).join('\r\n') + ((rows || []).length ? '\r\n' : '');
+// Defined in teamsImportFile.mjs, so Grade Transfer's ZIP loads the file
+// format without the whole engine (the teacher's first load).
+export { teamsImportCsv } from './teamsImportFile.mjs';
 
 /** The file an op sends, for an adapter that only has the Import. */
 export const teamsOpFile = (op) => {
