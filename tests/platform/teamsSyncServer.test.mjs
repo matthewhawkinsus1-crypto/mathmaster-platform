@@ -312,3 +312,18 @@ test('only the runner holding a batch can report its outcomes', async () => {
   server.step({ targets, readbacks: await read(), runnerId: 'tab-two-bbbb', outcomes: [{ opId: held.ops[0].opId, ok: true, columnId: 'A999' }], now: t0 + TEAMS_SYNC_LIMITS.leaseMs + 1 });
   assert.equal(server.store.ledger[`${CLASS}__nth-roots__classwork@${P5}`].columnId, undefined);
 });
+
+test('the last step keeps what needs the teacher\'s decision, named by lesson and TEAMS section', async () => {
+  const gradebook = testGradebook();
+  const server = makeServer();
+  await runExtension({ server, gradebook, targets: published({ closed: true }) });
+  const [regular] = gradebook.columnsNamed(P5, 'Nth Roots - Classwork');
+  gradebook.teacherEnter(regular.id, '1500101', 95);
+  await runExtension({ server, gradebook, targets: published({ closed: true, rows: [{ studentId: 'u-ada', sisStudentId: '1500101', grade: 72 }] }) });
+  const [override] = server.store.classState.lastStep.exceptions;
+  assert.deepEqual(
+    { code: override.code, lesson: override.lesson, sectionRef: override.sectionRef, studentId: override.studentId, teams: override.teams, mathmaster: override.mathmaster },
+    { code: TEAMS_EXCEPTION.TEACHER_OVERRIDE, lesson: 'Nth Roots - Classwork', sectionRef: P5, studentId: 'u-ada', teams: 95, mathmaster: 72 },
+  );
+  assert.equal(server.store.classState.lastStep.exceptionCount, 1);
+});

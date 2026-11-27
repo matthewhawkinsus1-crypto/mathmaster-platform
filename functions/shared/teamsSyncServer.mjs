@@ -315,6 +315,14 @@ export const teamsSyncStep = ({
     return { opId, op, wire: wireOp(op, opId, plan) };
   });
 
+  // Every exception names its lesson and TEAMS section, so a teacher reading
+  // "needs your decision" knows where to look in TEAMS.
+  const lessonOf = new Map(routed.map((target) => [target.key, target.name]));
+  const sectionOfPlan = new Map(plans.map((plan) => [plan.key, { targetKey: plan.targetKey || plan.key, sectionRef: plan.sectionRef || null }]));
+  const exceptions = plans.flatMap((plan) => plan.exceptions).map((item) => {
+    const where = sectionOfPlan.get(item.key) || { targetKey: item.key, sectionRef: null };
+    return { ...item, targetKey: where.targetKey, sectionRef: where.sectionRef, lesson: lessonOf.get(where.targetKey) || '' };
+  });
   const response = {
     status: ops.length ? 'work' : 'done',
     stepId: dryRun ? null : stepId,
@@ -323,7 +331,7 @@ export const teamsSyncStep = ({
     remainingOps: Math.max(0, planned.length - batch.length),
     unreadSections: linked.filter((ref) => !gradebooks.has(ref)),
     summary: summarizeTeamsPlans(plans),
-    exceptions: plans.flatMap((plan) => plan.exceptions),
+    exceptions,
     plans: compactPlans(plans),
   };
   if (dryRun) return { classState, ledger, changed: false, response };
@@ -341,6 +349,18 @@ export const teamsSyncStep = ({
       status: response.status,
       summary: response.summary,
       exceptionCount: response.exceptions.length,
+      // What Grade Transfer shows as "needs your decision": the first 60,
+      // with only what a teacher needs to find each one in TEAMS.
+      exceptions: response.exceptions.slice(0, 60).map((item) => ({
+        code: item.code,
+        message: item.message,
+        lesson: item.lesson,
+        sectionRef: item.sectionRef,
+        studentId: item.studentId || '',
+        sisStudentId: item.sisStudentId || '',
+        ...(item.teams !== undefined ? { teams: item.teams } : {}),
+        ...(item.mathmaster !== undefined ? { mathmaster: item.mathmaster } : {}),
+      })),
       unreadSections: response.unreadSections,
     },
   };

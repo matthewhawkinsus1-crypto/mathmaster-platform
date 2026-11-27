@@ -43,6 +43,8 @@ import {
   pendingUploadIds,
 } from '../../platform/gradeTransfer/gradeTransferHistory.js';
 import { resolveAssignmentGradingPeriod } from '../../platform/student/gradingPeriods.js';
+import { buildTeamsSyncTargets } from '../../platform/gradeTransfer/teamsSync.js';
+import TeamsSyncPanel from './TeamsSyncPanel.jsx';
 import useActionBarFocusReveal from '../common/useActionBarFocusReveal.js';
 import './teacherWorkspace.css';
 
@@ -483,6 +485,23 @@ export default function GradeTransferCenter({
     });
   };
 
+  // The TEAMS sync sends exactly what an export of this marking period would:
+  // the same students (with corrected district IDs), export history, Practice
+  // Passes and per-student deadlines.
+  const syncClasses = authorizedClasses.filter((entry) => !classFilter.size || classFilter.has(entry.classId));
+  const buildSyncTargets = (classId) => buildTeamsSyncTargets({
+    classId,
+    classes,
+    assignments,
+    students: projectedStudents,
+    teacherEmail,
+    isRootAdmin,
+    snapshots,
+    practicePasses,
+    resolveStudentFinalDeadline,
+    includeAssignment: (assignment) => resolveAssignmentGradingPeriod(assignment, gradingPeriodSettings || {}).isCurrent,
+  });
+
   const assignmentScopeTitle = assignmentFilter ? (assignmentsById.get(assignmentFilter)?.title || 'This assignment') : null;
   const selectedGradeCount = selectedUnits.reduce((sum, unit) => sum + (summaries.get(unit.key)?.fullRowCount || 0), 0);
 
@@ -637,6 +656,10 @@ export default function GradeTransferCenter({
           <p className="tw-small tw-muted" style={{ margin: 0 }}>Student Access has the same {DISTRICT_ID_COPY.editAction} control for every student you teach.</p>
         </div>
       </details>
+    )}
+
+    {syncClasses.length > 0 && (
+      <TeamsSyncPanel classes={syncClasses} buildTargets={buildSyncTargets} labelFor={personLabel} ready={stateLoaded} />
     )}
 
     {message && <div role="status" className="tw-notice" data-tone={message.tone}>{message.text}</div>}

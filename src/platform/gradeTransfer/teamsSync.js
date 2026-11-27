@@ -11,6 +11,8 @@ import {
   authoritativeSisStudentId,
 } from './gradeTransferModel.js';
 import { projectGradeTransferUnits } from './gradeTransferProjection.js';
+import { normalizeGradingPeriodSettings, resolveAssignmentGradingPeriod } from '../student/gradingPeriods.js';
+import { teacherAssignmentView } from '../../../functions/shared/studentAssignmentOverrides.mjs';
 import { teamsAssignmentName, teamsDay } from '../../../functions/shared/teamsSyncEngine.mjs';
 
 export * from '../../../functions/shared/teamsSyncEngine.mjs';
@@ -79,6 +81,8 @@ export const buildTeamsSyncTargets = ({
   classId, classes = [], assignments = [], students = [], teacherEmail = '', isRootAdmin = false,
   snapshots = [], practicePasses = new Set(), now = Date.now(), dueOnOrAfter = '', timeZone = 'America/Chicago',
   resolveStudentFinalDeadline,
+  // (assignment) => boolean: e.g. "in the current marking period". Absent: all.
+  includeAssignment = null,
 } = {}) => {
   const options = { classes, assignments, students, teacherEmail, isRootAdmin, snapshots, practicePasses, ...(resolveStudentFinalDeadline ? { resolveStudentFinalDeadline } : {}) };
   const current = projectGradeTransferUnits({ ...options, now }).units.filter((unit) => unit.classId === classId);
@@ -89,6 +93,7 @@ export const buildTeamsSyncTargets = ({
   return current
     .flatMap((unit) => unit.sectionUnits || [unit])
     .filter((part) => part.ordinaryDeadline !== null && part.ordinaryDeadline !== undefined)
+    .filter((part) => typeof includeAssignment !== 'function' || includeAssignment(byId.get(part.assignmentId) || null))
     .map((part) => teamsTargetFromTransferUnit({
       unit: part,
       assignment: byId.get(part.assignmentId) || {},
@@ -100,4 +105,47 @@ export const buildTeamsSyncTargets = ({
     .filter((target) => !dueOnOrAfter || target.dueDate >= dueOnOrAfter)
     // The server links the TEAMS sections; a target names none of its own.
     .map(({ teamsSectionRefs: _sections, ...target }) => target);
+};
+
+/**
+ * The same targets, built on the server from the records Grade Export reads
+ * in the browser (the scheduled publish, functions/lib/teamsSyncScheduledTargets.js).
+ * Each input is assembled the way the teacher's screen assembles it, so a
+ * scheduled publish sends what pressing "Send now" would:
+ *
+ *   assignments    this class's, with each student's private controls merged
+ *                  in (teacherClassControls.js projectTeacherAssignments)
+ *   students       grades/{id} records of the class
+ *   snapshots      Grade Transfer's export history (listGradeTransferState)
+ *   practicePasses redeemed Practice Pass rewards (listGradeTransferState)
+ *   marking period the current one (settings/gradingPeriods)
+ */
+export const buildTeamsSyncTargetsFromRecords = ({
+  classId, classRecord = {}, assignmentDocs = [], studentDocs = [], snapshotDocs = [], redemptionDocs = [],
+  controlDocs = [], gradingPeriodSettings = {}, now = Date.now(),
+} = {}) => {
+  const byAssignment = {};
+  (controlDocs || []).forEach((record) => {
+    const assignmentId = text(record?.assignmentId);
+    const studentId = text(record?.studentId);
+    if (!assignmentId || !studentId || text(record?.classId) !== classId) return;
+    (byAssignment[assignmentId] ||= {})[studentId] = record;
+  });
+  const assignments = (assignmentDocs || []).filter((entry) => entry?.id).map((entry) => teacherAssignmentView(entry, byAssignment[entry.id] || {}));
+  const practicePasses = new Set((redemptionDocs || [])
+    .filter((entry) => entry?.rewardCode === 'practicePass' && entry?.status === 'redeemed')
+    .map((entry) => `${text(entry.studentId)}__${text(entry.classId)}__${text(entry.assignmentId)}`)
+    .filter((key) => !key.startsWith('__')));
+  const settings = normalizeGradingPeriodSettings(gradingPeriodSettings || {});
+  return buildTeamsSyncTargets({
+    classId,
+    classes: [{ ...classRecord, classId }],
+    assignments,
+    students: studentDocs || [],
+    teacherEmail: text(classRecord.teacherOfRecord).toLowerCase(),
+    snapshots: snapshotDocs || [],
+    practicePasses,
+    now,
+    includeAssignment: (assignment) => resolveAssignmentGradingPeriod(assignment, settings).isCurrent,
+  });
 };
