@@ -36,7 +36,6 @@
 // it". Nothing else in the gradebook is mirrored: a read-back is cheap and
 // always newer than a copy.
 
-import { isValidDistrictStudentId } from './studentDistrictId.mjs';
 import { teamsImportCsv } from './teamsImportFile.mjs';
 
 export const PROVISIONAL_MODE = Object.freeze({
@@ -149,11 +148,16 @@ export const teamsClearCsv = (sisStudentIds = []) => {
  * (2026-11-26) and confirmed by the teacher (2026-11-27):
  * - #Count 0 is accepted at creation; the score shows to students and
  *   parents but is not factored into the average.
- * - A blank grade imported with Overwrite Yes clears that cell.
+ * - No clear through the Import. The teacher expected a blank grade with
+ *   Overwrite Yes to clear a cell, but on a live test assignment (2026-11-27,
+ *   an empty cell) TEAMS refused the line: "Error finding student Id/Grade in
+ *   the File for line number: 1", "Total number of grades added: 0". So a
+ *   provisional score with no final grade is flagged for the teacher
+ *   (PROVISIONAL_SCORE_WILL_COUNT) instead of cleared.
  */
 export const DESOTO_TEAMS_CAPABILITIES = Object.freeze({
   provisional: 'assignment-weight-zero',
-  canClearCells: true,
+  canClearCells: false,
 });
 
 /** A calendar date in the district's zone. TEAMS dates are days, not instants. */

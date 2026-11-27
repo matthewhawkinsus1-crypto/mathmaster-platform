@@ -26,13 +26,15 @@
 //              lcstgbcaAssignedDt, lcstgbcaDueDt (calendars, MM-DD-YYYY),
 //              lcstgbcaMaxValue, lcstgbcaNumCatCount (#Count),
 //              gradeTypeGbCycle; "Gradebook Grading Cycle Date From … To …";
-//              #add; BUTTON_<row>_Import; a row saves when focus leaves it
-//              (#613's live check). "Return to Gradebook" (#assignments).
+//              #add; BUTTON_<row>_Import; a row saves when focus leaves it;
+//              choosing Category resets #Count (write test, 2026-11-27).
+//              "Return to Gradebook" (#assignments).
 //   import     #importAssignmentGradesContent: input[type=file][name=file];
 //              combos fileDelimiter, textQualifier, headerRow,
-//              overwriteExistingGrades (ComboBoxHandler.all, chooseByVal);
-//              #studentIdColumn, #gradeColumnNo; button#import; Cancel runs
-//              closeImportFilePopup().
+//              overwriteExistingGrades (ComboBoxHandler.all: hidden value +
+//              shown text); #studentIdColumn, #gradeColumnNo; button#import;
+//              Cancel runs closeImportFilePopup(). The answer is the reloaded
+//              page's div.message (span.info / span.error by line number).
 
 export async function teamsPage(action, args = {}) {
   // The whole step runs inside this try: an injected function cannot reach
@@ -111,29 +113,81 @@ export async function teamsPage(action, args = {}) {
         const wanted = norm(name).toLowerCase();
         return one(gridRows().filter((row) => norm(row.name).toLowerCase() === wanted && (!dueDate || row.dueDate === dueDate)), `assignment "${norm(name).slice(0, 40)}"`);
       };
-      // A cell is written through the grid's own editor, so TEAMS's handlers see
-      // the edit as a teacher's. The row saves when focus leaves it.
-      const editCell = async (g, rowId, colIndex, value) => {
-        g.selectCell(g.getRowIndex(rowId), colIndex);
-        g.editCell();
-        const editor = g.editor;
-        if (!editor) throw new Error('The TEAMS grid did not open its editor.');
-        if (typeof editor.setValue === 'function' && !editor.obj?.tagName) editor.setValue(String(value));
-        else if (editor.obj && 'value' in editor.obj) {
-          editor.obj.value = String(value);
-          editor.obj.dispatchEvent(new Event('input', { bubbles: true }));
-          editor.obj.dispatchEvent(new Event('change', { bubbles: true }));
-        } else if (typeof editor.setValue === 'function') editor.setValue(String(value));
-        g.editStop();
-        await sleep(150);
+      // Editing works the way a teacher edits (DeSoto, 2026-11-27): TEAMS posts
+      // every edit to its server (JSON-RPC doOnEditCell2, stage 1 on opening a
+      // cell, stage 2 with the new value on closing it), so a cell is opened
+      // with a click on it, given its value, and closed with the grid's
+      // editStop; a dropdown value is chosen by clicking it in TEAMS's list.
+      // Programmatic selectCell/editCell opened the wrong cell while TEAMS
+      // held an editor open (it opens the Assign Date editor after Add).
+      const mouse = (el, type) => {
+        const r = el.getBoundingClientRect();
+        el.dispatchEvent(new MouseEvent(type, { bubbles: true, cancelable: true, view: window, button: 0, clientX: r.left + r.width / 2, clientY: r.top + r.height / 2 }));
       };
-      const leaveRow = async (g, rowId) => {
-        const index = g.getRowIndex(rowId);
-        const other = index > 0 ? 0 : (g.getRowsNum() > 1 ? 1 : -1);
-        if (other >= 0) g.selectCell(other, columnIndex(g, 'lcstgbcaName'));
-        else document.body.click();
+      const click = (el) => { ['mousedown', 'mouseup', 'click'].forEach((type) => mouse(el, type)); };
+      const press = (el, key, keyCode) => {
+        for (const type of ['keydown', 'keypress', 'keyup']) {
+          const event = new KeyboardEvent(type, { key, bubbles: true, cancelable: true });
+          Object.defineProperty(event, 'keyCode', { get: () => keyCode });
+          Object.defineProperty(event, 'which', { get: () => keyCode });
+          el.dispatchEvent(event);
+        }
+      };
+      const liveGrid = () => document.getElementById('grid').grid;
+      const cellOf = (rowId, colIndex) => liveGrid().rowsAr[rowId]?.childNodes[colIndex] || null;
+      const cellText = (rowId, colIndex) => norm(String(liveGrid().cells(rowId, colIndex).getValue()).replace(/<[^>]*>/g, ''));
+      const settle = async () => {
+        await sleep(300);
         for (let i = 0; i < 40 && busy(); i += 1) await sleep(250);
-        await sleep(500);
+        await sleep(300);
+      };
+      const openEditor = async (rowId, colIndex) => {
+        const td = cellOf(rowId, colIndex);
+        if (!td) throw new Error('The TEAMS assignment row is gone.');
+        td.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+        click(td);
+        await settle();
+        if (liveGrid().editor?.cell !== td) { mouse(td, 'dblclick'); await settle(); }
+        const editor = liveGrid().editor;
+        if (editor?.cell !== td) throw new Error(`TEAMS did not open the ${liveGrid().getColumnId(colIndex)} cell for editing.`);
+        return editor;
+      };
+      const typeCell = async (rowId, colIndex, value) => {
+        const editor = await openEditor(rowId, colIndex);
+        if (!editor.obj || !('value' in editor.obj)) throw new Error('The TEAMS cell editor has no text box.');
+        editor.obj.focus();
+        editor.obj.value = String(value);
+        editor.obj.dispatchEvent(new Event('input', { bubbles: true }));
+        // The grid's own editStop closes the editor and posts the edit (stage
+        // 2), as a teacher's Tab does. A synthetic Tab is ignored by the date
+        // editor, so it is not used.
+        liveGrid().editStop();
+        await settle();
+        if (cellText(rowId, colIndex) !== norm(value)) throw new Error(`TEAMS did not take ${norm(value)} for ${liveGrid().getColumnId(colIndex)}.`);
+      };
+      const chooseCell = async (rowId, colIndex, value) => {
+        await openEditor(rowId, colIndex);
+        const list = [...document.querySelectorAll('div.combo-list')].find(visible);
+        if (!list) throw new Error('TEAMS did not show the list for this field.');
+        const item = one([...list.querySelectorAll('*')].filter((el) => visible(el) && !el.children.length && norm(el.textContent) === norm(value)), `"${norm(value)}" choice`);
+        click(item);
+        await settle();
+        if (cellText(rowId, colIndex) !== norm(value)) throw new Error(`TEAMS did not take ${norm(value)} for ${liveGrid().getColumnId(colIndex)}.`);
+      };
+      // Leaving the row is what saves it. TEAMS then opens the cell that was
+      // clicked; it is closed again with Escape, unchanged.
+      const leaveRow = async (rowId) => {
+        const g = liveGrid();
+        const others = Array.from({ length: g.getRowsNum() }, (_, index) => String(g.getRowId(index))).filter((id) => id !== String(rowId));
+        if (!others.length) throw new Error('TEAMS has no other row to move to, so the row cannot be saved.');
+        const td = cellOf(others[others.length - 1], columnIndex(g, 'lcstgbcaName'));
+        td.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+        click(td);
+        await settle();
+        const editor = liveGrid().editor;
+        if (editor?.obj) { press(editor.obj, 'Escape', 27); await settle(); }
+        const message = [...document.querySelectorAll('[class*="error" i]')].filter((el) => visible(el) && norm(el.innerText)).map((el) => norm(el.innerText)).join(' ');
+        if (message) throw new Error(`TEAMS did not save the row: ${message.slice(0, 160)}`);
       };
 
       // ---- actions ---------------------------------------------------------------
@@ -247,38 +301,50 @@ export async function teamsPage(action, args = {}) {
         const fields = args.fields || {};
         const name = norm(fields['Assignment Name']);
         if (!name || name.length > 64) throw new Error('The new TEAMS assignment needs a name of at most 64 characters.');
+        if (!['Daily', 'Test'].includes(norm(fields.Category))) throw new Error('A TEAMS category is Daily or Test.');
         if (gridRows().some((row) => norm(row.name).toLowerCase() === name.toLowerCase())) throw new Error(`TEAMS already has an assignment named "${name}" in this cycle.`);
         const before = new Set(Array.from({ length: g.getRowsNum() }, (_, index) => String(g.getRowId(index))));
-        one([...document.querySelectorAll('#add')].filter(visible), 'Add button').click();
+        click(one([...document.querySelectorAll('#add')].filter(visible), 'Add button'));
         let rowId = null;
         for (let i = 0; i < 60 && !rowId; i += 1) {
           await sleep(250);
-          const live = document.getElementById('grid').grid;
+          const live = liveGrid();
           rowId = Array.from({ length: live.getRowsNum() }, (_, index) => String(live.getRowId(index))).find((id) => !before.has(id)) || null;
         }
         if (!rowId) throw new Error('TEAMS did not add a new assignment row.');
-        const live = document.getElementById('grid').grid;
-        const set = [
-          ['rfdDistGbacNm', fields.Category],
-          ['lcstgbcaName', name],
-          ['lcstgbcaAssignedDt', fields['Assign Date']],
-          ['lcstgbcaDueDt', fields['Due Date']],
-          ['lcstgbcaMaxValue', fields['Maximum Value']],
-          ['lcstgbcaNumCatCount', fields['#Count']],
-        ];
-        for (const [id, value] of set) {
-          if (value === undefined || value === null || value === '') continue;
-          await editCell(live, rowId, columnIndex(live, id), value);
+        await settle();
+        const at = (id) => columnIndex(liveGrid(), id);
+        // Category first: TEAMS refuses a name before it, and choosing it
+        // resets #Count to the category's default, so #Count comes last.
+        await chooseCell(rowId, at('rfdDistGbacNm'), fields.Category);
+        await typeCell(rowId, at('lcstgbcaName'), name);
+        // TEAMS checks Assign Date <= Due Date on every edit and reverts one
+        // that breaks it, so the two are set in an order that keeps it true at
+        // each step: the due date first when the row's current assign date is
+        // not after the new due date, else the assign date first.
+        const day = (value) => { const m = /^(\d{2})-(\d{2})-(\d{4})$/.exec(norm(value)); return m ? `${m[3]}${m[1]}${m[2]}` : ''; };
+        const assign = norm(fields['Assign Date']);
+        const due = norm(fields['Due Date']);
+        if (assign && due && day(assign) > day(due)) throw new Error('The assign date is after the due date.');
+        const dueFirst = !due || day(cellText(rowId, at('lcstgbcaAssignedDt'))) <= day(due);
+        const dates = [['lcstgbcaAssignedDt', assign], ['lcstgbcaDueDt', due]];
+        for (const [id, value] of dueFirst ? dates.reverse() : dates) {
+          if (value) await typeCell(rowId, at(id), value);
         }
-        await leaveRow(live, rowId);
+        // Required on a new row; DeSoto's defaults for Grade Transfer's columns.
+        await typeCell(rowId, at('lcstgbcaScaleValue'), 100);
+        await typeCell(rowId, at('lcstgbcaMaxValue'), fields['Maximum Value'] ?? 100);
+        if (!cellText(rowId, at('lcstgbcaCnsdrHghLowDrpFlg'))) await chooseCell(rowId, at('lcstgbcaCnsdrHghLowDrpFlg'), 'N');
+        await typeCell(rowId, at('lcstgbcaNumCatCount'), fields['#Count']);
+        await leaveRow(rowId);
         return { done: true };
       }
 
       if (action === 'setCount') {
         const g = grid();
         const row = rowFor(args);
-        await editCell(g, row.rowId, columnIndex(g, 'lcstgbcaNumCatCount'), args.count);
-        await leaveRow(g, row.rowId);
+        await typeCell(row.rowId, columnIndex(g, 'lcstgbcaNumCatCount'), args.count);
+        await leaveRow(row.rowId);
         return { done: true };
       }
 
@@ -301,11 +367,23 @@ export async function teamsPage(action, args = {}) {
         const combos = Object.values(window.ComboBoxHandler?.all || {});
         const combo = (name) => one(combos.filter((entry) => entry && entry.name === name), `${name} setting`);
         const wanted = { fileDelimiter: 'Comma', textQualifier: 'None', headerRow: 'No', overwriteExistingGrades: args.overwrite === true ? 'Yes' : 'No' };
+        // TEAMS's own ComboBox.choose reads the list it builds when the
+        // dropdown is opened on screen, so it fails on one never opened. Set
+        // what choose sets, from the combo's options: the shown text, the
+        // hidden value, and TEAMS's change event.
         for (const [name, value] of Object.entries(wanted)) {
           const entry = combo(name);
-          if (typeof entry.chooseByVal === 'function') entry.chooseByVal(value);
           const hidden = document.getElementById(name);
           const shown = document.getElementById(`${name}txt`);
+          if (hidden?.value !== value || norm(shown?.value) !== value) {
+            const option = (entry.options || []).find((item) => String(item.value) === value);
+            if (!option || !entry.txtview || !entry.valcon) throw new Error(`The TEAMS Import setting ${name} has no ${value}.`);
+            entry.currentItem = option;
+            entry.txtview.value = option.text;
+            entry.valcon.value = option.value;
+            if (typeof window.triggerEvent === 'function') window.triggerEvent(entry.txtview, 'change');
+            else entry.txtview.dispatchEvent(new Event('change', { bubbles: true }));
+          }
           if (hidden?.value !== value || norm(shown?.value) !== value) throw new Error(`The TEAMS Import setting ${name} is not ${value}.`);
         }
         for (const [id, value] of [['studentIdColumn', '1'], ['gradeColumnNo', '2']]) {
@@ -327,29 +405,30 @@ export async function teamsPage(action, args = {}) {
       }
 
       if (action === 'readReceipt') {
-        // TEAMS answers an import with a message ("… grades added …", or errors)
-        // and an OK/Close button. Read it, then close it.
-        for (const button of document.querySelectorAll('button, input[type=button]')) {
-          if (!visible(button) || !/^[^a-z]*(ok|close)$/i.test(norm(button.innerText || button.value))) continue;
-          for (let el = button.parentElement; el && el !== document.body; el = el.parentElement) {
-            const msg = norm(el.innerText);
-            if (msg.length > 4000) break;
-            if (!/import|grades? (added|processed|updated|skipped)/i.test(msg)) continue;
-            const cleaned = msg.replace(/(?:no|0) errors?\b|errors?\s*[:=]\s*0\b/gi, '');
-            const failed = /\berrors?\b|invalid|failed|not scheduled/i.test(cleaned);
-            const ok = /success|complet|\d+.{0,20}(added|processed|skipped|imported)|(added|processed|skipped|imported)\D{0,20}\d/i.test(msg);
-            if (!failed && !ok) continue;
-            // Error lines that name a district ID. Only the ID and the kind of
-            // error are kept: the text between them can be the student's name.
-            const errors = failed
-              ? [...msg.matchAll(/\b(\d{5,12})\b[^.;\n]{0,80}?(not scheduled|invalid|not found|error)/gi)].map((m) => ({ sisStudentId: m[1], reason: m[2].toLowerCase() })).slice(0, 250)
-              : [];
-            const summary = norm(msg.replace(/\b\d{5,12}\b/g, '#')).slice(0, 300);
-            button.click();
-            return { done: true, receipt: { ok: !failed, errors, summary } };
-          }
-        }
-        return { waiting: true };
+        // TEAMS answers an import by reloading the Assignments page
+        // (TeacherGradebookAssignmentImportGradesAction.do) with a message box
+        // (DeSoto, 2026-11-27): span.info "Total number of grades added: N",
+        // and one span.error per refused line, by line number ("Error finding
+        // student Id/Grade in the File for line number: 1"). `args.ids` are the
+        // file's district IDs in line order, so a refused line names its
+        // student without reading anything else off the page.
+        if (!/ImportGradesAction/.test(path) || busy()) return { waiting: true };
+        const lines = [...document.querySelectorAll('div.message span.error, div.message span.info')]
+          .filter(visible)
+          .map((el) => ({ error: el.classList.contains('error'), text: norm(el.innerText) }))
+          .filter((line) => line.text);
+        const total = lines.map((line) => /Total number of grades added:\s*(\d+)/i.exec(line.text)).find(Boolean);
+        if (!total && !lines.some((line) => line.error)) return { waiting: true };
+        const ids = Array.isArray(args.ids) ? args.ids.map((id) => String(id)) : [];
+        const kind = (value) => (/not scheduled/i.test(value) ? 'not scheduled' : /finding student/i.test(value) ? 'ID or grade not accepted' : 'refused by TEAMS');
+        const errors = lines.filter((line) => line.error).map((line) => {
+          const at = /line number:\s*(\d+)/i.exec(line.text);
+          return { sisStudentId: at ? (ids[Number(at[1]) - 1] || '') : '', reason: kind(line.text) };
+        }).slice(0, 250);
+        const added = total ? Number(total[1]) : 0;
+        // For the teacher's log only; digits are masked.
+        const summary = lines.map((line) => line.text.replace(/\d{3,}/g, '#')).join(' ').slice(0, 300);
+        return { done: true, receipt: { ok: errors.length === 0 && Boolean(total), added, errors, summary } };
       }
 
       throw new Error(`Unknown TEAMS page action ${action}.`);

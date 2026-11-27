@@ -33,7 +33,7 @@ pages), publish Grade Transfer's targets for that marking period, then repeat
 |---|---|
 | `createColumn` | Assignments → **Add**, fill Category, Name, dates, Maximum Value, `#Count`; the row saves when focus leaves it |
 | `setWeight` | Assignments → edit the row's `#Count` |
-| `importScores` / `clearScores` | Assignments → the row's **Import**: Comma, None, ID column 1, grade column 2, no header, Overwrite as the server says (a blank grade with Overwrite Yes clears a cell) |
+| `importScores` / `clearScores` | Assignments → the row's **Import**: Comma, None, ID column 1, grade column 2, no header, Overwrite as the server says. TEAMS answers on the reloaded page ("Total number of grades added: N", one error per refused line). DeSoto's TEAMS refuses a blank grade, so the server never asks it to clear (`canClearCells: false`) |
 
 Every step checks the page before acting and stops if anything is not as
 expected. A stopped run is safe to start again: the server wrote each
@@ -57,10 +57,21 @@ on the page.
   TEAMS gradebook (inclusion routing, `#Count` 0 → 1 once, a failed import,
   a busy lease, a preview that changes nothing).
 - **The read-back, in tests:** `tests/platform/teamsExtensionReadback.test.mjs`.
-- **Not yet run on live TEAMS:** creating an assignment, changing `#Count`,
-  and an import. They follow #613's observations (the grid saves a row when
-  focus leaves it; the Import dialog's settings and Overwrite combo were read
-  live), but need one supervised test on a test assignment first.
+- **Write path, on DeSoto's live TEAMS (2026-11-27, test assignments in
+  15001/01, each deleted afterwards; no student grade written):**
+  - `addAssignment`, the extension's own code end to end, with the fields a
+    server `createColumn` carries: Daily, assign 12-01-2026, due 12-02-2026,
+    Maximum 100, `#Count` 0. A fresh read of both pages showed exactly that,
+    and `newColumnId` found the new column's TEAMS id.
+  - `setCount`: 1 → 0 → 1, each confirmed on a fresh read of both pages.
+  - The Import dialog with Overwrite Yes, submitted, and TEAMS's answer read.
+- **Found by that test, and built in:** choosing a Category resets `#Count`
+  (so `#Count` is set last); TEAMS reverts an Assign Date later than the Due
+  Date on each edit (so the dates are set in a safe order); a synthetic Tab
+  does not close the date editor (so every cell is closed with the grid's
+  `editStop`); the Import's answer is a message on the reloaded page; and a
+  blank grade in an Overwrite file is refused, so cells cannot be cleared
+  through the Import on DeSoto's TEAMS.
 
 ## Known limits
 
@@ -69,3 +80,7 @@ on the page.
   student counts as on the section, a dropped one does not.
 - A locked marking period is not detected before acting; TEAMS refuses the
   change and the run stops there.
+- No clear: when a lesson closes, a provisional score left for a student with
+  no final grade (an extension, a Recovery hold) is reported to the teacher,
+  and counts once `#Count` switches. Whether the switch should wait is the
+  owner's decision.

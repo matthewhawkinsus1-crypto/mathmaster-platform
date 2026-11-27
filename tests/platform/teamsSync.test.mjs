@@ -462,16 +462,21 @@ test('a provisional value for a student missing from every list is still caught 
 // DeSoto's TEAMS, confirmed by the teacher on 2026-11-27: the Import is the
 // only route, a blank with Overwrite Yes clears a cell, and #Count 0 shows the
 // score without averaging it.
-test('on the Import-only route, an extended student\'s provisional score is cleared with a blank Overwrite file', async () => {
+// DeSoto's TEAMS refused a blank grade in an Overwrite file on a live test
+// assignment (2026-11-27), so DeSoto's capability is "cannot clear" and an
+// extended student's provisional score is reported instead (next test). This
+// one keeps the clear path proven for an Import route that does accept it.
+test('on an Import-only route that clears with a blank Overwrite file, an extended student\'s provisional score is cleared', async () => {
   const { gradebook, bell } = seededGradebook({ importOnly: true });
   assert.equal(typeof gradebook.clearScores, 'undefined');
   const now = clock();
-  let result = await runTeamsSync({ targets: [target({ rows: rows({ [ADA]: 70, [EVE]: 50 }) })], adapter: gradebook, capabilities: DESOTO_TEAMS_CAPABILITIES, now });
+  const capabilities = { ...DESOTO_TEAMS_CAPABILITIES, canClearCells: true };
+  let result = await runTeamsSync({ targets: [target({ rows: rows({ [ADA]: 70, [EVE]: 50 }) })], adapter: gradebook, capabilities, now });
   const [column] = gradebook.columnsNamed(REF, 'Nth Roots - Classwork');
   assert.equal(gradebook.cell(column.id, EVE), 50, 'provisional score is visible');
   result = await runTeamsSync({
     targets: [target({ closed: true, rows: rows({ [ADA]: 85 }), withheld: [{ studentId: `s${EVE}`, sisStudentId: EVE }] })],
-    ledger: result.ledger, adapter: gradebook, capabilities: DESOTO_TEAMS_CAPABILITIES, now,
+    ledger: result.ledger, adapter: gradebook, capabilities, now,
   });
   assert.equal(gradebook.cell(column.id, EVE), undefined, 'cleared before it could count');
   assert.equal(gradebook.cell(column.id, ADA), 85);
@@ -480,6 +485,21 @@ test('on the Import-only route, an extended student\'s provisional score is clea
   assert.deepEqual(result.exceptions, []);
   assert.equal(teamsClearCsv([EVE]), `${EVE},\r\n`);
   assert.throws(() => teamsClearCsv(['bad id']));
+});
+
+test('on DeSoto\'s TEAMS, which cannot clear through the Import, an extended student\'s provisional score is reported to the teacher', async () => {
+  assert.equal(DESOTO_TEAMS_CAPABILITIES.canClearCells, false, 'observed 2026-11-27: a blank grade is refused');
+  const { gradebook } = seededGradebook({ importOnly: true });
+  const now = clock();
+  let result = await runTeamsSync({ targets: [target({ rows: rows({ [ADA]: 70, [EVE]: 50 }) })], adapter: gradebook, capabilities: DESOTO_TEAMS_CAPABILITIES, now });
+  const [column] = gradebook.columnsNamed(REF, 'Nth Roots - Classwork');
+  result = await runTeamsSync({
+    targets: [target({ closed: true, rows: rows({ [ADA]: 85 }), withheld: [{ studentId: `s${EVE}`, sisStudentId: EVE }] })],
+    ledger: result.ledger, adapter: gradebook, capabilities: DESOTO_TEAMS_CAPABILITIES, now,
+  });
+  assert.equal(gradebook.cell(column.id, EVE), 50, 'nothing was sent that TEAMS would refuse');
+  assert.ok(result.exceptions.some((item) => item.code === TEAMS_EXCEPTION.PROVISIONAL_SCORE_WILL_COUNT && item.sisStudentId === EVE), 'the teacher is told');
+  assert.equal(gradebook.calls.clearScores, 0);
 });
 
 test('a lesson assigned in the previous marking period starts on the first day of the due date\'s period', async () => {

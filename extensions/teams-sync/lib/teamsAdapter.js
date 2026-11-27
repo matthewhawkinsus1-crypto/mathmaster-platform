@@ -101,8 +101,11 @@ export const createTeamsAdapter = ({ run, wait = (ms) => new Promise((resolve) =
       const token = nonce();
       await until('openImport', { ...row, nonce: token });
       await until('submitImport', { body: file.body, overwrite: file.overwrite === true, nonce: token });
-      const { receipt } = await until('readReceipt');
-      log(`${sectionRef}: TEAMS import ${receipt.ok ? 'accepted' : 'reported errors'} (${file.rows} row(s), Overwrite ${file.overwrite ? 'Yes' : 'No'}). TEAMS said: ${receipt.summary}`);
+      // The file's district IDs in line order, so TEAMS's "line number: N"
+      // errors name their student.
+      const ids = String(file.body).split(/\r?\n/).filter(Boolean).map((line) => line.split(',')[0]);
+      const { receipt } = await until('readReceipt', { ids });
+      log(`${sectionRef}: TEAMS added ${receipt.added} of ${file.rows} grade(s)${receipt.errors.length ? `, refused ${receipt.errors.length}` : ''} (Overwrite ${file.overwrite ? 'Yes' : 'No'}). TEAMS said: ${receipt.summary}`);
       await until('returnToGradebook');
       // Errors for named students are a partial success the server records
       // per student; a refusal with none named is the import failing.

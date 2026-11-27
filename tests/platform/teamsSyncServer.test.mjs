@@ -76,8 +76,8 @@ const applyWireOp = async (gradebook, op) => {
 };
 
 // The callable, without Firestore: state in, state out.
-const makeServer = ({ sections = [{ sectionRef: P5 }, { sectionRef: P5_INC }] } = {}) => {
-  const store = { classState: { sections: normalizeTeamsSections(sections) }, ledger: {} };
+const makeServer = ({ sections = [{ sectionRef: P5 }, { sectionRef: P5_INC }], capabilities = null } = {}) => {
+  const store = { classState: { sections: normalizeTeamsSections(sections), ...(capabilities ? { capabilities } : {}) }, ledger: {} };
   const step = ({ targets, readbacks, outcomes = [], runnerId = 'runner-aaaaaaaa', now = Date.parse('2026-11-18T15:00:00Z'), dryRun = false }) => {
     const keys = teamsLedgerKeysFor(targets, store.classState.sections);
     const ledger = Object.fromEntries(keys.filter((key) => store.ledger[key]).map((key) => [key, store.ledger[key]]));
@@ -117,9 +117,13 @@ const testGradebook = (options = {}) => createTeamsTestGradebook({
   ...options,
 });
 
+// The clear path, on an Import route that accepts a blank Overwrite grade.
+// DeSoto's does not (observed 2026-11-27); see the next test.
+const CLEARS = { provisional: 'assignment-weight-zero', canClearCells: true };
+
 test('the extension loop syncs an inclusion class into both TEAMS 5th periods, then switches #Count once', async () => {
   const gradebook = testGradebook();
-  const server = makeServer();
+  const server = makeServer({ capabilities: CLEARS });
   let response = await runExtension({ server, gradebook, targets: published() });
   assert.equal(response.status, 'done');
   const [regular] = gradebook.columnsNamed(P5, 'Nth Roots - Classwork');
@@ -151,6 +155,27 @@ test('the extension loop syncs an inclusion class into both TEAMS 5th periods, t
   assert.equal(gradebook.calls.createColumn, 2);
   assert.equal(server.store.classState.issued, null, 'nothing left leased');
   assert.equal(server.store.classState.lastStep.status, 'done');
+});
+
+test('on DeSoto\'s TEAMS (no clear through the Import), an extended student\'s provisional score is reported, not cleared', async () => {
+  const gradebook = testGradebook();
+  const server = makeServer();
+  await runExtension({ server, gradebook, targets: published() });
+  const [inclusion] = gradebook.columnsNamed(P5_INC, 'Nth Roots - Classwork');
+  const response = await runExtension({
+    server, gradebook,
+    targets: published({
+      closed: true,
+      rows: [
+        { studentId: 'u-ada', sisStudentId: '1500101', grade: 85 },
+        { studentId: 'u-ben', sisStudentId: '1500102', grade: 60 },
+        { studentId: 'u-cal', sisStudentId: '1500103', grade: 75 },
+      ],
+      withheld: [{ studentId: 'u-dee', sisStudentId: '1500104', reason: 'Active individual extension' }],
+    }),
+  });
+  assert.equal(gradebook.cell(inclusion.id, '1500104'), 0, 'no blank file was sent');
+  assert.ok(response.exceptions.some((item) => item.code === TEAMS_EXCEPTION.PROVISIONAL_SCORE_WILL_COUNT && item.sisStudentId === '1500104'), 'the teacher is told');
 });
 
 test('a reply lost after TEAMS acted still converges with no duplicate column or grade', async () => {
