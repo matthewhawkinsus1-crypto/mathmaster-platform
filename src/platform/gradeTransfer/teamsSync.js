@@ -26,7 +26,14 @@
 // cheap and always newer than a copy.
 
 import { isTestCycleAssignment } from '../assessment/testCycle.js';
-import { SECTION_TRANSFER_LABELS, teamsCsv } from './gradeTransferModel.js';
+import {
+  MISSING_SIS_TRANSFER_REASON,
+  SECTION_TRANSFER_LABELS,
+  SHARED_SIS_TRANSFER_REASON,
+  teamsCsv,
+} from './gradeTransferModel.js';
+
+const ROSTER_ID_REASONS = new Set([MISSING_SIS_TRANSFER_REASON, SHARED_SIS_TRANSFER_REASON]);
 
 export const PROVISIONAL_MODE = Object.freeze({
   // A column MathMaster created is posted at assignment weight 0 while the
@@ -83,7 +90,7 @@ const EXCEPTION_MESSAGES = Object.freeze({
   SAVE_NOT_PERSISTING: 'TEAMS accepted this grade several times, but it is still blank when read back.',
   PROVISIONAL_WEIGHT_NOT_ZERO: 'The provisional TEAMS assignment no longer has #Count 0, so open-lesson scores were not posted.',
   REOPENED_AFTER_COUNTED: 'The lesson reopened after its grades started counting. Scores in TEAMS stay as posted until it closes again.',
-  PROVISIONAL_SCORE_WILL_COUNT: 'This student has an extension, and their provisional score in TEAMS will count once #Count changes. It cannot be cleared by this route.',
+  PROVISIONAL_SCORE_WILL_COUNT: 'This student has no final grade yet, and their provisional score in TEAMS will count once #Count changes. It cannot be cleared by this route.',
 });
 
 const DEFAULT_MAX_ATTEMPTS = 3;
@@ -298,25 +305,41 @@ export const planTeamsTarget = ({ target, ledgerEntry = {}, gradebook, capabilit
     }
   }
 
-  // Students with nothing to send. A provisional value MathMaster posted for
-  // them, still untouched, must not quietly count after closure: it is
-  // cleared where the route can, and stays a reported exception where it
-  // cannot. Only values written while the lesson was open are provisional; a
-  // final grade posted before a student was reopened is left as it was.
+  // Students with nothing final to send: withheld (extension, reopened),
+  // excused, unresolved (Recovery held, needs review), or anyone else whose
+  // provisional value is still in TEAMS (for example a student who left the
+  // class). That value must not quietly count after closure. It is cleared
+  // where the route can, and stays a reported exception where it cannot.
+  // Every provisional value in the ledger is checked, not only the listed
+  // students, so a list the caller forgot cannot leak one into the average.
+  // Only values written while the lesson was open are provisional; a final
+  // grade posted before a student was reopened is left as it was.
   const stillProvisional = manageWeight && !counted;
   const provisionalValue = (mine) => {
     if (mine?.pending) return mine.pending.provisional ? mine.pending.value : null;
     return mine?.provisional ? mine.value : null;
   };
-  const notSent = [
-    ...(target.withheld || []).map((row) => ({ row, status: TEAMS_CELL_STATUS.HELD, detail: row.reason || 'Not final yet' })),
-    ...(target.excused || []).map((row) => ({ row, status: TEAMS_CELL_STATUS.EXCUSED, detail: row.reason || 'Excused' })),
-  ];
-  for (const { row, status, detail } of notSent) {
+  const finalIds = new Set((target.rows || []).map((row) => text(row.sisStudentId)));
+  const listed = new Map();
+  const listAs = (rows, status, fallback) => (rows || []).forEach((row) => {
+    const sis = text(row.sisStudentId);
+    const key = sis || `student:${row.studentId}`;
+    if (!finalIds.has(sis) && !listed.has(key)) listed.set(key, { row, status, detail: row.reason || fallback });
+  });
+  listAs(target.withheld, TEAMS_CELL_STATUS.HELD, 'Not final yet');
+  listAs(target.excused, TEAMS_CELL_STATUS.EXCUSED, 'Excused');
+  listAs(target.unresolved, TEAMS_CELL_STATUS.HELD, 'Needs teacher review');
+  if (target.closed && manageWeight) {
+    Object.keys(ledgerCells).forEach((sis) => {
+      if (!finalIds.has(sis) && !listed.has(sis)) listed.set(sis, { row: { sisStudentId: sis }, status: TEAMS_CELL_STATUS.HELD, detail: 'No final grade to send', unlisted: true });
+    });
+  }
+  for (const { row, status, detail, unlisted } of listed.values()) {
     const sis = text(row.sisStudentId);
     const mine = sis ? ledgerCells[sis] : null;
     const score = asScore(current[sis]);
     const ownsProvisional = target.closed && manageWeight && score !== null && provisionalValue(mine) === score;
+    if (unlisted && !ownsProvisional) continue;
     if (ownsProvisional && capabilities.canClearCells) {
       clears.push(sis);
       cell(row, TEAMS_CELL_STATUS.QUEUED, `${detail}; clearing provisional ${score}`);
@@ -348,7 +371,7 @@ export const planTeamsTarget = ({ target, ledgerEntry = {}, gradebook, capabilit
 
 // Fold a read-back into the ledger: pending writes that now show are
 // verified, a weight switch that shows is recorded as done.
-const reconcileEntry = ({ entry, plan, gradebook, at }) => {
+const reconcileEntry = ({ entry, plan, gradebook, at, target }) => {
   if (!plan.columnId) return entry;
   const next = { ...entry, cells: { ...entry.cells } };
   if (!next.columnId) {
@@ -369,6 +392,19 @@ const reconcileEntry = ({ entry, plan, gradebook, at }) => {
     } else if (!value.pending && value.value !== undefined && score === value.value && !value.verifiedAt) {
       next.cells[sis] = { ...value, verifiedAt: at };
     }
+  }
+  // On closure, a provisional value that already equals the student's final
+  // grade, and still reads back unchanged, is that final grade. It needs no
+  // new write, but it must stop being provisional, or reopening the student
+  // later would clear a counted final grade as a leftover.
+  if (target?.closed) {
+    (target.rows || []).forEach((row) => {
+      const sis = text(row.sisStudentId);
+      const value = next.cells[sis];
+      if (value?.provisional && !value.pending && value.value === row.grade && asScore(current[sis]) === row.grade) {
+        next.cells[sis] = { ...value, provisional: false, finalizedAt: at };
+      }
+    });
   }
   if (column && next.created && next.weightState !== 'counted') {
     if (Number(column.weight) === 0) next.weightState = 'provisional';
@@ -410,7 +446,7 @@ export const runTeamsSync = async ({
     planAll({ targets, ledger: state, gradebooks, capabilities }).forEach((plan) => {
       const target = targets.find((item) => item.key === plan.key);
       const gradebook = gradebooks.get(target.teamsSectionRef);
-      if (gradebook) state[plan.key] = reconcileEntry({ entry: state[plan.key] || {}, plan, gradebook, at });
+      if (gradebook) state[plan.key] = reconcileEntry({ entry: state[plan.key] || {}, plan, gradebook, at, target });
     });
     plans = planAll({ targets, ledger: state, gradebooks, capabilities });
     const ops = plans.flatMap((plan) => plan.ops);
@@ -497,5 +533,10 @@ export const teamsTargetFromTransferUnit = ({
     })),
     withheld: closed ? (unit.withheld || []).map(person) : [],
     excused: (unit.excused || []).map(person),
+    // Recovery held, no finalized grade, needs review. A district-ID problem
+    // is left out: its ID cannot address a TEAMS row safely.
+    unresolved: closed
+      ? (unit.problems || []).filter((row) => !ROSTER_ID_REASONS.has(row.reason)).map(person)
+      : [],
   };
 };

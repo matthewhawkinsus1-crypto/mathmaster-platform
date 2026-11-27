@@ -385,3 +385,70 @@ test('the import file needs no change to the TEAMS Import defaults', () => {
   assert.doesNotMatch(file, /"/, 'no text qualifier');
   assert.doesNotMatch(lines[0], /[A-Za-z]/, 'no header row');
 });
+
+// Review finding on #613: open at 70, close at 70, reopen. The 70 is the final
+// grade, not a provisional leftover, and must not be cleared.
+test('a provisional score that equals the final grade becomes final, so reopening keeps it', async () => {
+  const { gradebook } = seededGradebook({ canClearCells: true });
+  const now = clock();
+  const capabilities = { ...ZERO_WEIGHT, canClearCells: true };
+  let result = await runTeamsSync({ targets: [target({ rows: rows({ [ADA]: 70, [BEN]: 60 }) })], adapter: gradebook, capabilities, now });
+  result = await runTeamsSync({ targets: [target({ closed: true, rows: rows({ [ADA]: 70, [BEN]: 60 }) })], ledger: result.ledger, adapter: gradebook, capabilities, now });
+  const [column] = gradebook.columnsNamed(REF, 'Nth Roots - Classwork');
+  assert.equal(column.weight, 1);
+  assert.equal(result.ledger[target().key].cells[ADA].provisional, false);
+  result = await runTeamsSync({
+    targets: [target({ closed: true, rows: rows({ [BEN]: 60 }), withheld: [{ studentId: `s${ADA}`, sisStudentId: ADA, reason: 'Student explicitly reopened' }] })],
+    ledger: result.ledger, adapter: gradebook, capabilities, now,
+  });
+  assert.equal(gradebook.cell(column.id, ADA), 70, 'the counted final grade stays');
+  assert.equal(gradebook.calls.clearScores, 0);
+  assert.deepEqual(result.exceptions, []);
+});
+
+// Review finding on #613: a student whose grade is unresolved at closure
+// (Recovery held) is in unit.problems, not withheld. Their provisional score
+// must not start counting unreported.
+test('an unresolved student\'s provisional score is cleared or reported before the column counts', async () => {
+  const assignment = { id: 'nth', title: 'Nth Roots', dueAt: '2026-11-19T04:59:00Z' };
+  const students = [
+    { id: 'u1', sisStudentId: ADA, score: 90 },
+    { id: 'u2', sisStudentId: BEN, score: 70, held: true },
+  ];
+  const closedUnit = buildTransferUnit({
+    classRecord: { classId: 'alg2p2', name: 'Algebra II', period: '2' },
+    assignment, students, now: Date.parse('2026-11-20T12:00:00Z'), sectionKey: 'classwork',
+    projectCanonicalGrade: ({ student }) => student.score,
+    recoveryHeldFor: ({ student }) => student.held === true,
+  });
+  assert.equal(closedUnit.problems[0].reason, 'Recovery held for teacher review');
+  const closing = teamsTargetFromTransferUnit({ unit: closedUnit, assignment, teamsSectionRef: REF, students, now: Date.parse('2026-11-20T12:00:00Z') });
+  assert.deepEqual(closing.unresolved.map((row) => row.sisStudentId), [BEN]);
+  const opening = { ...closing, closed: false, rows: rows({ [ADA]: 60, [BEN]: 70 }), unresolved: [] };
+
+  for (const canClearCells of [true, false]) {
+    const { gradebook } = seededGradebook({ canClearCells });
+    const now = clock();
+    const capabilities = { ...ZERO_WEIGHT, canClearCells };
+    let result = await runTeamsSync({ targets: [opening], adapter: gradebook, capabilities, now });
+    result = await runTeamsSync({ targets: [closing], ledger: result.ledger, adapter: gradebook, capabilities, now });
+    const [column] = gradebook.columnsNamed(REF, closing.name);
+    assert.equal(column.weight, 1);
+    if (canClearCells) {
+      assert.equal(gradebook.cell(column.id, BEN), undefined, 'held student is blank, not counted at 70');
+    } else {
+      assert.equal(gradebook.cell(column.id, BEN), 70);
+      assert.ok(result.exceptions.some((item) => item.code === TEAMS_EXCEPTION.PROVISIONAL_SCORE_WILL_COUNT && item.sisStudentId === BEN));
+    }
+    assert.equal(statusOf(result, BEN), TEAMS_CELL_STATUS.HELD);
+  }
+});
+
+test('a provisional value for a student missing from every list is still caught at closure', async () => {
+  const { gradebook } = seededGradebook();
+  const now = clock();
+  let result = await runTeamsSync({ targets: [target({ rows: rows({ [ADA]: 60, [CAL]: 50 }) })], adapter: gradebook, capabilities: ZERO_WEIGHT, now });
+  // Cal left the class: the closing target does not mention him at all.
+  result = await runTeamsSync({ targets: [target({ closed: true, rows: rows({ [ADA]: 90 }) })], ledger: result.ledger, adapter: gradebook, capabilities: ZERO_WEIGHT, now });
+  assert.ok(result.exceptions.some((item) => item.code === TEAMS_EXCEPTION.PROVISIONAL_SCORE_WILL_COUNT && item.sisStudentId === CAL));
+});
