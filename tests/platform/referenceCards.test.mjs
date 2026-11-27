@@ -33,7 +33,7 @@ import { executableSource, region } from './helpers/sourceContract.mjs';
 import { firstLoadGraph, repo, teacherFirstLoadGraph } from './helpers/firstLoadGraph.mjs';
 import { REFERENCE_CARDS, REFERENCE_CARD_LANGUAGES, REFERENCE_CARD_TEXT, readingFor, referenceCardFor } from '../../src/platform/supports/referenceCards/referenceCardLibrary.js';
 import { REFERENCE_CARD_SECTION_ROLES, pinnedReferenceCards } from '../../src/platform/supports/referenceCards/referenceCardRule.js';
-import { NO_EXAMPLE_SECTION_ROLES, referenceCardSkillWarnings, validateLessonSupportsV5 } from '../../src/platform/contract/lessonSupportsV5.js';
+import { NO_EXAMPLE_SECTION_ROLES, REFERENCE_CARD_SKILLS, referenceCardSkillWarnings, validateLessonSupportsV5 } from '../../src/platform/contract/lessonSupportsV5.js';
 import { buildAssignmentV5PreflightModel } from '../../src/platform/preflight/assignmentV5PreflightModel.js';
 import { parseAssignmentBlueprintText } from '../../src/assignmentBlueprint.js';
 import { speechTextFor } from '../../src/platform/language/speechText.js';
@@ -312,6 +312,10 @@ test('QuestionEngine pins the cards by the rule, with the hint control\'s own pe
   const cards = region(engine, 'const referenceCards = pinnedCards.length ? (', ') : null;', 'the cards');
   assert.match(cards, /<QuestionSupplementBoundary stage="reference-cards"/);
   assert.match(cards, /readAloud=\{supportedTextReadAloud\}\s*translation=\{supportedTextTranslation\}/);
+  assert.match(cards, /MathText=\{MathText\}\s*SupportedTextActions=\{SupportedTextActions\}/, 'handed in, so the chunk shares nothing but React');
+  // The card's chunk imports React and its library, and nothing the question's chunk holds.
+  const imports = [...read('src/platform/supports/referenceCards/ReferenceCards.jsx').matchAll(/^import[^;]*from '([^']+)';$/gm)].map((match) => match[1]);
+  assert.deepEqual(imports, ['react', './referenceCardLibrary.js']);
   assert.match(engine, /\{referenceCards\}\s*\{hintPanelOpen && hintPanelPlace === 'top' && hintPanel \? \(/);
   // The rule knows nothing of what a card says.
   assert.doesNotMatch(executableSource(read('src/platform/supports/referenceCards/referenceCardRule.js')), /import/);
@@ -323,11 +327,15 @@ test('none of the card is on a student\'s or a teacher\'s first load', () => {
       assert.ok(!graph.has(path.join(repo, 'src/platform/supports/referenceCards', file)), file);
     }
   }
-  // Only the card itself and the authoring validator (teacher-side: Pre-Flight
-  // and the compiler, on neither first load) import the library.
-  const importers = sourceFiles('src').filter((file) => /referenceCardLibrary/.test(executableSource(read(file)))).sort();
-  assert.deepEqual(importers, ['src/platform/contract/lessonSupportsV5.js', 'src/platform/supports/referenceCards/ReferenceCards.jsx']);
-  for (const graph of [firstLoadGraph(), teacherFirstLoadGraph()]) assert.ok(!graph.has(path.join(repo, 'src/platform/contract/lessonSupportsV5.js')));
+  // Only the card itself imports the library, so the library is in the card's
+  // own chunk: a second importer would split it into a chunk of its own, whose
+  // name every first-load preload list would then carry.
+  const importers = sourceFiles('src').filter((file) => /^import[^;]*referenceCardLibrary/m.test(executableSource(read(file)))).sort();
+  assert.deepEqual(importers, ['src/platform/supports/referenceCards/ReferenceCards.jsx']);
+});
+
+test('the authoring validator\'s list of card skills is the library\'s, card for card', () => {
+  assert.deepEqual(REFERENCE_CARD_SKILLS.map((names) => [...names]), REFERENCE_CARDS.map((card) => [card.skill, ...card.aliases]));
 });
 
 const withVite = async (run) => {
@@ -341,7 +349,11 @@ const withVite = async (run) => {
 
 test('the card draws its title, each formula, its parts in a disclosure, and Read aloud; a skill with no card draws nothing', async () => {
   await withVite(async (server) => {
-    const { default: ReferenceCards } = await server.ssrLoadModule('/src/platform/supports/referenceCards/ReferenceCards.jsx');
+    const { default: Cards } = await server.ssrLoadModule('/src/platform/supports/referenceCards/ReferenceCards.jsx');
+    // The question hands in the two it already holds, as it does the worked-example player.
+    const MathText = (await server.ssrLoadModule('/src/components/common/MathText.jsx')).default;
+    const { SupportedTextActions } = await server.ssrLoadModule('/src/platform/supports/SupportedText.jsx');
+    const ReferenceCards = (props) => React.createElement(Cards, { MathText, SupportedTextActions, ...props });
     const html = renderToStaticMarkup(React.createElement(ReferenceCards, {
       cards: [{ id: 'cubes', skill: 'factor.sumDifferenceOfCubes' }, { id: 'nope', skill: 'made.up.skill' }],
       readAloud: { language: 'en' },

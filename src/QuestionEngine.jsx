@@ -2266,6 +2266,8 @@ function QuestionEngineBody({
       <Suspense fallback={null}>
         <QuestionSupplementBoundary stage="reference-cards" context={failureContext} draftKey={draftKey} resetKey={supplementResetKey}>
           <ReferenceCards
+            MathText={MathText}
+            SupportedTextActions={SupportedTextActions}
             cards={pinnedCards}
             readAloud={supportedTextReadAloud}
             translation={supportedTextTranslation}

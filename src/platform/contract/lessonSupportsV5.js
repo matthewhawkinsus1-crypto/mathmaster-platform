@@ -28,7 +28,8 @@
  * the step (supports/showTheStep/checkpointSource.js checkpointSourceErrors),
  * beside this one too. A reference card's content is the platform's (WE-H):
  * the card for its `skill` in the built-in library
- * (supports/referenceCards/referenceCardLibrary.js), so a card whose skill has
+ * (supports/referenceCards/referenceCardLibrary.js; its skill names are written
+ * out below, REFERENCE_CARD_SKILLS), so a card whose skill has
  * none is a Pre-Flight warning on a NEW assignment (referenceCardSkillWarnings,
  * which the Pre-Flight model asks for only then): students would never see it. So an assignment that carries none of the fields is judged and
  * compiled exactly as before.
@@ -39,7 +40,6 @@
  */
 
 import { followThroughPlaceholders } from '../../../functions/shared/followThroughNames.mjs';
-import { REFERENCE_CARDS, referenceCardFor } from '../supports/referenceCards/referenceCardLibrary.js';
 // The two attempt policies (functions/shared/activityPolicies.mjs ATTEMPT_POLICY),
 // written out so that object stays off the student's first load; a test holds
 // them equal (unlimitedAttemptsAssignment.test.mjs).
@@ -476,6 +476,30 @@ export const validateLessonSupportsV5 = (input = {}) => {
   return { errors, warnings };
 };
 
+/*
+ * The skills the built-in reference cards answer to (WE-H), each card's own
+ * skill first and then its aliases: the names in
+ * supports/referenceCards/referenceCardLibrary.js, written out here so the
+ * library stays in the card's own chunk (a second importer would split it into
+ * a chunk of its own, named in the first load's preload lists). A test holds
+ * them equal (referenceCards.test.mjs).
+ */
+export const REFERENCE_CARD_SKILLS = Object.freeze([
+  ['factor.sumDifferenceOfCubes', 'factor.sumOfCubes', 'factor.differenceOfCubes', 'polynomials.sumDifferenceOfCubes'],
+  ['factor.differenceOfSquares', 'polynomials.differenceOfSquares'],
+  ['factor.perfectSquareTrinomial', 'polynomials.perfectSquareTrinomial'],
+  ['factor.trinomialAC', 'factor.acMethod', 'polynomials.factorTrinomial'],
+  ['lines.slopeInterceptForm', 'linear.slopeInterceptForm', 'linear.graphFromSlopeIntercept'],
+  ['lines.pointSlopeForm', 'linear.pointSlopeForm'],
+  ['lines.slopeFormula', 'lines.slopeFromTwoPoints', 'linear.slopeFromPoints', 'linear.slopeFormula'],
+  ['lines.standardForm', 'linear.standardForm'],
+  ['quadratics.quadraticFormula', 'quadratics.solveByFormula', 'quadratic.quadraticFormula'],
+  ['quadratics.vertexForm', 'quadratic.vertexForm'],
+  ['theorems.remainder', 'theorems.remainderTheorem', 'polynomials.remainderTheorem'],
+  ['transformations.combined', 'transformations.readAHK', 'transformations.generalForm'],
+].map((names) => Object.freeze(names)));
+const KNOWN_CARD_SKILLS = new Set(REFERENCE_CARD_SKILLS.flat().map((name) => name.toLowerCase()));
+
 /**
  * A declared reference card whose skill has no built-in card (WE-H): students
  * would never see it. Advice for a NEW assignment only; the Pre-Flight model
@@ -484,8 +508,8 @@ export const validateLessonSupportsV5 = (input = {}) => {
  */
 export const referenceCardSkillWarnings = (input = {}) => {
   const cards = isObject(input?.lessonSupports) && Array.isArray(input.lessonSupports.referenceCards) ? input.lessonSupports.referenceCards : [];
-  return cards.flatMap((card, index) => (isObject(card) && isNonEmptyString(card.skill) && !referenceCardFor(card.skill)
-    ? [`lessonSupports.referenceCards[${index}].skill "${clean(card.skill)}" has no reference card in MathMaster yet, so students will not see this card. Use the skill of a built-in card: ${REFERENCE_CARDS.map((entry) => entry.skill).join(', ')}.`]
+  return cards.flatMap((card, index) => (isObject(card) && isNonEmptyString(card.skill) && !KNOWN_CARD_SKILLS.has(clean(card.skill).toLowerCase())
+    ? [`lessonSupports.referenceCards[${index}].skill "${clean(card.skill)}" has no reference card in MathMaster yet, so students will not see this card. Use the skill of a built-in card: ${REFERENCE_CARD_SKILLS.map(([skill]) => skill).join(', ')}.`]
     : []));
 };
 

@@ -1,6 +1,4 @@
 import { useEffect, useId, useState } from 'react';
-import MathText from '../../../components/common/MathText.jsx';
-import { SupportedTextActions } from '../SupportedText.jsx';
 import { REFERENCE_CARD_TEXT, readingFor, referenceCardFor } from './referenceCardLibrary.js';
 
 /*
@@ -26,6 +24,12 @@ import { REFERENCE_CARD_TEXT, readingFor, referenceCardFor } from './referenceCa
  *
  * `cards` is [{ id, skill }]; one whose skill has no built-in card is not
  * shown. With none to show, nothing is drawn and `onShown` is not called.
+ *
+ * MathText and SupportedTextActions are handed in by the question, which
+ * already holds them, as the worked-example player's are: this chunk then
+ * shares nothing with the question's but React, and adding it moves none of
+ * the question's modules into a chunk of their own (a new chunk the first
+ * load's preload lists would name).
  */
 const NARROW_QUERY = '(max-width: 600px)';
 const narrowScreen = () => {
@@ -64,7 +68,7 @@ const summaryStyle = {
   alignItems: 'center',
 };
 
-function ReferenceCard({ entry, card, openParts, readAloud, translation, onSupportEvidence }) {
+function ReferenceCard({ MathText, SupportedTextActions, entry, card, openParts, readAloud, translation, onSupportEvidence }) {
   const words = REFERENCE_CARD_TEXT.en;
   const titleId = useId();
   const spanish = String(translation?.language || '').toLowerCase().startsWith('es');
@@ -106,7 +110,7 @@ function ReferenceCard({ entry, card, openParts, readAloud, translation, onSuppo
   );
 }
 
-export default function ReferenceCards({ cards = [], readAloud = null, translation = null, onSupportEvidence = null, onShown = null }) {
+export default function ReferenceCards({ MathText, SupportedTextActions, cards = [], readAloud = null, translation = null, onSupportEvidence = null, onShown = null }) {
   const shown = (Array.isArray(cards) ? cards : [])
     .map((entry) => ({ entry, card: referenceCardFor(entry?.skill) }))
     .filter(({ card }) => Boolean(card));
@@ -121,7 +125,7 @@ export default function ReferenceCards({ cards = [], readAloud = null, translati
     <section className="mathmaster-reference-cards" data-reference-cards="" aria-label={shown.length > 1 ? words.names : words.name} style={{ display: 'grid', gap: 8, minWidth: 0, textAlign: 'start' }}>
       <p data-reference-card-note="" style={{ margin: 0, color: 'var(--mm-text-muted)', fontSize: 'calc(13 * var(--mm-px))', fontWeight: 600 }}>{words.note}</p>
       {shown.map(({ entry, card }) => (
-        <ReferenceCard key={entry.id} entry={entry} card={card} openParts={openParts} readAloud={readAloud} translation={translation} onSupportEvidence={onSupportEvidence} />
+        <ReferenceCard key={entry.id} MathText={MathText} SupportedTextActions={SupportedTextActions} entry={entry} card={card} openParts={openParts} readAloud={readAloud} translation={translation} onSupportEvidence={onSupportEvidence} />
       ))}
     </section>
   );
