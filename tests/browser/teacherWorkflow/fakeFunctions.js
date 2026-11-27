@@ -15,6 +15,11 @@
 import { arrayRemove, deleteField, harnessStore, recordHarnessCallable, Timestamp } from './fakeFirestore.js';
 import { TEACHER_EMAIL } from './fixture.js';
 import {
+  DisciplineInputError,
+  disciplineDateKey,
+  normalizeViolationInput,
+} from '../../../functions/shared/disciplineTracker.mjs';
+import {
   ASSIGNMENT_OVERRIDE_ARCHIVES_COLLECTION,
   OVERRIDE_CHANGE,
   OVERRIDE_MIGRATION_ID,
@@ -585,6 +590,67 @@ const handlers = {
     });
     return { studentId, ...next };
   },
+  // The Discipline Tracker (functions/disciplineFunctions.js). The harness has
+  // no Google Form: Send now marks taps sent, and nothing leaves the browser.
+  recordDisciplineIncident: ({ classId, studentId, type, detail = '', tapId } = {}) => {
+    const cls = requireClassTeacher(classId);
+    const student = harnessStore.get(`grades/${studentId}`);
+    if (!student || student.classId !== cls) throw rejection('permission-denied', "That student is not on this class's roster.");
+    let violation;
+    try { violation = normalizeViolationInput({ type, detail }); } catch (error) {
+      if (error instanceof DisciplineInputError) throw rejection('invalid-argument', error.message);
+      throw error;
+    }
+    const path = `disciplineIncidents/${cls}_${tapId}`;
+    if (!harnessStore.get(path)) {
+      const nowMs = Date.now();
+      const classRecord = harnessStore.get(`classes/${cls}`) || {};
+      harnessStore.set(path, {
+        classId: cls, classPeriod: classRecord.period || '', classLabel: classRecord.name || classRecord.period || '', studentId,
+        ...violation, occurredAtMs: nowMs, dateKey: disciplineDateKey(nowMs), teacherOfRecord: lower(TEACHER_EMAIL), form: { state: 'pending', attempts: 0 },
+      });
+    }
+    return { id: path.split('/')[1], ...harnessStore.get(path) };
+  },
+  voidDisciplineIncident: ({ incidentId } = {}) => {
+    const path = `disciplineIncidents/${incidentId}`;
+    const record = harnessStore.get(path);
+    if (!record) throw rejection('not-found', 'That violation was not found.');
+    requireClassTeacher(record.classId);
+    if (!record.voidedAtMs) harnessStore.update(path, { voidedAtMs: Date.now() });
+    return { id: incidentId, ...harnessStore.get(path), alreadySubmitted: record.form?.state === 'submitted' };
+  },
+  setDisciplineIncidentDetail: ({ incidentId, detail = '' } = {}) => {
+    const path = `disciplineIncidents/${incidentId}`;
+    const record = harnessStore.get(path);
+    if (!record) throw rejection('not-found', 'That violation was not found.');
+    requireClassTeacher(record.classId);
+    const violation = normalizeViolationInput({ type: record.type, detail });
+    harnessStore.update(path, { detail: violation.detail });
+    return { id: incidentId, ...harnessStore.get(path) };
+  },
+  listDisciplineIncidents: ({ fromDateKey, toDateKey } = {}) => ({
+    incidents: harnessStore.paths('disciplineIncidents/')
+      .map((path) => ({ id: path.split('/')[1], ...harnessStore.get(path) }))
+      .filter((entry) => entry.teacherOfRecord === lower(TEACHER_EMAIL) && entry.dateKey >= fromDateKey && entry.dateKey <= toDateKey),
+    formStatus: harnessStore.get('disciplineStatus/form') || null,
+  }),
+  getDisciplineSettings: () => ({ principalEmail: '', principalName: '', teacherName: '', ...(harnessStore.get(`disciplineSettings/${lower(TEACHER_EMAIL)}`) || {}) }),
+  saveDisciplineSettings: (settings = {}) => {
+    const saved = { principalEmail: String(settings.principalEmail || ''), principalName: String(settings.principalName || ''), teacherName: String(settings.teacherName || '') };
+    harnessStore.set(`disciplineSettings/${lower(TEACHER_EMAIL)}`, saved);
+    return saved;
+  },
+  submitDisciplineFormsNow: ({ classId = '', dateKey = '' } = {}) => {
+    const pending = harnessStore.paths('disciplineIncidents/').filter((path) => {
+      const entry = harnessStore.get(path);
+      return entry.form?.state === 'pending' && !entry.voidedAtMs && (!classId || entry.classId === classId) && (!dateKey || entry.dateKey === dateKey);
+    });
+    pending.forEach((path) => harnessStore.update(path, { form: { ...harnessStore.get(path).form, state: 'submitted', submittedAtMs: Date.now() } }));
+    const students = new Set(pending.map((path) => `${harnessStore.get(path).classId}|${harnessStore.get(path).studentId}`));
+    return { submitted: [...students].map((key) => ({ key })), waiting: [], blocked: [], retry: [], failed: [], unknown: [], formProblems: [] };
+  },
+  resolveDisciplineFormState: () => ({ changed: [] }),
   listGradeTransferState: ({ classIds = [] } = {}) => ({
     snapshots: harnessStore.paths('gradeTransferSnapshots/')
       .map((path) => ({ id: path.split('/')[1], ...harnessStore.get(path) }))

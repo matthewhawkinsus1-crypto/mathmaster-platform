@@ -68,4 +68,5 @@ Object.assign(
   require("./liveChallengeFunctions"),
   require("./testCycleFunctions"),
   require("./platformFunctions"),
+  require("./disciplineFunctions"),
 );
