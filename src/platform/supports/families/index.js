@@ -12,10 +12,14 @@ import * as transformations from './transformations.js';
 import * as quadraticsAbsoluteValue from './quadraticsAbsoluteValue.js';
 import * as dataAndModels from './dataAndModels.js';
 import * as perpendicularLines from './perpendicularLines.js';
+import * as linearReasoning from './linearReasoning.js';
 
-// perpendicularLines is last: it speaks only in the closed-question review
-// (CT02), so it may take only an item that no family above claims.
-const FAMILIES = [linearEquations, systems, linesAndSlope, fractions, pointsAndIntervals, functionFeatures, inverseComposition, transformations, quadraticsAbsoluteValue, dataAndModels, perpendicularLines];
+// perpendicularLines comes after the families that teach while an item is
+// open: it speaks only in the closed-question review (CT02), so it may take
+// only an item that no family above claims. linearReasoning is last: it works
+// only a sibling, for the Algebra I answer-box items no other family reads
+// (WE-I), so it never takes an item from one that explains more.
+const FAMILIES = [linearEquations, systems, linesAndSlope, fractions, pointsAndIntervals, functionFeatures, inverseComposition, transformations, quadraticsAbsoluteValue, dataAndModels, perpendicularLines, linearReasoning];
 
 export const implementedFamilies = () => FAMILIES.filter((module) => module.implemented === true);
 
