@@ -218,7 +218,7 @@ for (const device of DEVICES) {
   const withCard = await outcome(`q=multi&role=practice&section=practice&${CARDS}`);
   check(JSON.stringify(without.result) === JSON.stringify(withCard.result) && withCard.result.length === 2, 'practice: a miss and then a right answer are graded the same with a card as without', `${JSON.stringify(without.result)} vs ${JSON.stringify(withCard.result)}`);
   check(without.usage.every((usage) => !('referenceCardShown' in usage)), 'practice without a card: nothing about a card is recorded', JSON.stringify(without.usage));
-  const strip = (usage) => usage.map(({ referenceCardShown, ...rest }) => rest);
+  const strip = (usage) => usage.map(({ referenceCardShown: _shown, ...rest }) => rest);
   check(JSON.stringify(strip(withCard.usage)) === JSON.stringify(without.usage), 'practice: the card changes nothing else the attempt records', `${JSON.stringify(strip(withCard.usage))} vs ${JSON.stringify(without.usage)}`);
 }
 
@@ -286,7 +286,7 @@ for (const device of DEVICES) {
       const active = document.activeElement;
       if (!active?.closest('[data-reference-card="card-1"]')) return null;
       if (active.matches('[data-reference-card-parts] > summary')) return 'parts';
-      if (/^Read /.test(active.getAttribute('aria-label') || '')) return 'read';
+      if ((active.getAttribute('aria-label') || '').startsWith('Read ')) return 'read';
       if (active.hasAttribute('data-translate-ready')) return 'translate';
       return active.tagName.toLowerCase();
     });
