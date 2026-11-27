@@ -108,13 +108,18 @@ const num = (value) => {
   return rounded < 0 ? `${MINUS}${body}` : body;
 };
 
-/** 1600 → "$1,600", 2.5 → "$2.50". */
+/**
+ * 1600 → "1,600 dollars", 2.5 → "2.50 dollars". Written in words, not "$": a
+ * line with two prices and an "=" between them reads to the translator as one
+ * LaTeX span ($…$), so its sentences could not be translated (mathSafeText.js).
+ */
 const money = (value) => {
   const cents = Math.round(Number(value) * 100);
   const whole = Math.floor(Math.abs(cents) / 100);
   const rest = Math.abs(cents) % 100;
   const grouped = String(whole).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
-  return `${cents < 0 ? MINUS : ''}$${grouped}${rest ? `.${String(rest).padStart(2, '0')}` : ''}`;
+  const amount = `${cents < 0 ? MINUS : ''}${grouped}${rest ? `.${String(rest).padStart(2, '0')}` : ''}`;
+  return `${amount} ${cents === 100 ? 'dollar' : 'dollars'}`;
 };
 
 /** n/d in lowest terms: "3/4", "−2", "5". */
@@ -231,151 +236,162 @@ const hasInequalitySymbol = (value) => /[<>≤≥]/.test(value);
 
 /* ---------------------------------------------------------------------------
  * THE KINDS: how each is recognised, and its sibling.
- * Each sibling is { prompt, steps, answer }; steps say the move, then why.
+ * Each sibling is { prompt, steps, answer }; each step says the move and why.
+ *
+ * WRITTEN TO BE TRANSLATED. Every sentence is one the Spanish pack knows
+ * (src/platform/language/packs/esSupport.js, linearReasoningSiblings): the
+ * mathematics goes in its slots, and the words of a situation come from the
+ * small tables below, which the pack mirrors. A new sentence or a new
+ * situation here needs its Spanish there (tests/platform/
+ * readAloudAndTranslate.test.mjs counts the real lessons' siblings).
  * ------------------------------------------------------------------------- */
 
-const SALES_SITUATIONS = Object.freeze([
-  { who: 'The robotics club', sells: 'sells raffle tickets', item: 'raffle tickets', one: 'raffle ticket', letter: 't', started: 'already has' },
-  { who: 'The band', sells: 'sells T-shirts', item: 'T-shirts', one: 'T-shirt', letter: 'n', started: 'already has' },
-  { who: 'The garden club', sells: 'sells potted plants', item: 'potted plants', one: 'potted plant', letter: 'p', started: 'already has' },
-  { who: 'The swim team', sells: 'washes cars', item: 'car washes', one: 'car wash', letter: 'w', started: 'starts with a donation of' },
-  { who: 'The art club', sells: 'sells greeting cards', item: 'greeting cards', one: 'greeting card', letter: 'c', started: 'already has' },
+// The situations, by key; the pack has the same keys.
+export const SALES_SITUATIONS = Object.freeze([
+  { key: 'band', who: 'The band', sells: 'sells T-shirts', item: 'T-shirts', one: 'T-shirt' },
+  { key: 'garden', who: 'The garden club', sells: 'sells potted plants', item: 'potted plants', one: 'potted plant' },
+  { key: 'art', who: 'The art club', sells: 'sells greeting cards', item: 'greeting cards', one: 'greeting card' },
 ]);
 
-const RATES = Object.freeze([2.5, 4, 4.5, 6, 7.5, 8, 12]);
+const RATES = Object.freeze([2.5, 4, 5, 6, 7.5, 8, 12]);
 
 // inequalityModel: a goal reached "at least" and a total kept "less than".
 const inequalityModelSibling = (random) => {
   const place = pick(random, SALES_SITUATIONS);
   const rate = pick(random, RATES);
   const start = 5 * integer(random, 2, 16);
-  const v = place.letter;
-  const rule = `S(${v}) = ${linear(rate, start, v)}`;
-  // At least G: G − start not a multiple of the rate, so the student must round up.
-  const lowCount = integer(random, 18, 90);
-  const goal = Math.round(start + rate * lowCount + rate / 2);
-  const exact = (goal - start) / rate;
-  const least = Math.ceil(exact - 1e-9);
-  // Less than H: H − start a multiple of the rate, so the boundary is left out.
+  const rule = `S(n) = ${linear(rate, start, 'n')}`;
+  // At least G: the boundary falls halfway between two whole numbers, so the student must round up.
+  const least = integer(random, 18, 90);
+  const boundary = least - 0.5;
+  const goal = start + rate * boundary;
+  // Less than H: H is reached exactly at a whole number, which is left out.
   const highCount = least + integer(random, 15, 60);
   const ceiling = start + rate * highCount;
   const greatest = highCount - 1;
-  // The boundary exactly when it has at most two decimals (61.6), else rounded and said so.
-  const boundary = Math.abs(exact * 100 - Math.round(exact * 100)) < 1e-9 ? num(exact) : `about ${num(exact)}`;
-  const prompt = `${place.who} ${place.sells} for ${money(rate)} each and ${place.started} ${money(start)}, so its total is ${rule} for ${v} ${place.item}. a. At least how many ${place.item} must it sell to have at least ${money(goal)}? b. What is the greatest number of ${place.item} it can sell and still have less than ${money(ceiling)}?`.replace(/must it sell|can sell/g, (verb) => (place.sells.startsWith('sells') ? verb : verb.replace('sell', 'do')));
+  const prompt = [
+    `${place.who} ${place.sells} for ${money(rate)} each and already has ${money(start)}.`,
+    `Its total after selling n ${place.item} is ${rule}.`,
+    `At least how many ${place.item} must it sell to have at least ${money(goal)}?`,
+    `What is the greatest number of ${place.item} it can sell and still have less than ${money(ceiling)}?`,
+  ].join(' ');
   const steps = [
-    `a. “At least ${money(goal)}” means the total is ${money(goal)} or more, so write ${linear(rate, start, v)} ≥ ${num(goal)}. The symbol ≥ keeps the goal itself in.`,
-    `Subtract ${num(start)} from both sides to undo the starting amount: ${linear(rate, 0, v)} ≥ ${num(goal - start)}.`,
-    `Divide both sides by ${num(rate)} to get ${v} alone. ${num(rate)} is positive, so the symbol stays the same: ${v} ≥ ${boundary}.`,
-    `On a graph this boundary is where the horizontal line y = ${num(goal)} meets the graph of S, and every point of S on or above that line reaches the goal.`,
-    `The letter ${v} counts whole ${place.item}, so round UP to the next whole number: ${least}. Rounding down would fall short.`,
-    `Check: S(${least}) = ${num(rate)}(${least}) + ${num(start)} = ${num(rate * least + start)}, at least ${num(goal)}; one fewer, S(${least - 1}) = ${num(rate * (least - 1) + start)}, is not enough.`,
-    `b. “Less than ${money(ceiling)}” leaves ${money(ceiling)} itself out, so write ${linear(rate, start, v)} < ${num(ceiling)}, then subtract ${num(start)} and divide by ${num(rate)}: ${v} < ${num(highCount)}.`,
-    `On a number line ${v} < ${num(highCount)} is an OPEN dot at ${num(highCount)}, because ${num(highCount)} ${place.item} give exactly ${money(ceiling)}, which is not less than ${money(ceiling)}; ${v} ≥ ${boundary} in part a is a closed dot, because its boundary is included.`,
-    `The greatest whole number less than ${num(highCount)} is ${greatest}, and only whole numbers from 0 up make sense here: no one sells part of a ${place.one} or a negative number of them.`,
+    `At least ${money(goal)} means the total is ${money(goal)} or more, so write ${linear(rate, start, 'n')} ≥ ${num(goal)}. The symbol ≥ keeps the goal itself in.`,
+    `Subtract ${num(start)} from both sides to undo the starting amount: ${linear(rate, 0, 'n')} ≥ ${num(goal - start)}.`,
+    `Divide both sides by ${num(rate)} to get n alone. ${num(rate)} is positive, so the symbol stays the same: n ≥ ${num(boundary)}.`,
+    `On a graph this boundary is where the horizontal line y = ${num(goal)} meets the graph of S.`,
+    `n counts whole ${place.item}, so round up to the next whole number: ${least}. Rounding down would fall short.`,
+    `Check: S(${least}) = ${num(rate)}(${least}) + ${num(start)} = ${num(rate * least + start)}, which is at least ${num(goal)}. One fewer, S(${least - 1}) = ${num(rate * (least - 1) + start)}, is not enough.`,
+    `Less than ${money(ceiling)} leaves ${money(ceiling)} itself out, so write ${linear(rate, start, 'n')} < ${num(ceiling)}. Subtract ${num(start)} and divide by ${num(rate)}: n < ${num(highCount)}.`,
+    `On a number line, n < ${num(highCount)} is an open dot at ${num(highCount)}, because ${num(highCount)} ${place.item} give exactly ${money(ceiling)}, which is not less than ${money(ceiling)}. n ≥ ${num(boundary)} is a closed dot, because its boundary is included.`,
+    `The greatest whole number less than ${num(highCount)} is ${greatest}. Only whole numbers from 0 up make sense here, because no one sells part of a ${place.one}.`,
   ];
-  return { prompt, steps, answer: `a. ${least} ${place.item} (${v} ≥ ${boundary}); b. ${greatest} ${place.item} (${v} < ${num(highCount)})` };
+  // One line "Practise one like this" reads into boxes it can check (practiceLikeThis.js).
+  return { prompt, steps, answer: `least ${least}; greatest ${greatest}` };
 };
 
 // inequalityModel, two models: when does the one with no head start earn more?
 const compareModelsSibling = (random) => {
   const place = pick(random, SALES_SITUATIONS);
-  const v = place.letter;
   for (let tries = 0; tries < 40; tries += 1) {
     const slow = pick(random, [2, 3, 4, 5, 6]);
-    const fast = slow + pick(random, [0.5, 1, 1.5, 2, 2.5]);
+    const gap = pick(random, [0.5, 1, 1.5, 2, 2.5]);
+    const fast = slow + gap;
     const meet = integer(random, 8, 40);
-    const head = (fast - slow) * meet;
+    const head = gap * meet;
     if (!Number.isInteger(head) || head <= 0) continue;
-    const meetValue = fast * meet;
-    const prompt = `${place.who} can earn money from ${place.item} two ways. Plan A earns ${money(slow)} per ${place.one} plus ${money(head)} up front: A(${v}) = ${linear(slow, head, v)}. Plan B earns ${money(fast)} per ${place.one} with nothing up front: B(${v}) = ${linear(fast, 0, v)}. For which numbers of ${place.item} does Plan B earn more?`;
+    const prompt = [
+      `${place.who} can earn money from ${place.item} in two ways.`,
+      `Plan A earns ${money(slow)} per ${place.one} plus ${money(head)} up front: A(n) = ${linear(slow, head, 'n')}.`,
+      `Plan B earns ${money(fast)} per ${place.one} with nothing up front: B(n) = ${linear(fast, 0, 'n')}.`,
+      `For which numbers of ${place.item} does Plan B earn more?`,
+    ].join(' ');
     const steps = [
-      `The graphs meet where the plans earn the same, so set them equal: ${linear(fast, 0, v)} = ${linear(slow, head, v)}.`,
-      `Subtract ${linear(slow, 0, v)} from both sides to collect the ${v}-terms: ${linear(fast - slow, 0, v)} = ${num(head)}${fast - slow === 1 ? '' : `, so ${v} = ${num(meet)}`}. Both plans earn ${num(meetValue)} there, so the graphs meet at ${pair(meet, meetValue)}.`,
-      `“Plan B earns more” is B(${v}) > A(${v}): ${linear(fast, 0, v)} > ${linear(slow, head, v)}. The same moves give ${fast - slow === 1 ? `${v} > ${num(meet)}; the symbol is the one the question asks for, because no step multiplied or divided by a negative.` : `${linear(fast - slow, 0, v)} > ${num(head)}, and dividing by the positive ${num(fast - slow)} keeps the symbol: ${v} > ${num(meet)}.`}`,
-      `The symbol is > and not ≥ because at ${num(meet)} ${place.item} the plans earn the same, which is not more. The least whole number of ${place.item} is the next one, ${meet + 1}.`,
-      `On the graph, Plan B’s line is above Plan A’s to the right of the meeting point: B earns ${money(fast - slow)} more on each ${place.one}, so it catches up with A’s head start and then passes it.`,
+      `The graphs meet where the plans earn the same, so set them equal: ${linear(fast, 0, 'n')} = ${linear(slow, head, 'n')}.`,
+      gap === 1
+        ? `Subtract ${linear(slow, 0, 'n')} from both sides to collect the n-terms: n = ${num(meet)}.`
+        : `Subtract ${linear(slow, 0, 'n')} from both sides to collect the n-terms: ${linear(gap, 0, 'n')} = ${num(head)}, so n = ${num(meet)}.`,
+      `Both plans earn ${num(fast * meet)} there, so the graphs meet at ${pair(meet, fast * meet)}.`,
+      `Plan B earns more means B(n) > A(n): ${linear(fast, 0, 'n')} > ${linear(slow, head, 'n')}.`,
+      gap === 1
+        ? `The same moves give n > ${num(meet)}, and no step multiplies or divides by a negative, so the symbol stays.`
+        : `The same moves give ${linear(gap, 0, 'n')} > ${num(head)}, and dividing by the positive ${num(gap)} keeps the symbol: n > ${num(meet)}.`,
+      `The symbol is > and not ≥, because at ${num(meet)} ${place.item} the plans earn the same, which is not more. The least whole number of ${place.item} is the next one, ${meet + 1}.`,
+      `On the graph, the line of Plan B is above the line of Plan A to the right of the meeting point. Plan B earns ${money(gap)} more on each ${place.one}, so it catches up with the head start of Plan A and then passes it.`,
     ];
-    return { prompt, steps, answer: `${v} > ${num(meet)}; at least ${meet + 1} ${place.item}` };
+    return { prompt, steps, answer: `n > ${num(meet)}; least ${meet + 1}` };
   }
   return null;
 };
 
 // inequalityReverse: dividing by a negative number reverses the symbol.
+const FLIP = Object.freeze({ '<': '>', '≤': '≥', '>': '<', '≥': '≤' });
+
 const reverseTwoWaysSibling = (random) => {
-  for (let tries = 0; tries < 40; tries += 1) {
-    const k = integer(random, 2, 7);
-    const root = nonZero(random, -9, 9);
-    const p = integer(random, 3, 30);
-    const q = p - k * root;
-    const symbol = pick(random, ['<', '≤', '>', '≥']);
-    const flipped = { '<': '>', '≤': '≥', '>': '<', '≥': '≤' }[symbol];
-    const reading = { '<': 'less than', '≤': 'at most', '>': 'greater than', '≥': 'at least' }[flipped];
-    const inequality = `${num(p)} ${MINUS} ${k}x ${symbol} ${num(q)}`;
-    const test = root + (flipped === '>' || flipped === '≥' ? 1 : -1) * integer(random, 1, 4);
-    const small = integer(random, 3, 8);
-    const large = small + integer(random, 2, 9);
-    const value = p - k * test;
-    const prompt = `Solve ${inequality} two ways: once keeping the x-term on the left, and once moving it to the right. Then check a number.`;
-    const steps = [
-      `First way: ${undo(p)} both sides to leave the x-term alone: ${MINUS}${k}x ${symbol} ${num(q - p)}.`,
-      `Divide both sides by ${MINUS}${k}. Dividing by a negative number reverses the order of numbers (${small} < ${large}, but ${MINUS}${small} > ${MINUS}${large}), so ${symbol} turns into ${flipped}: x ${flipped} ${num(root)}.`,
-      `Second way: add ${k}x to both sides so the x-term is positive: ${num(p)} ${symbol} ${num(q)} + ${k}x. Then ${undo(q)} both sides: ${num(p - q)} ${symbol} ${k}x.`,
-      `Divide both sides by the positive ${k}. The symbol stays: ${num(root)} ${symbol} x.`,
-      `${num(root)} ${symbol} x and x ${flipped} ${num(root)} say the same thing, read from opposite sides: x is ${reading} ${num(root)}. The two ways agree.`,
-      `Check x = ${num(test)}, a number in the solution set: ${num(p)} ${MINUS} ${k}(${num(test)}) = ${num(value)}, and ${num(value)} ${symbol} ${num(q)} is true.`,
-    ];
-    return { prompt, steps, answer: `x ${flipped} ${num(root)}` };
-  }
-  return null;
+  const k = integer(random, 2, 7);
+  const root = nonZero(random, -9, 9);
+  const p = integer(random, 3, 30);
+  const q = p - k * root;
+  const symbol = pick(random, ['<', '≤', '>', '≥']);
+  const flipped = FLIP[symbol];
+  const test = root + (flipped === '>' || flipped === '≥' ? 1 : -1) * integer(random, 1, 4);
+  const small = integer(random, 3, 8);
+  const large = small + integer(random, 2, 9);
+  const prompt = `Solve ${num(p)} ${MINUS} ${k}x ${symbol} ${num(q)} in two ways: keep the x-term on the left, then move it to the right. Then check a number.`;
+  const steps = [
+    `First way: ${undo(p)} both sides to leave the x-term alone: ${MINUS}${k}x ${symbol} ${num(q - p)}.`,
+    `Divide both sides by ${MINUS}${k}. Dividing by a negative number reverses the order of numbers: ${small} < ${large}, but ${MINUS}${small} > ${MINUS}${large}. So ${symbol} turns into ${flipped}: x ${flipped} ${num(root)}.`,
+    `Second way: add ${k}x to both sides so the x-term is positive: ${num(p)} ${symbol} ${num(q)} + ${k}x.`,
+    `Then ${undo(q)} both sides: ${num(p - q)} ${symbol} ${k}x.`,
+    `Divide both sides by the positive ${k}, and the symbol stays: ${num(root)} ${symbol} x.`,
+    `${num(root)} ${symbol} x and x ${flipped} ${num(root)} say the same thing, read from opposite sides, so the two ways agree.`,
+    `Check x = ${num(test)}, a number in the solution set: ${num(p)} ${MINUS} ${k}(${num(test)}) = ${num(p - k * test)}, and ${num(p - k * test)} ${symbol} ${num(q)} is true.`,
+  ];
+  return { prompt, steps, answer: `x ${flipped} ${num(root)}` };
 };
 
 const reverseDistributiveSibling = (random) => {
-  for (let tries = 0; tries < 40; tries += 1) {
-    const k = integer(random, 2, 6);
-    const h = nonZero(random, -8, 8);
-    const root = h + pick(random, [-3, -2, -1, 1, 2, 3]);
-    const c = -k * (root - h);
-    const symbol = pick(random, ['<', '≥']);
-    const flipped = symbol === '<' ? '>' : '≤';
-    const inside = h > 0 ? `x ${MINUS} ${h}` : `x + ${-h}`;
-    const inequality = `${MINUS}${k}(${inside}) ${symbol} ${num(c)}`;
-    const prompt = `Solve ${inequality} two ways: distribute first, or divide both sides by ${MINUS}${k} first.`;
-    const steps = [
-      `First way: distribute ${MINUS}${k} to both terms in the parentheses: ${linear(-k, k * h)} ${symbol} ${num(c)}.`,
-      `${capital(undo(k * h))} both sides: ${MINUS}${k}x ${symbol} ${num(c - k * h)}.`,
-      `Divide both sides by ${MINUS}${k}. Dividing by a negative number reverses the symbol, so ${symbol} becomes ${flipped}: x ${flipped} ${num(root)}.`,
-      `Second way: divide both sides by ${MINUS}${k} first, reversing the symbol now because ${MINUS}${k} is negative: ${inside} ${flipped} ${num(c / -k)}.`,
-      `Then ${h > 0 ? `add ${h} to` : `subtract ${-h} from`} both sides: x ${flipped} ${num(root)}, the same answer as the first way.`,
-    ];
-    return { prompt, steps, answer: `x ${flipped} ${num(root)}` };
-  }
-  return null;
+  const k = integer(random, 2, 6);
+  const h = nonZero(random, -8, 8);
+  const root = h + pick(random, [-3, -2, -1, 1, 2, 3]);
+  const c = -k * (root - h);
+  const symbol = pick(random, ['<', '≥']);
+  const flipped = FLIP[symbol];
+  const inside = h > 0 ? `x ${MINUS} ${h}` : `x + ${-h}`;
+  const prompt = `Solve ${MINUS}${k}(${inside}) ${symbol} ${num(c)} in two ways: distribute first, or divide both sides by ${MINUS}${k} first.`;
+  const steps = [
+    `First way: distribute ${MINUS}${k} to both terms in the parentheses: ${linear(-k, k * h)} ${symbol} ${num(c)}.`,
+    `${capital(undo(k * h))} both sides: ${MINUS}${k}x ${symbol} ${num(c - k * h)}.`,
+    `Divide both sides by ${MINUS}${k}. Dividing by a negative number reverses the symbol, so ${symbol} becomes ${flipped}: x ${flipped} ${num(root)}.`,
+    `Second way: divide both sides by ${MINUS}${k} first, and reverse the symbol now, because ${MINUS}${k} is negative: ${inside} ${flipped} ${num(c / -k)}.`,
+    `Then ${undo(-h)} both sides: x ${flipped} ${num(root)}, the same answer as the first way.`,
+  ];
+  return { prompt, steps, answer: `x ${flipped} ${num(root)}` };
 };
 
-const DRAINING = Object.freeze([
-  { what: 'A water tank', rule: 'V', variable: 't', unit: 'liters', time: 'minutes', rateWord: 'drains', measure: 'the water in it, in liters', empty: 'the tank is empty' },
-  { what: 'A hot-air balloon', rule: 'H', variable: 't', unit: 'feet', time: 'minutes', rateWord: 'descends', measure: 'its height, in feet', empty: 'the balloon is on the ground' },
-  { what: 'A phone battery', rule: 'B', variable: 't', unit: 'percent', time: 'hours', rateWord: 'loses', measure: 'its charge, in percent', empty: 'the battery is flat' },
+export const DRAINING_SITUATIONS = Object.freeze([
+  { key: 'tank', what: 'A water tank', rateWord: 'drains', unit: 'liters', time: 'minutes', each: 'minute', measure: 'the water in it, in liters', empty: 'the tank is empty' },
+  { key: 'balloon', what: 'A hot-air balloon', rateWord: 'descends', unit: 'feet', time: 'minutes', each: 'minute', measure: 'its height, in feet', empty: 'the balloon is on the ground' },
+  { key: 'battery', what: 'A phone battery', rateWord: 'loses', unit: 'percent', time: 'hours', each: 'hour', measure: 'its charge, in percent', empty: 'the battery is flat' },
 ]);
 
 const decreasingModelSibling = (random) => {
-  const place = pick(random, DRAINING);
+  const place = pick(random, DRAINING_SITUATIONS);
   const rate = pick(random, [5, 8, 12, 15, 25, 30]);
   const total = rate * integer(random, 20, 60);
-  const v = place.variable;
-  const ruleText = `${place.rule}(${v}) = ${num(total)} ${MINUS} ${rate}${v}`;
   const t1 = integer(random, 3, Math.floor(total / rate / 2));
   const above = total - rate * t1;
   const t2 = integer(random, t1 + 2, Math.floor(total / rate) - 1);
   const below = total - rate * t2;
-  const prompt = `${place.what} ${place.rateWord} ${rate} ${place.unit} each ${place.time === 'hours' ? 'hour' : 'minute'}: ${ruleText}. Solve ${place.rule}(${v}) > ${num(above)} and ${place.rule}(${v}) ≤ ${num(below)} for ${v}, and compare the symbols.`;
+  const rule = `${num(total)} ${MINUS} ${rate}t`;
+  const prompt = `${place.what} ${place.rateWord} ${rate} ${place.unit} each ${place.each}: V(t) = ${rule} is ${place.measure} after t ${place.time}. Solve V(t) > ${num(above)} and V(t) ≤ ${num(below)} for t.`;
   const steps = [
-    `${place.rule}(${v}) > ${num(above)} means ${num(total)} ${MINUS} ${rate}${v} > ${num(above)}. Subtract ${num(total)} from both sides: ${MINUS}${rate}${v} > ${num(above - total)}.`,
-    `Divide both sides by ${MINUS}${rate}. Dividing by a negative number reverses the symbol: ${v} < ${num(t1)}. The amount is still above ${num(above)} only BEFORE ${num(t1)} ${place.time}, because it goes down as time goes on.`,
-    `${place.rule}(${v}) ≤ ${num(below)} means ${num(total)} ${MINUS} ${rate}${v} ≤ ${num(below)}, so ${MINUS}${rate}${v} ≤ ${num(below - total)}; dividing by ${MINUS}${rate} reverses ≤ to ≥: ${v} ≥ ${num(t2)}.`,
+    `V(t) > ${num(above)} means ${rule} > ${num(above)}. Subtract ${num(total)} from both sides: ${MINUS}${rate}t > ${num(above - total)}.`,
+    `Divide both sides by ${MINUS}${rate}, a negative number, so the symbol reverses: t < ${num(t1)}.`,
+    `The amount is above ${num(above)} only before ${num(t1)} ${place.time}, because it goes down as time goes on.`,
+    `V(t) ≤ ${num(below)} means ${rule} ≤ ${num(below)}, so ${MINUS}${rate}t ≤ ${num(below - total)}. Dividing by ${MINUS}${rate} reverses ≤ to ≥: t ≥ ${num(t2)}.`,
   ];
-  return { prompt, steps, answer: `${v} < ${num(t1)}; ${v} ≥ ${num(t2)}` };
+  return { prompt, steps, answer: `t < ${num(t1)}; t ≥ ${num(t2)}` };
 };
 
 const letterCoefficientSibling = (random) => {
@@ -386,12 +402,12 @@ const letterCoefficientSibling = (random) => {
   const prompt = `In kx ${c < 0 ? MINUS : '+'} ${Math.abs(c)} < ${num(d)}, the letter k stands for a number. Solve it when k = ${positive}, when k = ${MINUS}${positive}, and when k = 0.`;
   const steps = [
     `${capital(undo(c))} both sides first, whatever k is: kx < ${num(gap)}.`,
-    `k = ${positive}: divide both sides by ${positive}, a positive number, so the symbol stays: x < ${frac(gap, positive)}.`,
-    `k = ${MINUS}${positive}: divide both sides by ${MINUS}${positive}, a negative number, so the symbol reverses: x > ${frac(gap, -positive)}.`,
-    `In general, for k > 0 the solutions are x < ${num(gap)}/k, and for k < 0 they are x > ${num(gap)}/k: the sign of k decides the direction.`,
-    `k = 0: you cannot divide by 0. Put 0 in for k instead: 0 < ${num(gap)}, which is ${gap > 0 ? 'true, so every real number x is a solution' : 'false, so no x is a solution'}.`,
+    `When k = ${positive}, divide both sides by ${positive}, a positive number, so the symbol stays: x < ${frac(gap, positive)}.`,
+    `When k = ${MINUS}${positive}, divide both sides by ${MINUS}${positive}, a negative number, so the symbol reverses: x > ${frac(gap, -positive)}.`,
+    `So for k > 0 the solutions are x < ${num(gap)}/k, and for k < 0 they are x > ${num(gap)}/k: the sign of k decides the direction.`,
+    `When k = 0 you cannot divide by 0, so put 0 in for k instead: 0 < ${num(gap)}. ${gap > 0 ? 'That is true, so every real number x is a solution.' : 'That is false, so no x is a solution.'}`,
   ];
-  return { prompt, steps, answer: `k = ${positive}: x < ${frac(gap, positive)}; k = ${MINUS}${positive}: x > ${frac(gap, -positive)}; k = 0: ${gap > 0 ? 'all x' : 'none'}` };
+  return { prompt, steps, answer: `x < ${frac(gap, positive)}; x > ${frac(gap, -positive)}` };
 };
 
 // solutionCount: one, none, or infinitely many, side by side.
@@ -400,7 +416,6 @@ const solutionCountSibling = (random) => {
     const a = integer(random, 2, 5);
     const h = nonZero(random, -6, 6);
     const e = nonZero(random, -9, 9);
-    const m = a;
     const b = -a * h + e; // a(x − h) + e = ax + b: the same line
     const other = b + nonZero(random, -7, 7);
     const steeper = a + pick(random, [1, 2, 3]);
@@ -408,19 +423,25 @@ const solutionCountSibling = (random) => {
     const xOne = (b - oneRhs) / (steeper - a);
     if (!Number.isInteger(xOne) || xOne === 0) continue;
     const left = `${a}(${h > 0 ? `x ${MINUS} ${h}` : `x + ${-h}`}) ${e > 0 ? '+' : MINUS} ${Math.abs(e)}`;
-    const simplified = linear(m, b);
+    const simplified = linear(a, b);
     const p = pick(random, [3, 4, 6]);
     const q = nonZero(random, -5, 5);
-    const prompt = `How many solutions does each equation have? A: ${left} = ${simplified}. B: ${left} = ${linear(m, other)}. C: ${left} = ${linear(steeper, oneRhs)}. Then find k so that ${p}(x ${q > 0 ? '+' : MINUS} ${Math.abs(q)}) = ${p}x + k has infinitely many solutions.`;
+    const parameter = `${p}(x ${q > 0 ? '+' : MINUS} ${Math.abs(q)})`;
+    const prompt = [
+      'How many solutions does each equation have?',
+      `Equation A is ${left} = ${simplified}, equation B is ${left} = ${linear(a, other)}, and equation C is ${left} = ${linear(steeper, oneRhs)}.`,
+      `Then find k so that ${parameter} = ${p}x + k has infinitely many solutions.`,
+    ].join(' ');
     const steps = [
-      `Simplify the left side first, the same in A, B and C: distribute ${a}, then combine the constants: ${left} = ${simplified}.`,
-      `A: ${simplified} = ${simplified}. Whatever number x is, the two sides give the same value, so every x makes it true: infinitely many solutions.`,
-      `B: ${simplified} = ${linear(m, other)}. The x-terms are the same, so subtracting ${coefficient(m)}x from both sides leaves ${num(b)} = ${num(other)}, which is false for every x: no solution.`,
-      `C: ${simplified} = ${linear(steeper, oneRhs)}. Here the x-terms do not cancel (${num(m)}x on the left, ${num(steeper)}x on the right): subtract ${coefficient(m)}x from both sides and ${undo(oneRhs).replace(/ (from|to)$/, '')}, to get ${num(b - oneRhs)} = ${coefficient(steeper - a)}x, so x = ${num(xOne)}: exactly one solution.`,
-      `Check C: ${a}(${num(xOne)} ${h > 0 ? MINUS : '+'} ${Math.abs(h)}) ${e > 0 ? '+' : MINUS} ${Math.abs(e)} = ${num(m * xOne + b)}, and ${substituted(steeper, oneRhs, xOne)} = ${num(steeper * xOne + oneRhs)}.`,
-      `For infinitely many solutions both sides must be the same: ${p}(x ${q > 0 ? '+' : MINUS} ${Math.abs(q)}) = ${linear(p, p * q)}, so k must be ${num(p * q)}. Any other k leaves a false statement, so no solution.`,
+      `First simplify the left side, which is the same in all three: distribute ${a}, then combine the constants: ${left} = ${simplified}.`,
+      `In A, ${simplified} = ${simplified}: whatever number x is, the two sides give the same value, so A has infinitely many solutions.`,
+      `In B, ${simplified} = ${linear(a, other)}: subtracting ${coefficient(a)}x from both sides leaves ${num(b)} = ${num(other)}, which is false for every x, so B has no solution.`,
+      `In C, ${simplified} = ${linear(steeper, oneRhs)}: the x-terms do not cancel, because ${coefficient(a)}x and ${coefficient(steeper)}x are different.`,
+      `Subtract ${coefficient(a)}x from both sides and ${undo(oneRhs).replace(/ (from|to)$/, '')} to get ${num(b - oneRhs)} = ${coefficient(steeper - a)}x, so C has exactly one solution, x = ${num(xOne)}.`,
+      `Check C: ${a}(${num(xOne)} ${h > 0 ? MINUS : '+'} ${Math.abs(h)}) ${e > 0 ? '+' : MINUS} ${Math.abs(e)} = ${num(a * xOne + b)}, and ${substituted(steeper, oneRhs, xOne)} = ${num(steeper * xOne + oneRhs)}.`,
+      `For infinitely many solutions both sides must be the same: ${parameter} = ${linear(p, p * q)}, so k must be ${num(p * q)}. Any other value of k leaves a false statement, and then there is no solution.`,
     ];
-    return { prompt, steps, answer: `A: infinitely many; B: none; C: x = ${num(xOne)}; k = ${num(p * q)}` };
+    return { prompt, steps, answer: `C: x = ${num(xOne)}; k = ${num(p * q)}` };
   }
   return null;
 };
@@ -432,21 +453,18 @@ const verifySolutionSibling = (random) => {
     const add = integer(random, 3, 11);
     const times = integer(random, 2, 5);
     const minus = integer(random, 2, 6);
-    // x = s → x + add = s + add → times x + times·add = times(s + add) → (times − minus)x + times·add = times(s + add) − minus x
+    if (times === minus) continue;
     const c1 = times * add;
     const r1 = times * (s + add);
     const left = linear(times - minus, c1);
     const right = `${num(r1)} ${MINUS} ${minus}x`;
-    if (times - minus === 0) continue;
-    const leftValue = (times - minus) * s + c1;
-    const rightValue = r1 - minus * s;
     const prompt = `Start with x = ${num(s)} and build a new equation by doing the same thing to both sides three times. Then check that x = ${num(s)} still makes the final equation true.`;
     const steps = [
-      `Add ${add} to both sides: x + ${add} = ${num(s + add)}. Adding the same number to both sides keeps the two sides equal.`,
-      `Multiply both sides by ${times}: ${times}x + ${c1} = ${num(r1)}. Multiplying both sides by the same number (not 0) keeps them equal.`,
-      `Subtract ${minus}x from both sides: ${left} = ${right}. A variable term can be subtracted from both sides too; it is the same amount on each side for any one x.`,
-      `Check by substituting x = ${num(s)} into each side of the final equation: ${substituted(times - minus, c1, s)} = ${num(leftValue)}, and ${num(r1)} ${MINUS} ${minus}(${num(s)}) = ${num(rightValue)}.`,
-      `The two sides are equal, so x = ${num(s)} is still a solution: each move did the same thing to both sides, so every equation in the chain is equivalent, with the same solution.`,
+      `Add ${add} to both sides: x + ${add} = ${num(s + add)}, because adding the same number to both sides keeps them equal.`,
+      `Multiply both sides by ${times}: ${times}x + ${c1} = ${num(r1)}, because multiplying both sides by the same number, other than 0, keeps them equal.`,
+      `Subtract ${minus}x from both sides: ${left} = ${right}, because for any one x it is the same amount on each side.`,
+      `Substitute x = ${num(s)} into each side of the final equation: ${substituted(times - minus, c1, s)} = ${num((times - minus) * s + c1)}, and ${num(r1)} ${MINUS} ${minus}(${num(s)}) = ${num(r1 - minus * s)}.`,
+      `The two sides are equal, so x = ${num(s)} is still a solution: each move did the same thing to both sides, so every equation in the chain has the same solution.`,
     ];
     return { prompt, steps, answer: `${left} = ${right}, true for x = ${num(s)}` };
   }
@@ -455,35 +473,38 @@ const verifySolutionSibling = (random) => {
 
 /* ------------------------------------------------------------ systems */
 
-const COUNT_AND_VALUE = Object.freeze([
-  { place: 'A snack stand', sold: 'sold', first: 'hot dogs', second: 'drinks', x: 'h', y: 'd', unit: 'items' },
-  { place: 'A museum', sold: 'admitted', first: 'adults', second: 'students', x: 'a', y: 's', unit: 'visitors' },
-  { place: 'A bake sale', sold: 'sold', first: 'pies', second: 'loaves of bread', x: 'p', y: 'b', unit: 'items' },
-  { place: 'A plant nursery', sold: 'sold', first: 'trees', second: 'shrubs', x: 't', y: 's', unit: 'plants' },
+export const COUNT_AND_VALUE_SITUATIONS = Object.freeze([
+  { key: 'snack', place: 'A snack stand', sold: 'sold', first: 'hot dogs', second: 'drinks', unit: 'items' },
+  { key: 'museum', place: 'A museum', sold: 'admitted', first: 'adults', second: 'students', unit: 'visitors' },
+  { key: 'bake', place: 'A bake sale', sold: 'sold', first: 'pies', second: 'loaves of bread', unit: 'items' },
 ]);
 
 const systemWordSibling = (random) => {
-  const story = pick(random, COUNT_AND_VALUE);
-  for (let tries = 0; tries < 40; tries += 1) {
-    const high = integer(random, 6, 15);
-    const low = integer(random, 2, high - 1);
-    const xCount = integer(random, 20, 140);
-    const yCount = integer(random, 20, 140);
-    const total = xCount + yCount;
-    const value = high * xCount + low * yCount;
-    const { x, y } = story;
-    const prompt = `${story.place} ${story.sold} ${total} ${story.unit}: ${story.first} at ${money(high)} each and ${story.second} at ${money(low)} each, for ${money(value)} in all. Let ${x} be the number of ${story.first} and ${y} the number of ${story.second}. Write a system and solve it by substitution.`;
-    const steps = [
-      `Count equation: every one of the ${total} ${story.unit} is one or the other, so ${x} + ${y} = ${total}.`,
-      `Value equation: each kind brings in its price times how many were ${story.sold}, so ${high}${x} + ${low}${y} = ${value}. Both equations use the same ${x} and ${y}, so one pair of numbers must make both true.`,
-      `Solve the count equation for ${y}, because ${y} has a coefficient of 1 there: ${y} = ${total} ${MINUS} ${x}.`,
-      `Substitute ${total} ${MINUS} ${x} for ${y} in the value equation: ${high}${x} + ${low}(${total} ${MINUS} ${x}) = ${value}. Distribute and combine: ${linear(high - low, low * total, x)} = ${value}.`,
-      `Subtract ${low * total}${high - low === 1 ? '' : ` and divide by ${high - low}`}: ${x} = ${xCount}. Then ${y} = ${total} ${MINUS} ${xCount} = ${yCount}.`,
-      `Check in both: ${xCount} + ${yCount} = ${total}, and ${high}(${xCount}) + ${low}(${yCount}) = ${value}. So ${xCount} ${story.first} and ${yCount} ${story.second}.`,
-    ];
-    return { prompt, steps, answer: `${xCount} ${story.first} and ${yCount} ${story.second}` };
-  }
-  return null;
+  const story = pick(random, COUNT_AND_VALUE_SITUATIONS);
+  const high = integer(random, 6, 15);
+  const low = integer(random, 2, high - 1);
+  const xCount = integer(random, 20, 140);
+  const yCount = integer(random, 20, 140);
+  const total = xCount + yCount;
+  const value = high * xCount + low * yCount;
+  const diff = high - low;
+  const prompt = [
+    `${story.place} ${story.sold} ${total} ${story.unit}: ${story.first} at ${money(high)} each and ${story.second} at ${money(low)} each, for ${money(value)} in all.`,
+    `Let x be the number of ${story.first} and y the number of ${story.second}.`,
+    'Write a system and solve it by substitution.',
+  ].join(' ');
+  const steps = [
+    `Count equation: each of the ${total} ${story.unit} is one kind or the other, so x + y = ${total}.`,
+    `Value equation: each kind brings in its price times how many there are, so ${high}x + ${low}y = ${value}. Both equations use the same x and y, so one pair of numbers must make both true.`,
+    `Solve the count equation for y, because y has a coefficient of 1 there: y = ${total} ${MINUS} x.`,
+    `Substitute ${total} ${MINUS} x for y in the value equation: ${high}x + ${low}(${total} ${MINUS} x) = ${value}.`,
+    `Distribute and combine like terms: ${linear(diff, low * total)} = ${value}.`,
+    diff === 1 ? `Subtract ${low * total}: x = ${xCount}.` : `Subtract ${low * total} and divide by ${diff}: x = ${xCount}.`,
+    `Then y = ${total} ${MINUS} ${xCount} = ${yCount}.`,
+    `Check in both: ${xCount} + ${yCount} = ${total}, and ${high}(${xCount}) + ${low}(${yCount}) = ${value}. So there were ${xCount} ${story.first} and ${yCount} ${story.second}.`,
+    `The total can only be from ${money(low * total)}, if all of them are ${story.second}, to ${money(high * total)}, if all of them are ${story.first}: any other total would need a negative count.`,
+  ];
+  return { prompt, steps, answer: `x = ${xCount}, y = ${yCount}` };
 };
 
 const substitutionSibling = (random, { exactVersusGraph = false } = {}) => {
@@ -492,35 +513,42 @@ const substitutionSibling = (random, { exactVersusGraph = false } = {}) => {
     const b = nonZero(random, -8, 8);
     const A = integer(random, 2, 6);
     const B = nonZero(random, -5, 5);
-    if (A + B * m === 0) continue;
+    const den = A + B * m;
+    if (den === 0) continue;
+    const other = (x0) => `${A}(${num(x0)}) ${B < 0 ? MINUS : '+'} ${coefficient(Math.abs(B))}`;
+    const substitutedLine = `${A}x ${B < 0 ? MINUS : '+'} ${coefficient(Math.abs(B))}(${linear(m, b)})`;
+    const solveFor = (target) => `${capital(undo(B * b))} both sides${den === 1 ? '' : ` and divide by ${num(den)}`}: x = ${target}.`;
+    const opening = [
+      `y = ${linear(m, b)} is already solved for y, so substitute ${linear(m, b)} for y in the other equation. Both equations describe the same y, so the solution must make both true.`,
+    ];
     if (exactVersusGraph) {
-      // A solution that falls between grid lines: a fraction with denominator A + Bm.
       const C = nonZero(random, -30, 30);
-      const den = A + B * m;
       const xNum = C - B * b;
       if (Math.abs(den) < 2 || xNum % den === 0) continue;
       const yNum = m * xNum + b * den;
-      const prompt = `The lines y = ${linear(m, b)} and ${twoTerms(A, B)} = ${num(C)} cross between grid lines. Estimate is not enough: find the exact solution by substitution.`;
+      const xs = frac(xNum, den);
+      const ys = frac(yNum, den);
+      const prompt = `The lines y = ${linear(m, b)} and ${twoTerms(A, B)} = ${num(C)} cross between grid lines. Find the exact solution by substitution.`;
       const steps = [
-        `y = ${linear(m, b)} is already solved for y, so substitute ${linear(m, b)} for y in the other equation: ${A}x ${B < 0 ? MINUS : '+'} ${coefficient(Math.abs(B))}(${linear(m, b)}) = ${num(C)}. Both equations describe the same y at the crossing point.`,
-        `Distribute and combine like terms: ${linear(den, B * b)} = ${num(C)}.`,
-        `${capital(undo(B * b))} both sides and divide by ${num(den)}: x = ${frac(xNum, den)}.`,
-        `Substitute x into y = ${linear(m, b)}: y = ${frac(yNum, den)}.`,
-        `So the solution is (${frac(xNum, den)}, ${frac(yNum, den)}). A graph can only show it roughly, about (${num(xNum / den)}, ${num(yNum / den)}), because the lines cross between grid lines; substitution gives the exact point.`,
+        ...opening,
+        `That gives ${substitutedLine} = ${num(C)}. Distribute and combine like terms: ${linear(den, B * b)} = ${num(C)}.`,
+        solveFor(xs),
+        `Substitute x = ${xs} into y = ${linear(m, b)}: y = ${ys}. So the solution is (${xs}, ${ys}).`,
+        `A graph shows it only roughly, near (${num(xNum / den)}, ${num(yNum / den)}), because the lines cross between grid lines, and substitution gives the exact point.`,
       ];
-      return { prompt, steps, answer: `(${frac(xNum, den)}, ${frac(yNum, den)})` };
+      return { prompt, steps, answer: `(${xs}, ${ys})` };
     }
     const x0 = nonZero(random, -6, 6);
     const y0 = m * x0 + b;
     const C = A * x0 + B * y0;
-    const prompt = `Solve the system by substitution, then check: y = ${linear(m, b)} and ${twoTerms(A, B)} = ${num(C)}.`;
+    const prompt = `Solve the system by substitution, then check it: y = ${linear(m, b)} and ${twoTerms(A, B)} = ${num(C)}.`;
     const steps = [
-      `y = ${linear(m, b)} is already solved for y, so substitute ${linear(m, b)} for y in the other equation. Both equations describe the same y, so the solution must make both true.`,
-      `${A}x ${B < 0 ? MINUS : '+'} ${coefficient(Math.abs(B))}(${linear(m, b)}) = ${num(C)}. Distribute and combine like terms: ${linear(A + B * m, B * b)} = ${num(C)}.`,
-      `${capital(undo(B * b))} both sides${A + B * m === 1 ? '' : ` and divide by ${num(A + B * m)}`}: x = ${num(x0)}.`,
-      `Substitute x = ${num(x0)} into the equation solved for y, the easiest one: y = ${substituted(m, b, x0)} = ${num(y0)}.`,
-      `Check in BOTH equations: ${substituted(m, b, x0)} = ${num(y0)} ✓ and ${A}(${num(x0)}) ${B < 0 ? MINUS : '+'} ${coefficient(Math.abs(B))}(${num(y0)}) = ${num(C)} ✓.`,
-      `So ${pair(x0, y0)} is the solution: it lies on both lines, the point where their graphs cross.`,
+      ...opening,
+      `That gives ${substitutedLine} = ${num(C)}. Distribute and combine like terms: ${linear(den, B * b)} = ${num(C)}.`,
+      solveFor(num(x0)),
+      `Substitute x = ${num(x0)} into the equation solved for y, because it is the easiest: y = ${substituted(m, b, x0)} = ${num(y0)}.`,
+      `Check in both equations: ${substituted(m, b, x0)} = ${num(y0)}, and ${other(x0)}(${num(y0)}) = ${num(C)}.`,
+      `So ${pair(x0, y0)} is the solution: it lies on both lines, where their graphs cross.`,
     ];
     return { prompt, steps, answer: pair(x0, y0) };
   }
@@ -539,80 +567,86 @@ const systemCasesSibling = (random, { withLetter = false } = {}) => {
     const xCross = nonZero(random, -5, 5);
     const yCross = m * xCross + b;
     const b2 = yCross - m2 * xCross;
-    // Same line in standard form: scale(mx − y) = −scale·b.
+    // The same line in standard form: scale(mx − y) = −scale·b.
     const sameLine = `${twoTerms(scale * m, -scale)} = ${num(-scale * b)}`;
-    const prompt = `What does substitution leave in each system, and how many solutions does each have? A: y = ${linear(m, b)} and y = ${linear(m, other)}. B: y = ${linear(m, b)} and ${sameLine}. C: y = ${linear(m, b)} and y = ${linear(m2, b2)}.${withLetter ? ` Then: for which k does y = ${linear(m, b)} and y = kx ${other < 0 ? MINUS : '+'} ${Math.abs(other)} have no solution?` : ''}`;
+    const letterLine = `y = kx ${other < 0 ? MINUS : '+'} ${Math.abs(other)}`;
+    const prompt = [
+      'What does substitution leave in each system, and how many solutions does each have?',
+      `System A is y = ${linear(m, b)} and y = ${linear(m, other)}, system B is y = ${linear(m, b)} and ${sameLine}, and system C is y = ${linear(m, b)} and y = ${linear(m2, b2)}.`,
+      ...(withLetter ? [`Then, for which k do y = ${linear(m, b)} and ${letterLine} have no solution?`] : []),
+    ].join(' ');
     const steps = [
-      `A: substitute: ${linear(m, b)} = ${linear(m, other)}. ${capital(removeX(m))} both sides leaves ${num(b)} = ${num(other)}, a false statement. The lines have the same slope and different y-intercepts, so they are parallel and never meet: no solution.`,
-      `B: rewrite ${sameLine} with y alone: y = ${linear(m, b)}. Every term of ${sameLine} is ${scale} times a term of ${twoTerms(m, -1)} = ${num(-b)}, which is the first equation rearranged, so both describe one line. Substituting leaves a true statement such as ${num(b)} = ${num(b)}: every point on that line is a solution, infinitely many.`,
-      `C: the slopes ${num(m)} and ${num(m2)} are different, so the lines must cross once. Substitute: ${linear(m, b)} = ${linear(m2, b2)}, so ${linear(m - m2, 0)} = ${num(b2 - b)}, x = ${num(xCross)}, and y = ${num(yCross)}.`,
-      `Check C in both: ${substituted(m, b, xCross)} = ${num(yCross)} and ${substituted(m2, b2, xCross)} = ${num(yCross)}. Exactly one solution, ${pair(xCross, yCross)}.`,
-      ...(withLetter ? [`No solution needs parallel lines: the same slope with a different y-intercept. The intercepts ${num(b)} and ${num(other)} are already different, so k = ${num(m)} gives none, and no k can give the same line.`] : []),
+      `In A, substituting gives ${linear(m, b)} = ${linear(m, other)}. ${capital(removeX(m))} both sides leaves ${num(b)} = ${num(other)}, a false statement.`,
+      'The lines have the same slope and different y-intercepts, so they are parallel and never meet, and A has no solution.',
+      `In B, ${sameLine} with y alone is y = ${linear(m, b)}. Every term of ${sameLine} is ${scale} times a term of ${twoTerms(m, -1)} = ${num(-b)}, which is the first equation rearranged, so both describe one line.`,
+      `Substituting leaves a true statement such as ${num(b)} = ${num(b)}, so every point on that line is a solution, and B has infinitely many.`,
+      `In C, the slopes ${num(m)} and ${num(m2)} are different, so the lines cross once. Substituting gives ${linear(m, b)} = ${linear(m2, b2)}, so ${linear(m - m2, 0)} = ${num(b2 - b)}, x = ${num(xCross)}, and y = ${num(yCross)}.`,
+      `Check C in both: ${substituted(m, b, xCross)} = ${num(yCross)}, and ${substituted(m2, b2, xCross)} = ${num(yCross)}, so C has exactly one solution, ${pair(xCross, yCross)}.`,
+      ...(withLetter ? [
+        'No solution needs parallel lines: the same slope and a different y-intercept.',
+        `The intercepts ${num(b)} and ${num(other)} are already different, so k = ${num(m)} gives no solution, and no k gives the same line.`,
+      ] : []),
     ];
-    return { prompt, steps, answer: `A: none; B: infinitely many; C: ${pair(xCross, yCross)}${withLetter ? `; k = ${num(m)}` : ''}` };
+    return { prompt, steps, answer: withLetter ? `C: ${pair(xCross, yCross)}; k = ${num(m)}` : `C: ${pair(xCross, yCross)}` };
   }
   return null;
 };
 
-const FUNDRAISERS = Object.freeze([
-  { goal: 'raise', first: 'pins', second: 'mugs', x: 'p', y: 'm' },
-  { goal: 'collect', first: 'small pizzas', second: 'large pizzas', x: 's', y: 'l' },
-  { goal: 'raise', first: 'bookmarks', second: 'posters', x: 'b', y: 'p' },
+export const FUNDRAISER_SITUATIONS = Object.freeze([
+  { key: 'pins', first: 'pins', second: 'mugs', oneSecond: 'mug' },
+  { key: 'pizzas', first: 'small pizzas', second: 'large pizzas', oneSecond: 'large pizza' },
+  { key: 'posters', first: 'bookmarks', second: 'posters', oneSecond: 'poster' },
 ]);
 
 const interceptsSibling = (random) => {
-  const story = pick(random, FUNDRAISERS);
-  for (let tries = 0; tries < 40; tries += 1) {
-    const a = pick(random, [2, 3, 4, 5, 6]);
-    const b = a * pick(random, [2, 3, 4]);
-    const C = b * integer(random, 8, 30);
-    const xi = C / a;
-    const yi = C / b;
-    if (!Number.isInteger(xi) || !Number.isInteger(yi)) continue;
-    const ratio = b / a;
-    const { x, y } = story;
-    const prompt = `A club wants to ${story.goal} ${money(C)} selling ${story.first} at ${money(a)} and ${story.second} at ${money(b)}: ${a}${x} + ${b}${y} = ${C}. Find both intercepts and what they mean, the slope and what it means, and the reasonable domain.`;
-    const steps = [
-      `The ${x}-intercept: substitute 0 for ${y}, because the intercept is where the line meets the ${x}-axis: ${a}${x} = ${C}, so ${x} = ${xi}. The point is ${pair(xi, 0)}: ${xi} ${story.first} and no ${story.second} make exactly ${money(C)}.`,
-      `The ${y}-intercept: substitute 0 for ${x}: ${b}${y} = ${C}, so ${y} = ${yi}. The point is ${pair(0, yi)}: ${yi} ${story.second} and no ${story.first}.`,
-      `Slope: from ${pair(0, yi)} to ${pair(xi, 0)}, ${y} changes by ${MINUS}${yi} while ${x} changes by ${xi}, so the slope is ${frac(-yi, xi)}: every ${ratio} more ${story.first} sold means 1 fewer ${story.second.replace(/s$/, '')} is needed.`,
-      `With the axes swapped (${y} across, ${x} up), the same points give a slope of ${frac(-xi, yi)}, the reciprocal: the graph is still right, it just reads the change the other way.`,
-      random() < 0.5
-        ? `As a mathematical line the domain is all real numbers, but here only whole numbers of ${story.first} from 0 to ${xi} make sense, and whole numbers of ${story.second} from 0 to ${yi}.`
-        : `In this situation only whole numbers of ${story.first} from 0 to ${xi} make sense (no one sells part of one, or fewer than none), and whole numbers of ${story.second} from 0 to ${yi}.`,
-    ];
-    return { prompt, steps, answer: `${pair(xi, 0)} and ${pair(0, yi)}; slope ${frac(-yi, xi)}` };
-  }
-  return null;
+  const story = pick(random, FUNDRAISER_SITUATIONS);
+  const a = pick(random, [2, 3, 4, 5, 6]);
+  const ratio = pick(random, [2, 3, 4]);
+  const b = a * ratio;
+  const C = b * integer(random, 8, 30);
+  const xi = C / a;
+  const yi = C / b;
+  const prompt = [
+    `A club wants to raise ${money(C)} selling ${story.first} at ${money(a)} and ${story.second} at ${money(b)}: ${a}x + ${b}y = ${C}, where x is the number of ${story.first} and y the number of ${story.second}.`,
+    'Find both intercepts and what they mean, the slope and what it means, and the reasonable domain.',
+  ].join(' ');
+  const steps = [
+    `For the x-intercept, substitute 0 for y, because the intercept is where the line meets the x-axis: ${a}x = ${C}, so x = ${xi}. The point ${pair(xi, 0)} means ${xi} ${story.first} and no ${story.second} make exactly ${money(C)}.`,
+    `For the y-intercept, substitute 0 for x: ${b}y = ${C}, so y = ${yi}. The point ${pair(0, yi)} means ${yi} ${story.second} and no ${story.first}.`,
+    `From ${pair(0, yi)} to ${pair(xi, 0)}, y changes by ${MINUS}${yi} while x changes by ${xi}, so the slope is ${frac(-yi, xi)}. Every ${ratio} more ${story.first} sold means 1 fewer ${story.oneSecond} is needed.`,
+    `With the axes swapped, the same points give a slope of ${frac(-xi, yi)}, the reciprocal: the graph is still right, it just reads the change the other way.`,
+    random() < 0.5
+      ? `As a mathematical line the domain is all real numbers, but here only whole numbers of ${story.first} from 0 to ${xi} make sense. Likewise only whole numbers of ${story.second} from 0 to ${yi}.`
+      : `Here only whole numbers of ${story.first} from 0 to ${xi} make sense, because no one sells part of one, or fewer than none. Likewise only whole numbers of ${story.second} from 0 to ${yi}.`,
+  ];
+  return { prompt, steps, answer: `x-intercept ${pair(xi, 0)}; y-intercept ${pair(0, yi)}; slope ${frac(-yi, xi)}` };
 };
 
 const decreasingInterceptsSibling = (random) => {
-  const place = pick(random, DRAINING);
+  const place = pick(random, DRAINING_SITUATIONS);
   const rate = pick(random, [4, 6, 8, 12, 15, 25]);
-  const steps0 = integer(random, 12, 60);
-  const total = rate * steps0;
-  const v = place.variable;
-  const each = place.time === 'hours' ? 'hour' : 'minute';
-  const prompt = `${place.what} ${place.rateWord} at a steady rate: ${place.rule}(${v}) = ${num(total)} ${MINUS} ${rate}${v} is ${place.measure}, after ${v} ${place.time}. Find the slope, the y-intercept and the ${v}-intercept, and what each means.`;
+  const end = integer(random, 12, 60);
+  const total = rate * end;
+  const prompt = `${place.what} ${place.rateWord} at a steady rate: H(t) = ${num(total)} ${MINUS} ${rate}t is ${place.measure} after t ${place.time}. Find the slope, the y-intercept and the t-intercept, and what each means.`;
   const steps = [
-    `Slope: the number multiplying ${v}, ${MINUS}${rate}. It is the change in ${place.rule} each ${each}: the amount goes DOWN ${rate} ${place.unit} each ${each}, which is why it is negative.`,
-    `y-intercept: the value when ${v} = 0, ${place.rule}(0) = ${num(total)}: the amount at the start, before any time passes.`,
-    `${v}-intercept: the ${v} that makes ${place.rule}(${v}) = 0. Solve ${num(total)} ${MINUS} ${rate}${v} = 0: add ${rate}${v} to both sides and divide by ${rate}, so ${v} = ${steps0}: after ${steps0} ${place.time}, ${place.empty}.`,
-    `So the reasonable domain runs from 0 to ${steps0} ${place.time}: before 0 the situation has not started, and after ${steps0} the rule would give a negative amount.`,
+    `The slope is the number multiplying t, ${MINUS}${rate}. It is the change each ${place.each}: the amount goes down ${rate} ${place.unit} each ${place.each}, which is why it is negative.`,
+    `The y-intercept is the value when t = 0, H(0) = ${num(total)}: the amount at the start.`,
+    `The t-intercept is the t that makes H(t) = 0. Solve ${num(total)} ${MINUS} ${rate}t = 0: add ${rate}t to both sides and divide by ${rate}, so t = ${end}. After ${end} ${place.time}, ${place.empty}.`,
+    `So the reasonable domain runs from 0 to ${end} ${place.time}: before 0 the situation has not started, and after ${end} the rule would give a negative amount.`,
   ];
-  return { prompt, steps, answer: `slope ${MINUS}${rate}; y-intercept ${num(total)}; ${v}-intercept ${steps0}` };
+  return { prompt, steps, answer: `slope ${MINUS}${rate}; y-intercept ${num(total)}; t-intercept ${end}` };
 };
 
 /* ------------------------------------------- inequalities in two variables */
 
-const SPENDING = Object.freeze([
-  { who: 'A florist', verb: 'spend', first: 'roses', second: 'lilies' },
-  { who: 'A coach', verb: 'spend', first: 'water bottles', second: 'towels' },
-  { who: 'Maya', verb: 'spend', first: 'songs', second: 'movies' },
+export const SPENDING_SITUATIONS = Object.freeze([
+  { key: 'florist', who: 'A florist', first: 'roses', second: 'lilies' },
+  { key: 'coach', who: 'A coach', first: 'water bottles', second: 'towels' },
+  { key: 'maya', who: 'Maya', first: 'songs', second: 'movies' },
 ]);
 
 const twoVariableContextSibling = (random) => {
-  const story = pick(random, SPENDING);
+  const story = pick(random, SPENDING_SITUATIONS);
   for (let tries = 0; tries < 40; tries += 1) {
     const a = integer(random, 2, 9);
     const b = integer(random, 2, 9);
@@ -622,16 +656,20 @@ const twoVariableContextSibling = (random) => {
     const C = a * xOn + b * yOn;
     const below = [Math.max(0, xOn - 1), Math.max(0, yOn - 1)];
     const above = [xOn + 2, yOn + 1];
-    const costBelow = a * below[0] + b * below[1];
-    const costAbove = a * above[0] + b * above[1];
-    const prompt = `${story.who} can ${story.verb} at most ${money(C)} on ${story.first} at ${money(a)} each and ${story.second} at ${money(b)} each. Let x be the number of ${story.first} and y the number of ${story.second}. Write the inequality, then test ${pair(...below)}, ${pair(xOn, yOn)} and ${pair(...above)}.`;
+    const cost = ([x, y]) => a * x + b * y;
+    const shown = ([x, y]) => `${a}(${x}) + ${b}(${y})`;
+    const prompt = [
+      `${story.who} can spend at most ${money(C)} on ${story.first} at ${money(a)} each and ${story.second} at ${money(b)} each.`,
+      `Let x be the number of ${story.first} and y the number of ${story.second}.`,
+      `Write the inequality, then test ${pair(...below)}, ${pair(xOn, yOn)} and ${pair(...above)}.`,
+    ].join(' ');
     const steps = [
-      `The total cost is ${a}x + ${b}y: each kind’s price times how many are bought, added.`,
-      `“At most ${money(C)}” means the cost can equal ${money(C)} or be less, so the symbol is ≤: ${a}x + ${b}y ≤ ${C}. Its boundary line ${a}x + ${b}y = ${C} is solid, because spending exactly ${money(C)} is allowed.`,
-      `Test ${pair(...below)}: ${a}(${below[0]}) + ${b}(${below[1]}) = ${costBelow}, less than ${C}. True: it is below the line, and money is left over.`,
-      `Test ${pair(xOn, yOn)}: ${a}(${xOn}) + ${b}(${yOn}) = ${C}. True: it is ON the line, spending exactly ${money(C)}.`,
-      `Test ${pair(...above)}: ${a}(${above[0]}) + ${b}(${above[1]}) = ${costAbove}, more than ${C}. False: it is above the line and costs too much.`,
-      `A point like (1.5, 2) can make the inequality true, but it does not make sense here: no one buys half of one, so only whole numbers, 0 or more, are solutions in this situation.`,
+      `The total cost is ${a}x + ${b}y: each price times how many are bought, added.`,
+      `At most ${money(C)} means the cost can equal ${money(C)} or be less, so the symbol is ≤: ${a}x + ${b}y ≤ ${C}. Its boundary line ${a}x + ${b}y = ${C} is solid, because spending exactly ${money(C)} is allowed.`,
+      `Test ${pair(...below)}: ${shown(below)} = ${cost(below)}, less than ${C}. That is true, so the point is below the line, and money is left over.`,
+      `Test ${pair(xOn, yOn)}: ${shown([xOn, yOn])} = ${C}. That is true, so the point is on the line, spending exactly ${money(C)}.`,
+      `Test ${pair(...above)}: ${shown(above)} = ${cost(above)}, more than ${C}. That is false, so the point is above the line and costs too much.`,
+      'A point like (1.5, 2) can make the inequality true, but it does not make sense here, because no one buys half of one. So only whole numbers, 0 or more, are solutions in this situation.',
     ];
     return { prompt, steps, answer: `${a}x + ${b}y ≤ ${C}` };
   }
@@ -646,54 +684,56 @@ const inequalityGraphSibling = (random) => {
     const b = nonZero(random, -6, 6);
     const slope = frac(rise, run);
     const boundary = `${coefficient(rise, run)}x ${b < 0 ? MINUS : '+'} ${Math.abs(b)}`;
-    const zeroTrue = 0 > b; // (0, 0) is above the boundary when b < 0
-    const prompt = `The boundary of a shaded half-plane passes through (0, ${num(b)}) and rises ${num(rise)} for every ${run} to the right. Write the inequality for each graph: solid and shaded above, dashed and shaded above, solid and shaded below, dashed and shaded below.`;
+    const prompt = [
+      `The boundary of a shaded half-plane passes through (0, ${num(b)}), and its y changes by ${num(rise)} for every ${run} to the right.`,
+      'Write the inequality for each graph: solid and shaded above, dashed and shaded above, solid and shaded below, and dashed and shaded below.',
+    ].join(' ');
     const steps = [
-      `The y-intercept is ${num(b)}, where the line crosses the y-axis, and the slope is rise over run, ${slope}. So the boundary is y = ${boundary}.`,
-      `A solid line means points ON the line are solutions, so the symbol includes “equal to” (≤ or ≥); a dashed line leaves them out (< or >).`,
-      `Shaded above means y is greater than the line’s y-value, so > or ≥; shaded below means y is less, so < or ≤.`,
-      `So: solid and above, y ≥ ${boundary}; dashed and above, y > ${boundary}; solid and below, y ≤ ${boundary}; dashed and below, y < ${boundary}.`,
-      `Check with a test point not on the line, (0, 0): in y ≥ ${boundary} it gives 0 ≥ ${num(b)}, which is ${zeroTrue ? 'true, so (0, 0) must be in the shaded region above the line' : 'false, so (0, 0) must be outside the shading, which is above the line'}.`,
+      `The y-intercept is ${num(b)}, where the line crosses the y-axis, and the slope is rise over run, ${slope}, so the boundary is y = ${boundary}.`,
+      'A solid line means points on the line are solutions, so the symbol includes equal to, ≤ or ≥. A dashed line leaves them out, < or >.',
+      'Shaded above means y is greater than the y-value of the line, so > or ≥. Shaded below means y is less, so < or ≤.',
+      `So solid and above is y ≥ ${boundary}, dashed and above is y > ${boundary}, solid and below is y ≤ ${boundary}, and dashed and below is y < ${boundary}.`,
+      `Check with a test point not on the line, (0, 0): in y ≥ ${boundary} it gives 0 ≥ ${num(b)}. ${b < 0 ? 'That is true, so (0, 0) must be in the shaded region above the line.' : 'That is false, so (0, 0) must be outside the shading above the line.'}`,
     ];
-    return { prompt, steps, answer: `y ≥ ${boundary}; y > ${boundary}; y ≤ ${boundary}; y < ${boundary}` };
+    return { prompt, steps, answer: `slope ${slope}; y-intercept ${num(b)}` };
   }
   return null;
 };
 
 /* --------------------------------------------- systems of inequalities */
 
-const TRIPS = Object.freeze([
-  { who: 'A van driver', room: 'seats for at most', limit: 'people', first: 'adults', second: 'children', money: 'fares', label: 'Seats' },
-  { who: 'A caterer', room: 'oven space for at most', limit: 'trays', first: 'sandwich trays', second: 'fruit trays', money: 'sales', label: 'Oven space' },
-  { who: 'A tutor', room: 'time for at most', limit: 'hours', first: 'math hours', second: 'reading hours', money: 'earnings', label: 'Time' },
+export const LIMIT_SITUATIONS = Object.freeze([
+  { key: 'van', who: 'A van driver', room: 'seats for at most', limit: 'people', first: 'adults', second: 'children', money: 'fares' },
+  { key: 'caterer', who: 'A caterer', room: 'oven space for at most', limit: 'trays', first: 'sandwich trays', second: 'fruit trays', money: 'sales' },
+  { key: 'tutor', who: 'A tutor', room: 'time for at most', limit: 'hours', first: 'math hours', second: 'reading hours', money: 'earnings' },
 ]);
 
 const inequalitySystemPointsSibling = (random) => {
-  const story = pick(random, TRIPS);
+  const story = pick(random, LIMIT_SITUATIONS);
   for (let tries = 0; tries < 60; tries += 1) {
     const cap = integer(random, 8, 14);
     const p1 = integer(random, 9, 20);
     const p2 = integer(random, 4, p1 - 3);
-    const good = [integer(random, 3, cap - 3), 0];
-    good[1] = integer(random, 1, cap - good[0]);
-    const goal = p1 * good[0] + p2 * good[1] - integer(random, 1, 8);
-    const failMoney = [1, 1];
-    const failCount = [cap, 3];
-    const moneyFail = p1 * failMoney[0] + p2 * failMoney[1];
-    const countFail = failCount[0] + failCount[1];
-    const moneyCountFail = p1 * failCount[0] + p2 * failCount[1];
-    if (moneyFail >= goal || moneyCountFail < goal || goal <= 0) continue;
-    const goodMoney = p1 * good[0] + p2 * good[1];
-    const prompt = `${story.who} has ${story.room} ${cap} ${story.limit} and wants at least ${money(goal)} in ${story.money}: ${money(p1)} for each of the ${story.first} (x) and ${money(p2)} for each of the ${story.second} (y). Write the system, then test ${pair(...good)}, ${pair(...failMoney)} and ${pair(...failCount)}.`;
+    const gx = integer(random, 3, cap - 3);
+    const gy = integer(random, 1, cap - gx);
+    const goal = p1 * gx + p2 * gy - integer(random, 1, 8);
+    const fx = cap;
+    const fy = 3;
+    if (p1 + p2 >= goal || p1 * fx + p2 * fy < goal || goal <= 0) continue;
+    const prompt = [
+      `${story.who} has ${story.room} ${cap} ${story.limit} and wants at least ${money(goal)} in ${story.money}.`,
+      `Each of the ${story.first} (x) brings ${money(p1)}, and each of the ${story.second} (y) brings ${money(p2)}.`,
+      `Write the system, then test ${pair(gx, gy)}, (1, 1) and ${pair(fx, fy)}.`,
+    ].join(' ');
     const steps = [
-      `${story.label}: x + y counts all the ${story.limit}, and “at most ${cap}” is ≤, so x + y ≤ ${cap}.`,
-      `Money: ${p1}x + ${p2}y is the ${story.money}, and “at least ${money(goal)}” is ≥, so ${p1}x + ${p2}y ≥ ${goal}. The same x and y appear in both, because one choice has to meet both limits at once.`,
-      `Test ${pair(...good)}: ${good[0]} + ${good[1]} = ${good[0] + good[1]} ≤ ${cap} ✓, and ${p1}(${good[0]}) + ${p2}(${good[1]}) = ${goodMoney} ≥ ${goal} ✓. It meets both, so it is a solution of the system.`,
-      `Test ${pair(...failMoney)}: 2 ≤ ${cap} ✓, but ${p1} + ${p2} = ${moneyFail}, less than ${goal} ✗. It fails only the money inequality, so it is not a solution.`,
-      `Test ${pair(...failCount)}: ${countFail} ≤ ${cap} ✗, though ${moneyCountFail} ≥ ${goal} ✓. It fails only the ${story.label.toLowerCase()} inequality: earning enough is not enough.`,
-      `So of these three, only ${pair(...good)} is a solution: a solution of a system has to make every one of its inequalities true, and on a graph it lies where the two shadings overlap.`,
+      `x + y counts all the ${story.limit}, and at most ${cap} means ≤, so x + y ≤ ${cap}.`,
+      `${p1}x + ${p2}y is the ${story.money}, and at least ${money(goal)} means ≥, so ${p1}x + ${p2}y ≥ ${goal}. The same x and y appear in both, because one choice has to meet both limits at once.`,
+      `Test ${pair(gx, gy)}: ${gx} + ${gy} = ${gx + gy} ≤ ${cap}, and ${p1}(${gx}) + ${p2}(${gy}) = ${p1 * gx + p2 * gy} ≥ ${goal}. It meets both, so it is a solution of the system.`,
+      `Test (1, 1): 1 + 1 = 2 ≤ ${cap}, but ${p1} + ${p2} = ${p1 + p2}, which is less than ${goal}. It fails only the second inequality, so it is not a solution.`,
+      `Test ${pair(fx, fy)}: ${fx} + ${fy} = ${fx + fy}, which is more than ${cap}, though ${p1}(${fx}) + ${p2}(${fy}) = ${p1 * fx + p2 * fy} ≥ ${goal}. It fails only the first inequality: meeting one limit is not enough.`,
+      `So of these three, only ${pair(gx, gy)} is a solution: a solution of a system makes every one of its inequalities true, and on a graph it lies where the two shadings overlap.`,
     ];
-    return { prompt, steps, answer: `x + y ≤ ${cap} and ${p1}x + ${p2}y ≥ ${goal}; only ${pair(...good)} is a solution` };
+    return { prompt, steps, answer: `x + y ≤ ${cap}; ${p1}x + ${p2}y ≥ ${goal}; solution ${pair(gx, gy)}` };
   }
   return null;
 };
@@ -703,54 +743,49 @@ const inequalitySystemRegionSibling = (random) => {
     const m = nonZero(random, -3, 3);
     const b1 = integer(random, 4, 12);
     const b2 = b1 - integer(random, 3, 7);
-    const left = (bb) => `${num(bb)} ${m < 0 ? MINUS : '+'} ${coefficient(Math.abs(m))}x`;
+    const written = (bb) => `${num(bb)} ${m < 0 ? MINUS : '+'} ${coefficient(Math.abs(m))}x`;
     const line = (bb) => linear(m, bb);
     const xCheck = nonZero(random, -4, 4);
     const yCheck = m * xCheck + b2 + integer(random, 1, b1 - b2 - 1);
-    const prompt = `Rewrite each system with y alone, and decide whether its solutions are above both lines, below both, between them, or none. A: y < ${left(b1)} and ${left(b2)} > y. B: ${left(b1)} < y and y > ${left(b2)}. C: y < ${left(b1)} and y > ${left(b2)}. D: y > ${left(b1)} and ${left(b2)} > y.`;
+    const prompt = [
+      'Rewrite each system with y alone, and decide whether its solutions are above both lines, below both, between them, or none.',
+      `System A is y < ${written(b1)} and ${written(b2)} > y, system B is ${written(b1)} < y and y > ${written(b2)}, system C is y < ${written(b1)} and y > ${written(b2)}, and system D is y > ${written(b1)} and ${written(b2)} > y.`,
+    ].join(' ');
     const steps = [
-      `Write each inequality with y on the left, so the symbol says above (>) or below (<): “${left(b2)} > y” is the same as y < ${line(b2)}, read from the other side.`,
-      `The two boundaries y = ${line(b1)} and y = ${line(b2)} have the same slope, so they are parallel: y = ${line(b1)} is the upper line, ${b1 - b2} units above the other.`,
-      `A: y < ${line(b1)} and y < ${line(b2)}. Below both lines: below the lower line is below the upper one too, so the solutions are the region below y = ${line(b2)}.`,
-      `B: y > ${line(b1)} and y > ${line(b2)}. Above both lines: the region above the upper line.`,
-      `C: y < ${line(b1)} and y > ${line(b2)}. Below the upper line and above the lower one: the strip between the lines.`,
-      `D: y > ${line(b1)} and y < ${line(b2)}. Above the upper line AND below the lower line at once is impossible, so no point works: no solution.`,
-      `Check C with a point between the lines, (${num(xCheck)}, ${num(yCheck)}): the upper line is at ${num(m * xCheck + b1)} there and the lower at ${num(m * xCheck + b2)}, and ${num(yCheck)} < ${num(m * xCheck + b1)} ✓, ${num(yCheck)} > ${num(m * xCheck + b2)} ✓.`,
+      `Write each inequality with y on the left, so the symbol says above or below: ${written(b2)} > y is the same as y < ${line(b2)}, read from the other side.`,
+      `The boundaries y = ${line(b1)} and y = ${line(b2)} have the same slope, so they are parallel, and y = ${line(b1)} is the upper line, ${b1 - b2} units above the other.`,
+      `A is y < ${line(b1)} and y < ${line(b2)}: below both lines, which is the region below y = ${line(b2)}.`,
+      `B is y > ${line(b1)} and y > ${line(b2)}: above both lines, which is the region above y = ${line(b1)}.`,
+      `C is y < ${line(b1)} and y > ${line(b2)}: the strip between the lines.`,
+      `D is y > ${line(b1)} and y < ${line(b2)}: above the upper line and below the lower line at once is impossible, so D has no solution.`,
+      `Check C with a point between the lines, ${pair(xCheck, yCheck)}: there the upper line is at ${num(m * xCheck + b1)} and the lower at ${num(m * xCheck + b2)}, and ${num(yCheck)} < ${num(m * xCheck + b1)} and ${num(yCheck)} > ${num(m * xCheck + b2)}.`,
     ];
-    return { prompt, steps, answer: 'A: below both; B: above both; C: between; D: none' };
+    return { prompt, steps, answer: `upper line y = ${line(b1)}; lower line y = ${line(b2)}` };
   }
   return null;
 };
 
 /* -------------------------------------------------- linear shifts */
 
-// "up 6" or "down 6": the vertical shift by d.
-const vertical = (d) => (d < 0 ? `down ${num(-d)}` : `up ${num(d)}`);
-
 const linearShiftSibling = (random) => {
-  for (let tries = 0; tries < 40; tries += 1) {
-    const m = pick(random, [-3, -2, 3, 4, 5]);
-    const b = nonZero(random, -6, 6);
-    const k = integer(random, 2, 6);
-    const name = pick(random, ['g', 'h', 'p']);
-    const rule = linear(m, b);
-    const up = linear(m, b + k);
-    const left = linear(m, b + m * k);
-    const right = linear(m, b - m * k);
-    const down = linear(m, b - k);
-    const stretchOut = linear(k * m, k * b);
-    const stretchIn = linear(k * m, b);
-    const prompt = `Let ${name}(x) = ${rule}. Write and simplify ${name}(x) shifted up ${k}, left ${k}, right ${k} and down ${k}, then compare ${k}·${name}(x) with ${name}(${k}x).`;
-    const steps = [
-      `Up ${k}: every point rises ${k}, so add ${k} to ${name}(x): ${name}(x) + ${k} = ${rule} + ${k} = ${up}.`,
-      `Left ${k}: the line now reaches each height ${k} units sooner, so put x + ${k} in place of x: ${name}(x + ${k}) = ${coefficient(m)}(x + ${k}) ${b < 0 ? MINUS : '+'} ${Math.abs(b)} = ${left}.`,
-      `Both have slope ${num(m)}, so they are parallel lines, and left ${k} gives the same line as ${vertical(m * k)}: moving ${k} across on a line of slope ${num(m)} changes the height by ${num(m * k)}.`,
-      `Right ${k}: ${name}(x ${MINUS} ${k}) = ${right}. Down ${k}: ${name}(x) ${MINUS} ${k} = ${down}. These are different, parallel lines: right ${k} gives the same line as ${vertical(-m * k)}, by the same slope.`,
-      `${k}·${name}(x) multiplies every output by ${k}: ${stretchOut}. ${name}(${k}x) multiplies every input by ${k}: ${stretchIn}. The slopes agree, but the y-intercepts ${num(k * b)} and ${num(b)} differ, so for this ${name} they are different lines.`,
-    ];
-    return { prompt, steps, answer: `${up}; ${left}; ${right}; ${down}; ${stretchOut} and ${stretchIn}` };
-  }
-  return null;
+  const m = pick(random, [-3, -2, 3, 4, 5]);
+  const b = nonZero(random, -6, 6);
+  const k = integer(random, 2, 6);
+  const rule = linear(m, b);
+  const up = linear(m, b + k);
+  const left = linear(m, b + m * k);
+  const right = linear(m, b - m * k);
+  const down = linear(m, b - k);
+  const vertical = (d) => (d < 0 ? `down ${num(-d)}` : `up ${num(d)}`);
+  const prompt = `Let g(x) = ${rule}. Write and simplify g(x) shifted up ${k}, left ${k}, right ${k} and down ${k}, then compare ${k}·g(x) with g(${k}x).`;
+  const steps = [
+    `Up ${k}: every point rises ${k}, so add ${k} to g(x): g(x) + ${k} = ${rule} + ${k} = ${up}.`,
+    `Left ${k}: the line now reaches each height ${k} units sooner, so put x + ${k} in place of x: g(x + ${k}) = ${coefficient(m)}(x + ${k}) ${b < 0 ? MINUS : '+'} ${Math.abs(b)} = ${left}.`,
+    `Both have slope ${num(m)}, so they are parallel lines. Left ${k} gives the same line as ${vertical(m * k)}, because moving ${k} across on a line of slope ${num(m)} changes the height by ${num(m * k)}.`,
+    `Right ${k}: g(x ${MINUS} ${k}) = ${right}, and down ${k}: g(x) ${MINUS} ${k} = ${down}. These are different, parallel lines, and right ${k} gives the same line as ${vertical(-m * k)}.`,
+    `${k}·g(x) multiplies every output by ${k}, giving ${linear(k * m, k * b)}, and g(${k}x) multiplies every input by ${k}, giving ${linear(k * m, b)}. The slopes agree, but the y-intercepts ${num(k * b)} and ${num(b)} differ, so for this function they are different lines.`,
+  ];
+  return { prompt, steps, answer: `up ${k}: ${up}; left ${k}: ${left}; right ${k}: ${right}; down ${k}: ${down}` };
 };
 
 /* ---------------------------------------------------------------------------

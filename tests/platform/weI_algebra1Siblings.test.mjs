@@ -16,6 +16,8 @@
  *   - never on a DOL, quiz or test: linearReasoning claims no question there,
  *     and the section rule shows no example there for any family;
  *   - worked, not just shown: several steps, and the steps say why;
+ *   - in Spanish too: every sentence is one the Spanish pack knows
+ *     (esSupport.js, linearReasoningSiblings), so Translate gives all of it;
  *   - Algebra I only: no "A2." question is claimed by the new family (another
  *     package owns those).
  */
@@ -30,10 +32,11 @@ import { asQuestionEngineReceivesIt, lessonFiles, measureClassworkExampleCoverag
 import { familyFor } from '../../src/platform/supports/families/index.js';
 import * as linearReasoning from '../../src/platform/supports/families/linearReasoning.js';
 import * as perpendicularLines from '../../src/platform/supports/families/perpendicularLines.js';
-import { answerSpellings, siblingGuardOf, statedEquations as statedMath } from '../../src/platform/supports/families/siblingGuard.js';
+import { answerSpellings, siblingGuardOf, siblingIsSafe, statedEquations as statedMath } from '../../src/platform/supports/families/siblingGuard.js';
 import { buildSimilarWorkedExample, similarExampleIsSafe } from '../../src/platform/supports/workedExample/similarProblem.js';
 import { assignmentProblemKeys, exampleSectionRule, workedExampleFor } from '../../src/platform/supports/workedExample/examplePlayer.js';
 import { hintRevealsAnswer } from '../../functions/shared/pathSolutionSupport.mjs';
+import { TRANSLATION_COVERAGE, loadLanguagePack, translateWithPack } from '../../src/platform/language/translationProviders.js';
 
 const repo = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
 const SEEDS = Array.from({ length: 12 }, (_, index) => index * 7);
@@ -63,7 +66,8 @@ const claimedByNewFamily = (question) => NEW_FAMILIES.has(familyFor(question)) &
 
 const REASON = /\bbecause\b|\bso\b|\bmeans\b|\bmust\b|\bto (?:get|undo|leave|collect|remove)\b|\bsince\b|\bwhich is\b|:/i;
 
-test('every real question a new family works a sibling for: safe, never an assignment item, never its answer, and worked', () => {
+test('every real question a new family works a sibling for: safe, never an assignment item, never its answer, worked, and in Spanish', async () => {
+  const spanish = await loadLanguagePack('es');
   const kinds = new Map();
   let checked = 0;
   for (const lesson of walk()) {
@@ -91,7 +95,7 @@ test('every real question a new family works a sibling for: safe, never an assig
           const example = workedExampleFor(question, { seed, assignmentProblems: lesson.problems, sectionRole: section.role });
           assert.ok(example && example.source === 'family', `${where} seed ${seed}: the player plays the family's sibling`);
           // Its equations may share a line with another item, never the whole problem.
-          // "x = 6" alone is a value, not a problem.
+          // "x = 6" alone is a value, not a problem ("y = −2" is a line, and the family never shares one with its item).
           const own = new Set([...statedMath(sibling.prompt)].filter((key) => !/^[a-z]=-?[\d./]+$/.test(key)));
           if (own.size) {
             assert.equal(assignmentMath.some((stated) => [...own].every((key) => stated.has(key))), false, `${where} seed ${seed}: every equation of "${sibling.prompt}" is on the assignment`);
@@ -101,6 +105,9 @@ test('every real question a new family works a sibling for: safe, never an assig
           const reasoned = sibling.steps.filter((step) => REASON.test(step)).length;
           assert.ok(reasoned >= Math.ceil(sibling.steps.length * 0.6), `${where} seed ${seed}: ${reasoned} of ${sibling.steps.length} steps say why`);
           assert.ok(sibling.steps.some((step) => /\bbecause\b|\bmeans\b|\bso\b/i.test(step)), `${where}: some step says why`);
+          // In Spanish, every sentence (as the readAloudAndTranslate test reads a sibling).
+          const translated = translateWithPack([sibling.prompt, ...sibling.steps, `Answer: ${sibling.answer}`].join(' '), spanish);
+          assert.equal(translated.coverage, TRANSLATION_COVERAGE.FULL, `${where} seed ${seed}: ${translated.sentences.filter((part) => !part.translated && !part.mathOnly).map((part) => part.source).join(' | ')}`);
         }
       }
     }
@@ -173,6 +180,14 @@ test('the guard reads an answer as a step would write it', () => {
   // So a sibling that writes the item's key with spaces and symbols is refused.
   const question = { type: 'multiAnswer', studentActions: ['multipleResponses'], prompt: 'p', answerFields: [{ label: 'ineq', answer: 'b<=420' }] };
   assert.equal(hintRevealsAnswer('so b ≤ 420.', siblingGuardOf(question)), true);
+});
+
+test('a sibling never states an equation its item states: a line such as y = −2 counts, a bare value such as k = 0 does not', () => {
+  const question = { type: 'multiAnswer', prompt: 'Use the line y = −2.', answerFields: [{ label: 'If k = 0, the line perpendicular to y = −2 through (5, 6)', answer: 'x=5' }] };
+  const example = (prompt) => ({ prompt, steps: ['A first step, because.', 'A second step, so.'], answer: 'x = 3' });
+  assert.equal(siblingIsSafe(question, siblingGuardOf(question), example('Write the line perpendicular to y = −2 through (3, 1).')), false);
+  assert.equal(siblingIsSafe(question, siblingGuardOf(question), example('Write the line perpendicular to y = 7 through (3, 1).')), true);
+  assert.equal(siblingIsSafe(question, siblingGuardOf(question), example('Solve it when k = 0, then write the line perpendicular to y = 7 through (3, 1).')), true);
 });
 
 test('coverage of the Algebra I answer boxes, from the report: before WE-I 140 uncovered, now 14', () => {

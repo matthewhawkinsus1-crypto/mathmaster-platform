@@ -74,6 +74,9 @@ export const statedEquations = (value) => new Set(text(value).replace(/[A-Za-z]{
   .map(mathKey)
   .filter((key) => key.length >= 3));
 
+// "k = 0" or "t = 3" alone is a value of a letter, not a problem. "y = −2" and
+// "x = 5" are lines, so they still count.
+const BARE_VALUE = /^[a-wz]=-?[\d./]+$/;
 const itemShows = (question) => [text(question?.prompt), ...list(question?.answerFields).filter(isObject).map((field) => text(field.label))].join('\n');
 
 /** The sibling names none of the item's answers, and is not the item: not its prompt, nor any equation it states. */
@@ -84,7 +87,7 @@ export const siblingIsSafe = (question, guard, example) => {
   const steps = list(example.steps).map(text).filter(Boolean);
   if (!prompt || !answer || steps.length < 2 || prompt === text(question?.prompt)) return false;
   const itemEquations = statedEquations(itemShows(question));
-  if ([...statedEquations(prompt)].some((key) => itemEquations.has(key))) return false;
+  if ([...statedEquations(prompt)].some((key) => itemEquations.has(key) && !BARE_VALUE.test(key))) return false;
   if (guard.some((value) => value.toLowerCase() === answer.toLowerCase())) return false;
   const own = numericValue(answer);
   if (own !== null && guard.some((value) => numericValue(value) !== null && Math.abs(numericValue(value) - own) < 1e-9)) return false;
