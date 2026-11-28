@@ -139,3 +139,75 @@ test('48 like terms reopen, as a side and as an operand, in seconds at most', ()
   // 2x + 3x + … + 49x is 1,224x: the like terms are combined, as they always were.
   assert.deepEqual(results['likeTerms side'].simplified, { left: '1224 * x - 3', right: '4' });
 });
+
+/*
+ * THE SERVER NEVER HANDS SUCH WORK TO SIMPLIFY. A few shapes no rule matches
+ * still cost the client tens of seconds at 240 characters (119 links of
+ * 1/x/x/…: 99 s to reopen as an operand; 41 terms of x^1 + x^2 + …: 29 s).
+ * Reaching the server, the same text in a tampered submission is refused
+ * before any simplify, by the student-expression budget
+ * (stepAlgebraEquivalence.mjs studentExpressionBudget and
+ * isSafeStudentExpression): the step checker declines the step
+ * (stepBudget, composedWithinBudget: step-beyond-server-budget), and the
+ * workspace graders read an over-budget side, prompt answer or relation
+ * branch as not a finished answer. The limit is generous: it took 57 ms at
+ * most.
+ */
+test('a tampered submission holding one of those shapes is refused on the server, before simplify, well under a second', async () => {
+  const load = (relative) => import(path.join(ROOT, relative));
+  const verification = await load('functions/shared/serverGrading/stepAlgebraStepVerification.mjs');
+  const workspace = await load('functions/shared/serverGrading/stepAlgebraWorkspaceGrading.mjs');
+  const { gradeEquationObjective } = await load('functions/shared/serverGrading/stepAlgebraEquationVerdict.mjs');
+  const { isSafeStudentExpression, studentExpressionBudget } = await load('functions/shared/serverGrading/stepAlgebraEquivalence.mjs');
+  const { emptyQuestionRecord } = await load('functions/shared/attemptPolicy.mjs');
+  const question = { questionId: 'tampered', type: 'stepAlgebra', prompt: 'Solve.', leftExpression: '2x + 3', rightExpression: '7', generatedAnswer: 2 };
+  const relationQuestion = { questionId: 'tampered-relation', type: 'stepAlgebra', prompt: 'Solve.', equation: '-2x + 3 > 7', variable: 'x' };
+  const SHAPES_STILL_SLOW = {
+    '119 links of 1/x/x/…': `1${'/x'.repeat(119)}`,
+    '41 terms of x^1 + x^2 + …': Array.from({ length: 41 }, (_, index) => `x^${index + 1}`).join(' + '),
+    '119 links of 1/2/2/…': `1${'/2'.repeat(119)}`,
+    '48 like terms': longExpression('likeTerms', 48),
+  };
+  const timed = (work) => {
+    const started = performance.now();
+    const value = work();
+    return { value, ms: performance.now() - started };
+  };
+  for (const [name, text] of Object.entries(SHAPES_STILL_SLOW)) {
+    // The guard itself: over the budget the question's own equation allows.
+    assert.equal(isSafeStudentExpression(text, studentExpressionBudget('2x + 3', '7')), false, `${name}: within the budget`);
+    const step = (stepWork) => timed(() => verification.verifyStepAlgebraStep({ question, record: emptyQuestionRecord(), stepWork }));
+    const steps = {
+      'as the operand of a step': step({
+        version: 1, surface: 'equation', action: 'balanced-move', supportLevel: 3,
+        before: { left: '2x + 3', right: '7' },
+        after: { left: `(2x + 3) - (${text})`, right: `(7) - (${text})` },
+        operation: { operation: 'subtract', operand: text, placementBySide: { left: null, right: null } },
+      }),
+      'as the side a step starts from': step({
+        version: 1, surface: 'equation', action: 'balanced-move', supportLevel: 3,
+        before: { left: text, right: '7' },
+        after: { left: `(${text}) - (3)`, right: '(7) - (3)' },
+        operation: { operation: 'subtract', operand: '3', placementBySide: { left: null, right: null } },
+      }),
+    };
+    for (const [where, { value, ms }] of Object.entries(steps)) {
+      assert.equal(value.reason, 'step-beyond-server-budget', `${name}, ${where}: ${JSON.stringify(value)}`);
+      assert.equal(value.verified, false);
+      assert.ok(ms < 1000, `${name}, ${where}: ${Math.round(ms)} ms`);
+    }
+    const graded = {
+      'the final equation': timed(() => workspace.gradeEquationWorkspace(question, workspace.equationWorkspaceWork({ equation: { left: 'x', right: text } })).parts[0]),
+      'the objective': timed(() => gradeEquationObjective(question, { equation: { left: 'x', right: text } }).part),
+      'a relation branch': timed(() => workspace.gradeRelationWorkspace(relationQuestion, workspace.relationWorkspaceWork({ relationState: { branches: [{ expressions: ['x', text], relations: ['<'] }] } })).parts[0]),
+    };
+    for (const [where, { value, ms }] of Object.entries(graded)) {
+      assert.equal(value.isComplete, false, `${name}, ${where}: read as a finished answer`);
+      assert.equal(value.isCorrect, false);
+      assert.ok(ms < 1000, `${name}, ${where}: ${Math.round(ms)} ms`);
+    }
+  }
+  // And the same paths grade an ordinary finished answer: the refusals above are the budget's.
+  assert.equal(workspace.gradeEquationWorkspace(question, workspace.equationWorkspaceWork({ equation: { left: 'x', right: '2' } })).parts[0].isCorrect, true);
+  assert.equal(gradeEquationObjective(question, { equation: { left: 'x', right: '2' } }).part.isCorrect, true);
+});
