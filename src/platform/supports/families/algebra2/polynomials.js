@@ -133,8 +133,51 @@ const chainClaim = (question, fields) => {
   // A chain that factors needs a cubic; a list of candidates reads any degree.
   if (!listsOnly && polynomial.length !== 4) return null;
   if (polynomial[polynomial.length - 1] === 0 || polynomial[0] <= 0) return null;
-  return { parts, kinds, degree: polynomial.length - 1, leading: polynomial[0], listsOnly, polynomial };
+  // An item that asks only for one value by direct substitution ("Evaluate by direct
+  // substitution: … find f(2)") is worked that way, not as a Factor Theorem test.
+  const substitution = kinds.length === 1 && kinds[0] === 'test' && /direct substitution|\bevaluate\b/i.test(plain(question?.prompt)) && !/factor/i.test(plain(question?.prompt));
+  const name = /^([fP])\(/.exec(stripStep(fields[0]?.label))?.[1] || 'f';
+  return { parts, kinds, degree: polynomial.length - 1, leading: polynomial[0], listsOnly, polynomial, substitution, name };
 };
+
+export const SUBSTITUTION_WHY = Object.freeze({
+  replace: 'Direct substitution: the value of a function at a number is what it gives when that number replaces the variable everywhere. The brackets keep the number\u2019s sign with it.',
+  powers: 'The order of operations: powers come before multiplying and adding. A negative number squared is positive, and cubed is negative.',
+  add: 'Each coefficient multiplies its power of the number; adding the terms gives the value.',
+});
+
+// A cubic evaluated at a number: the brackets, the powers, then the terms added.
+const substitutionPart = (plan, [cubic, r]) => {
+  if (cubic.length === plan.polynomial.length && cubic.every((value, index) => value === plan.polynomial[index])) return null;
+  const f = plan.name;
+  const pText = polynomialText(cubic);
+  const at = `(${signed(r)})`;
+  const value = evaluate(cubic, r);
+  const terms = cubic.map((coefficient, index) => coefficient * r ** (3 - index));
+  const written = cubic.map((coefficient, index) => {
+    const power = 3 - index;
+    const factor = power === 0 ? '' : power === 1 ? at : `${at}${power === 2 ? '²' : '³'}`;
+    const magnitude = Math.abs(coefficient);
+    const body = power === 0 ? `${magnitude}` : `${magnitude === 1 ? '' : magnitude}${factor}`;
+    return index === 0 ? `${coefficient < 0 ? MINUS : ''}${body}` : `${coefficient < 0 ? MINUS : '+'} ${body}`;
+  }).join(' ');
+  const sum = terms.map((term, index) => (index === 0 ? signed(term) : term < 0 ? `${MINUS} ${Math.abs(term)}` : `+ ${term}`)).join(' ');
+  const steps = [
+    { show: `Replace every ${math('x')} with ${math(at)}: ${math(`${f}(${signed(r)}) = ${written}`)}.`, why: SUBSTITUTION_WHY.replace },
+    { show: `Powers first: ${math(`${at}³ = ${signed(r ** 3)}`)} and ${math(`${at}² = ${signed(r ** 2)}`)}.`, why: SUBSTITUTION_WHY.powers },
+    { show: `Then multiply and add: ${math(`${f}(${signed(r)}) = ${sum} = ${signed(value)}`)}.`, why: SUBSTITUTION_WHY.add },
+  ];
+  return {
+    prompt: `Let ${math(`${f}(x) = ${pText}`)}. Evaluate ${math(`${f}(${signed(r)})`)} by direct substitution.`,
+    steps,
+    answer: `${math(`${f}(${signed(r)}) = ${signed(value)}`)}`,
+    problems: [pText],
+    identities: [identity(pText, String(value), ASSUME.REAL, { x: r })],
+    assume: ASSUME.REAL,
+  };
+};
+const SUBSTITUTION_CUBICS = Object.freeze([[1, -3, 2, 5], [1, 2, -4, 3], [2, -1, 3, -4], [1, 4, -2, -6], [1, -2, -5, 7], [2, 3, -1, 2], [1, -4, 3, -2], [1, 3, 5, -8]]);
+const SUBSTITUTION_POINTS = Object.freeze([-2, 2, -1, 3, -3]);
 
 const candidateList = (constant, leading) => {
   const values = [];
@@ -268,6 +311,10 @@ const chainDraw = (plan, seed, ok = null) => {
     const leadings = plan.leading === 1 ? [1] : [2, 3, 4, 5].filter((value) => value !== plan.leading).concat([plan.leading]);
     leadings.forEach((leading) => [6, 9, 10, 8, 12, 15, 14].forEach((constant) => [1, -2, 3].forEach((middle) => options.push([leading, constant * (middle < 0 ? -1 : 1), middle]))));
     return firstFitting(options, seed, (option) => listOnlyPart(plan, option), ok);
+  }
+  if (plan.substitution) {
+    const options = SUBSTITUTION_CUBICS.flatMap((cubic) => SUBSTITUTION_POINTS.map((r) => [cubic, r]));
+    return firstFitting(options, seed, (option) => substitutionPart(plan, option), ok);
   }
   return firstFitting(chainOptions(plan), seed, (option) => chainPart(plan, option), ok);
 };

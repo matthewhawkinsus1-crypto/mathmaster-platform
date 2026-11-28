@@ -319,7 +319,9 @@ Where the Algebra II answer-box generators live (WE-I), and what they claim:
     term by term;
   - `rationalZeroChain` (A2.7D): possible rational zeros, a zero tested, the
     division, the quotient factored, the factorization and the zeros, of a
-    cubic built from its zeros;
+    cubic built from its zeros. An item that asks only for one value by direct
+    substitution (rf-wu-1) gets a sibling worked that way, the number in
+    brackets, the powers, then the terms added, and no Factor Theorem;
   - `quadraticForm` (A2.7D, A2.7E): x⁴ − bx² + c with u = x²;
   - `groupFourTerms` (A2.7E): four terms grouped in pairs;
   - `realRoots` and `likeRadicals` (A2.7G sorts): how many real nth roots, and
