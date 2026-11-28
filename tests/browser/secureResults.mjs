@@ -345,6 +345,9 @@ for (const device of DEVICES) {
     const kinds = rows.map(([kind]) => kind).join(',');
     check(kinds === 'answer,step,answer', at('review: a part\'s step is a row of its own, right after its part'), JSON.stringify(rows));
     check(/^Step shown for "Slope": points picked on the plane \(0, 3\) \(1, 1\); rise -2; run 1$/.test(rows[1]?.[1] || ''), at('review: the step row says what the student did, with no result of its own'), rows[1]?.[1]);
+    // An unfinished answer keeps its note in the same list (#621), on its own row.
+    const unfinishedRows = await page.locator('article[data-result-status] [data-result-block="yours"] [data-answer-row]').evaluateAll((nodes) => nodes.map((node) => Boolean(node.querySelector('[data-review-unfinished]'))));
+    check(unfinishedRows.join(',') === 'false,false,true', at('review: the unfinished intercept keeps its note, after the step row'), unfinishedRows.join(','));
     await shot(page, device, 'review-step-row');
     noErrors(errors, at('review with a step'));
     await page.close();

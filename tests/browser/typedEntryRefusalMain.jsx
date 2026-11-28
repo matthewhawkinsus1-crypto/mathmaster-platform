@@ -12,6 +12,12 @@
  *                          mode: no per-question Submit, drafts autosave
  *   ?surface=challenge     LiveChallengeFieldQuestion, one number box: a
  *                          lock-in cannot be taken back
+ *   ?surface=challenge-follow  LiveChallengeFieldQuestion, a slope box and a
+ *                          box that builds on it (SP-3 followThrough, as the
+ *                          round's public copy carries it: `{ from }` only)
+ *   ?surface=secure-parts  RichQuestionRuntime as a secure test, part by part:
+ *                          a text box that names a number format, then a box
+ *                          of words ("Explain")
  *   ?run=…                 a fresh local draft
  *
  * What a surface submits lands in window.__mmSubmits, and a secure draft in
@@ -101,6 +107,43 @@ function Challenge() {
   return <LiveChallengeFieldQuestion question={question} disabled={false} onSubmit={async (payload) => { window.__mmSubmits.push(payload); }} />;
 }
 
-const SURFACES = { engine: Engine, literal: Engine, path: Path, corrections: Rich, secure: Rich, challenge: Challenge };
+// SP-3: the later box's label is written with the student's slope, or
+// "your slope …" before there is one; never a raw {slope}, never a key.
+function ChallengeFollow() {
+  const question = {
+    questionInstanceId: `typed-entry-challenge-follow-${run}`, prompt: 'The boundary line passes through (0, 3) and (1, 1).', teksCode: 'A.3D',
+    responseFields: [
+      { id: 'slope', label: 'Slope of the boundary line', inputProfile: 'number' },
+      { id: 'inequality', label: 'Using your slope of {slope}, write the inequality', inputProfile: 'inequality', followThrough: { from: ['slope'] } },
+    ],
+  };
+  return <LiveChallengeFieldQuestion question={question} disabled={false} onSubmit={async (payload) => { window.__mmSubmits.push(payload); }} />;
+}
+
+// "Review all parts, then submit": a field authored with an answerFormat and
+// no profile is issued as a text box (mathPath.normalizeResponseFields), but
+// it holds a number; an "Explain" box with no format holds words.
+function SecureParts() {
+  const question = {
+    questionInstanceId: `typed-entry-secure-parts-${run}`, runtimeMode: 'secureTest', prompt: 'A ticket costs $12$ dollars plus a fee.',
+    responseFields: [
+      { id: 'total', label: 'Total cost', inputProfile: 'text', answerFormat: 'number', inputContract: { format: 'number', requiredSymbols: [] } },
+      { id: 'explain', label: 'Explain your reasoning', inputProfile: 'text', answerFormat: null, inputContract: null },
+    ],
+    attemptsAllowed: 1,
+  };
+  return (
+    <RichQuestionRuntime
+      question={question}
+      mode="secureTest"
+      navigationMode
+      attempt={null}
+      onSubmit={async (payload) => { window.__mmSubmits.push(payload); return null; }}
+      onDraftChange={(payload) => { window.__mmDrafts.push(payload); }}
+    />
+  );
+}
+
+const SURFACES = { engine: Engine, literal: Engine, path: Path, corrections: Rich, secure: Rich, challenge: Challenge, 'challenge-follow': ChallengeFollow, 'secure-parts': SecureParts };
 const Surface = SURFACES[SURFACE] || Engine;
 createRoot(document.getElementById('root')).render(<div data-typed-entry-surface={SURFACE} style={{ padding: 16 }}><Surface /></div>);

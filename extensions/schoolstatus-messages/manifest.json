@@ -1,0 +1,15 @@
+{
+  "manifest_version": 3,
+  "name": "MathMaster SchoolStatus Messages",
+  "version": "0.1.0",
+  "description": "Sends the Discipline Tracker's family messages through your own signed-in SchoolStatus tab, one at a time, while you watch.",
+  "permissions": ["scripting", "storage"],
+  "host_permissions": [
+    "https://mathmaster-aleks.web.app/*",
+    "https://mathmasterlearning.com/*",
+    "https://secure.schoolstatus.com/*"
+  ],
+  "action": { "default_title": "Open MathMaster SchoolStatus Messages" },
+  "background": { "service_worker": "background.js", "type": "module" },
+  "minimum_chrome_version": "116"
+}

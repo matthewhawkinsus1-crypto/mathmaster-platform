@@ -24,7 +24,7 @@ import { followThroughKeys, followThroughLabel, followThroughValue, withFollowTh
 import * as followThroughRules from '../../functions/shared/followThrough.mjs';
 import { gradeOrdinaryResponse, normalizeOrdinaryResponse } from '../../functions/shared/ordinaryResponseGrading.mjs';
 import { lightRecoveryKeyCheck } from '../../functions/shared/recoveryLightKeyCheck.mjs';
-import { followThroughLabel as neutralLabel, loadFollowThrough } from '../../functions/shared/followThroughNames.mjs';
+import { followThroughLabel as neutralLabel, loadFollowThrough, withFollowThroughLabels as screenLabels } from '../../functions/shared/followThroughNames.mjs';
 import { readFileSync } from 'node:fs';
 import { followThroughPlaceholders } from '../../src/platform/contract/lessonSupportsV5.js';
 import { questionReadingParts, questionReadingText } from '../../src/platform/language/questionReading.js';
@@ -223,6 +223,35 @@ test('every screen that draws a part\'s label draws it with the student\'s value
   assert.match(review, /responseRows\(item,\s*followThrough\.rules\)/);
 });
 
+// A Live Challenge field round draws a Path field item's public fields
+// (mathPath normalizeResponseFields: `followThrough` is `{ from }`, never its
+// answer). Its labels are written as every other screen writes them.
+test('Live Challenge field screen: every box draws the label with the student\'s value, or "your …" before there is one', () => {
+  const screen = executableSource(componentSource('src/components/liveChallenge/LiveChallengeFieldQuestion.jsx'));
+  const view = region(screen, 'function LiveChallengeFieldQuestionView(', 'export default function LiveChallengeFieldQuestion', 'the field view');
+  const labels = region(view, 'const fields = useMemo(', '[authoredFields, responses', 'the field labels');
+  assert.match(labels, /withFollowThroughLabels\(\s*authoredFields\s*,\s*responses/);
+  assert.match(labels, /value:\s*followThrough\.rules\?\.followThroughValue/);
+  assert.match(view, /useFollowThroughRules\(authoredFields\)/);
+  // Every box is drawn from the labelled fields, never the round's own.
+  assert.match(view, /\{fields\.map\(\(field, fieldIndex\) =>/);
+  assert.doesNotMatch(view, /question\?\.responseFields\.map|authoredFields\.map/);
+
+  // What those labels read, for the round's public copy of the item.
+  const issued = mathPath.buildSanitizedQuestion(fieldItem, { questionInstanceId: 'live-1', attemptsAllowed: 1 });
+  const publicFields = issued.responseFields;
+  assert.deepEqual(publicFields.find((field) => field.id === 'inequality').followThrough, { from: ['slope'] });
+  // As the screen calls it (followThroughNames.mjs), with the rules once they have loaded.
+  const shown = (answers, rules) => screenLabels(publicFields, answers, { value: rules?.followThroughValue })
+    .find((field) => field.id === 'inequality').label;
+  assert.equal(shown({}, followThroughRules), 'Using your slope of your slope of the boundary line, write the inequality');
+  assert.equal(shown({ slope: '-3' }, followThroughRules), 'Using your slope of $-3$, write the inequality');
+  assert.equal(shown({ slope: '-3' }, null), 'Using your slope of your slope of the boundary line, write the inequality');
+  for (const answers of [{}, { slope: '-3' }, { slope: '12 +' }]) {
+    assert.doesNotMatch(shown(answers, followThroughRules), /\{slope\}|\{|y > /);
+  }
+});
+
 test('before the rules arrive a label says "your slope …", never a raw {slope} and never the key', () => {
   assert.equal(neutralLabel(later, fields, { slope: '-3' }), 'Using your slope of your slope of the boundary line, write the inequality');
   assert.equal(questionReadingParts(inequalityQuestion, { answers: { slope: '-3' } }).find((part) => part.id === 'part-inequality').text,
@@ -236,6 +265,7 @@ const CLIENT_SOURCES = [
   'functions/shared/ordinaryResponseGrading.mjs', 'functions/shared/followThroughNames.mjs', 'functions/shared/legacyFieldGrading.mjs',
   'src/MultiAnswerGrader.jsx', 'src/QuestionEngine.jsx', 'src/components/question/RichQuestionRuntime.jsx',
   'src/components/student/PathResponseFields.jsx', 'src/components/assessment/SecureExamReview.jsx',
+  'src/components/liveChallenge/LiveChallengeFieldQuestion.jsx',
   'src/platform/language/questionReading.js', 'src/platform/interaction/useFollowThroughRules.js', 'src/platform/contract/lessonSupportsV5.js',
 ];
 
@@ -261,7 +291,8 @@ test('a question with no followThrough never imports the rules: no screen import
   assert.equal(await loadFollowThrough(fields, load), followThroughRules);
   // Every screen that needs them asks for them through the hook.
   for (const file of ['src/MultiAnswerGrader.jsx', 'src/QuestionEngine.jsx', 'src/components/question/RichQuestionRuntime.jsx',
-    'src/components/student/PathResponseFields.jsx', 'src/components/assessment/SecureExamReview.jsx']) {
+    'src/components/student/PathResponseFields.jsx', 'src/components/assessment/SecureExamReview.jsx',
+    'src/components/liveChallenge/LiveChallengeFieldQuestion.jsx']) {
     assert.match(executableSource(componentSource(file)), /useFollowThroughRules\(/, file);
   }
 });

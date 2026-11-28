@@ -46,7 +46,7 @@ import { splitGrade, splitGradesBySection, COMPARABILITY, describeDeliveredRigor
 import { assignmentGradeOverrideFor, canonicalPresentedAssignmentGrade, projectedAssignmentTrackerFor } from '../../platform/grading/canonicalGradeProjection.js';
 import { assignmentFeedbackWasReleased, assignmentUsesTeacherReleasePolicy, createQuestionId, normalizeAssignmentQuestions, toDateTimeLocalInputValue, formatDueDate, formatLateDueDate, formatTimeStamp } from '../student/assignmentRuntimeHelpers.js';
 import { CLASS_SCOPED_TABS } from '../screenScopes.js';
-import { AssignmentAiHealth, AssignmentContentUpgradeModal, AssignmentGradeOverrideControls, AssignmentIntake, AssignmentLibrary, AssignmentQuestionEditor, AttendanceHistoryPanel, ClassContextBar, ClassCourseSettings, ClassesAdmin, ClassesWorkspace, ClassRewardCatalogEditor, ClassRewardRequestsPanel, ClassroomManagerV2, ClassScheduleSettings, DemoExperience, GradebookAssignmentBar, GradebookClassChooser, GradeTransferCenter, LessonPreflightModal, LiveChallengeTeacher, MarkingPeriodSettings, MathToolsLab, PacingControls, ParentContactCenter, PathCoverageAudit, PathSimulator, PlatformHealth, PreproductionReset, SectionRecoveryAuditTrail, SignInAccess, StudentCaseReviewView, StudentDolRecoveryRow, StudentResponseInspector, StudentsRoster, TeacherActionCenter, TeacherAnalyticsDashboard, TeacherAssignmentPdfDialog, TeacherHome, TeacherSecureExamDashboard, TeacherSidebar, TestCyclePreview, TexasStandardsDashboard, WeeklyPathControls, WeeklyPathGradePanel } from '../lazyScreens.js';
+import { AssignmentAiHealth, AssignmentContentUpgradeModal, AssignmentGradeOverrideControls, AssignmentIntake, AssignmentLibrary, AssignmentQuestionEditor, AttendanceHistoryPanel, ClassContextBar, ClassCourseSettings, ClassesAdmin, ClassesWorkspace, ClassRewardCatalogEditor, ClassRewardRequestsPanel, ClassroomManagerV2, ClassScheduleSettings, DemoExperience, DisciplineTracker, GradebookAssignmentBar, GradebookClassChooser, GradeTransferCenter, LessonPreflightModal, LiveChallengeTeacher, MarkingPeriodSettings, MathToolsLab, PacingControls, ParentContactCenter, PathCoverageAudit, PathSimulator, PlatformHealth, PreproductionReset, SectionRecoveryAuditTrail, SignInAccess, StudentCaseReviewView, StudentDolRecoveryRow, StudentResponseInspector, StudentsRoster, TeacherActionCenter, TeacherAnalyticsDashboard, TeacherAssignmentPdfDialog, TeacherHome, TeacherSecureExamDashboard, TeacherSidebar, TestCyclePreview, TexasStandardsDashboard, WeeklyPathControls, WeeklyPathGradePanel } from '../lazyScreens.js';
 // The five panels drawn closed on every screen, each mounted when it first
 // opens (./teacherPanels.js), and their code fetched while the browser is idle.
 import { AssignmentHub, ClassroomSyncReview, QuestionSignalNotes, StudentProfileDrawer, SupportEvidenceReportView, TeacherQuickSearch, WorkedExamplesBySkill } from './teacherPanels.js';
@@ -2877,6 +2877,19 @@ export default function TeacherWorkspace({
                 }
                 setTeacherTab(item.sourceType === 'returnCheckIn' ? 'attendanceHistory' : item.sourceType === 'testCycle' ? 'exams' : 'parentContacts');
               }}
+            />
+          )}
+
+          {teacherTab === 'discipline' && (
+            <DisciplineTracker
+              classes={classes}
+              students={allStudents}
+              contacts={parentContacts}
+              teacherEmail={user.email || ''}
+              teacherName={user.displayName || user.name || ''}
+              isRootAdmin={user.isRootAdmin === true}
+              initialClassId={activeClass.classId || null}
+              onRecordContact={(contact) => recordParentContact({ db, teacherEmail: user.email, contact })}
             />
           )}
 

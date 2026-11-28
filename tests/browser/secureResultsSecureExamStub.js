@@ -131,7 +131,8 @@ const courseItems = [
 const stepItems = [{
   questionInstanceId: 'cs-1', position: 0, alignmentKeys: ['texas:A.3B'], targetId: 't-slope', planWeight: 1, assessmentDomainId: null,
   unanswered: false, pathToolId: null, questionType: 'response', grading: { score: 1, isCorrect: true },
-  responsePayload: { responses: { 'slope::step': '(0, 3) (1, 1); rise -2; run 1', intercept: '3', slope: '-2' } },
+  // The intercept was left unfinished (`3 +`): its row keeps its note beside the step rows.
+  responsePayload: { responses: { 'slope::step': '(0, 3) (1, 1); rise -2; run 1', intercept: '3 +', slope: '-2' } },
   questionSnapshot: {
     prompt: 'The boundary line passes through $(0, 3)$ and $(1, 1)$. Enter its slope and its $y$-intercept.',
     responseFields: [{ ...field('slope', 'Slope'), checkpoint: { kind: 'pickPoints', count: 2, of: '(0, 3) and (1, 1)' } }, field('intercept', 'Intercept')],

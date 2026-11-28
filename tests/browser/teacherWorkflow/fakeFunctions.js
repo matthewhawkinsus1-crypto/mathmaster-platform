@@ -15,6 +15,29 @@
 import { arrayRemove, deleteField, harnessStore, recordHarnessCallable, Timestamp } from './fakeFirestore.js';
 import { TEACHER_EMAIL } from './fixture.js';
 import {
+  DisciplineInputError,
+  disciplineDateKey,
+  formStudentName,
+  isVoidedIncident,
+  normalizeViolationInput,
+} from '../../../functions/shared/disciplineTracker.mjs';
+import {
+  FamilyMessageError,
+  claimFamilyMessage,
+  districtIdOf,
+  familyMessageDraft,
+  familyMessageKey,
+  familyMessageView,
+  messagingGate,
+  normalizeMessagingSettings,
+  parentContactForFamilyMessage,
+  planFamilyMessageQueue,
+  releaseFamilyMessage,
+  reportFamilyMessage,
+  startFamilyMessageSend,
+  teacherFamilyMessageAction,
+} from '../../../functions/shared/familyMessages.mjs';
+import {
   TeamsSyncInputError,
   normalizeTeamsSections,
   normalizeTeamsTargets,
@@ -49,6 +72,9 @@ import {
 import {
   authorizeCaseEvidenceCaller, buildCaseEvidenceResponse, validateCaseEvidenceRequest,
 } from '../../../functions/shared/caseReviewEvidence.mjs';
+import {
+  ConductEvidenceInputError, buildConductEvidenceResponse, validateConductEvidenceRequest,
+} from '../../../functions/shared/conductEvidence.mjs';
 import { workspaceDraftDocumentId } from '../../../functions/shared/workspaceDraftSchema.mjs';
 import { CRASH_REPORTING_FLAG, resolveCrashReportingMode } from '../../../functions/shared/crashReport.mjs';
 import { explainStudentChallengeRewards } from '../../../functions/shared/rewardDiagnostics.mjs';
@@ -114,6 +140,27 @@ const documentsWhere = (collectionName, fields) => harnessStore.paths(`${collect
   .map((path) => ({ id: path.split('/')[1], ...harnessStore.get(path) }))
   .filter((entry) => Object.entries(fields).every(([key, value]) => entry[key] === value));
 const plainTimes = (entry) => ({ ...entry, createdAt: iso(entry.createdAt), updatedAt: iso(entry.updatedAt) });
+// Family messages: the queue's refusals as the callables give them.
+const familyMessageFake = (fn) => {
+  try {
+    return fn();
+  } catch (error) {
+    if (error instanceof FamilyMessageError) throw rejection(error.code, error.message);
+    throw error;
+  }
+};
+const familyMessageRecord = (messageId) => {
+  const stored = harnessStore.get(`familyMessages/${messageId}`);
+  if (!stored || lower(stored.teacherOfRecord) !== lower(TEACHER_EMAIL)) throw rejection('not-found', 'That message was not found.');
+  return { id: messageId, ...stored };
+};
+const writeFamilyContact = (message, logContact, nowMs) => {
+  harnessStore.set(`parentContactLogs/familyMessage_${message.id}`, {
+    ...parentContactForFamilyMessage(message, { ...logContact, nowMs }),
+    createdAtServer: Timestamp.now(),
+  });
+  harnessStore.update(`familyMessages/${message.id}`, { parentContactId: `familyMessage_${message.id}` });
+};
 // Scenario knobs: fail the next N snapshot saves; make weekly Path fail like production did.
 harness.failNextPersists = harness.failNextPersists || 0;
 harness.weeklyPathFails = new URLSearchParams(window.location.search).get('weeklyPath') !== 'ok';
@@ -602,6 +649,165 @@ const handlers = {
     });
     return { studentId, ...next };
   },
+  // The Discipline Tracker (functions/disciplineFunctions.js). The harness has
+  // no Google Form: Send now marks taps sent, and nothing leaves the browser.
+  recordDisciplineIncident: ({ classId, studentId, type, detail = '', tapId } = {}) => {
+    const cls = requireClassTeacher(classId);
+    const student = harnessStore.get(`grades/${studentId}`);
+    if (!student || student.classId !== cls) throw rejection('permission-denied', "That student is not on this class's roster.");
+    let violation;
+    try { violation = normalizeViolationInput({ type, detail }); } catch (error) {
+      if (error instanceof DisciplineInputError) throw rejection('invalid-argument', error.message);
+      throw error;
+    }
+    const path = `disciplineIncidents/${cls}_${tapId}`;
+    if (!harnessStore.get(path)) {
+      const nowMs = Date.now();
+      const classRecord = harnessStore.get(`classes/${cls}`) || {};
+      harnessStore.set(path, {
+        classId: cls, classPeriod: classRecord.period || '', classLabel: classRecord.name || classRecord.period || '', studentId,
+        ...violation, occurredAtMs: nowMs, dateKey: disciplineDateKey(nowMs), teacherOfRecord: lower(TEACHER_EMAIL), form: { state: 'pending', attempts: 0 },
+      });
+    }
+    return { id: path.split('/')[1], ...harnessStore.get(path) };
+  },
+  voidDisciplineIncident: ({ incidentId } = {}) => {
+    const path = `disciplineIncidents/${incidentId}`;
+    const record = harnessStore.get(path);
+    if (!record) throw rejection('not-found', 'That violation was not found.');
+    requireClassTeacher(record.classId);
+    if (!record.voidedAtMs) harnessStore.update(path, { voidedAtMs: Date.now() });
+    return { id: incidentId, ...harnessStore.get(path), alreadySubmitted: record.form?.state === 'submitted', maybeSubmitted: record.form?.state === 'unknown' };
+  },
+  setDisciplineIncidentDetail: ({ incidentId, detail = '' } = {}) => {
+    const path = `disciplineIncidents/${incidentId}`;
+    const record = harnessStore.get(path);
+    if (!record) throw rejection('not-found', 'That violation was not found.');
+    requireClassTeacher(record.classId);
+    const violation = normalizeViolationInput({ type: record.type, detail });
+    harnessStore.update(path, { detail: violation.detail });
+    return { id: incidentId, ...harnessStore.get(path) };
+  },
+  listDisciplineIncidents: ({ fromDateKey, toDateKey } = {}) => ({
+    incidents: harnessStore.paths('disciplineIncidents/')
+      .map((path) => ({ id: path.split('/')[1], ...harnessStore.get(path) }))
+      .filter((entry) => entry.teacherOfRecord === lower(TEACHER_EMAIL) && entry.dateKey >= fromDateKey && entry.dateKey <= toDateKey),
+    formStatus: harnessStore.get('disciplineStatus/form') || null,
+    familyMessages: harnessStore.paths('familyMessages/')
+      .map((path) => familyMessageView({ id: path.split('/')[1], ...harnessStore.get(path) }, Date.now()))
+      .filter((entry) => entry.dateKey >= fromDateKey && entry.dateKey <= toDateKey),
+    familyMessaging: normalizeMessagingSettings(harnessStore.get('disciplineStatus/familyMessaging') || {}),
+  }),
+  // Family messages through SchoolStatus (functions/lib/familyMessageOutbox.js),
+  // on the same pure rules. Nothing leaves the browser: the harness plays the
+  // extension through window.mathmasterFamilyMessages.
+  queueFamilyMessages: ({ classId, dateKey, studentIds = null } = {}) => familyMessageFake(() => {
+    const cls = requireClassTeacher(classId);
+    const settings = normalizeMessagingSettings(harnessStore.get('disciplineStatus/familyMessaging') || {});
+    if (settings.mode === 'off') throw new FamilyMessageError('Sending to families through SchoolStatus is not turned on yet.');
+    const nowMs = Date.now();
+    const classRecord = harnessStore.get(`classes/${cls}`) || {};
+    const incidents = documentsWhere('disciplineIncidents', { classId: cls, dateKey })
+      .filter((entry) => !studentIds || studentIds.includes(entry.studentId))
+      .sort((left, right) => left.occurredAtMs - right.occurredAtMs);
+    const byStudent = new Map();
+    incidents.forEach((entry) => byStudent.set(entry.studentId, [...(byStudent.get(entry.studentId) || []), entry]));
+    const teacherName = harnessStore.get(`disciplineSettings/${lower(TEACHER_EMAIL)}`)?.teacherName || '';
+    const results = [...byStudent].map(([studentId, list]) => {
+      const student = harnessStore.get(`grades/${studentId}`) || {};
+      const sisStudentId = districtIdOf(studentId, student);
+      const gate = messagingGate(settings, sisStudentId);
+      if (!gate.allowed) return { studentId, status: settings.mode === 'test' && sisStudentId ? 'testModeSkipped' : 'noDistrictId' };
+      const messageKey = familyMessageKey({ classId: cls, dateKey, studentId });
+      const existing = documentsWhere('familyMessages', { messageKey });
+      const plan = planFamilyMessageQueue({ incidents: list, messages: existing, nowMs });
+      if (plan.action === 'none') return { studentId, status: plan.why };
+      const covered = list.filter((entry) => plan.incidentIds.includes(entry.id));
+      const draft = familyMessageDraft({ student: { id: studentId, ...student }, incidents: covered, dateKey, teacherName, classLabel: classRecord.name || classRecord.period || cls });
+      const messageId = plan.messageId || `${Array.from({ length: 32 }, () => Math.floor(Math.random() * 16).toString(16)).join('')}_${plan.sequence}`;
+      harnessStore.set(`familyMessages/${messageId}`, {
+        ...harnessStore.get(`familyMessages/${messageId}`),
+        messageKey, sequence: plan.sequence, teacherOfRecord: lower(TEACHER_EMAIL), classId: cls, classLabel: classRecord.name || classRecord.period || cls,
+        classPeriod: classRecord.period || '', studentId, studentName: formStudentName({ id: studentId, ...student }), sisStudentId, dateKey,
+        incidentIds: plan.incidentIds, subject: draft.subject, body: draft.body, contactCategory: draft.contactCategory, mode: gate.mode,
+        state: 'queued', reason: null, attempt: null, queuedAtMs: nowMs, queuedByEmail: lower(TEACHER_EMAIL),
+      });
+      return { studentId, status: 'queued', messageId, sequence: plan.sequence };
+    });
+    return { mode: settings.mode, results };
+  }),
+  resolveFamilyMessage: ({ messageId, action } = {}) => familyMessageFake(() => {
+    const stored = familyMessageRecord(messageId);
+    const nowMs = Date.now();
+    const { update, logContact } = teacherFamilyMessageAction(stored, { action, nowMs, by: lower(TEACHER_EMAIL) });
+    harnessStore.update(`familyMessages/${messageId}`, update);
+    if (logContact) writeFamilyContact({ ...stored, ...update }, logContact, nowMs);
+    return familyMessageView({ ...stored, ...update }, nowMs);
+  }),
+  familyMessageOutbox: ({ action, runnerId = '', messageId = '', attemptId = '', outcome = '', reason = '', confirmation = {} } = {}) => familyMessageFake(() => {
+    const nowMs = Date.now();
+    const settings = normalizeMessagingSettings(harnessStore.get('disciplineStatus/familyMessaging') || {});
+    if (action === 'status') return { mode: settings.mode, testDistrictIds: settings.testDistrictIds, queued: documentsWhere('familyMessages', { state: 'queued' }).length, inFlight: 0, needsTeacher: 0 };
+    if (action === 'claim') {
+      const queued = documentsWhere('familyMessages', { teacherOfRecord: lower(TEACHER_EMAIL) })
+        .filter((entry) => familyMessageView(entry, nowMs).state === 'queued')
+        .sort((left, right) => left.queuedAtMs - right.queuedAtMs);
+      for (const stored of queued) {
+        const student = harnessStore.get(`grades/${stored.studentId}`) || {};
+        const decision = claimFamilyMessage(stored, {
+          runnerId, attemptId: `harness-${Math.random().toString(36).slice(2, 12)}`, nowMs,
+          current: {
+            settings, callerEmail: lower(TEACHER_EMAIL), teacherOfRecord: lower(harnessStore.get(`classes/${stored.classId}`)?.teacherOfRecord),
+            onRoster: student.classId === stored.classId, sisStudentId: districtIdOf(stored.studentId, student),
+            studentName: formStudentName({ id: stored.studentId, ...student }),
+            voidedIncidentIds: (stored.incidentIds || []).filter((id) => isVoidedIncident(harnessStore.get(`disciplineIncidents/${id}`))),
+          },
+        });
+        if (decision.update) harnessStore.update(`familyMessages/${stored.id}`, decision.update);
+        if (decision.handout) return { mode: settings.mode, message: decision.handout, held: 0 };
+      }
+      return { mode: settings.mode, message: null, held: 0 };
+    }
+    const stored = familyMessageRecord(messageId);
+    if (action === 'start') {
+      const gate = messagingGate(settings, stored.sisStudentId);
+      if (!gate.allowed) throw new FamilyMessageError(`Do not send: ${gate.reason}`);
+      const update = startFamilyMessageSend(stored, { attemptId, nowMs });
+      harnessStore.update(`familyMessages/${messageId}`, update);
+      return { messageId, state: 'sending', leaseUntilMs: update.attempt.leaseUntilMs, mode: gate.mode };
+    }
+    if (action === 'release') {
+      const update = releaseFamilyMessage(stored, { attemptId, reason, nowMs });
+      if (update) harnessStore.update(`familyMessages/${messageId}`, update);
+      return { messageId, released: Boolean(update) };
+    }
+    if (action === 'report') {
+      const { update, logContact } = reportFamilyMessage(stored, { attemptId, outcome, reason, confirmation, nowMs });
+      harnessStore.update(`familyMessages/${messageId}`, update);
+      if (logContact) writeFamilyContact({ ...stored, ...update }, logContact, nowMs);
+      return { messageId, state: update.state };
+    }
+    throw rejection('invalid-argument', 'Choose status, claim, start, report or release.');
+  }),
+  setFamilyMessagingMode: () => {
+    throw rejection('permission-denied', 'This action is restricted to the MathMaster root administrator.');
+  },
+  getDisciplineSettings: () => ({ principalEmail: '', principalName: '', teacherName: '', ...(harnessStore.get(`disciplineSettings/${lower(TEACHER_EMAIL)}`) || {}) }),
+  saveDisciplineSettings: (settings = {}) => {
+    const saved = { principalEmail: String(settings.principalEmail || ''), principalName: String(settings.principalName || ''), teacherName: String(settings.teacherName || '') };
+    harnessStore.set(`disciplineSettings/${lower(TEACHER_EMAIL)}`, saved);
+    return saved;
+  },
+  submitDisciplineFormsNow: ({ classId = '', dateKey = '' } = {}) => {
+    const pending = harnessStore.paths('disciplineIncidents/').filter((path) => {
+      const entry = harnessStore.get(path);
+      return entry.form?.state === 'pending' && !entry.voidedAtMs && (!classId || entry.classId === classId) && (!dateKey || entry.dateKey === dateKey);
+    });
+    pending.forEach((path) => harnessStore.update(path, { form: { ...harnessStore.get(path).form, state: 'submitted', submittedAtMs: Date.now() } }));
+    const students = new Set(pending.map((path) => `${harnessStore.get(path).classId}|${harnessStore.get(path).studentId}`));
+    return { submitted: [...students].map((key) => ({ key })), waiting: [], blocked: [], retry: [], failed: [], unknown: [], formProblems: [] };
+  },
+  resolveDisciplineFormState: () => ({ changed: [] }),
   // The TEAMS sync (#612): the real pure server module, a class's state in one
   // harness document (the server splits it across three collections).
   setTeamsSyncSections: ({ classId, sections } = {}) => {
@@ -742,6 +948,32 @@ const handlers = {
       .map((path) => ({ id: path.split('/').pop(), data: harnessStore.get(path) }))
       .filter((entry) => wanted.has(entry.data?.source?.assignmentId));
     return buildCaseEvidenceResponse({ request: validation.request, events, receipts, drafts, audits, misconceptionRecords, nowMs: Date.now() });
+  },
+  // The case review's conduct section (functions/disciplineFunctions.js
+  // loadStudentConductEvidence): the real request validation, the case
+  // review's own teacher decision and the real projection, over the store's
+  // Discipline Tracker records and Parent Contacts.
+  loadStudentConductEvidence: (data) => {
+    let request;
+    try { request = validateConductEvidenceRequest(data); } catch (error) {
+      if (error instanceof ConductEvidenceInputError) throw rejection('invalid-argument', error.message);
+      throw error;
+    }
+    const student = harnessStore.get(`grades/${request.studentId}`) || null;
+    const classRecord = student?.classId ? harnessStore.get(`classes/${student.classId}`) || null : null;
+    const decision = authorizeCaseEvidenceCaller({ callerEmail: TEACHER_EMAIL, callerRole: 'teacher', student, classRecord });
+    if (!decision.allowed) {
+      throw rejection(decision.reason === 'student-not-found' ? 'not-found' : 'permission-denied', 'Only this student\'s teacher may load their conduct records.');
+    }
+    const byStudent = (prefix) => harnessStore.paths(prefix)
+      .map((path) => ({ id: path.split('/').pop(), ...harnessStore.get(path) }))
+      .filter((entry) => entry.studentId === request.studentId);
+    return buildConductEvidenceResponse({
+      ...request,
+      incidents: byStudent('disciplineIncidents/'),
+      contacts: byStudent('parentContactLogs/'),
+      callerEmail: TEACHER_EMAIL,
+    });
   },
   // The Response Inspector, as functions/index.js inspectStudentResponse
   // answers: the same checks in the same order (a teacher; this student's

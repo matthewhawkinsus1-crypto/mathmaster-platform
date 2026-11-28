@@ -187,6 +187,8 @@ test('the released review shows a step in a row of its own after its part, named
   const rows = region(review, 'const responseRows = ', '\n};\n', 'the review rows');
   assert.match(rows, /return responseRowOrder\(responses, snapshotFields\)/);
   assert.match(rows, /label: stepRowLabel\(stepPart\.checkpoint\.kind, label\)/);
+  // An unfinished answer keeps its note (#621) on its own row, in the same order.
+  assert.match(rows, /const unfinished = Array\.isArray\(raw\) \? '' : unfinishedReviewNote\(raw, field \|\| null\);/);
   // The part with no answer says so, rather than being filtered out with its value.
   assert.match(rows, /if \(!value && stepParts\.has\(fieldId\) && String\(responses\[stepFieldId\(fieldId\)\] \?\? ''\)\.trim\(\)\) \{\n\s+return \{ id: fieldId, label: field\?\.label \|\| 'Your response', value: 'No answer', math: false \};/);
 });

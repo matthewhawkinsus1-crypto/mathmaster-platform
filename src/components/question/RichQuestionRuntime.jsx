@@ -10,6 +10,7 @@ import SecureItemAccessSupports from '../assessment/SecureItemAccessSupports.jsx
 import SecureMathAnswerField from '../assessment/SecureMathAnswerField.jsx';
 import TypedEntryNotice from '../common/TypedEntryNotice.jsx';
 import { typedEntryNotice } from '../../../functions/shared/typedEntryGuard.mjs';
+import { secureFieldTakesWords } from '../../platform/assessment/unfinishedAnswer.js';
 import { withFollowThroughLabels } from '../../../functions/shared/followThroughNames.mjs';
 import { useFollowThroughRules } from '../../platform/interaction/useFollowThroughRules.js';
 import { normalizeInteractionInputProfile } from '../../platform/interaction/interactionContract.js';
@@ -252,7 +253,10 @@ const FieldItem = ({ question, policy, calculatorPolicy, studentSupportProfile, 
   // right as it stands (the server refuses it at the close).
   const entryProblems = Object.fromEntries(fields.map((field) => {
     const typed = !(field.choices?.length || (fields.length === 1 && choices.length));
-    const words = (normalizeInteractionInputProfile(field.inputProfile) || 'text') === 'text';
+    // A box of words takes `12 +` as written; a text box that names a math
+    // format holds mathematics, so there it is unfinished and its part is
+    // not answered (unfinishedAnswer.js).
+    const words = secureFieldTakesWords(field);
     const message = typed ? typedEntryNotice(responses[field.id], { words, tries: !navigationMode }) : '';
     return [field.id, message && navigationMode ? `${message} As it stands it cannot be marked right.` : message];
   }));

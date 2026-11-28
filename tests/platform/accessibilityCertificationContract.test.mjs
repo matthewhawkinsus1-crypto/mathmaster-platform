@@ -105,6 +105,8 @@ const REQUIRED_TEACHER_SCREENS = {
   'teacher-pacing': [null],
   'teacher-attendance': [null],
   'teacher-parent-contacts': [null],
+  // The Discipline Tracker (Student Support): the class roster with its violation buttons.
+  'teacher-discipline': [null],
   'teacher-teks': [null, 'demand', 'ccmr', 'items', 'registry', 'pathway'],
   'teacher-analytics': [null],
   'teacher-math-tools': [null],
@@ -235,7 +237,8 @@ test('a run that names no screen audits every certified screen but those with a 
 test('each of the teacher navigation\'s destinations is opened by a scene', () => {
   const sidebar = read('src/TeacherSidebar.jsx');
   const labels = [...region(sidebar, 'const TAB_LABELS = {', '};', 'the navigation\'s labels').matchAll(/^\s*\w+: '([^']+)',$/gm)].map((match) => match[1]);
-  assert.equal(labels.length, 22, 'the navigation has 22 destinations');
+  // 23 since the Discipline Tracker joined Student Support.
+  assert.equal(labels.length, 23, 'the navigation has 23 destinations');
   const scenes = executableSource(readFileSync(new URL('../browser/accessibilityTeacherScreens.mjs', import.meta.url), 'utf8'));
   // The administrator's workspace is the "Student Access" destination for the root administrator, and is audited through its own sections.
   for (const label of labels) {

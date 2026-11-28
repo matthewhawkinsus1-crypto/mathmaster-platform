@@ -939,6 +939,7 @@ export const TEACHER_SCREENS = [
   teacherScreen('teacher-pacing', [{ id: null, run: openDestination('Curriculum Pacing', /^Curriculum pacing/i) }]),
   teacherScreen('teacher-attendance', [{ id: null, run: openDestination('Attendance History', /^Attendance History$/) }]),
   teacherScreen('teacher-parent-contacts', [{ id: null, run: openDestination('Parent Contacts', /^Parent Contact Center$/) }]),
+  teacherScreen('teacher-discipline', [{ id: null, run: openDestination('Discipline Tracker', /^Discipline Tracker$/) }]),
   teacherScreen('teacher-teks', [
     { id: null, run: openDestination('TEKS & Mastery', /^Texas Math TEKS/) },
     { id: 'demand', run: openTeksView('Demand & Complexity') },
