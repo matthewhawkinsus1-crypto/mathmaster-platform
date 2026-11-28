@@ -94,11 +94,17 @@ narrative fact or "What needs attention?". See
 ## Next
 
 1. **Sending family messages without copy and paste.** SchoolStatus has no
-   public API. The teacher prefers to build this without vendor setup, which
-   means the MathMaster Chrome extension (`extensions/teams-sync`) sending
-   each draft through the teacher's signed-in SchoolStatus page and logging
-   it. That has to be built in a session on the teacher's computer, where
-   SchoolStatus can be seen.
+   public API, so a MathMaster Chrome extension sends each draft through the
+   teacher's signed-in SchoolStatus page.
+   - **The MathMaster side is built:**
+     - the queue (`familyMessages`, `functions/lib/familyMessageOutbox.js`);
+     - **Send to families** on this screen;
+     - the off / test / live switch;
+     - the extension's connection (`window.mathmasterFamilyMessages`);
+     - a Parent Contacts record written when a message is sent.
+   - **The extension itself** has to be built in a session on the teacher's
+     computer, where SchoolStatus can be seen. Its brief is
+     `docs/plans/2026-11-27-schoolstatus-extension-brief.md`.
 2. **Sending the principal report without opening Outlook.** Either:
    - Microsoft Graph with delegated `Mail.Send` (an app registration in the
      district tenant; user consent may be blocked); or

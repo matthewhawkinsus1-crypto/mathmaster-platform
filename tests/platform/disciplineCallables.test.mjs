@@ -15,6 +15,7 @@ import { executableSource } from './helpers/sourceContract.mjs';
 const CALLABLES = [
   'recordDisciplineIncident', 'voidDisciplineIncident', 'setDisciplineIncidentDetail', 'listDisciplineIncidents',
   'getDisciplineSettings', 'saveDisciplineSettings', 'submitDisciplineFormsNow', 'resolveDisciplineFormState',
+  'queueFamilyMessages', 'resolveFamilyMessage', 'familyMessageOutbox', 'setFamilyMessagingMode',
   // The case review's read (caseReviewConduct.test.mjs pins the rest of it).
   'loadStudentConductEvidence',
 ];
@@ -26,7 +27,7 @@ test('every discipline callable is for a signed-in teacher, checked first', () =
     const source = body(name);
     const teacher = source.indexOf('await requireTeacher(request)');
     assert.ok(teacher > 0, `${name} requires a teacher`);
-    const firstCollection = source.search(/\.collection\("discipline|disciplineIncidentAuthority\(|disciplineClassAuthority\(|submitDisciplineForms\(/);
+    const firstCollection = source.search(/\.collection\("discipline|disciplineIncidentAuthority\(|disciplineClassAuthority\(|submitDisciplineForms\(|familyOutbox\./);
     assert.ok(firstCollection > teacher, `${name} checks the teacher before anything else`);
   }
 });
@@ -89,9 +90,37 @@ test('Send now is scoped to the caller; the schedule sends everyone\'s due viola
   assert.match(scheduled, /submitDisciplineForms\(\{ db: getFirestore\(\), logger \}\)/, 'due violations only (no force)');
 });
 
+test('family messages are queued only by the class\'s own teacher of record, not even the root administrator', () => {
+  const source = body('queueFamilyMessages');
+  const own = source.indexOf('if (authority.teacherOfRecord !== authority.email) {');
+  const queue = source.indexOf('familyOutbox.queueFamilyMessages({');
+  assert.ok(own > 0 && queue > own, 'checked before anything is queued');
+  assert.match(source, /teacherEmail: authority\.email,/);
+  assert.doesNotMatch(source, /request\.data\?\.(body|subject|teacherEmail|sisStudentId)/, 'the browser does not write the message or choose whose it is');
+});
+
+test('the extension\'s door is the caller\'s own messages only, and the switch is the root administrator\'s', () => {
+  const source = body('familyMessageOutbox');
+  assert.match(source, /const email = callerEmail\(request\);\s*if \(!email\) throw new HttpsError\("permission-denied"/);
+  const calls = [...source.matchAll(/familyOutbox\.([A-Za-z]+)\(\{([^}]*)/g)];
+  assert.equal(calls.length, 5, 'status, claim, start, release, report');
+  calls.forEach(([, name, args]) => assert.match(args, /teacherEmail: email/, name));
+  assert.doesNotMatch(source, /request\.data\?\.teacherEmail/);
+  const settings = body('setFamilyMessagingMode');
+  const admin = settings.indexOf('await requireRootAdmin(request);');
+  assert.ok(admin > 0 && settings.indexOf('familyOutbox.saveMessagingSettings(') > admin);
+  // The teacher's decisions are about their own messages too.
+  assert.match(body('resolveFamilyMessage'), /teacherEmail: email, messageId:/);
+  // The list carries the caller's messages and the switch.
+  assert.match(body('listDisciplineIncidents'), /familyOutbox\.listFamilyMessages\(\{ db, teacherEmail: teacher,/);
+  const indexes = JSON.parse(readFileSync('firestore.indexes.json', 'utf8')).indexes;
+  assert.ok(indexes.some((entry) => entry.collectionGroup === 'familyMessages'
+    && JSON.stringify(entry.fields.map((field) => field.fieldPath)) === '["teacherOfRecord","dateKey"]'));
+});
+
 test('the discipline collections are server-only in the rules', () => {
   const rules = readFileSync('firestore.rules', 'utf8');
-  for (const collection of ['disciplineIncidents', 'disciplineSettings', 'disciplineStatus']) {
+  for (const collection of ['disciplineIncidents', 'disciplineSettings', 'disciplineStatus', 'familyMessages']) {
     assert.match(rules, new RegExp(`match /${collection}/\\{[A-Za-z]+\\} \\{ allow read, write: if false; \\}`), collection);
   }
 });
