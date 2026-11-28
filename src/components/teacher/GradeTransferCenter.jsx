@@ -658,8 +658,9 @@ export default function GradeTransferCenter({
       <TeamsSyncPanel classes={syncClasses} buildTargets={buildSyncTargets} labelFor={personLabel} ready={stateLoaded} />
     )}
 
-    {message && <div role="status" className="tw-notice" data-tone={message.tone}>{message.text}</div>}
-    {!stateLoaded && !message && <div role="status" className="tw-notice">Loading export history…</div>}
+    {/* One status, always in the page, so a screen reader announces the text put in it: a status mounted with its
+        text already in it is not announced by every one (a11y sweep 2026-11-28). Hidden while it has nothing to say. */}
+    <div role="status" className={message || !stateLoaded ? 'tw-notice' : 'tw-sr-only'} data-tone={message?.tone}>{message ? message.text : !stateLoaded ? 'Loading export history…' : ''}</div>
 
     {classGroups.length === 0 && stateLoaded && (
       <div className="tw-card tw-card--muted">
@@ -813,7 +814,9 @@ export default function GradeTransferCenter({
           )}
           <div className="tw-row" style={{ justifyContent: 'flex-end' }}>
             <button type="button" className="tw-btn" disabled={busy} onClick={() => setPlan(null)}>Cancel</button>
-            <button type="button" className="tw-btn tw-btn--primary" disabled={busy} onClick={runExport} autoFocus>{busy ? 'Saving…' : 'Download ZIP'}</button>
+            {/* data-autofocus, not autoFocus: React's autoFocus moves focus before the Dialog has noted the button that
+                opened it, so Cancel or Escape dropped focus to the page (a11y sweep 2026-11-28). */}
+            <button type="button" className="tw-btn tw-btn--primary" disabled={busy} onClick={runExport} data-autofocus>{busy ? 'Saving…' : 'Download ZIP'}</button>
           </div>
         </div>
       </Dialog>

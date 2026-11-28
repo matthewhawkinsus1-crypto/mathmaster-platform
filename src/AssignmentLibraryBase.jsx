@@ -99,8 +99,15 @@ function FolderRow({
         >
           {getFolderLabel(path)}
         </button>
-        <div style={{ position: 'relative' }}>
-          <button type="button" onClick={() => setMenuOpen((value) => !value)} aria-label={`Folder actions for ${getFolderLabel(path)}`} title="Folder actions" style={{ fontSize: 'calc(16 * var(--mm-px))', width: 28, height: 28, border: '1px solid var(--mm-border)', borderRadius: '6px', background: 'var(--mm-surface)', color: 'var(--mm-text-muted)', cursor: 'pointer' }}>⋯</button>
+        {/* Escape closes the actions and puts focus back on their button, and Tab past them closes them (open, they
+            covered the next folder's controls); the button says whether they are open, and grows with the text
+            instead of cutting its ⋯ (a11y sweep 2026-11-28). */}
+        <div
+          style={{ position: 'relative' }}
+          onKeyDown={(event) => { if (event.key === 'Escape' && menuOpen) { event.stopPropagation(); setMenuOpen(false); event.currentTarget.querySelector('button')?.focus(); } }}
+          onBlur={(event) => { if (menuOpen && !event.currentTarget.contains(event.relatedTarget)) setMenuOpen(false); }}
+        >
+          <button type="button" onClick={() => setMenuOpen((value) => !value)} aria-label={`Folder actions for ${getFolderLabel(path)}`} aria-expanded={menuOpen} title="Folder actions" style={{ fontSize: 'calc(16 * var(--mm-px))', minWidth: 28, minHeight: 28, padding: '0 4px', border: '1px solid var(--mm-border)', borderRadius: '6px', background: 'var(--mm-surface)', color: 'var(--mm-text-muted)', cursor: 'pointer' }}>⋯</button>
           {menuOpen && <div style={{ position: 'absolute', right: 0, top: 31, zIndex: 20, minWidth: 130, padding: 5, border: '1px solid var(--mm-border)', borderRadius: 8, background: 'var(--mm-surface)', boxShadow: '0 8px 22px rgba(0,0,0,.14)' }}>
             <button type="button" onClick={() => { setMenuOpen(false); onOpenDialog({ mode: 'create', parentPath: path, input: `${path}/` }); }} style={{ display: 'block', width: '100%', padding: 7, border: 0, background: 'var(--mm-surface)', textAlign: 'left' }}>New subfolder</button>
             <button type="button" onClick={() => { setMenuOpen(false); onOpenDialog({ mode: 'rename', path, input: path }); }} style={{ display: 'block', width: '100%', padding: 7, border: 0, background: 'var(--mm-surface)', textAlign: 'left' }}>Rename</button>
@@ -384,7 +391,8 @@ export default function AssignmentLibrary({
                       aria-label={`Open ${assignment.title} in Assignments`}
                       onClick={(event) => { event.stopPropagation(); onNavigateToAssignments({ folder: selectedFolder, smartView }); }}
                       onMouseDown={(event) => event.stopPropagation()}
-                      style={{ padding: 0, border: 0, background: 'transparent', color: 'inherit', font: 'inherit', letterSpacing: 'inherit', textRendering: 'inherit', textAlign: 'left', cursor: 'pointer' }}
+                      // At least 24 px tall (WCAG 2.5.8): on a phone it was 23 px, beside the folder's open actions (a11y sweep 2026-11-28).
+                      style={{ minHeight: 24, padding: 0, border: 0, background: 'transparent', color: 'inherit', font: 'inherit', letterSpacing: 'inherit', textRendering: 'inherit', textAlign: 'left', cursor: 'pointer' }}
                     >
                       {assignment.title}
                     </button>
@@ -453,8 +461,10 @@ export default function AssignmentLibrary({
                 <h3 id={folderDialogTitleId} style={{ marginTop: 0 }}>{folderDialog.mode === 'create' ? 'New folder' : 'Rename folder'}</h3>
                 <label style={{ display: 'block', fontWeight: 'bold', fontSize: 'calc(13 * var(--mm-px))', marginBottom: '6px' }}>
                   Folder path
+                  {/* data-autofocus, not autoFocus: React's autoFocus moves focus before the Dialog has noted the
+                      control that opened it, so closing it dropped focus to the page (a11y sweep 2026-11-28). */}
                   <input
-                    autoFocus
+                    data-autofocus
                     type="text"
                     value={folderDialog.input}
                     onChange={(event) => setFolderDialog((current) => ({ ...current, input: event.target.value }))}

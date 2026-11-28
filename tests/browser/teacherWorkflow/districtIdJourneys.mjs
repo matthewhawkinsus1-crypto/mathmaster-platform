@@ -130,7 +130,10 @@ const exportClass = async (page, name) => {
   await settle(page, 600);
 };
 const exportRow = (page, title) => page.locator('.tw-class-group', { hasText: P1 }).locator('.tw-export-row', { hasText: title });
-const statusText = async (page) => text(page.locator('[role="status"]').first()).catch(() => '');
+// What the screen's notices say: every status region's text, together. The page keeps empty regions in it (the TEAMS
+// sync's per-class notices, the screen's own), so a screen reader is told when text arrives (a11y sweep 2026-11-28):
+// "the first status" is no longer the notice.
+const statusText = async (page) => (await page.locator('[role="status"]').allInnerTexts().catch(() => [])).map((entry) => entry.replace(/\s+/g, ' ').trim()).filter(Boolean).join(' | ');
 
 // ---------------------------------------------------------------- the journey
 

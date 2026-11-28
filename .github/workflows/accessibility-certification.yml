@@ -441,6 +441,42 @@ jobs:
           path: tests/browser/artifacts/large-text
           retention-days: 14
 
+  # THE NOVEMBER TEACHER SCREENS' SWEEP (docs/audits/2026-11-28-teacher-screens-a11y.md): results with the signals and
+  # worked examples, Case Review, the Response Inspector, Pre-Flight, Grade Export and its TEAMS sync, the Discipline
+  # Tracker, Live Classroom and the Library, at 1366×900 and 390×844, light, dark and forced colours: axe, no sideways
+  # scroll, 24 px targets, the Tab walk, dialogs' focus and Escape, 200% text, and notices in a live region. 48 items
+  # of one screen, size and mode, about 15 minutes in one run on a four-core machine (2026-11-28), so three shards of
+  # 16 (teacherScreensA11ySweep.mjs --shard, support/sceneShards.mjs): about five minutes each, and the job about seven.
+  browser-teacher-a11y-sweep:
+    name: browser-teacher-a11y-sweep (${{ matrix.shard }}/3)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3]
+    steps:
+      - uses: actions/checkout@v6
+      - uses: ./.github/actions/setup
+        with: { browser: "true" }
+      - name: Start the in-memory app harness
+        run: |
+          TEACHER_HARNESS_PORT=5188 npx vite --config tests/browser/accessibilityAppHarness.vite.config.mjs >/tmp/accessibility-app-harness.log 2>&1 &
+          for i in {1..120}; do curl -fsS http://127.0.0.1:5188/tests/browser/teacherWorkflow/index.html >/dev/null && exit 0; sleep 1; done
+          cat /tmp/accessibility-app-harness.log; exit 1
+      - name: The November teacher screens, every check, both sizes, light, dark and forced colours
+        env:
+          PLAYWRIGHT_MODULE: playwright
+          TEACHER_HARNESS_ORIGIN: "http://127.0.0.1:5188"
+        run: node tests/browser/teacherScreensA11ySweep.mjs --shard=${{ matrix.shard }}/3
+      - name: Keep the report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: teacher-a11y-sweep-${{ matrix.shard }}
+          path: tests/browser/artifacts/teacher-a11y-sweep
+          retention-days: 14
+
   # WCAG 2.2 2.4.11 (Focus Not Obscured) on the student's screens: the teacher screens' Tab walk through every student
   # scene at 1366×768 and 390×844 (a touch phone), then back with Shift+Tab, Work View with each of its drawers, My Math
   # Path's session and a DOL Recovery assessment; a stop mostly under something the page drew fails. A job of its own:

@@ -29,6 +29,8 @@ export const CI_AREAS = {
     'src/**',
     'index.html',
     'tests/browser/accessibility*',
+    // The November teacher screens' sweep (docs/audits/2026-11-28-teacher-screens-a11y.md).
+    'tests/browser/teacherScreensA11ySweep*',
     'tests/browser/mathSpeech*',
     'tests/browser/graphDescription*',
     'tests/browser/accessiblePrimitives*',
