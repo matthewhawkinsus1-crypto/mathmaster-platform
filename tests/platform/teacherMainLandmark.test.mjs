@@ -21,11 +21,11 @@ import assert from 'node:assert/strict';
 import { readdirSync, readFileSync, statSync } from 'node:fs';
 import path from 'node:path';
 import { executableSource, region } from './helpers/sourceContract.mjs';
-import { appFactorySource, appHookSource } from './helpers/appScreens.mjs';
+import { appFactorySource, appHookSource, teacherWorkspaceSource } from './helpers/appScreens.mjs';
 
 const root = new URL('../../', import.meta.url);
 const read = (file) => executableSource(readFileSync(new URL(file, root), 'utf8'));
-const workspace = read('src/app/teacher/TeacherWorkspace.jsx');
+const workspace = executableSource(teacherWorkspaceSource());
 
 test('the workspace takes the skip link and the target id from the shared page chrome, as the student shell does', () => {
   assert.match(workspace, /import \{ MAIN_CONTENT_ID, SkipToContent \} from '\.\.\/\.\.\/components\/common\/pageChrome\.jsx';/);
@@ -48,7 +48,11 @@ test('the first thing the teacher workspace draws is the skip link, ahead of eve
 
 test('the screen is the main landmark the link goes to, and the navigation and the header are outside it', () => {
   const main = '<main id={MAIN_CONTENT_ID} tabIndex={-1}';
-  assert.equal(workspace.split(main).length - 1, 2, 'one for the teacher\'s screen and one for the administrator\'s');
+  // The administrator's screen has its own, and so does what stands in its
+  // place while its code arrives (app/teacher/administrationView.jsx): each is
+  // returned instead of the teacher's screen, never inside it.
+  assert.equal(workspace.split(main).length - 1, 3, 'one for the teacher\'s screen, one for the administrator\'s and one while that opens');
+  assert.match(workspace, /<main id=\{MAIN_CONTENT_ID\} tabIndex=\{-1\} aria-busy="true"/);
   const teacher = workspace.slice(workspace.indexOf('<div className="mm-dashboard-shell"'));
   const [nav, header, screen] = [teacher.indexOf('<TeacherSidebar'), teacher.indexOf('<header style={{ padding: \'clamp('), teacher.indexOf(main)];
   assert.ok(nav >= 0 && header > nav && screen > header, 'the navigation, then the header, then the main: both before it, so neither is inside it');
@@ -57,8 +61,8 @@ test('the screen is the main landmark the link goes to, and the navigation and t
   const inside = teacher.slice(screen, teacher.indexOf('</main>'));
   assert.match(inside, /<div className="mm-dashboard-content" style=\{\{ padding: '30px' \}\}>/, 'it wraps the content area, whose class carries the tables\' and headings\' rules, and is not that area itself');
   assert.doesNotMatch(teacher.slice(screen, screen + 60), /className=/, 'so the main does not take those rules, which the Pre-Flight review inside it must not');
-  // Exactly the two mains: any other would nest in these.
-  assert.equal((workspace.match(/<main[\s>]/g) || []).length, 2);
+  // Exactly those three mains: any other would nest in these.
+  assert.equal((workspace.match(/<main[\s>]/g) || []).length, 3);
 });
 
 // The student preview in the Pre-Flight review draws its work area as the page's main wherever no main is around
@@ -126,7 +130,8 @@ test('and nothing else under the teacher\'s directories does either (a new one m
   const offenders = [];
   for (const directory of ['src/components/teacher', 'src/app/teacher']) {
     for (const file of walk(new URL(directory, root).pathname)) {
-      if (!file.endsWith('.jsx') || file.endsWith('app/teacher/TeacherWorkspace.jsx')) continue;
+      // The workspace, and the administrator's screen it returns in its place.
+      if (!file.endsWith('.jsx') || file.endsWith('app/teacher/TeacherWorkspace.jsx') || file.endsWith('app/teacher/administrationView.jsx')) continue;
       if (/<main[\s>]|role="main"/.test(executableSource(readFileSync(file, 'utf8')))) offenders.push(path.relative(new URL('.', root).pathname, file));
     }
   }

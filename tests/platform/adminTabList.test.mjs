@@ -13,8 +13,9 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { executableSource, region } from './helpers/sourceContract.mjs';
+import { teacherWorkspaceSource } from './helpers/appScreens.mjs';
 
-const workspace = executableSource(readFileSync(new URL('../../src/app/teacher/TeacherWorkspace.jsx', import.meta.url), 'utf8'));
+const workspace = executableSource(teacherWorkspaceSource());
 const list = region(workspace, '<div role="tablist" aria-label="Administration sections"', '</main>', 'the administrator screen');
 
 test('the tab list is one Tab stop, each tab names its panel, and the keys are the shared ones', () => {

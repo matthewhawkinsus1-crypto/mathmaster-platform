@@ -16,6 +16,7 @@ import assert from 'node:assert/strict';
 
 import { parseAssignmentBlueprintText } from '../../src/assignmentBlueprint.js';
 import { componentSource, region } from './helpers/sourceContract.mjs';
+import { teacherWorkspaceSource } from './helpers/appScreens.mjs';
 
 const bridgeWithBase = (base) => ({
   schemaVersion: 5,
@@ -43,7 +44,7 @@ test('the compiler warns that a bridge whose base cannot be graded will not be g
 });
 
 test('the import screen collects those warnings before it decides, so every outcome carries them to Assignment Review', () => {
-  const workspace = componentSource('src/app/teacher/TeacherWorkspace.jsx');
+  const workspace = teacherWorkspaceSource();
   const read = region(workspace, 'const readAssignmentJson = (rawText) => {', '// Single entry point for pasted, uploaded and dropped JSON.', 'readAssignmentJson');
 
   // After the file parses, before the first exit that returns the warnings.

@@ -30,6 +30,7 @@ import {
   trackerWhole,
   wholeRecord,
 } from '../../functions/shared/gradeEntryStorage.mjs';
+import { teacherWorkspaceSource } from './helpers/appScreens.mjs';
 
 const require = createRequire(import.meta.url);
 const store = require('../../functions/lib/gradeDetailStore.js');
@@ -311,7 +312,7 @@ test('a teacher\'s live correction, one transaction over a class, writes every r
   assert.match(join, /\[key\]: trackerWhole\(joined\.gradesByAssignment\[key\]\)/, 'its records come back whole, as the correction writes them');
   assert.doesNotMatch(browser, /transaction\.get\(/);
 
-  const workspace = source('src/app/teacher/TeacherWorkspace.jsx');
+  const workspace = teacherWorkspaceSource();
   assert.match(workspace, /await joinTrackerOutsideTransaction\(db, student\.id, snapshot\.data\(\) \|\| \{\}, assignmentId\)/);
   assert.match(workspace, /writeTrackerWhole\(\{ db, writer: transaction, studentId: student\.id, assignmentId, tracker: nextTracker \}\);/);
   assert.doesNotMatch(workspace, /writeTrackerSplit|readSplitSwitch|responseDetailDoc/);

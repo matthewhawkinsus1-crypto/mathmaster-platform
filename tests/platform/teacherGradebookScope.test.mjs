@@ -13,6 +13,7 @@ import test from 'node:test';
 import { orderClassesForGradebook, suggestGradebookAssignmentId } from '../../src/platform/teacher/gradebookScope.js';
 import { executableSource, region } from './helpers/sourceContract.mjs';
 import { importsComponent } from './helpers/componentImport.mjs';
+import { teacherWorkspaceSource } from './helpers/appScreens.mjs';
 
 const schedule = {
   version: 2,
@@ -60,7 +61,7 @@ test('the default assignment is the current marking period\'s open one due soone
 
 test('the Grades tab asks which class when none is chosen, instead of a disabled picker', () => {
   // The Grades tab is the teacher's screen, its own module since G2.
-  const app = readFileSync(new URL('../../src/app/teacher/TeacherWorkspace.jsx', import.meta.url), 'utf8');
+  const app = teacherWorkspaceSource();
   // (G2: a teacher-only panel may come from lazyScreens.js, loaded on demand)
   assert.ok(importsComponent('src/app/teacher/TeacherWorkspace.jsx', 'GradebookAssignmentBar', 'src/components/teacher/GradebookAssignmentBar.jsx'));
   assert.ok(importsComponent('src/app/teacher/TeacherWorkspace.jsx', 'GradebookClassChooser', 'src/components/teacher/GradebookAssignmentBar.jsx'));

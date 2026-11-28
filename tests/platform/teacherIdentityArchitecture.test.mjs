@@ -37,7 +37,7 @@ import {
 } from '../../src/platform/studentName.js';
 import { normalizeTeacherRosterSummary } from '../../src/platform/teacher/teacherRosterSummary.js';
 import { executableSource, region } from './helpers/sourceContract.mjs';
-import { appFactoryPaths, appFactorySource, appHookPaths, appHookSource, appModulePaths, positionalHookNames, positionalHookSource, teacherControlPaths, teacherControlsSource } from './helpers/appScreens.mjs';
+import { appFactoryPaths, appFactorySource, appHookPaths, appHookSource, appModulePaths, positionalHookNames, positionalHookSource, teacherControlPaths, teacherControlsSource, teacherWorkspaceSource } from './helpers/appScreens.mjs';
 import { functionsBackendSource } from './helpers/functionsBackendSource.mjs';
 
 const ROOT = fileURLToPath(new URL('../../', import.meta.url));
@@ -53,7 +53,7 @@ const SRC_FILES = walk('src').filter((path) => /\.(?:jsx?|mjs)$/.test(path) && !
 const APP = code('src/App.jsx');
 // The teacher's screen (every mount below, the gradebook) is its own module
 // since G2; App renders it and hands it each handler and index by name.
-const TEACHER_WORKSPACE = code('src/app/teacher/TeacherWorkspace.jsx');
+const TEACHER_WORKSPACE = teacherWorkspaceSource();
 const SERVER = executableSource(functionsBackendSource());
 
 /** Every `import ... from '...'` in a module: [{ specifier, names }] (local names). */
@@ -257,13 +257,14 @@ const KNOWN_GRADES_DOCUMENT_ACCESS = {
   // from App.jsx with the hook App calls (the App split). (Closing a DOL no
   // longer touches the document: the DOL projection is server-owned.)
   'src/app/student/useStudentGradeDocument.js': { useStudentGradeDocument: 1 },
-  // App's teacher-only handlers moved here with the teacher's screen (G2).
-  'src/app/teacher/TeacherWorkspace.jsx': {
-    // A teacher saving a question-weight change migrates the affected grades in one transaction.
-    saveQuestionEditor: 1,
-    // Repair-from-Library writes corrected grades.
-    handleRepairAssignmentFromLibrary: 1,
-  },
+  // App's teacher-only handlers moved to the teacher's screen (G2), and its
+  // async assignment actions from there to a module it loads on demand.
+  // The census names the top-level function a reference sits in, and the
+  // actions are built inside one factory: its two are saveQuestionEditor's (a
+  // teacher saving a question-weight change migrates the affected grades in
+  // one transaction) and handleRepairAssignmentFromLibrary's (Repair-from-
+  // Library writes corrected grades).
+  'src/app/teacher/workspaceAssignmentActions.js': { createAssignmentActions: 2 },
   'src/platform/supportEvidence/supportEvidenceStore.js': {
     // Writes the support profile projection.
     saveSupportProfileRevision: 1,
@@ -610,7 +611,7 @@ test('Test I: the profile drawer and the gradebook show the formatted name, and 
   assert.doesNotMatch(drawer, /<h2[^>]*>\{studentId\}/);
 
   // Gradebook rows: the name link, then the labelled id.
-  const gradebook = region(TEACHER_WORKSPACE, "{teacherTab === 'grades' && (", "{teacherTab === '", 'gradebook');
+  const gradebook = region(TEACHER_WORKSPACE, 'export function renderGradebookTab(scope) {', '\n    </>\n  );\n}', 'gradebook');
   assert.match(gradebook, /<StudentNameLink studentId=\{student\.id\} studentName=\{formatStudentName\(student\)\}/);
   assert.match(gradebook, />ID \{student\.id\}<\/div>/);
   assert.match(gradebook, /<h3[^>]*>\{formatStudentName\(student\)\} · \{selectedAssignment\.title\}<\/h3>/);

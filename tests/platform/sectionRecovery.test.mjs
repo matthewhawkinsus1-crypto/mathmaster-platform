@@ -56,7 +56,7 @@ import { projectSectionRecoveryForAssignment } from '../../src/platform/grading/
 import { canonicalPresentedAssignmentGrade } from '../../src/platform/grading/canonicalGradeProjection.js';
 import { componentSource, region } from './helpers/sourceContract.mjs';
 import { importsComponent } from './helpers/componentImport.mjs';
-import { appFactorySource, appHookSource } from './helpers/appScreens.mjs';
+import { appFactorySource, appHookSource, teacherWorkspaceSource } from './helpers/appScreens.mjs';
 import { functionsBackendSource } from './helpers/functionsBackendSource.mjs';
 
 const require = createRequire(import.meta.url);
@@ -910,7 +910,7 @@ test('the Live Challenge Warm-Up grade reaches the student Grade Center and both
 
 test('the gradebook detail renders the Recovery audit trail and the section marker, each imported', () => {
   // The gradebook is the teacher's screen, its own module since G2.
-  const app = componentSource('src/app/teacher/TeacherWorkspace.jsx');
+  const app = teacherWorkspaceSource();
   // (G2: a teacher-only panel may come from lazyScreens.js, loaded on demand)
   assert.ok(importsComponent('src/app/teacher/TeacherWorkspace.jsx', 'SectionRecoveryAuditTrail', 'src/components/teacher/SectionRecoveryAuditTrail.jsx'));
   // Every helper the gradebook row calls is imported where it is used: a call

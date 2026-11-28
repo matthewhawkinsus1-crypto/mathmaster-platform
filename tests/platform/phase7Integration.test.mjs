@@ -14,14 +14,14 @@ import {
 import { buildDeterministicHonorsExtension } from '../../src/platform/rigor/honorsExtensionRecipes.js';
 import { createDemoSeed, DEMO_STORAGE_KEY } from '../../src/demo/demoExperienceData.js';
 import { assignmentLibrarySource } from './helpers/splitComponentSource.mjs';
-import { appAndTeacherWorkspaceSource } from './helpers/appScreens.mjs';
+import { appAndTeacherWorkspaceSource, teacherWorkspaceSource as readTeacherWorkspaceSource } from './helpers/appScreens.mjs';
 import { functionsBackendSource } from './helpers/functionsBackendSource.mjs';
 
 const require = createRequire(import.meta.url);
 const serverRigor = require('../../functions/lib/rigorPolicy.js');
 const appSource = appAndTeacherWorkspaceSource();
 // The teacher's screen (Administration, the sidebar tabs) is its own module since G2.
-const teacherWorkspaceSource = readFileSync(new URL('../../src/app/teacher/TeacherWorkspace.jsx', import.meta.url), 'utf8');
+const teacherWorkspaceSource = readTeacherWorkspaceSource();
 const sidebarSource = readFileSync(new URL('../../src/TeacherSidebar.jsx', import.meta.url), 'utf8');
 const adminUiSource = readFileSync(new URL('../../src/SignInAccess.jsx', import.meta.url), 'utf8');
 const librarySource = assignmentLibrarySource();
