@@ -93,18 +93,34 @@ export const sharesItemEquation = (question, prompt) => {
   return [...statedEquations(prompt)].some((key) => itemEquations.has(key) && !BARE_VALUE.test(key));
 };
 
-/** The sibling names none of the item's answers, and is not the item: not its prompt, nor any equation it states. */
-export const siblingIsSafe = (question, guard, example) => {
-  if (!isObject(example)) return false;
+/**
+ * What a sibling gives away: each way its prompt, steps or answer state one of
+ * the item's answers, or its prompt states one of the item's own equations.
+ * [] when it gives nothing away. (How many steps it has is not a leak; see siblingIsSafe.)
+ */
+export const siblingLeaks = (question, guard, example) => {
+  if (!isObject(example)) return ['no sibling'];
   const prompt = text(example.prompt);
   const answer = text(example.answer);
   const steps = list(example.steps).map(text).filter(Boolean);
-  if (!prompt || !answer || steps.length < 2 || prompt === text(question?.prompt)) return false;
-  if (sharesItemEquation(question, prompt)) return false;
-  if (guard.some((value) => value.toLowerCase() === answer.toLowerCase())) return false;
+  const out = [];
+  if (prompt && prompt === text(question?.prompt)) out.push('the prompt is the item\'s');
+  if (sharesItemEquation(question, prompt)) out.push('the prompt states one of the item\'s own equations');
+  if (answer && guard.some((value) => value.toLowerCase() === answer.toLowerCase())) out.push('the answer is the item\'s');
   const own = numericValue(answer);
-  if (own !== null && guard.some((value) => numericValue(value) !== null && Math.abs(numericValue(value) - own) < 1e-9)) return false;
-  return ![prompt, ...steps, answer].some((piece) => hintRevealsAnswer(piece, guard));
+  if (own !== null && guard.some((value) => numericValue(value) !== null && Math.abs(numericValue(value) - own) < 1e-9)) out.push('the answer has the item\'s value');
+  [prompt, ...steps, answer].forEach((piece) => guard.forEach((value) => {
+    if (piece && hintRevealsAnswer(piece, [value])) out.push(`"${value}" in: ${piece}`);
+  }));
+  return out;
+};
+
+/** The sibling names none of the item's answers, and is not the item: not its prompt, nor any equation it states; and it is worked (two steps or more). */
+export const siblingIsSafe = (question, guard, example) => {
+  if (!isObject(example)) return false;
+  const steps = list(example.steps).map(text).filter(Boolean);
+  if (!text(example.prompt) || !text(example.answer) || steps.length < 2) return false;
+  return siblingLeaks(question, guard, example).length === 0;
 };
 
 const hashText = (value) => {

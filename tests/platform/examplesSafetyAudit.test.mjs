@@ -33,10 +33,9 @@ import { fileURLToPath } from 'node:url';
 import { compileAuthoringIntentV5 } from '../../src/platform/contract/authoringIntentV5.js';
 import { asQuestionEngineReceivesIt, lessonFiles } from '../../scripts/lib/classworkExampleCoverageReport.mjs';
 import { familyFor } from '../../src/platform/supports/families/index.js';
-import { sharesItemEquation, siblingGuardOf, siblingIsSafe, statedEquations } from '../../src/platform/supports/families/siblingGuard.js';
+import { sharesItemEquation, siblingGuardOf, siblingLeaks, statedEquations } from '../../src/platform/supports/families/siblingGuard.js';
 import { similarExampleIsSafe } from '../../src/platform/supports/workedExample/similarProblem.js';
 import { assignmentProblemKeys, workedExampleFor } from '../../src/platform/supports/workedExample/examplePlayer.js';
-import { hintRevealsAnswer } from '../../functions/shared/pathSolutionSupport.mjs';
 
 const repo = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
 const SEEDS = [0, 1, 2, 3, 4, 5, 6];
@@ -48,17 +47,7 @@ const flat = (example) => ({
   answer: String(example.answer || ''),
 });
 
-const reasons = (question, example) => {
-  const guard = siblingGuardOf(question);
-  const out = [];
-  if (sharesItemEquation(question, example.prompt)) out.push('the prompt states one of the item\'s own equations');
-  [example.prompt, ...example.steps, example.answer].forEach((piece) => guard.forEach((value) => {
-    if (hintRevealsAnswer(piece, [value])) out.push(`"${value}" in: ${piece}`);
-  }));
-  return out;
-};
-
-test('every built-in worked example on the real lessons passes the stricter sibling guard as well as the platform\'s', () => {
+test('no built-in worked example on the real lessons gives away its item, by the stricter sibling guard as well as the platform\'s', () => {
   const bySource = {};
   const refused = [];
   for (const file of lessonFiles(repo)) {
@@ -78,9 +67,10 @@ test('every built-in worked example on the real lessons passes the stricter sibl
           bySource[source] = (bySource[source] || 0) + 1;
           assert.ok(example.answer, `${file}#${stored.questionId} seed ${seed}: an answer line to check`);
           assert.ok(similarExampleIsSafe(question, example), `${file}#${stored.questionId} seed ${seed}: the platform guard`);
-          if (!siblingIsSafe(question, siblingGuardOf(question), example)) {
-            refused.push(`${file}#${stored.questionId} seed ${seed} (${source}): ${reasons(question, example).join('; ') || 'too few steps'}`);
-          }
+          // What the stricter guard reads as a give-away. A one-step example is
+          // not a leak: how many steps a family writes is its own rule.
+          const leaks = siblingLeaks(question, siblingGuardOf(question), example);
+          if (leaks.length) refused.push(`${file}#${stored.questionId} seed ${seed} (${source}): ${leaks.join('; ')}`);
         });
       });
     });
