@@ -20,7 +20,8 @@
  *
  * And, since the teacher signals (SP-2), the Live tile's "Worth a
  * conversation", drawn only on the tile of a student whose attempts raised a
- * fact.
+ * fact; and Class points' award dialog and activity panel, which the live
+ * monitor draws only once the teacher opens one (third pass).
  *
  * Each now arrives when it is first needed (./onDemandCode.js), and the
  * workspace fetches them all while the browser is idle once it has drawn
@@ -58,5 +59,18 @@ export const WorthAConversationTile = drawnPanel(() => import('../../components/
 export const QuestionSignalNotes = drawnPanel(() => import('../../components/teacher/QuestionSignalNotes.jsx'), "");
 // Worked examples by skill, in an assignment's results (app/teacher/TeacherWorkspace.jsx: the gradebook's class view and student view).
 export const WorkedExamplesBySkill = drawnPanel(() => import('../../components/teacher/WorkedExamplesBySkill.jsx'), "");
+// Class points on the Live monitor (components/teacher/LiveClassMonitor.jsx): a
+// tile's award dialog, mounted as it opens, and the class's activity, drawn
+// while its toggle is on.
+export const ClassPointsAwardDialog = closedPanel(() => import('../../components/teacher/ClassPointsAwardDialog.jsx'), (props) => Boolean(props.student), "This device is offline. Class points open when it is back online.");
+// Today's Live Attendance, drawn while the live monitor's Attendance toggle is on.
+export const LiveAttendancePanel = drawnPanel(() => import('../../components/teacher/LiveAttendancePanel.jsx'), "This device is offline. Today's attendance shows when it is back online.");
+export const ClassPointsHistoryPanel = drawnPanel(() => import('../../components/teacher/ClassPointsHistoryPanel.jsx'), "This device is offline. Class points activity shows when it is back online.");
 // Submission recovery's panel (src/TeacherHome.jsx), mounted again for each class and assignment chosen.
 export const StudentPersistenceRecoveryPanel = drawnPanel(() => import('../../components/teacher/StudentPersistenceRecoveryPanel.jsx'), "This device is offline. Submission recovery shows when it is back online.");
+// The gradebook's JSX, under the Grades screen's heading (app/teacher/TeacherWorkspace.jsx, ./gradebookTabView.jsx).
+export const gradebookView = onDemandCode(() => import('./gradebookTabView.jsx'));
+// The root administrator's screen (app/teacher/TeacherWorkspace.jsx, ./administrationView.jsx), asked for as the workspace draws for that account.
+export const administrationView = onDemandCode(() => import('./administrationView.jsx'));
+// The Assignments screen's JSX (app/teacher/TeacherWorkspace.jsx, ./assignmentsTabView.jsx), which the screen waits for with the authoring code.
+export const assignmentsView = onDemandCode(() => import('./assignmentsTabView.jsx'));

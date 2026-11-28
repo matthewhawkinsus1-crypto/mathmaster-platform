@@ -4,7 +4,7 @@ import path from 'node:path';
 import test from 'node:test';
 import { fileURLToPath } from 'node:url';
 import { functionsBackendSource } from './helpers/functionsBackendSource.mjs';
-import { positionalHookSeam, positionalHookSource } from './helpers/appScreens.mjs';
+import { positionalHookSeam, positionalHookSource, teacherWorkspaceSource } from './helpers/appScreens.mjs';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const root = path.resolve(here, '../..');
@@ -48,7 +48,7 @@ test('Weekly Path teacher view reads secure completed sessions and shows a weekl
   assert.ok(learningPathsSeam.parameters.includes('setWeeklyPathCompletionsByStudent'), 'which App hands the hook to fill');
   assert.match(learningPaths, /import \{[^}]*\bfetchTeacherWeeklyPathCompletions\b[^}]*\} from '\.\.\/\.\.\/platform\/path\/pathStore\.js';/);
   // The Weekly Path panel is mounted by the teacher's screen, its own module since G2.
-  const teacherWorkspace = read('src/app/teacher/TeacherWorkspace.jsx');
+  const teacherWorkspace = teacherWorkspaceSource();
   assert.match(teacherWorkspace, /goalsByStudentId=\{teacherWeeklyGoalsByStudent\}/);
   assert.match(teacherWorkspace, /completionsByStudentId=\{weeklyPathCompletionsByStudent\}/);
   // Kept fresh about once a minute while a teacher is on it, through the
@@ -68,7 +68,7 @@ test('Weekly Path teacher view reads secure completed sessions and shows a weekl
 
 test('teacher class workspace and gradebook prefer authoritative classId boundaries', () => {
   // The gradebook is the teacher's screen, its own module since G2.
-  const app = read('src/app/teacher/TeacherWorkspace.jsx');
+  const app = teacherWorkspaceSource();
   const classesWorkspace = read('src/ClassesWorkspace.jsx');
   assert.match(app, /gradebookFilter[^\n]*classId/);
   assert.match(app, /student\.classId === gradebookFilter\.classId/);
@@ -87,7 +87,7 @@ test('teacher class workspace and gradebook prefer authoritative classId boundar
 
 test('teacher gradebook displays the centralized Student Learning Profile badge', () => {
   // The gradebook is the teacher's screen, its own module since G2.
-  const app = read('src/app/teacher/TeacherWorkspace.jsx');
+  const app = teacherWorkspaceSource();
   assert.match(app, /import StudentPerformanceBadge from '\.\.\/\.\.\/components\/common\/StudentPerformanceBadge\.jsx';/);
   assert.match(app, /profile=\{teacherLearningProfiles\[student\.id\]\}/);
 });

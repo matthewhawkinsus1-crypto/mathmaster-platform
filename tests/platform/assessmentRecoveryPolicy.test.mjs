@@ -17,7 +17,7 @@ import {
 } from '../../functions/shared/attemptPolicy.mjs';
 import { dolTeacherRecoveryActiveAt, resolveDolWindow } from '../../functions/shared/sectionDeadline.mjs';
 import { region } from './helpers/sourceContract.mjs';
-import { appFactorySource, appHookSource, appModulePaths, teacherControlsSeam, teacherControlsSource } from './helpers/appScreens.mjs';
+import { appFactorySource, appHookSource, appModulePaths, teacherControlsSeam, teacherControlsSource, teacherWorkspaceSource } from './helpers/appScreens.mjs';
 
 // ASSESSMENT RECOVERY — REOPEN, EXTRA ATTEMPTS, AND THE RECORD OF BOTH (Job 6).
 //
@@ -177,7 +177,7 @@ test('the teacher controls and the server are wired to the one model', () => {
   assert.doesNotMatch(perStudent, /updateDoc\(|buildDolAttemptGrant\(/);
   // …offered beside each student in the gradebook's student detail (the
   // teacher's screen, its own module since G2, given App's handler by name).
-  assert.match(fs.readFileSync('src/app/teacher/TeacherWorkspace.jsx', 'utf8'), /(onClick|onGrant)=\{\(\) => handleGrantDOLAttemptForStudents\(selectedAssignment, \[student\]\)\}/);
+  assert.match(teacherWorkspaceSource(), /(onClick|onGrant)=\{\(\) => handleGrantDOLAttemptForStudents\(selectedAssignment, \[student\]\)\}/);
   assert.match(region(reminders, 'A REOPENED DOL OR AN EXTRA ATTEMPT MUST REACH THE STUDENT', '// Warm-Up reminders'), /summarizeStudentRecovery\(\{ assignment, classId: user\.classId \|\| null, studentId: user\.id/);
   // Every student-side maximum includes this student's own grant.
   // (Since the App split two of the four are in createGradingControls, which

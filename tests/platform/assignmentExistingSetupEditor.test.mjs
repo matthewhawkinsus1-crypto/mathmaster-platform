@@ -1,13 +1,13 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
-import { appAndTeacherWorkspaceSource } from './helpers/appScreens.mjs';
+import { appAndTeacherWorkspaceSource, teacherWorkspaceSource } from './helpers/appScreens.mjs';
 
 const app = appAndTeacherWorkspaceSource();
 const modal = fs.readFileSync('src/components/teacher/LessonPreflightModal.jsx', 'utf8');
 // The teacher's screen (the assignment menu, the Pre-Flight mount) left App
 // for its own module in G2; the handlers it calls stay in App.
-const teacherWorkspace = fs.readFileSync('src/app/teacher/TeacherWorkspace.jsx', 'utf8');
+const teacherWorkspace = teacherWorkspaceSource();
 
 test('assignment menu exposes one no-code setup editor', () => {
   assert.match(teacherWorkspace, /Review \/ Edit Setup/);

@@ -14,7 +14,7 @@ import {
 } from '../../src/platform/student/browserHistory.js';
 import { assertCapability, region } from './helpers/sourceContract.mjs';
 import { importsComponent } from './helpers/componentImport.mjs';
-import { appFactorySeam, appFactorySource, positionalHookSource, teacherControlsSource } from './helpers/appScreens.mjs';
+import { appFactorySeam, appFactorySource, positionalHookSource, teacherControlsSource, teacherWorkspaceSource } from './helpers/appScreens.mjs';
 
 const app = fs.readFileSync(new URL('../../src/App.jsx', import.meta.url), 'utf8');
 const lazyScreens = fs.readFileSync(new URL('../../src/app/lazyScreens.js', import.meta.url), 'utf8');
@@ -273,5 +273,5 @@ test('App imports every student grade module it calls', () => {
   }
   // Marking periods are set on the teacher's screen, its own module since G2.
   assert.ok(importsComponent('src/app/teacher/TeacherWorkspace.jsx', 'MarkingPeriodSettings', 'src/components/teacher/MarkingPeriodSettings.jsx'));
-  assert.match(fs.readFileSync(new URL('../../src/app/teacher/TeacherWorkspace.jsx', import.meta.url), 'utf8'), /<MarkingPeriodSettings[\s>]/);
+  assert.match(teacherWorkspaceSource(), /<MarkingPeriodSettings[\s>]/);
 });

@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import { functionsBackendSource } from './helpers/functionsBackendSource.mjs';
+import { teacherWorkspaceSource } from './helpers/appScreens.mjs';
 
 const read = (path) => fs.readFileSync(path, 'utf8');
 
@@ -42,7 +43,7 @@ test('browser exposes exact destination selection and an explicit duplicate warn
   const api = read('src/classroomApi.js');
   const manager = read('src/ClassroomManagerV2.jsx');
   // The menu and the manager mount are the teacher's screen, its own module since G2.
-  const app = read('src/app/teacher/TeacherWorkspace.jsx');
+  const app = teacherWorkspaceSource();
 
   assert.match(api, /forceRepublishAssignmentToClassrooms = call\("forceRepublishAssignmentToClassrooms"\)/);
   assert.match(manager, /selectedCourseIds/);

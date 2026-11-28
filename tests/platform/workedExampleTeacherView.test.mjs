@@ -17,6 +17,7 @@ import { exampleSkillOf } from '../../src/platform/supports/workedExample/exampl
 import { splitQuestionRecord } from '../../functions/shared/gradeEntryStorage.mjs';
 import { firstLoadGraph, repo, teacherFirstLoadGraph } from './helpers/firstLoadGraph.mjs';
 import { executableSource } from './helpers/sourceContract.mjs';
+import { teacherWorkspaceSource } from './helpers/appScreens.mjs';
 
 const read = (file) => readFileSync(new URL(`../../${file}`, import.meta.url), 'utf8');
 
@@ -146,7 +147,7 @@ test('the next question is one the gradebook shows: a question the teacher left 
   // The rule is the gradebook's own, not a second one.
   const model = executableSource(read('src/platform/teacher/workedExampleView.js'));
   assert.match(model, /\.filter\(\(entry\) => entry\?\.question && questionIsIncluded\(entry\.question\)\)/);
-  assert.match(executableSource(read('src/app/teacher/TeacherWorkspace.jsx')), /if \(!questionIsIncluded\(question\)\) return null;/);
+  assert.match(executableSource(teacherWorkspaceSource()), /if \(!questionIsIncluded\(question\)\) return null;/);
 });
 
 test('a replacement question stands where the student sees it, not where it is stored', () => {
@@ -247,7 +248,8 @@ test('no grade, attempt or mastery path, and nothing on the student\'s side, rea
   walk(path.join(repo, 'functions'));
   const mentions = sources.filter((file) => /workedExampleView|WorkedExamplesBySkill/.test(readFileSync(file, 'utf8'))).map((file) => path.relative(repo, file)).sort();
   assert.deepEqual(mentions, [
-    'src/app/teacher/TeacherWorkspace.jsx',
+    // The gradebook's JSX, which the workspace loads on demand (teacherWorkspaceSource).
+    'src/app/teacher/gradebookTabView.jsx',
     'src/app/teacher/teacherPanelPrefetch.js',
     'src/app/teacher/teacherPanels.js',
     'src/components/teacher/WorkedExamplesBySkill.jsx',
@@ -262,7 +264,7 @@ test('no grade, attempt or mastery path, and nothing on the student\'s side, rea
 });
 
 test('in the teacher\'s results: the class view per skill, and the student\'s view beside the worth-a-conversation notes', () => {
-  const workspace = executableSource(read('src/app/teacher/TeacherWorkspace.jsx'));
+  const workspace = executableSource(teacherWorkspaceSource());
   // The class: every visible student's records for the assignment; a name opens that student's results.
   assert.match(workspace, /\{selectedGradebookPeriod && selectedAssignment && !gradebookFilter\.student && \(\s*<WorkedExamplesBySkill assignment=\{selectedAssignment\} students=\{gradebookVisibleStudents\.map\(\(student\) => \(\{ id: student\.id, name: formatStudentName\(student\), tracker: projectedAssignmentTrackerFor\(\{ student, assignment: selectedAssignment \}\) \|\| \{\}, omitted: studentRequiredQuestions\(\{ assignment: selectedAssignment, profile: student\.profile \|\| null, tracker: student\.gradesByAssignment\?\.\[selectedAssignment\.id\] \|\| null \}\)\.omitted \}\)\)\} onOpenStudent=\{/);
   assert.match(workspace, /onOpenStudent=\{\(studentId\) => \{ const student = gradebookVisibleStudents\.find\(\(entry\) => entry\.id === studentId\); if \(student\) setGradebookFilter\(\(current\) => \(\{ \.\.\.current, student \}\)\); \}\}/);

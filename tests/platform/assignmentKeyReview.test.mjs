@@ -17,6 +17,7 @@ import assert from 'node:assert/strict';
 import { destinationAssignmentKey, findAssignmentKeyConflict } from '../../src/assignmentDestinations.js';
 import { blockersForStep, collectReviewBlockers, summarizePreflightReadiness } from '../../src/components/teacher/preflightSteps.js';
 import { componentSource, region } from './helpers/sourceContract.mjs';
+import { teacherWorkspaceSource } from './helpers/appScreens.mjs';
 
 const validDraft = {
   title: 'Lesson 1',
@@ -83,7 +84,7 @@ test('Review asks with the same function Create uses, never for a setup edit, an
   assert.match(readiness, /collectReviewBlockers\(\{[^}]*duplicateAssignmentKey[^}]*\}\)/);
   assert.match(readiness, /\[[^\]]*duplicateAssignmentKey[^\]]*\]\);/, 'recomputed when the answer changes');
 
-  const workspace = componentSource('src/app/teacher/TeacherWorkspace.jsx');
+  const workspace = teacherWorkspaceSource();
   const mount = region(workspace, '<LessonPreflightModal', '/>', 'Review mount');
   assert.match(mount, /existingAssignments=\{assignments\}/, 'Review is given the list Create checks');
   const create = region(workspace, 'const handleCreateAssignment = async', 'const publishingIntent = normalizeLessonPublishingIntentV5', 'Create');

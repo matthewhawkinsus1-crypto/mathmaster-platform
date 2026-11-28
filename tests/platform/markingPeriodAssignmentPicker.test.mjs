@@ -9,7 +9,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { region } from './helpers/sourceContract.mjs';
-import { teacherControlsSeam, teacherControlsSource } from './helpers/appScreens.mjs';
+import { teacherControlsSeam, teacherControlsSource, teacherWorkspaceSource } from './helpers/appScreens.mjs';
 
 const pickerSource = readFileSync('src/components/teacher/MarkingPeriodSettings.jsx', 'utf8');
 const appSource = readFileSync('src/App.jsx', 'utf8');
@@ -33,7 +33,7 @@ test('the picker sends the exact locally selected ids into the bulk move', () =>
 
 test('Grades scopes the picker to the class already selected in the class bar', () => {
   // Mounted by the teacher's screen, its own module since G2.
-  const teacherSource = readFileSync('src/app/teacher/TeacherWorkspace.jsx', 'utf8');
+  const teacherSource = teacherWorkspaceSource();
   const start = teacherSource.indexOf('<MarkingPeriodSettings');
   assert.notEqual(start, -1, 'the picker is mounted');
   const end = teacherSource.indexOf('/>', start);

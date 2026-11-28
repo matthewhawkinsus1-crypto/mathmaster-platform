@@ -13,7 +13,7 @@ import assert from 'node:assert/strict';
 import { readFileSync, readdirSync } from 'node:fs';
 import { executableSource } from './helpers/sourceContract.mjs';
 import { posix } from 'node:path';
-import { appFactoryPaths, appFactorySource, appHookPaths, appHookSource } from './helpers/appScreens.mjs';
+import { appFactoryPaths, appFactorySource, appHookPaths, appHookSource, teacherWorkspaceSource } from './helpers/appScreens.mjs';
 
 const read = (path) => readFileSync(new URL(`../../${path}`, import.meta.url), 'utf8');
 const app = read('src/App.jsx');
@@ -33,12 +33,12 @@ test('lint refuses free identifiers in App and every moved module, and browser-g
   }
 });
 
-const teacherWorkspace = read('src/app/teacher/TeacherWorkspace.jsx');
+const teacherWorkspace = teacherWorkspaceSource();
 const teacherWorkspaceCode = executableSource(teacherWorkspace);
-const importedFrom = (module, source = app) => {
-  const match = source.match(new RegExp(`import \\{([^}]*)\\} from '${module.replace(/[.*+?^${}()|[\]\\/]/g, '\\$&')}';`));
-  return match ? match[1].split(',').map((name) => name.trim()).filter(Boolean) : [];
-};
+// Every import from the module: the workspace's source is several modules
+// (teacherWorkspaceSource), and each may import from it.
+const importedFrom = (module, source = app) => [...source.matchAll(new RegExp(`import \\{([^}]*)\\} from '${module.replace(/[.*+?^${}()|[\]\\/]/g, '\\$&')}';`, 'g'))]
+  .flatMap((match) => match[1].split(',').map((name) => name.trim()).filter(Boolean));
 const exportsOf = (path) => [...read(path).matchAll(/^export const ([A-Za-z0-9_$]+)/gm)].map((match) => match[1]);
 
 test('every moved helper, scope table and lazy screen is imported by App and declared nowhere in it', () => {
@@ -224,9 +224,16 @@ test('the teacher workspace is App\'s teacher branch, given every input it reads
   // authoring code (app/teacher/authoringKitLoader.js) it hands
   // AppErrorBoundary, the idle prefetches once it has drawn (the panels drawn
   // closed and Home's math, app/teacher/teacherPanelPrefetch.js, then the
-  // authoring code), and the Assignments list's wait for the authoring code.
+  // authoring code), the Assignments list's wait for the authoring code, and
+  // the code of the Assignments screen (waited for the same way), the
+  // gradebook and Administration, which it asks for on demand
+  // (app/teacher/onDemandCode.js). The modules its JSX moved into
+  // (teacherWorkspaceSource) are render functions and call none.
   const hooks = [...teacherWorkspaceCode.matchAll(/\b(use(?:[A-Z]\w*)?)\(/g)].map((match) => match[1]);
-  assert.deepEqual(hooks.sort(), ['use', 'useEffect', 'useEffect', 'useState'], 'no other hook in the workspace');
+  assert.deepEqual(hooks.sort(), ['use', 'use', 'useEffect', 'useEffect', 'useOnDemandCode', 'useOnDemandCode', 'useState'], 'no other hook in the workspace');
+  assert.match(teacherWorkspaceCode, /const assignmentsTab = teacherTab === 'assignments' \? \(assignmentsView\.loaded\(\) \|\| use\(assignmentsView\.load\(\)\)\) : null;/);
+  assert.match(teacherWorkspaceCode, /const gradebook = useOnDemandCode\(gradebookView, teacherTab === 'grades'\);/);
+  assert.match(teacherWorkspaceCode, /const administration = useOnDemandCode\(administrationView, rootAdminUiEligible\);/);
   assert.match(teacherWorkspaceCode, /const \[authoringKitError, setAuthoringKitError\] = useState\(null\);/);
   assert.match(teacherWorkspaceCode, /useEffect\(\(\) => prefetchTeacherPanels\(\), \[\]\);/);
   assert.match(teacherWorkspaceCode, /useEffect\(\(\) => prefetchAuthoringKit\(\), \[\]\);/);
