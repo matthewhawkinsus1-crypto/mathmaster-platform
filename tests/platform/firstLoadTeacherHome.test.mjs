@@ -39,6 +39,7 @@ import { chainTo, repo, teacherFirstLoadGraph } from './helpers/firstLoadGraph.m
 import { importsComponent } from './helpers/componentImport.mjs';
 import { RERENDERING_SHIM, findElement } from './helpers/rerenderingComponent.mjs';
 import { executableSource, region } from './helpers/sourceContract.mjs';
+import { teacherWorkspaceSource } from './helpers/appScreens.mjs';
 
 const read = (file) => readFileSync(path.join(repo, file), 'utf8');
 const graph = teacherFirstLoadGraph();
@@ -496,7 +497,7 @@ test('Find is asked for at once as the workspace draws, on a device that saves d
   win.goOnline();
   for (let tries = 0; tries < 100 && drawnNow() !== 'TeacherQuickSearch'; tries += 1) await pause();
   assert.equal(drawnNow(), 'TeacherQuickSearch', 'back online, it is asked for, though the device saves data: Find opens with its box at once');
-  const workspace = executableSource(read('src/app/teacher/TeacherWorkspace.jsx'));
+  const workspace = executableSource(teacherWorkspaceSource());
   assert.match(workspace, /useEffect\(\(\) => prefetchTeacherPanels\(\), \[\]\);/, 'as the workspace draws');
 });
 
@@ -649,14 +650,18 @@ test('the questions panel asks before its early returns and holds only where its
 });
 
 test('the workspace fetches the closed panels and Home\'s math while the browser is idle, once it has drawn', async () => {
-  const workspace = executableSource(read('src/app/teacher/TeacherWorkspace.jsx'));
+  const workspace = executableSource(teacherWorkspaceSource());
   assert.match(workspace, /useEffect\(\(\) => prefetchTeacherPanels\(\), \[\]\);\s*useEffect\(\(\) => prefetchAuthoringKit\(\), \[\]\);/, 'asked before the authoring code, which is larger');
   assert.match(workspace, /^import \{ prefetchTeacherPanels \} from '\.\/teacherPanelPrefetch\.js';$/m);
-  // Every member of teacherPanels.js, and nothing else.
-  const panels = await import('../../src/app/teacher/teacherPanels.js');
+  // Every member of teacherPanels.js, and nothing else, but the root
+  // administrator's screen: the workspace asks for that as it draws, and only
+  // for the one account that can open it, so no other teacher downloads it.
+  const { administrationView, ...panels } = await import('../../src/app/teacher/teacherPanels.js');
   const { TEACHER_PANEL_PREFETCH, prefetchTeacherPanels } = await import('../../src/app/teacher/teacherPanelPrefetch.js');
   assert.deepEqual(new Set(TEACHER_PANEL_PREFETCH), new Set(Object.values(panels)));
   assert.equal(TEACHER_PANEL_PREFETCH.length, Object.keys(panels).length);
+  assert.ok(!TEACHER_PANEL_PREFETCH.includes(administrationView));
+  assert.match(workspace, /const administration = useOnDemandCode\(administrationView, rootAdminUiEligible\);/);
   TEACHER_PANEL_PREFETCH.forEach((member) => assert.equal(typeof member.prefetch, 'function'));
   // The student screens' rules (studentScreenPrefetch.test.mjs): never when
   // the device saves data, once per page, a cancel for the effect.

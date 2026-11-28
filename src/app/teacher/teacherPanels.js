@@ -72,3 +72,5 @@ export const StudentPersistenceRecoveryPanel = drawnPanel(() => import('../../co
 export const gradebookView = onDemandCode(() => import('./gradebookTabView.jsx'));
 // The root administrator's screen (app/teacher/TeacherWorkspace.jsx, ./administrationView.jsx), asked for as the workspace draws for that account.
 export const administrationView = onDemandCode(() => import('./administrationView.jsx'));
+// The Assignments screen's JSX (app/teacher/TeacherWorkspace.jsx, ./assignmentsTabView.jsx), which the screen waits for with the authoring code.
+export const assignmentsView = onDemandCode(() => import('./assignmentsTabView.jsx'));

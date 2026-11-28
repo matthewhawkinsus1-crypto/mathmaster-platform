@@ -36,7 +36,7 @@ import { CLASS_SCOPED_TABS } from '../screenScopes.js';
 import { AssignmentAiHealth, AssignmentContentUpgradeModal, AssignmentGradeOverrideControls, AssignmentIntake, AssignmentLibrary, AssignmentQuestionEditor, AttendanceHistoryPanel, ClassContextBar, ClassCourseSettings, ClassesAdmin, ClassesWorkspace, ClassRewardCatalogEditor, ClassRewardRequestsPanel, ClassroomManagerV2, ClassScheduleSettings, DemoExperience, DisciplineTracker, GradebookAssignmentBar, GradebookClassChooser, GradeTransferCenter, LessonPreflightModal, LiveChallengeTeacher, MarkingPeriodSettings, MathToolsLab, PacingControls, ParentContactCenter, PathCoverageAudit, PathSimulator, PlatformHealth, PreproductionReset, SectionRecoveryAuditTrail, SignInAccess, StudentCaseReviewView, StudentDolRecoveryRow, StudentResponseInspector, StudentsRoster, TeacherActionCenter, TeacherAnalyticsDashboard, TeacherAssignmentPdfDialog, TeacherHome, TeacherSecureExamDashboard, TeacherSidebar, TestCyclePreview, TexasStandardsDashboard, WeeklyPathControls, WeeklyPathGradePanel } from '../lazyScreens.js';
 // The five panels drawn closed on every screen, each mounted when it first
 // opens (./teacherPanels.js), and their code fetched while the browser is idle.
-import { AssignmentHub, ClassroomSyncReview, StudentProfileDrawer, SupportEvidenceReportView, TeacherQuickSearch, administrationView, gradebookView } from './teacherPanels.js';
+import { AssignmentHub, ClassroomSyncReview, StudentProfileDrawer, SupportEvidenceReportView, TeacherQuickSearch, administrationView, assignmentsView, gradebookView } from './teacherPanels.js';
 import { useOnDemandCode } from './onDemandCode.js';
 import { prefetchTeacherPanels } from './teacherPanelPrefetch.js';
 import { compareStudentsByName, formatStudentName } from '../../platform/studentName';
@@ -53,6 +53,13 @@ import { MAIN_CONTENT_ID, SkipToContent } from '../../components/common/pageChro
 import { loadAssignmentActions, loadAuthoringKit, loadedAssignmentActions, loadedAuthoringKit, prefetchAuthoringKit } from './authoringKitLoader.js';
 
 
+
+// The actions ./workspaceAssignmentActions.js builds, by the names it returns
+// them under, in the order the workspace takes them.
+const ASSIGNMENT_ACTIONS = Object.freeze([
+  'handleAssignmentJsonReady', 'confirmAssignmentPreflight', 'saveQuestionEditor',
+  'handleDuplicateAssignment', 'handleRepairAssignmentFromLibrary', 'handleSaveAssignmentDates',
+]);
 
 // The parent-contact store, on demand (teacher's first load, third pass): the
 // two screens that write through it, Discipline and Parent Contacts, read
@@ -374,12 +381,10 @@ export default function TeacherWorkspace({
       },
     );
   };
-  const handleAssignmentJsonReady = assignmentAction('handleAssignmentJsonReady');
-  const confirmAssignmentPreflight = assignmentAction('confirmAssignmentPreflight');
-  const saveQuestionEditor = assignmentAction('saveQuestionEditor');
-  const handleDuplicateAssignment = assignmentAction('handleDuplicateAssignment');
-  const handleRepairAssignmentFromLibrary = assignmentAction('handleRepairAssignmentFromLibrary');
-  const handleSaveAssignmentDates = assignmentAction('handleSaveAssignmentDates');
+  const [
+    handleAssignmentJsonReady, confirmAssignmentPreflight, saveQuestionEditor,
+    handleDuplicateAssignment, handleRepairAssignmentFromLibrary, handleSaveAssignmentDates,
+  ] = ASSIGNMENT_ACTIONS.map(assignmentAction);
 
   // TT24: the editor rebuilds the stored assignment as Assignment V5 while it
   // renders. A legacy assignment with no course or TEKS on it cannot be
@@ -400,7 +405,6 @@ export default function TeacherWorkspace({
     authoringKit().catch(() => { /* AppErrorBoundary has it */ });
     return true;
   };
-
 
   const beginEditAssignmentSetup = (assignment) => {
     // At once when the authoring code is here, as before it loaded on demand
@@ -493,7 +497,6 @@ export default function TeacherWorkspace({
       'This Library lesson will stay reusable. After you choose a class, Assignment Review will preserve the exact questions and publish the saved Google Classroom post, notes, resources, and grade-passback settings.',
     );
   };
-
 
   const selectedAssignment = assignments.find((assignment) => assignment.id === gradebookFilter.assignmentId) || null;
   const gradebookRigor = rigorComparability({
@@ -592,7 +595,11 @@ export default function TeacherWorkspace({
   // Opened before the code has arrived, the screen waits for it as for its own
   // code (AppShell's loading screen), and a failure to load it reaches
   // AppErrorBoundary. Reopened on Assignments, the page asks for it at once.
+  // Its JSX loads on demand as well (./assignmentsTabView.jsx), asked for
+  // here, before the wait for the authoring code, so the two arrive together.
+  if (teacherTab === 'assignments') assignmentsView.prefetch();
   const assignmentListKit = teacherTab === 'assignments' ? (loadedAuthoringKit() || use(loadAuthoringKit())) : null;
+  const assignmentsTab = teacherTab === 'assignments' ? (assignmentsView.loaded() || use(assignmentsView.load())) : null;
 
   return (
     <div style={{ fontFamily: '"Segoe UI", sans-serif', backgroundColor: 'var(--mm-surface-sunken)', minHeight: '100vh', padding: '20px' }}>
@@ -1033,10 +1040,10 @@ export default function TeacherWorkspace({
               classes={classes}
             />
           )}
-          {/* The Assignments screen waits for the authoring code it reads on
-              each card, so its JSX comes with that code
-              (./assignmentsTabView.jsx, teacher's first load). */}
-          {teacherTab === 'assignments' && assignmentListKit.renderAssignmentsTab({
+          {/* The Assignments screen's JSX (./assignmentsTabView.jsx), which
+              the screen waits for with the authoring code it reads on each
+              card (teacher's first load, third pass). */}
+          {teacherTab === 'assignments' && assignmentsTab.renderAssignmentsTab({
             AssignmentIntake,
             activeClass,
             allStudents,

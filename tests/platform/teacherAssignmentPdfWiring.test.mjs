@@ -1,12 +1,12 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
-import { teacherControlsSource } from './helpers/appScreens.mjs';
+import { teacherControlsSource, teacherWorkspaceSource } from './helpers/appScreens.mjs';
 
 const dialog = fs.readFileSync('src/components/teacher/TeacherAssignmentPdfDialog.jsx', 'utf8');
 // The assignment cards and the dialog mount are the teacher's screen, its own
 // module since G2; App keeps the export handlers.
-const teacherWorkspace = fs.readFileSync('src/app/teacher/TeacherWorkspace.jsx', 'utf8');
+const teacherWorkspace = teacherWorkspaceSource();
 
 test('teacher assignment cards expose one print and answer-key action', () => {
   assert.match(teacherWorkspace, /key:\s*['"]export-pdf['"][\s\S]{0,180}label:\s*['"]Print \/ Answer Key['"]/);

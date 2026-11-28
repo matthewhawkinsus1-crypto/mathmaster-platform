@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import { executableSource, region } from './helpers/sourceContract.mjs';
 import { importsComponent } from './helpers/componentImport.mjs';
-import { appFactorySource, appHookSource } from './helpers/appScreens.mjs';
+import { appFactorySource, appHookSource, teacherWorkspaceSource } from './helpers/appScreens.mjs';
 import { functionsBackendSource } from './helpers/functionsBackendSource.mjs';
 
 /*
@@ -68,7 +68,7 @@ test('the browser waiver map holds only live waivers; history gets every record'
 test("the teacher's gradebook, Assignment Hub and student drawer all pass the waiver through", () => {
   // The gradebook is the teacher's screen, its own module since G2; App
   // computes gradebookHasPracticePass and passes it by name.
-  const teacherWorkspace = read('src/app/teacher/TeacherWorkspace.jsx');
+  const teacherWorkspace = teacherWorkspaceSource();
   const gradebookRow = region(teacherWorkspace, 'const assignmentOverride = assignmentGradeOverrideFor(student, selectedAssignment.id); const practicePassRedeemed', 'const gradeExplanation', 'gradebook row');
   // (`supportProfile` beside the waiver: the student's reduced-item-count
   // accommodation narrows the same denominator.)

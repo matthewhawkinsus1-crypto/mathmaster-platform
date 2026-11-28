@@ -3,9 +3,11 @@
  *
  * Moved out of ./TeacherWorkspace.jsx verbatim. The screen reads two checks
  * from the authoring code on each card, so the workspace already waited for
- * that code (./authoringKitLoader.js) before drawing it; its JSX now comes in
- * the same chunk (./teacherAuthoringKit.js re-exports it) instead of in the
- * workspace's, which every teacher downloaded before Home drew.
+ * that code (./authoringKitLoader.js) before drawing it. It now waits for
+ * this module too (./teacherPanels.js's assignmentsView), asked for alongside
+ * the authoring code and fetched while the browser is idle, instead of
+ * carrying it in its own chunk, which every teacher downloaded before Home
+ * drew.
  *
  * A render function, not a component: the workspace calls it where the JSX
  * was, with what the JSX read there by name (`scope`), so React sees the
