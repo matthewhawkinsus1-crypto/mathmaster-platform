@@ -197,6 +197,34 @@ test('a factoring sibling\'s factors multiply back to its polynomial, and its ze
   }
 });
 
+test('an item that asks for one value by direct substitution gets a sibling worked by direct substitution, not the Factor Theorem (rf-wu-1)', () => {
+  const at = (coefficients, x) => coefficients.reduce((sum, coefficient) => sum * x + coefficient, 0);
+  const substitutionItems = CLAIMED.filter((entry) => /direct substitution/i.test(entry.question.prompt));
+  assert.ok(substitutionItems.some((entry) => entry.question.questionId === 'rf-wu-1'), 'rf-wu-1 is claimed');
+  for (const entry of substitutionItems) {
+    for (const seed of [0, 1, 2, 3, 4, 5, 6, 7]) {
+      const sibling = family.similarProblem(entry.question, { seed });
+      assert.ok(sibling, `${entry.question.questionId} seed ${seed}`);
+      const words = [sibling.prompt, ...sibling.steps.map((step) => `${step.show} ${step.why}`), sibling.answer].join(' ');
+      assert.match(sibling.prompt, /by direct substitution\.$/, sibling.prompt);
+      assert.doesNotMatch(words, /Factor Theorem|is a factor|is zero/, words);
+      // Its answer is the polynomial's value at the number.
+      const plainPrompt = plainAnswer(sibling.prompt);
+      const polynomial = readPolynomial(/= (.+?)\. Evaluate/.exec(plainPrompt)[1]);
+      const [, r, value] = /^f\(([−-]?\d+)\) = ([−-]?\d+)$/.exec(plainAnswer(sibling.answer)).map((part) => part.replace('−', '-'));
+      assert.equal(at(polynomial, Number(r)), Number(value), `${plainPrompt} → ${sibling.answer}`);
+      // Each x replaced by the number in brackets, the powers, then the terms added.
+      const [replace, powers, add] = sibling.steps.map((step) => plainAnswer(step.show).replace(/−/g, '-'));
+      assert.ok(replace.startsWith(`Replace every x with (${r}): f(${r}) = `), replace);
+      assert.ok(powers.startsWith(`Powers first: (${r})³ = ${Number(r) ** 3} and (${r})² = ${Number(r) ** 2}`), powers);
+      assert.ok(add.startsWith('Then multiply and add: ') && add.endsWith(`= ${value}.`), add);
+    }
+  }
+  // An item that tests a candidate for the Factor Theorem keeps its Factor Theorem sibling.
+  const factorTests = CLAIMED.filter((entry) => !/direct substitution/i.test(entry.question.prompt) && family.similarProblem(entry.question, { seed: 0 })?.steps.some((step) => /^Test /.test(step.show)));
+  assert.ok(factorTests.length > 0, 'a Factor Theorem test is still worked as one');
+});
+
 // ------------------------------------- 4. nothing else changes; never on a DOL
 
 test('the family adds an example and nothing else: no hints, no back-up step, no new answers for the guard', () => {

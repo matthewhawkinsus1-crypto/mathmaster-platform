@@ -252,6 +252,10 @@ test('a question the tool would not record as drawn is not played', () => {
   assert.match(refusal(inequalityQuestion([{ m: 1, b: 1, relation: '>' }, { m: 2, b: 2, relation: '>' }, { m: 3, b: 3, relation: '>' }])), /more than two/);
   assert.match(refusal(inequalityQuestion([{ m: 1, b: 1, relation: '>' }], { modeling: { variables: [] } })), /not a build-the-graph inequality question/);
   assert.match(refusal({ type: 'multiAnswer' }), /not a question answered on the plane/);
+  // Two boundaries that cross on the plane's edge, (6, 10): their overlap is that one corner, and
+  // nothing a student could see is shaded as the solution (the examples maths audit, m3t2l5-cw-7 seed 11).
+  assert.match(refusal(inequalityQuestion([{ m: 1, b: 4, relation: '>' }, { m: 2, b: -2, relation: '<' }])), /do not overlap on the plane/);
+  assert.equal(replayPlaneExample(inequalityQuestion([{ m: 1, b: 4, relation: '>' }, { m: 2, b: -2, relation: '>' }])).ok, true, 'the same lines, overlapping below their crossing');
   // Which questions the replay covers at all.
   assert.equal(planeReplayToolOf(lineQuestion(2, 1)), PLANE_REPLAY_TOOL.LINE);
   assert.equal(planeReplayToolOf({ type: 'graphing2', mode: 'standardForm' }), null);
