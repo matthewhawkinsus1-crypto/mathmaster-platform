@@ -449,6 +449,15 @@ student's item and never another item on the same assignment.
 | **Why this step?** | Classwork examples, once per example | One tap: pick the reason for a step before it plays. |
 | **Reference card** | Lesson level, pinned on Classwork and Practice | The formula or pattern with its parts named (for example, sum and difference of cubes). |
 
+**Reference cards today (WE-H).** A lesson names a card's skill, and the
+platform supplies the card from its built-in library. The cards and their skills
+are listed in `docs/assignments/AUTHORING_LEARNING_SUPPORTS.md` section 4. A card
+shows only where a lesson declares one in `lessonSupports.referenceCards`.
+Existing lessons are not back-filled. Of today's lessons, only the Algebra II
+Honors Thanksgiving packet declares one: the sum and difference of cubes, on its
+Unit 8 Classwork section. Everywhere else a card appears only once an author adds
+one to a new assignment, and in the test fixtures.
+
 ## 5. Behaviour by section
 
 | | Classwork | Practice | DOL, quiz, test |
