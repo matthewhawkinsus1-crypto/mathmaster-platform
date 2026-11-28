@@ -5,6 +5,8 @@ import { liveChallengeResponseReadiness } from '../../../functions/shared/liveCh
 import { radioGroupKeyAction, radioTabStopIndex } from '../../platform/interaction/radioGroupKeys.js';
 import TypedEntryNotice from '../common/TypedEntryNotice.jsx';
 import { liveChallengeEntryProblem, liveChallengeResponseComplete } from '../../platform/liveChallenge/liveChallengeEntry.js';
+import { withFollowThroughLabels } from '../../../functions/shared/followThroughNames.mjs';
+import { useFollowThroughRules } from '../../platform/interaction/useFollowThroughRules.js';
 
 const CHOICE_PROFILES = new Set([
   'choice', 'multiplechoice', 'multiple-choice', 'singlechoice', 'single-choice', 'select',
@@ -201,9 +203,20 @@ function TextField({ field, value, disabled, onChange, onSubmit, autoFocus }) {
  * from Path; correctness is still decided by the existing server callable.
  */
 function LiveChallengeFieldQuestionView({ question, disabled, onSubmit }) {
-  const fields = question?.responseFields?.length ? question.responseFields : [];
+  const authoredFields = useMemo(() => (question?.responseFields?.length ? question.responseFields : []), [question?.responseFields]);
   const readiness = useMemo(() => liveChallengeResponseReadiness(question), [question]);
   const [responses, setResponses] = useState({});
+  // SP-3: a field that builds on an earlier one (its public `followThrough`
+  // names which) shows the student's own value in its label, or "your slope …"
+  // before there is one, as every other screen does (followThroughNames.mjs):
+  // never a raw {name}, never a key (the round's question has none). The rules
+  // that read the value load only for such a question; the round's server
+  // grades the answer.
+  const followThrough = useFollowThroughRules(authoredFields);
+  const fields = useMemo(
+    () => withFollowThroughLabels(authoredFields, responses, { value: followThrough.rules?.followThroughValue }),
+    [authoredFields, responses, followThrough.rules],
+  );
   const [busy, setBusy] = useState(false);
   // Set by THIS student's Lock In press. While the answer is locked (the round
   // disables the field), focus sits on the "locked in" note below, never on

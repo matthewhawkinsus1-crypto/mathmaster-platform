@@ -128,6 +128,11 @@ part.
 Built (SP-3): the label shows the student's value, and every grader (the
 screen, the server, a secure Test, Corrections and Path) keys the part to it
 from `functions/shared/followThrough.mjs`, still accepting the part's own answer.
+A Live Challenge field round writes its labels the same way. The teacher's
+Response Inspector shows the part's expected answer as the key the grader
+used, built from the student's earlier answer, with the authored answer beside
+it. When no key was built (the earlier answer was blank or unfinished), it
+says that the authored answer was used.
 
 How to write `followThrough` and `checkpoint`, with an example lesson: `docs/assignments/AUTHORING_LEARNING_SUPPORTS.md`.
 

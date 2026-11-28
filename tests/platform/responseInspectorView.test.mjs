@@ -230,3 +230,36 @@ test('no value, however malformed, makes the view throw; long values are bounded
     }
   }
 });
+
+// SP-3: a follow-through part is graded against the key built from the
+// student's own earlier answer. The inspector shows that key as expected,
+// says it was built from the earlier answer, and puts the authored answer
+// beside it; the verdict is the recorded one.
+test('a follow-through part: expected is the key built from the earlier answer, with the authored answer beside it', async () => {
+  const { inequalityQuestion: question } = await import('./helpers/followThroughFixtures.mjs');
+  const { view, states } = inspected({ question, response: fields({ slope: '-3', inequality: 'y > -3x + 3' }) });
+  assert.deepEqual(row(view, 'inequality').expected, {
+    text: 'y > (-3)x + 3 or y > -3x + 3',
+    note: "Built from the student's answer to Slope of the boundary line (-3)",
+    authored: { text: 'y > -2x + 3' },
+  });
+  assert.deepEqual(row(view, 'inequality').result, { status: 'correct', label: 'Correct', credit: 100 });
+  assert.deepEqual(row(view, 'slope').expected, { text: '-2' });
+  const traced = states.gradingTrace.fields.find((field) => field.id === 'inequality');
+  assert.deepEqual(traced.followThroughKeys, ['y > (-3)x + 3', 'y > -3x + 3']);
+  assert.equal(traced.expected[0], 'y > (-3)x + 3');
+  assert.deepEqual(traced.authoredExpected, ['y > -2x + 3']);
+
+  // An unfinished earlier answer builds no key: the authored answer is what the grader used, and the cell says so.
+  const unfinished = inspected({ question, response: fields({ slope: '12 +', inequality: 'y > 12x + 3' }) }).view;
+  assert.equal(row(unfinished, 'inequality').expected.text, 'y > -2x + 3');
+  assert.match(row(unfinished, 'inequality').expected.note, /No key built from the student's answer to Slope of the boundary line/);
+  assert.equal(row(unfinished, 'inequality').expected.authored, undefined);
+  assert.equal(row(unfinished, 'inequality').result.status, 'incorrect');
+});
+
+test('the inspector screen draws a follow-through key\'s authored answer beside it', () => {
+  const source = readFileSync(new URL('../../src/components/teacher/ResponseInspectorFieldView.jsx', import.meta.url), 'utf8');
+  const valueCell = source.slice(source.indexOf('function ValueCell'), source.indexOf('function ResultCell'));
+  assert.match(valueCell, /value\.authored[\s\S]*Authored answer: [\s\S]*<WrittenValue text=\{value\.authored\.text\}/);
+});

@@ -153,3 +153,55 @@ test('review: Live Challenge cannot lock in an unfinished or over-long entry, an
     assert.ok(region(source, box, '\n}\n', box).includes(`<TypedEntryNotice message={disabled ? '' : liveChallengeEntryProblem('${kind}', value)}`), `${box} draws the notice`);
   }
 });
+
+// The released secure review read an unfinished entry (`12 +`, `4*`, `*38`)
+// back as a finished answer. It is kept as typed and never marked right, so
+// the review says it is unfinished, in the answer box's own words.
+test('the released secure review reads an unfinished answer as unfinished, in the answer box\'s words', async () => {
+  const { unfinishedReviewNote } = await import('../../src/platform/assessment/unfinishedAnswer.js');
+  const { TYPED_ENTRY_MESSAGES } = await import('../../functions/shared/typedEntryGuard.mjs');
+  const boxWords = TYPED_ENTRY_MESSAGES.unfinished.split('. ')[0] + '.';
+  for (const entry of ['12 +', '4*', '*38', 'x=5-']) {
+    assert.equal(unfinishedReviewNote(entry, { inputProfile: 'number' }), boxWords, entry);
+    assert.equal(unfinishedReviewNote(entry, { inputProfile: 'expression' }), boxWords, entry);
+  }
+  assert.equal(unfinishedReviewNote('3**x', { inputProfile: 'expression' }), 'This answer is not finished: a × is written twice in a row.');
+  // A finished answer, a box of words, a choice, or an entry that is only too long: no note.
+  for (const [entry, field] of [['-2', { inputProfile: 'number' }], ['12 + 3', { inputProfile: 'expression' }], ['A+', { inputProfile: 'text' }], ['12 +', {}], ['12 +', { inputProfile: 'number', choices: [{ id: 'a' }] }], [`${'1'.repeat(300)}`, { inputProfile: 'number' }]]) {
+    assert.equal(unfinishedReviewNote(entry, field), '', entry);
+  }
+  // The screen puts the note on the answer's own row, under its value.
+  const review = executableSource(componentSource('src/components/assessment/SecureExamReview.jsx'));
+  const rows = region(review, 'const responseRows = (item, followThrough = null) =>', 'const STATUS_TONE', 'the answer rows');
+  assert.match(rows, /unfinishedReviewNote\(raw,\s*field \|\| null\)/);
+  assert.match(rows, /\.\.\.\(unfinished \? \{ unfinished \} : \{\}\)/);
+  const drawn = region(review, 'const AnswerRows = ({ rows }) =>', 'const SkillSummary', 'the answer rows as drawn');
+  assert.match(drawn, /row\.unfinished && <span data-review-unfinished=""[^>]*>\{row\.unfinished\}<\/span>/);
+});
+
+// "Review all parts, then submit" (RichQuestionRuntime, a secure field item):
+// a part is answered only when its box would let the entry stand. A field
+// authored with an answerFormat and no profile is issued as 'text'
+// (mathPath.normalizeResponseFields); it holds mathematics, so `12 +` there is
+// unfinished and its part is not an answered line.
+test('Review all parts, then submit: an unfinished answer in a text box that names a math format is not answered; a words box still takes it', async () => {
+  const { secureFieldTakesWords } = await import('../../src/platform/assessment/unfinishedAnswer.js');
+  const { typedEntryNotice, TYPED_ENTRY_MESSAGES } = await import('../../functions/shared/typedEntryGuard.mjs');
+  const notice = (field, entry) => typedEntryNotice(entry, { words: secureFieldTakesWords(field), tries: false });
+  const mathInText = { id: 'total', label: 'Total cost', inputProfile: 'text', answerFormat: 'number', inputContract: { format: 'number', requiredSymbols: [] } };
+  for (const entry of ['12 +', '4*', '*38']) assert.match(notice(mathInText, entry), new RegExp(`^${TYPED_ENTRY_MESSAGES.unfinished.split(':')[0]}`), entry);
+  assert.equal(notice({ ...mathInText, answerFormat: null }, '12 +') !== '', true, 'the contract format alone is enough');
+  // The guard: a genuine words box ("explain", no format) takes `12 +` as written words, with no notice.
+  for (const words of [{ id: 'explain', label: 'Explain your reasoning', inputProfile: 'text', answerFormat: null, inputContract: null }, { id: 'why', label: 'Why?' }]) {
+    assert.equal(secureFieldTakesWords(words), true);
+    assert.equal(notice(words, '12 +'), '');
+  }
+  assert.equal(secureFieldTakesWords({ inputProfile: 'number' }), false);
+  // The runtime decides "answered" from that notice: an entry with one is not done, so it is never an answered line.
+  const runtime = executableSource(componentSource('src/components/question/RichQuestionRuntime.jsx'));
+  const problems = region(runtime, 'const entryProblems = Object.fromEntries(', '}));', 'each box\'s entry problem');
+  assert.match(problems, /const words = secureFieldTakesWords\(field\);/);
+  assert.match(problems, /typedEntryNotice\(responses\[field\.id\], \{ words,/);
+  assert.match(runtime, /const fieldDone = \(field\) => Boolean\(String\(responses\[field\.id\] \?\? ''\)\.trim\(\)\) && !entryProblems\[field\.id\];/);
+  assert.match(runtime, /return fieldDone\(field\) \? 'answered' : 'hidden';/);
+});
