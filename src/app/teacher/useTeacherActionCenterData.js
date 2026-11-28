@@ -16,7 +16,7 @@ export function useTeacherActionCenterData(
   setStudentSupportEvents, studentSupportEvents, parentContacts, setParentContacts, actionGradeSnapshots,
   setActionGradeSnapshots, actionPracticePasses, setActionPracticePasses, setTeacherActionOpenCountCache,
   teacherActionOpenCountCache, teacherKit, retestRecoveryActions, setRetestRecoveryActions,
-  setStudentSessionSummaries, now, classSchedule,
+  setStudentSessionSummaries, now, classSchedule, teacherStudentDataMode,
 ) {
   // Persistent support/intervention history is teacher-authorized and
   // append-only. It is loaded independently of the live presence stream.
@@ -63,15 +63,28 @@ export function useTeacherActionCenterData(
     return () => { stopped = true; release?.(); };
   }, [user?.role, user?.email, teacherWorkspaceMode, teacherPreviewRuntimeActive, teacherTab]);
 
+  // GRADE EXPORTS, PROJECTED ONCE. Projecting every class x assignment x
+  // student is the Action Center's one heavy step. It waits until what decides
+  // it is here: every student's full records (teacherStudentDataMode 'full',
+  // not the roster summaries the tab opens with) and the export history and
+  // Practice Passes (null until loaded). So opening the Action Center draws
+  // its other rows at once, says grade exports are being checked, and never
+  // projects them on summaries or before the history that decides them.
   const actionGradeScope = useMemo(() => {
     if (!teacherKit || teacherWorkspaceMode !== 'teacher' || teacherTab !== 'actionCenter') {
       return { units: [], authorizedClassIds: [] };
     }
+    const teacher = { classes, teacherEmail: user?.email || '', isRootAdmin: user?.isRootAdmin === true };
+    const historyAndRecordsReady = teacherStudentDataMode === 'full' && Array.isArray(actionGradeSnapshots) && actionPracticePasses instanceof Set;
+    if (!historyAndRecordsReady) {
+      // Only which classes' export history to load: no assignment or student is read.
+      return { ...teacherKit.projectGradeTransferUnits(teacher), units: [], loading: true };
+    }
     return teacherKit.projectGradeTransferUnits({
-      classes, assignments, students: allStudents, teacherEmail: user?.email || '', isRootAdmin: user?.isRootAdmin === true,
+      ...teacher, assignments, students: allStudents,
       snapshots: actionGradeSnapshots, practicePasses: actionPracticePasses,
     });
-  }, [teacherKit, teacherWorkspaceMode, teacherTab, classes, assignments, allStudents, user?.email, user?.isRootAdmin, actionGradeSnapshots, actionPracticePasses]);
+  }, [teacherKit, teacherWorkspaceMode, teacherTab, classes, assignments, allStudents, user?.email, user?.isRootAdmin, actionGradeSnapshots, actionPracticePasses, teacherStudentDataMode]);
 
   const actionReturnCheckIns = useMemo(() => {
     if (!teacherKit || teacherWorkspaceMode !== 'teacher' || teacherTab !== 'actionCenter') return [];
@@ -92,31 +105,45 @@ export function useTeacherActionCenterData(
     });
   }, [teacherKit, teacherWorkspaceMode, teacherTab, allStudents, classes, studentSupportEvents, parentContacts, actionReturnCheckIns, actionGradeScope.units, retestRecoveryActions, now]);
   const currentTeacherActionOpenCount = teacherKit ? teacherKit.openTeacherActionCount(teacherActionItems) : 0;
-  const teacherActionOpenCount = teacherTab === 'actionCenter'
+  // While grade exports are still being checked the count is short of them,
+  // so the badge keeps the last full count until they are in.
+  const gradeExportsLoading = actionGradeScope.loading === true;
+  const teacherActionOpenCount = teacherTab === 'actionCenter' && !gradeExportsLoading
     ? currentTeacherActionOpenCount
     : teacherActionOpenCountCache;
 
   useEffect(() => {
-    if (teacherWorkspaceMode !== 'teacher' || teacherTab !== 'actionCenter') return;
+    if (teacherWorkspaceMode !== 'teacher' || teacherTab !== 'actionCenter' || gradeExportsLoading) return;
     setTeacherActionOpenCountCache(currentTeacherActionOpenCount);
-  }, [teacherWorkspaceMode, teacherTab, currentTeacherActionOpenCount]);
+  }, [teacherWorkspaceMode, teacherTab, currentTeacherActionOpenCount, gradeExportsLoading]);
 
+  // The export history and Practice Passes: null until loaded (the
+  // projection above waits for them). If they cannot load, grade exports are
+  // projected without them, as before.
   useEffect(() => {
     const classIds = actionGradeScope.authorizedClassIds;
-    if (user?.role !== 'teacher') { setActionGradeSnapshots([]); setActionPracticePasses(new Set()); return; }
+    if (user?.role !== 'teacher') { setActionGradeSnapshots(null); setActionPracticePasses(null); return undefined; }
     if (teacherWorkspaceMode !== 'teacher' || teacherTab !== 'actionCenter') {
-      setActionGradeSnapshots([]);
-      setActionPracticePasses(new Set());
-      return;
+      setActionGradeSnapshots(null);
+      setActionPracticePasses(null);
+      return undefined;
     }
-    if (teacherPreviewRuntimeActive) return;
-    if (!classIds.length) { setActionGradeSnapshots([]); setActionPracticePasses(new Set()); return; }
+    if (teacherPreviewRuntimeActive) return undefined;
+    if (!classIds.length) { setActionGradeSnapshots([]); setActionPracticePasses(new Set()); return undefined; }
+    let current = true;
     loadTeacherGradeTransferState({ classIds })
       .then(({ snapshots, practicePasses }) => {
+        if (!current) return;
         setActionGradeSnapshots(snapshots);
         setActionPracticePasses(practicePasses);
       })
-      .catch((error) => console.error('Action Center grade-transfer projection failed:', error));
+      .catch((error) => {
+        console.error('Action Center grade-transfer projection failed:', error);
+        if (!current) return;
+        setActionGradeSnapshots([]);
+        setActionPracticePasses(new Set());
+      });
+    return () => { current = false; };
   }, [user?.role, user?.uid, user?.isRootAdmin, auth.session?.uid, actionGradeScope.authorizedClassIds.join('|'), teacherWorkspaceMode, teacherPreviewRuntimeActive, teacherTab]);
 
   useEffect(() => {

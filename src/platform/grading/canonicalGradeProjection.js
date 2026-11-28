@@ -76,8 +76,15 @@ const supportProfileOf = (student) => student?.profile || null;
  * of them can show a Recovery that another surface ignores.
  */
 export const projectedAssignmentTrackerFor = ({ student = null, assignment = null } = {}) => {
+  // Only this assignment's tracker is projected: each assignment's overrides
+  // apply to its own tracker alone, so the result is the same as projecting
+  // every assignment and keeping this one, without the cost of the others
+  // (Grade Transfer and the Action Center ask once per student, assignment
+  // and section).
+  const id = assignment?.id;
+  const trackers = student?.gradesByAssignment || {};
   const projected = projectTeacherOverridesForDisplay(
-    student?.gradesByAssignment || {},
+    Object.hasOwn(trackers, String(id)) ? { [id]: trackers[id] } : {},
     student?.teacherGradeOverridesByAssignment || {},
   );
   return projectSectionRecoveryForAssignment({
@@ -142,6 +149,31 @@ export const canonicalPresentedAssignmentGrade = ({ student, assignment, practic
 };
 
 /**
+ * One student's projected tracker and its split into lesson sections. With a
+ * `memo` (a Map one caller owns for one pass over fixed records, e.g.
+ * gradeTransferProjection.js projectGradeTransferUnits), each student and
+ * assignment is split once, not once per section: keyed by the exact record
+ * objects, so a different or changed record is never served a stale split.
+ */
+const sectionSplitFor = ({ student, assignment, practicePassRedeemed = false, memo = null }) => {
+  const compute = () => {
+    const tracker = projectedAssignmentTrackerFor({ student, assignment });
+    return {
+      tracker,
+      sections: splitGradesBySection({ tracker, assignment, practicePassRedeemed, supportProfile: supportProfileOf(student) }),
+    };
+  };
+  if (!(memo instanceof Map) || !student || typeof student !== 'object' || !assignment || typeof assignment !== 'object') return compute();
+  if (!memo.has(student)) memo.set(student, new Map());
+  const byAssignment = memo.get(student);
+  if (!byAssignment.has(assignment)) byAssignment.set(assignment, new Map());
+  const byPass = byAssignment.get(assignment);
+  const passKey = practicePassRedeemed === true;
+  if (!byPass.has(passKey)) byPass.set(passKey, compute());
+  return byPass.get(passKey);
+};
+
+/**
  * Canonical lesson-section grade used by Grade Transfer.
  *
  * The section calculation is the exact same split used by the Grade Center.
@@ -154,16 +186,12 @@ export const canonicalPresentedSectionGrade = ({
   assignment,
   sectionKey,
   practicePassRedeemed = false,
+  memo = null,
 }) => {
   if (isTestCycleAssignment(assignment)) return null;
 
-  const tracker = projectedAssignmentTrackerFor({ student, assignment });
-  const section = splitGradesBySection({
-    tracker,
-    assignment,
-    practicePassRedeemed,
-    supportProfile: supportProfileOf(student),
-  })?.[sectionKey];
+  const { tracker, sections } = sectionSplitFor({ student, assignment, practicePassRedeemed, memo });
+  const section = sections?.[sectionKey];
 
   if (!section || section.total <= 0) return null;
 
@@ -185,13 +213,8 @@ export const canonicalPresentedSectionGrade = ({
  * Transfer treats the student as excused for that section (no numeric row),
  * like a Practice Pass — never as a grade problem to fix.
  */
-export const sectionNotRequiredForStudent = ({ student, assignment, sectionKey, practicePassRedeemed = false }) => {
+export const sectionNotRequiredForStudent = ({ student, assignment, sectionKey, practicePassRedeemed = false, memo = null }) => {
   if (!supportProfileOf(student) || !sectionKey || isTestCycleAssignment(assignment)) return false;
-  const section = splitGradesBySection({
-    tracker: projectedAssignmentTrackerFor({ student, assignment }),
-    assignment,
-    practicePassRedeemed,
-    supportProfile: supportProfileOf(student),
-  })?.[sectionKey];
+  const section = sectionSplitFor({ student, assignment, practicePassRedeemed, memo }).sections?.[sectionKey];
   return Boolean(section && section.excused !== true && section.total === 0 && Number(section.reducedFrom) > 0);
 };

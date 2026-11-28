@@ -536,8 +536,9 @@ function App() {
   // small set of concerns, dismissals and interventions worth keeping.
   const [studentSupportEvents, setStudentSupportEvents] = useState([]);
   const [parentContacts, setParentContacts] = useState([]);
-  const [actionGradeSnapshots, setActionGradeSnapshots] = useState([]);
-  const [actionPracticePasses, setActionPracticePasses] = useState(new Set());
+  // Null until the Action Center has loaded them (useTeacherActionCenterData).
+  const [actionGradeSnapshots, setActionGradeSnapshots] = useState(null);
+  const [actionPracticePasses, setActionPracticePasses] = useState(null);
   // Keep only the small badge count after Action Center releases its heavy
   // projections. This preserves the sidebar cue without retaining student history.
   const [teacherActionOpenCountCache, setTeacherActionOpenCountCache] = useState(0);
@@ -3310,7 +3311,7 @@ function App() {
     setStudentSupportEvents, studentSupportEvents, parentContacts, setParentContacts, actionGradeSnapshots,
     setActionGradeSnapshots, actionPracticePasses, setActionPracticePasses, setTeacherActionOpenCountCache,
     teacherActionOpenCountCache, teacherKit, retestRecoveryActions, setRetestRecoveryActions,
-    setStudentSessionSummaries, now, classSchedule,
+    setStudentSessionSummaries, now, classSchedule, teacherStudentDataMode,
   );
 
   const [attendanceReviewBusyKey, setAttendanceReviewBusyKey] = useState(null);

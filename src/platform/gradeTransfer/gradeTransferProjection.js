@@ -96,6 +96,23 @@ export const projectGradeTransferUnits = ({
   // Across every student this teacher holds, not one class: two children
   // under one district ID collide in TEAMS whichever files they travel in.
   const sharedDistrictIds = sharedSisStudentIds(students);
+  // Each student's split of each lesson into sections, computed once for this
+  // pass (canonicalGradeProjection.js sectionSplitFor), not once per section.
+  const sectionMemo = new Map();
+  // Each student's final deadline for each lesson, resolved once for this pass
+  // (it is the same for every section of the lesson), keyed by the exact
+  // records it was asked about.
+  const deadlineMemo = new Map();
+  const resolveDeadlineOnce = (args = {}) => {
+    const { student, assignment, classRecord } = args;
+    if (!student || typeof student !== 'object' || !assignment || typeof assignment !== 'object') return resolveStudentFinalDeadline(args);
+    if (!deadlineMemo.has(student)) deadlineMemo.set(student, new Map());
+    const byStudent = deadlineMemo.get(student);
+    if (!byStudent.has(assignment)) byStudent.set(assignment, new Map());
+    const byAssignment = byStudent.get(assignment);
+    if (!byAssignment.has(classRecord)) byAssignment.set(classRecord, resolveStudentFinalDeadline(args));
+    return byAssignment.get(classRecord);
+  };
   const units = authorizedClasses.flatMap((classRecord) => assignments
     .filter((assignment) => assignmentIsForStudent(assignment, { classId: classRecord.classId, classPeriod: classRecord.period }))
     .map((assignment) => {
@@ -114,7 +131,7 @@ export const projectGradeTransferUnits = ({
           hasAuthoritativePracticePass: ({ student }) => practicePasses.has(`${student.id}__${classRecord.classId}__${assignment.id}`),
           // A held Practice-based Recovery: the whole grade is not settled.
           recoveryHeldFor: ({ student }) => Boolean(recoveryHoldFor({ student, assignment })),
-          resolveStudentFinalDeadline,
+          resolveStudentFinalDeadline: resolveDeadlineOnce,
           sharedDistrictIds,
           confirmedSnapshots: history.filter((item) => item.uploadConfirmedAt),
           latestExport: history[0],
@@ -134,18 +151,18 @@ export const projectGradeTransferUnits = ({
           students: eligible,
           sectionKey,
           sectionLabel: SECTION_TRANSFER_LABELS[sectionKey],
-          projectCanonicalGrade: (args) => canonicalPresentedSectionGrade({ ...args, sectionKey }),
+          projectCanonicalGrade: (args) => canonicalPresentedSectionGrade({ ...args, sectionKey, memo: sectionMemo }),
           hasAuthoritativePracticePass: ({ student }) => practicePasses.has(`${student.id}__${classRecord.classId}__${assignment.id}`),
           // The canonical grades above already read each student's own
           // required items (a reduced-item-count accommodation shrinks the
           // denominator, never adds zeros); this only names the degenerate
           // case where a section holds none of them.
           isSectionNotRequired: ({ student, practicePassRedeemed }) => sectionNotRequiredForStudent({
-            student, assignment, sectionKey, practicePassRedeemed,
+            student, assignment, sectionKey, practicePassRedeemed, memo: sectionMemo,
           }),
           // A held Practice-based Recovery holds its own section's row only.
           recoveryHeldFor: ({ student }) => Boolean(recoveryHoldFor({ student, assignment, sectionKey })),
-          resolveStudentFinalDeadline,
+          resolveStudentFinalDeadline: resolveDeadlineOnce,
           sharedDistrictIds,
           confirmedSnapshots: history.filter((item) => item.uploadConfirmedAt),
           latestExport: history[0],

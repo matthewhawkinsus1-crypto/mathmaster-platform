@@ -2862,6 +2862,7 @@ export default function TeacherWorkspace({
               supportEvents={studentSupportEvents}
               parentContacts={parentContacts}
               gradeTransferUnits={actionGradeScope.units}
+              gradeExportsLoading={actionGradeScope.loading === true}
               retestRecoveryActions={retestRecoveryActions}
               classSchedule={classSchedule}
               nonInstructionalKeys={SCHOOL_NON_INSTRUCTIONAL_KEYS}

@@ -23,7 +23,7 @@ const displayActionDate = (value) => {
   return new Date(value).toLocaleDateString();
 };
 
-export default function TeacherActionCenter({ students = [], classes = [], assignments = [], supportEvents = [], parentContacts = [], gradeTransferUnits = [], retestRecoveryActions = [], projectedItems = null, classSchedule = null, nonInstructionalKeys = null, nowValue = Date.now(), onResolveReturnCheckIn, onOpenWorkflow, onOpenCountChange }) {
+export default function TeacherActionCenter({ students = [], classes = [], assignments = [], supportEvents = [], parentContacts = [], gradeTransferUnits = [], gradeExportsLoading = false, retestRecoveryActions = [], projectedItems = null, classSchedule = null, nonInstructionalKeys = null, nowValue = Date.now(), onResolveReturnCheckIn, onOpenWorkflow, onOpenCountChange }) {
   const [classId, setClassId] = useState('');
   const [kind, setKind] = useState('');
   const [status, setStatus] = useState('open');
@@ -53,6 +53,9 @@ export default function TeacherActionCenter({ students = [], classes = [], assig
   return <section aria-labelledby="teacher-action-heading" style={{ padding: 22 }}>
     <h2 id="teacher-action-heading" style={{ margin: 0 }}>Action Center</h2>
     <p style={{ color: 'var(--mm-text-muted)' }}>What needs attention across your classes. Each row links back to its authoritative workflow.</p>
+    {/* The other rows are here at once; grade exports follow when every
+        student's records and the export history have loaded. */}
+    {gradeExportsLoading && <p role="status" data-action-grade-exports-loading style={{ color: 'var(--mm-text-muted)', fontSize: 'calc(13 * var(--mm-px))', marginTop: 0 }}>Checking grade exports…</p>}
     <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginBottom: 16 }}>
       <label style={{ maxWidth: '100%' }}>Class <select style={{ maxWidth: '100%' }} value={classId} onChange={(event) => setClassId(event.target.value)}><option value="">All classes</option>{classes.map((record) => <option key={record.classId || record.id} value={record.classId || record.id}>{record.name || record.period || record.classId}</option>)}</select></label>
       <label style={{ maxWidth: '100%' }}>Action type <select style={{ maxWidth: '100%' }} value={kind} onChange={(event) => setKind(event.target.value)}><option value="">All action types</option>{Object.entries(kindLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label>
