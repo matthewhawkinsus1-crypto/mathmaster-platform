@@ -398,3 +398,45 @@ step reads and writes them in one transaction. Their deploy needs
 
 If Frontline ever offers a supported write API (route A), it replaces the
 extension, and the engine and server stay as they are.
+
+## Due dates and Remove from TEAMS (the owner, 2026-11-27)
+
+The owner asked that a due date changed in MathMaster reach TEAMS, and that a
+lesson can be taken out of TEAMS while it stays in MathMaster. Decisions:
+
+- **Due dates, in place.** For a column MathMaster created, the engine
+  compares the read-back's Due Date with the lesson's and plans
+  `setColumnDates`. The Assign Date is kept unless it would fall after the new
+  due date (then it becomes the earlier of the lesson's assign date and the
+  due date, not before the period's first day). A due date in another
+  marking period is reported (`DUE_DATE_OTHER_PERIOD`) and the column is not
+  moved: TEAMS keeps both dates inside one period. A teacher's own matched
+  column keeps its dates, as it keeps its weight. A date edit that does not
+  show on read-back is retried twice more, then reported
+  (`DATES_NOT_PERSISTING`). `pendingDates` in the ledger is the write-ahead.
+- **Remove from TEAMS is its own action**, not MathMaster's Delete or Archive
+  (Grade Export → a class → "Remove a lesson from TEAMS"). The request is kept
+  on `teamsSyncClasses/{classId}.removals[targetKey]` (callable
+  `setTeamsSyncRemoval`: remove, confirm, restore), beside the targets, so the
+  30-minute publish cannot send the lesson back. While it stands nothing is
+  created or written for that lesson section.
+- **Only MathMaster's own column is deleted** (`deleteColumn`). A teacher's
+  matched column is left in TEAMS and no longer written to.
+- **Grades need the teacher's count.** A column holding grades (any non-blank
+  cell, codes included) is deleted only when `confirmedGradeCount` is at
+  least the read-back's count for that TEAMS section; more grades since the
+  confirmation ask again (`REMOVAL_NEEDS_CONFIRMATION`). Grade Export asks the
+  teacher to type the number.
+- **The extension does not press TEAMS's Delete.** The live write test
+  deleted its test assignment "after an in-page confirmation", but which
+  control does it was not recorded. The extension marks the row and asks the
+  teacher to delete it, waits for it to be gone, and checks the gradebook.
+  Automating the click waits for that control to be recorded on DeSoto's
+  TEAMS.
+- **Send to TEAMS again** clears the removal; the next sync creates a new
+  column and starts a new ledger entry for it.
+
+Tests: `teamsSyncDatesAndRemoval.test.mjs` (engine, on the test gradebook),
+`teamsSyncServer.test.mjs` (the step), `teamsExtensionRunner.test.mjs` and
+`teamsExtensionAdapter.test.mjs` (the extension), `teamsSyncPanel.test.mjs`
+and `tests/browser/teacherWorkflow/teamsRemovalJourneys.mjs` (Grade Export).

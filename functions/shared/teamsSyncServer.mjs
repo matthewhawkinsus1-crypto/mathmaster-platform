@@ -179,6 +179,55 @@ export const normalizeTeamsTargets = ({ targets, classId, roster, sectionCount =
   return { targets: normalized, droppedRows };
 };
 
+/*
+ * REMOVE FROM TEAMS (the owner, 2026-11-27): a lesson section the teacher
+ * takes out of TEAMS while it stays in MathMaster. Kept on the class's sync
+ * state, beside the targets, so the next publish (every 30 minutes) cannot
+ * send it back: `removals[targetKey] = { requestedAt, requestedBy,
+ * confirmedGradeCount? }`. `confirmedGradeCount` is how many TEAMS grades the
+ * teacher agreed to remove with it; the engine removes an assignment that
+ * holds more only after asking again.
+ */
+export const TEAMS_REMOVAL_ACTIONS = Object.freeze(['remove', 'confirm', 'restore']);
+const TARGET_KEY = /^[A-Za-z0-9_.:-]{1,200}$/;
+
+export const normalizeTeamsRemovalRequest = (input = {}, classId = '') => {
+  const action = text(input?.action);
+  if (!TEAMS_REMOVAL_ACTIONS.includes(action)) fail('Choose remove, confirm or restore.');
+  const targetKey = text(input?.targetKey);
+  if (!TARGET_KEY.test(targetKey) || !targetKey.startsWith(`${text(classId)}__`)) fail('That lesson does not belong to this class.');
+  if (action !== 'confirm') return { action, targetKey };
+  const confirmGradeCount = Number(input?.confirmGradeCount);
+  if (!Number.isInteger(confirmGradeCount) || confirmGradeCount < 1 || confirmGradeCount > TEAMS_SYNC_LIMITS.rosterPerSection * TEAMS_SYNC_LIMITS.sectionsPerClass) {
+    fail('Confirm the number of TEAMS grades that will be removed.');
+  }
+  return { action, targetKey, confirmGradeCount };
+};
+
+/** The class's removals after one request. Pure. */
+export const applyTeamsRemovalRequest = (removals = {}, request, { by = '', at = '' } = {}) => {
+  const next = { ...(removals && typeof removals === 'object' ? removals : {}) };
+  if (request.action === 'restore') { delete next[request.targetKey]; return next; }
+  if (request.action === 'remove') {
+    if (!next[request.targetKey] && Object.keys(next).length >= TEAMS_SYNC_LIMITS.targetSectionPairs) fail('Too many lessons are removed from TEAMS for this class.');
+    next[request.targetKey] = { ...next[request.targetKey], requestedAt: next[request.targetKey]?.requestedAt || at, requestedBy: next[request.targetKey]?.requestedBy || text(by).slice(0, 320) };
+    return next;
+  }
+  if (!next[request.targetKey]) fail('Choose Remove from TEAMS for this lesson first.');
+  next[request.targetKey] = { ...next[request.targetKey], confirmedGradeCount: request.confirmGradeCount, confirmedAt: at, confirmedBy: text(by).slice(0, 320) };
+  return next;
+};
+
+/** A stored removal as the engine reads it, or null. */
+const removalFor = (removals, key) => {
+  const value = removals && typeof removals === 'object' ? removals[key] : null;
+  if (!value || typeof value !== 'object') return null;
+  return {
+    requestedAt: text(value.requestedAt),
+    ...(Number.isInteger(value.confirmedGradeCount) ? { confirmedGradeCount: value.confirmedGradeCount } : {}),
+  };
+};
+
 /** One TEAMS section as the extension read it. Bounded and typed. */
 export const normalizeTeamsReadback = (input, sectionRef) => {
   if (!input || typeof input !== 'object') fail(`The read-back for ${sectionRef} is missing.`);
@@ -250,6 +299,19 @@ const wireOp = (op, opId, plan) => {
     };
   }
   if (op.type === 'setWeight') return { ...base, columnId: op.columnId, weight: op.weight, teamsField: '#Count' };
+  if (op.type === 'setColumnDates') {
+    return {
+      ...base,
+      columnId: op.columnId,
+      assignedDate: op.assignedDate,
+      dueDate: op.dueDate,
+      // TEAMS's field names and screen dates, as createColumn sends them.
+      teamsFields: { 'Assign Date': teamsScreenDate(op.assignedDate), 'Due Date': teamsScreenDate(op.dueDate) },
+    };
+  }
+  if (op.type === 'deleteColumn') {
+    return { ...base, columnId: op.columnId, name: op.name, dueDate: op.dueDate, gradeCount: op.gradeCount };
+  }
   const file = teamsOpFile(op);
   return {
     ...base,
@@ -266,6 +328,7 @@ const compactPlans = (plans) => plans.map((plan) => ({
   sectionRef: plan.sectionRef || null,
   columnId: plan.columnId || null,
   weight: plan.weight ?? null,
+  ...(plan.removal ? { removal: plan.removal } : {}),
   cells: plan.cells,
   exceptions: plan.exceptions,
 }));
@@ -320,7 +383,11 @@ export const teamsSyncStep = ({
   for (const ref of linked) {
     if (readbacks && Object.prototype.hasOwnProperty.call(readbacks, ref)) gradebooks.set(ref, normalizeTeamsReadback(readbacks[ref], ref));
   }
-  const routed = targets.map((target) => ({ ...target, teamsSectionRefs: linked }));
+  // A lesson the teacher removed from TEAMS carries its removal (see above).
+  const routed = targets.map((target) => {
+    const removal = removalFor(classState.removals, target.key);
+    return { ...target, teamsSectionRefs: linked, ...(removal ? { removal } : {}) };
+  });
   const first = planTeamsSync({ targets: routed, ledger: state, gradebooks, capabilities });
   if (!dryRun) state = reconcileTeamsLedger({ units: first.units, plans: first.plans, ledger: state, gradebooks, at: atIso });
   const { plans } = planTeamsSync({ targets: routed, ledger: state, gradebooks, capabilities });
@@ -379,6 +446,18 @@ export const teamsSyncStep = ({
         sisStudentId: item.sisStudentId || '',
         ...(item.teams !== undefined ? { teams: item.teams } : {}),
         ...(item.mathmaster !== undefined ? { mathmaster: item.mathmaster } : {}),
+        ...(item.gradeCount !== undefined ? { gradeCount: item.gradeCount } : {}),
+        ...(item.dueDate !== undefined ? { dueDate: item.dueDate } : {}),
+        ...(item.teamsDueDate !== undefined ? { teamsDueDate: item.teamsDueDate } : {}),
+      })),
+      // Where each removal stands, per lesson and TEAMS section, for Grade
+      // Export's "Removed from TEAMS" list.
+      removals: plans.filter((plan) => plan.removal).slice(0, TEAMS_SYNC_LIMITS.targetSectionPairs).map((plan) => ({
+        targetKey: plan.targetKey || plan.key,
+        sectionRef: plan.sectionRef || null,
+        lesson: lessonOf.get(plan.targetKey || plan.key) || '',
+        state: plan.removal.state,
+        ...(plan.removal.gradeCount !== undefined ? { gradeCount: plan.removal.gradeCount } : {}),
       })),
       unreadSections: response.unreadSections,
     },

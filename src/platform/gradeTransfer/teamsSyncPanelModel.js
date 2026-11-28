@@ -97,6 +97,10 @@ const GROUPS = [
   { title: '#Count waiting for a final grade', codes: [TEAMS_EXCEPTION.COUNT_HELD_FOR_FINAL_GRADE] },
   { title: 'Provisional scores that would count', codes: [TEAMS_EXCEPTION.PROVISIONAL_WEIGHT_NOT_ZERO, TEAMS_EXCEPTION.REOPENED_AFTER_COUNTED] },
   { title: 'TEAMS did not keep a grade', codes: [TEAMS_EXCEPTION.SAVE_NOT_PERSISTING] },
+  // A due date changed in MathMaster (the owner, 2026-11-27).
+  { title: 'Due dates TEAMS did not take', codes: [TEAMS_EXCEPTION.DUE_DATE_OTHER_PERIOD, TEAMS_EXCEPTION.DATES_NOT_PERSISTING] },
+  // Remove from TEAMS (the owner, 2026-11-27): confirmed below, under "Removed from TEAMS".
+  { title: 'Removals from TEAMS', codes: [TEAMS_EXCEPTION.REMOVAL_NEEDS_CONFIRMATION, TEAMS_EXCEPTION.REMOVAL_NOT_PERSISTING, TEAMS_EXCEPTION.REMOVAL_LEFT_TEACHER_COLUMN] },
   {
     title: 'TEAMS assignments to check',
     codes: [TEAMS_EXCEPTION.AMBIGUOUS_COLUMN, TEAMS_EXCEPTION.MAPPED_COLUMN_MISSING, TEAMS_EXCEPTION.CATEGORY_MISMATCH, TEAMS_EXCEPTION.MARKING_PERIOD_LOCKED, TEAMS_EXCEPTION.NO_MARKING_PERIOD, TEAMS_EXCEPTION.CLASS_NOT_MAPPED],
@@ -115,7 +119,10 @@ export const groupTeamsExceptions = (exceptions = [], labelFor = (row) => row.si
       .filter((item) => (group.codes ? group.codes.includes(item.code) : !known.has(item.code)))
       .map((item) => {
         const who = item.studentId || item.sisStudentId ? labelFor(item) : '';
-        const values = item.teams !== undefined && item.mathmaster !== undefined ? `TEAMS ${item.teams} · MathMaster ${item.mathmaster}` : '';
+        const values = item.teams !== undefined && item.mathmaster !== undefined ? `TEAMS ${item.teams} · MathMaster ${item.mathmaster}`
+          : item.teamsDueDate && item.dueDate ? `TEAMS due ${item.teamsDueDate} · MathMaster due ${item.dueDate}`
+            : item.gradeCount !== undefined ? `${item.gradeCount} grade${item.gradeCount === 1 ? '' : 's'} in TEAMS`
+              : '';
         const where = [item.lesson, item.sectionRef ? `TEAMS ${item.sectionRef}` : ''].filter(Boolean).join(' · ');
         return { code: item.code, who, where, values, message: item.message || '' };
       }),
@@ -133,3 +140,63 @@ export const publishResultMessage = ({ published = 0, droppedRows = 0 } = {}, cl
     text: `${sent} ${droppedRows} grade${droppedRows === 1 ? ' was' : 's were'} left out because the student is not in this class under that district ID. Check the district IDs above.${next}`,
   };
 };
+
+/*
+ * REMOVE FROM TEAMS (the owner, 2026-11-27). A lesson section taken out of
+ * TEAMS stays in MathMaster. The MathMaster extension carries it out on its
+ * next sync; an assignment holding grades waits for the teacher to confirm
+ * how many go with it.
+ */
+const REMOVAL_STATES = Object.freeze({
+  waiting: { tone: 'neutral', text: 'Waiting for the next sync in your TEAMS tab.' },
+  removing: { tone: 'primary', text: 'Being removed: the extension marks it in TEAMS for you to delete with TEAMS\'s own Delete.' },
+  confirm: { tone: 'warning', text: 'Has grades in TEAMS. Confirm below before it is removed.' },
+  stuck: { tone: 'danger', text: 'Still in TEAMS after several tries. Delete it in TEAMS, or send it to TEAMS again.' },
+  removed: { tone: 'success', text: 'Removed from TEAMS.' },
+  otherPeriod: { tone: 'warning', text: 'Your TEAMS tab shows another marking period. Open this assignment\'s marking period in TEAMS, then sync again.' },
+  left: { tone: 'neutral', text: 'Made in TEAMS, not by MathMaster, so it was left there. MathMaster no longer sends grades to it.' },
+});
+
+/**
+ * The class's removed lessons, each with where it stands in each TEAMS
+ * section, from getTeamsSyncState (`removals`, `lastStep.removals`).
+ * `targets` are the class's sync targets (for lesson names).
+ */
+export const describeTeamsRemovals = (state = null, targets = []) => {
+  const removals = state?.removals && typeof state.removals === 'object' ? state.removals : {};
+  const reported = Array.isArray(state?.lastStep?.removals) ? state.lastStep.removals : [];
+  const nameOf = new Map((targets || []).map((target) => [target.key, target.name]));
+  return Object.entries(removals).map(([targetKey, request]) => {
+    const sections = reported.filter((item) => item.targetKey === targetKey);
+    // A request made after the last sync has not been seen by it yet.
+    const seen = sections.length && !(Date.parse(request?.requestedAt || '') > Date.parse(state?.lastStep?.at || ''));
+    const lines = seen
+      ? sections.map((item) => ({ sectionRef: item.sectionRef, ...(REMOVAL_STATES[item.state] || REMOVAL_STATES.waiting), state: item.state, gradeCount: item.gradeCount ?? 0 }))
+      : [{ sectionRef: null, ...REMOVAL_STATES.waiting, state: 'waiting', gradeCount: 0 }];
+    const needs = lines.filter((line) => line.state === 'confirm');
+    // The engine compares each TEAMS section's count with the one confirmed,
+    // so the confirmation covers the largest.
+    const confirmCount = needs.length ? Math.max(...needs.map((line) => line.gradeCount)) : 0;
+    const totalGrades = needs.reduce((sum, line) => sum + line.gradeCount, 0);
+    return {
+      targetKey,
+      lesson: nameOf.get(targetKey) || sections[0]?.lesson || targetKey,
+      lines,
+      confirmCount,
+      totalGrades,
+      confirmedGradeCount: Number.isInteger(request?.confirmedGradeCount) ? request.confirmedGradeCount : null,
+      done: seen && lines.every((line) => line.state === 'removed' || line.state === 'left'),
+    };
+  }).sort((left, right) => left.lesson.localeCompare(right.lesson));
+};
+
+/** The lessons a teacher can still remove: the class's targets not already removed. */
+export const removableTeamsTargets = (state = null, targets = []) => {
+  const removals = state?.removals && typeof state.removals === 'object' ? state.removals : {};
+  return (targets || []).filter((target) => target?.key && !removals[target.key])
+    .map((target) => ({ key: target.key, name: target.name || target.key }))
+    .sort((left, right) => left.name.localeCompare(right.name));
+};
+
+/** Is what the teacher typed the number of grades they are confirming? */
+export const removalConfirmationMatches = (typed, count) => Number.isInteger(count) && count > 0 && text(typed) === String(count);

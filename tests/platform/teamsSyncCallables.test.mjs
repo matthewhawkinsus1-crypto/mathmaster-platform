@@ -11,7 +11,7 @@ import { readFileSync } from 'node:fs';
 import { functionsDeclaration } from './helpers/functionsBackendSource.mjs';
 import { executableSource } from './helpers/sourceContract.mjs';
 
-const CALLABLES = ['setTeamsSyncSections', 'publishTeamsSyncTargets', 'teamsSyncStep', 'getTeamsSyncState'];
+const CALLABLES = ['setTeamsSyncSections', 'publishTeamsSyncTargets', 'teamsSyncStep', 'getTeamsSyncState', 'setTeamsSyncRemoval'];
 const body = (name) => executableSource(functionsDeclaration(name));
 
 test('every TEAMS sync callable checks the teacher of record before it touches a collection', () => {

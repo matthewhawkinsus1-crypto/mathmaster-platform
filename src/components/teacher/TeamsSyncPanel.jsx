@@ -1,14 +1,18 @@
 import { useEffect, useRef, useState } from 'react';
 import {
+  describeTeamsRemovals,
   describeTeamsSyncState,
   formatTeamsSections,
   groupTeamsExceptions,
   parseTeamsSectionsDraft,
   publishResultMessage,
+  removableTeamsTargets,
+  removalConfirmationMatches,
 } from '../../platform/gradeTransfer/teamsSyncPanelModel.js';
 import {
   getTeamsSyncState,
   publishTeamsSyncTargets,
+  setTeamsSyncRemoval,
   setTeamsSyncSections,
 } from '../../platform/gradeTransfer/teamsSyncStore.js';
 
@@ -42,6 +46,12 @@ export default function TeamsSyncPanel({
   const [notices, setNotices] = useState({});
   // Classes whose sync state has been asked for, once each.
   const requested = useRef(new Set());
+  // Remove from TEAMS: which class's list is open (its lessons are built only
+  // then), the lesson chosen to remove, and the typed grade counts.
+  const [removalOpen, setRemovalOpen] = useState({});
+  const [removalChoice, setRemovalChoice] = useState({});
+  const [removalArmed, setRemovalArmed] = useState(null);
+  const [confirmDrafts, setConfirmDrafts] = useState({});
 
   const notice = (classId, value) => setNotices((current) => ({ ...current, [classId]: value }));
 
@@ -100,6 +110,29 @@ export default function TeamsSyncPanel({
       const result = await publishTeamsSyncTargets({ classId: entry.classId, targets: buildTargets(entry.classId) });
       await load(entry.classId);
       notice(entry.classId, publishResultMessage(result, entry.name || entry.period || 'this class'));
+    } catch (error) {
+      notice(entry.classId, { tone: 'danger', text: error.message });
+    } finally {
+      setWorking(null);
+    }
+  };
+
+  // Remove from TEAMS, confirm the grades that go with it, or send it back.
+  const changeRemoval = async (entry, targetKey, action, confirmGradeCount) => {
+    setWorking(entry.classId);
+    try {
+      await setTeamsSyncRemoval({ classId: entry.classId, targetKey, action, confirmGradeCount });
+      await load(entry.classId);
+      setRemovalArmed(null);
+      if (action === 'remove') setRemovalChoice((current) => ({ ...current, [entry.classId]: '' }));
+      notice(entry.classId, {
+        tone: 'success',
+        text: action === 'restore'
+          ? 'Sent to TEAMS again. The extension creates its TEAMS assignment on its next sync.'
+          : action === 'confirm'
+            ? 'Confirmed. The extension removes it from TEAMS on its next sync.'
+            : 'Marked to remove from TEAMS. The lesson stays in MathMaster. On its next sync, the extension marks the assignment in your TEAMS tab for you to delete with TEAMS\'s own Delete.',
+      });
     } catch (error) {
       notice(entry.classId, { tone: 'danger', text: error.message });
     } finally {
@@ -190,6 +223,113 @@ export default function TeamsSyncPanel({
                   {state.lastStep.exceptionCount > (state.lastStep.exceptions || []).length && (
                     <div className="tw-small tw-muted">Showing the first {(state.lastStep.exceptions || []).length}.</div>
                   )}
+                </details>
+              )}
+              {linked && (
+                <details
+                  data-teams-sync-removals
+                  onToggle={(event) => { const open = event.currentTarget.open; setRemovalOpen((current) => ({ ...current, [entry.classId]: open })); }}
+                >
+                  <summary className="tw-small tw-link" style={{ display: 'inline' }}>
+                    Remove a lesson from TEAMS{Object.keys(state?.removals || {}).length ? ` (${Object.keys(state.removals).length} removed)` : ''}
+                  </summary>
+                  {removalOpen[entry.classId] && (() => {
+                    const targets = buildTargets(entry.classId) || [];
+                    const removable = removableTeamsTargets(state, targets);
+                    const removed = describeTeamsRemovals(state, targets);
+                    const choice = removalChoice[entry.classId] || '';
+                    const chosen = removable.find((target) => target.key === choice);
+                    const selectId = `teams-remove-${entry.classId}`;
+                    return (
+                      <div className="tw-stack" style={{ gap: 8, marginTop: 6 }}>
+                        <p className="tw-small tw-muted" style={{ margin: 0 }}>
+                          Takes the lesson&apos;s TEAMS assignment out of TEAMS. The lesson, its grades and Grade Export stay in MathMaster.
+                          Only an assignment MathMaster made is removed; one you made in TEAMS is left there. If it has grades in TEAMS,
+                          you confirm how many first.
+                        </p>
+                        <div className="tw-row" style={{ alignItems: 'flex-end' }}>
+                          <label htmlFor={selectId} className="tw-small tw-strong" style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr)', gap: 4, flex: '1 1 240px', minWidth: 0, maxWidth: 420 }}>
+                            Lesson
+                            <select
+                              id={selectId}
+                              className="tw-input"
+                              style={{ width: '100%', minWidth: 0, boxSizing: 'border-box' }}
+                              value={choice}
+                              disabled={isWorking || !removable.length}
+                              onChange={(event) => { setRemovalArmed(null); setRemovalChoice((current) => ({ ...current, [entry.classId]: event.target.value })); }}
+                            >
+                              <option value="">{removable.length ? 'Choose a lesson…' : 'No lessons to remove'}</option>
+                              {removable.map((target) => <option key={target.key} value={target.key}>{target.name}</option>)}
+                            </select>
+                          </label>
+                          {removalArmed === `${entry.classId}|${choice}` && chosen ? (
+                            <>
+                              <button type="button" className="tw-btn tw-btn--sm tw-btn--danger" disabled={isWorking} onClick={() => changeRemoval(entry, chosen.key, 'remove')}>
+                                Yes, remove from TEAMS
+                              </button>
+                              <button type="button" className="tw-btn tw-btn--sm" disabled={isWorking} onClick={() => setRemovalArmed(null)}>Cancel</button>
+                            </>
+                          ) : (
+                            <button type="button" className="tw-btn tw-btn--sm" disabled={isWorking || !chosen} onClick={() => setRemovalArmed(`${entry.classId}|${choice}`)}>
+                              Remove from TEAMS
+                            </button>
+                          )}
+                        </div>
+                        {removed.length > 0 && (
+                          <ul className="tw-small" style={{ margin: 0, paddingLeft: 0, listStyle: 'none', display: 'grid', gap: 8 }} aria-label={`Lessons removed from TEAMS for ${name}`}>
+                            {removed.map((item) => {
+                              const confirmId = `teams-confirm-${entry.classId}-${item.targetKey}`;
+                              const typed = confirmDrafts[confirmId] ?? '';
+                              const alreadyConfirmed = item.confirmCount > 0 && item.confirmedGradeCount !== null && item.confirmedGradeCount >= item.confirmCount;
+                              return (
+                                <li key={item.targetKey} className="tw-stack" style={{ gap: 4 }} data-teams-removal={item.targetKey}>
+                                  <span className="tw-strong" style={{ overflowWrap: 'anywhere' }}>{item.lesson}</span>
+                                  {item.lines.map((line) => (
+                                    <span key={line.sectionRef || 'all'} className="tw-row" style={{ gap: 6 }}>
+                                      <span className="tw-pill" data-tone={alreadyConfirmed && line.state === 'confirm' ? 'neutral' : line.tone}>{line.sectionRef ? `TEAMS ${line.sectionRef}` : 'TEAMS'}</span>
+                                      <span>
+                                        {alreadyConfirmed && line.state === 'confirm' ? 'Confirmed. Removed on the next sync.' : line.text}
+                                        {line.state === 'confirm' && !alreadyConfirmed ? ` ${line.gradeCount} grade${line.gradeCount === 1 ? '' : 's'}.` : ''}
+                                      </span>
+                                    </span>
+                                  ))}
+                                  {item.confirmCount > 0 && !alreadyConfirmed && (
+                                    <div className="tw-row" style={{ alignItems: 'flex-end' }}>
+                                      <label htmlFor={confirmId} className="tw-small" style={{ display: 'grid', gap: 4, minWidth: 0 }}>
+                                        {`Type ${item.confirmCount} to remove its ${item.totalGrades} TEAMS grade${item.totalGrades === 1 ? '' : 's'} with it`}
+                                        <input
+                                          id={confirmId}
+                                          className="tw-input"
+                                          inputMode="numeric"
+                                          style={{ width: 120 }}
+                                          value={typed}
+                                          disabled={isWorking}
+                                          onChange={(event) => setConfirmDrafts((current) => ({ ...current, [confirmId]: event.target.value }))}
+                                        />
+                                      </label>
+                                      <button
+                                        type="button"
+                                        className="tw-btn tw-btn--sm tw-btn--danger"
+                                        disabled={isWorking || !removalConfirmationMatches(typed, item.confirmCount)}
+                                        onClick={() => changeRemoval(entry, item.targetKey, 'confirm', item.confirmCount)}
+                                      >
+                                        Remove with its grades
+                                      </button>
+                                    </div>
+                                  )}
+                                  <div>
+                                    <button type="button" className="tw-btn tw-btn--sm" disabled={isWorking} onClick={() => changeRemoval(entry, item.targetKey, 'restore')}>
+                                      Send to TEAMS again
+                                    </button>
+                                  </div>
+                                </li>
+                              );
+                            })}
+                          </ul>
+                        )}
+                      </div>
+                    );
+                  })()}
                 </details>
               )}
             </div>

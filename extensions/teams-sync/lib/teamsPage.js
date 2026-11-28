@@ -348,6 +348,67 @@ export async function teamsPage(action, args = {}) {
         return { done: true };
       }
 
+      if (action === 'setDates') {
+        // A due date changed in MathMaster (the server's setColumnDates).
+        // TEAMS checks Assign Date <= Due Date on every edit and reverts one
+        // that breaks it, so the two are set in the order addAssignment uses:
+        // the due date first when the row's current assign date is not after
+        // the new due date, else the assign date first.
+        const g = grid();
+        const fields = args.fields || {};
+        const day = (value) => { const m = /^(\d{2})-(\d{2})-(\d{4})$/.exec(norm(value)); return m ? `${m[3]}${m[1]}${m[2]}` : ''; };
+        const assign = norm(fields['Assign Date']);
+        const due = norm(fields['Due Date']);
+        if (!day(due) || (assign && !day(assign))) throw new Error('The new TEAMS dates are not MM-DD-YYYY.');
+        if (assign && day(assign) > day(due)) throw new Error('The assign date is after the due date.');
+        const row = rowFor(args);
+        const at = (id) => columnIndex(g, id);
+        const dueFirst = day(cellText(row.rowId, at('lcstgbcaAssignedDt'))) <= day(due);
+        const dates = [['lcstgbcaAssignedDt', assign], ['lcstgbcaDueDt', due]];
+        let changed = false;
+        for (const [id, value] of dueFirst ? dates.reverse() : dates) {
+          if (value && cellText(row.rowId, at(id)) !== value) { await typeCell(row.rowId, at(id), value); changed = true; }
+        }
+        if (changed) await leaveRow(row.rowId);
+        return { done: true };
+      }
+
+      if (action === 'markForDelete') {
+        // Remove from TEAMS: the row is marked and the teacher deletes it with
+        // TEAMS's own Delete (the extension does not press it; see
+        // teamsAdapter.js deleteColumn).
+        const row = rowFor(args);
+        const tr = liveGrid().rowsAr[row.rowId];
+        if (!tr) throw new Error('The TEAMS assignment row is not on the page.');
+        tr.scrollIntoView({ block: 'center', inline: 'nearest' });
+        tr.style.outline = '3px solid #d93025';
+        tr.style.outlineOffset = '-3px';
+        let banner = document.getElementById('mathmaster-delete-banner');
+        if (!banner) {
+          banner = document.createElement('div');
+          banner.id = 'mathmaster-delete-banner';
+          banner.setAttribute('role', 'alert');
+          banner.style.cssText = 'position:fixed;top:8px;left:50%;transform:translateX(-50%);z-index:2147483647;max-width:min(640px,94vw);padding:10px 14px;border-radius:8px;background:#fce8e6;color:#a50e0e;border:2px solid #d93025;font:600 14px/1.4 system-ui,sans-serif;box-shadow:0 2px 8px rgba(0,0,0,.2)';
+          document.body.appendChild(banner);
+        }
+        const grades = Number(args.gradeCount) || 0;
+        banner.textContent = `MathMaster: delete "${norm(args.name).slice(0, 64)}" (outlined in red) with TEAMS's own Delete${grades ? `. Its ${grades} grade${grades === 1 ? '' : 's'} go with it, as you confirmed in Grade Export` : ''}. The sync carries on once it is gone.`;
+        return { done: true };
+      }
+
+      if (action === 'awaitDeleted') {
+        // Done when the row is gone from the Assignments grid, or TEAMS went
+        // back to the gradebook (the caller then checks the column there).
+        if (busy()) return { waiting: true };
+        if (onGradebook) { document.getElementById('mathmaster-delete-banner')?.remove(); return { done: true }; }
+        if (!onAssignments) return { waiting: true };
+        const wanted = norm(args.name).toLowerCase();
+        const still = gridRows().some((row) => norm(row.name).toLowerCase() === wanted && (!args.dueDate || row.dueDate === args.dueDate));
+        if (still) return { waiting: true };
+        document.getElementById('mathmaster-delete-banner')?.remove();
+        return { done: true };
+      }
+
       if (action === 'openImport') {
         if (!onAssignments || busy()) return { waiting: true };
         const dialog = document.querySelector('#importAssignmentGradesContent');

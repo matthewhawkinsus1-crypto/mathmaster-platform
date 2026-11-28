@@ -139,3 +139,52 @@ test('the panel loads only when opened, validates sections first, and sends only
   assert.match(sendButton, /!ready/);
   assert.match(sendButton, /isWorking/);
 });
+
+// ------------------------------------------------------------------ Remove from TEAMS (the owner, 2026-11-27)
+
+test('Remove from TEAMS: each removed lesson says where it stands in each TEAMS section, and what to confirm', async () => {
+  const { describeTeamsRemovals, removableTeamsTargets, removalConfirmationMatches } = await import('../../src/platform/gradeTransfer/teamsSyncPanelModel.js');
+  const targets = [
+    { key: 'c__nth__classwork', name: 'Nth Roots - Classwork' },
+    { key: 'c__nth__dol', name: 'Nth Roots - DOL' },
+    { key: 'c__radicals__warmup', name: 'Radicals - Warm-Up' },
+  ];
+  const state = {
+    removals: {
+      c__nth__classwork: { requestedAt: '2026-11-18T10:00:00Z' },
+      c__nth__dol: { requestedAt: '2026-11-18T10:00:00Z', confirmedGradeCount: 2 },
+      c__radicals__warmup: { requestedAt: '2026-11-18T13:00:00Z' },
+    },
+    lastStep: {
+      at: '2026-11-18T12:00:00Z',
+      removals: [
+        { targetKey: 'c__nth__classwork', sectionRef: '15001/05', state: 'confirm', gradeCount: 20 },
+        { targetKey: 'c__nth__classwork', sectionRef: '15001/55', state: 'confirm', gradeCount: 4 },
+        { targetKey: 'c__nth__dol', sectionRef: '15001/05', state: 'removed', gradeCount: 2 },
+        { targetKey: 'c__nth__dol', sectionRef: '15001/55', state: 'left' },
+      ],
+    },
+  };
+  const [classwork, dol, warmup] = describeTeamsRemovals(state, targets);
+  assert.equal(classwork.lesson, 'Nth Roots - Classwork');
+  assert.deepEqual(classwork.lines.map((line) => [line.sectionRef, line.state, line.tone]), [['15001/05', 'confirm', 'warning'], ['15001/55', 'confirm', 'warning']]);
+  assert.equal(classwork.confirmCount, 20, 'the confirmation covers the largest section');
+  assert.equal(classwork.totalGrades, 24);
+  assert.equal(classwork.done, false);
+  assert.equal(dol.done, true);
+  assert.match(dol.lines[1].text, /left there/);
+  assert.deepEqual(warmup.lines.map((line) => line.state), ['waiting'], 'asked after the last sync: not seen yet');
+  assert.deepEqual(removableTeamsTargets(state, [...targets, { key: 'c__x__practice', name: 'X - Practice' }]).map((item) => item.key), ['c__x__practice']);
+  assert.equal(removalConfirmationMatches('20', 20), true);
+  assert.equal(removalConfirmationMatches(' 20 ', 20), true);
+  assert.equal(removalConfirmationMatches('2', 20), false);
+  assert.equal(removalConfirmationMatches('', 0), false);
+});
+
+test('the panel removes a lesson only after a second press, and confirms grades only with the typed count', () => {
+  const panel = executableSource(componentSource('src/components/teacher/TeamsSyncPanel.jsx'));
+  assert.match(panel, /removalArmed === `\$\{entry\.classId\}\|\$\{choice\}` && chosen \? \([\s\S]*?Yes, remove from TEAMS/);
+  assert.match(panel, /disabled=\{isWorking \|\| !removalConfirmationMatches\(typed, item\.confirmCount\)\}[\s\S]*?changeRemoval\(entry, item\.targetKey, 'confirm', item\.confirmCount\)/);
+  assert.match(panel, /changeRemoval\(entry, item\.targetKey, 'restore'\)/);
+  assert.match(panel, /await setTeamsSyncRemoval\(\{ classId: entry\.classId, targetKey, action, confirmGradeCount \}\)/);
+});

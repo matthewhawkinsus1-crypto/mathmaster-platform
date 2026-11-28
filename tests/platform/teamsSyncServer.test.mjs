@@ -11,6 +11,8 @@ import test from 'node:test';
 import {
   TEAMS_SYNC_LIMITS,
   TeamsSyncInputError,
+  applyTeamsRemovalRequest,
+  normalizeTeamsRemovalRequest,
   changedTeamsLedgerKeys,
   normalizeTeamsReadback,
   normalizeTeamsSections,
@@ -69,6 +71,15 @@ const applyWireOp = async (gradebook, op) => {
   if (op.type === 'setWeight') {
     assert.equal(op.teamsField, '#Count');
     await gradebook.setColumnWeight(op.columnId, op.weight);
+    return { opId: op.opId, ok: true };
+  }
+  if (op.type === 'setColumnDates') {
+    assert.match(op.teamsFields['Due Date'], /^\d{2}-\d{2}-\d{4}$/);
+    await gradebook.setColumnDates(op.columnId, { assignedDate: op.assignedDate, dueDate: op.dueDate });
+    return { opId: op.opId, ok: true };
+  }
+  if (op.type === 'deleteColumn') {
+    await gradebook.deleteColumn(op.columnId);
     return { opId: op.opId, ok: true };
   }
   const result = await gradebook.importScores(op.columnId, op.importFile.body, { overwrite: op.importFile.overwrite });
@@ -352,4 +363,57 @@ test('the last step keeps what needs the teacher\'s decision, named by lesson an
     { code: TEAMS_EXCEPTION.TEACHER_OVERRIDE, lesson: 'Nth Roots - Classwork', sectionRef: P5, studentId: 'u-ada', teams: 95, mathmaster: 72 },
   );
   assert.equal(server.store.classState.lastStep.exceptionCount, 1);
+});
+
+// ------------------------------------------------------------------ dates and Remove from TEAMS (the owner, 2026-11-27)
+
+test('a due date changed in MathMaster reaches the extension as a date edit, in both inclusion sections', async () => {
+  const gradebook = testGradebook();
+  const server = makeServer();
+  await runExtension({ server, gradebook, targets: published() });
+  const response = await runExtension({ server, gradebook, targets: published({ dueDate: '2026-11-20' }) });
+  assert.equal(response.status, 'done');
+  for (const ref of [P5, P5_INC]) {
+    const [column, ...more] = gradebook.columnsNamed(ref, 'Nth Roots - Classwork');
+    assert.equal(more.length, 0);
+    assert.deepEqual([column.assignedDate, column.dueDate], ['2026-11-16', '2026-11-20']);
+  }
+  assert.equal(gradebook.calls.setColumnDates.length, 2);
+});
+
+test('Remove from TEAMS: the request is checked, kept on the class, and confirmed by count', () => {
+  const key = `${CLASS}__nth-roots__classwork`;
+  assert.deepEqual(normalizeTeamsRemovalRequest({ action: 'remove', targetKey: key }, CLASS), { action: 'remove', targetKey: key });
+  assert.throws(() => normalizeTeamsRemovalRequest({ action: 'remove', targetKey: 'other__x' }, CLASS), TeamsSyncInputError);
+  assert.throws(() => normalizeTeamsRemovalRequest({ action: 'delete', targetKey: key }, CLASS), TeamsSyncInputError);
+  assert.throws(() => normalizeTeamsRemovalRequest({ action: 'confirm', targetKey: key, confirmGradeCount: 0 }, CLASS), TeamsSyncInputError);
+  let removals = applyTeamsRemovalRequest({}, { action: 'remove', targetKey: key }, { by: 't@x', at: '2026-11-18T15:00:00Z' });
+  assert.deepEqual(removals[key], { requestedAt: '2026-11-18T15:00:00Z', requestedBy: 't@x' });
+  assert.throws(() => applyTeamsRemovalRequest({}, { action: 'confirm', targetKey: key, confirmGradeCount: 3 }), TeamsSyncInputError, 'confirm needs a removal');
+  removals = applyTeamsRemovalRequest(removals, normalizeTeamsRemovalRequest({ action: 'confirm', targetKey: key, confirmGradeCount: 3 }, CLASS), { by: 't@x', at: 'later' });
+  assert.equal(removals[key].confirmedGradeCount, 3);
+  assert.equal(removals[key].requestedAt, '2026-11-18T15:00:00Z');
+  assert.deepEqual(applyTeamsRemovalRequest(removals, { action: 'restore', targetKey: key }), {});
+});
+
+test('Remove from TEAMS through the step: asks to confirm the grades, then the extension deletes each section\'s assignment', async () => {
+  const gradebook = testGradebook();
+  const server = makeServer();
+  const key = `${CLASS}__nth-roots__classwork`;
+  await runExtension({ server, gradebook, targets: published() });
+  server.store.classState.removals = applyTeamsRemovalRequest({}, { action: 'remove', targetKey: key }, { by: 't@x', at: 'now' });
+
+  let response = await runExtension({ server, gradebook, targets: published() });
+  assert.equal(response.status, 'done');
+  assert.deepEqual(gradebook.calls.deleteColumn, [], 'grades in TEAMS: nothing deleted yet');
+  const asked = server.store.classState.lastStep.exceptions.filter((item) => item.code === TEAMS_EXCEPTION.REMOVAL_NEEDS_CONFIRMATION);
+  assert.deepEqual(asked.map((item) => [item.sectionRef, item.gradeCount, item.lesson]), [[P5, 2, 'Nth Roots - Classwork'], [P5_INC, 2, 'Nth Roots - Classwork']]);
+  assert.deepEqual(server.store.classState.lastStep.removals.map((item) => [item.sectionRef, item.state, item.gradeCount]), [[P5, 'confirm', 2], [P5_INC, 'confirm', 2]]);
+
+  server.store.classState.removals = applyTeamsRemovalRequest(server.store.classState.removals, { action: 'confirm', targetKey: key, confirmGradeCount: 2 }, { by: 't@x', at: 'later' });
+  response = await runExtension({ server, gradebook, targets: published() });
+  assert.equal(response.status, 'done');
+  assert.equal(gradebook.columnsIn(P5).length, 0);
+  assert.equal(gradebook.columnsIn(P5_INC).length, 0);
+  assert.deepEqual(server.store.classState.lastStep.removals.map((item) => item.state), ['removed', 'removed']);
 });

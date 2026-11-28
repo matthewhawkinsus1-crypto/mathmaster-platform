@@ -30,6 +30,12 @@ name: Student and Teacher Journeys
 #                          every Grade Export file — update, re-export, new
 #                          lesson — then carries the corrected ID; a second
 #                          student cannot take it; she signs in as before)
+#   remove from TEAMS      tests/browser/teacherWorkflow/teamsRemovalJourneys.mjs
+#                          (in the district ID job: Grade Export's "Remove a
+#                          lesson from TEAMS" asks twice, waits for the sync,
+#                          removes an assignment with grades only once the
+#                          teacher types their number, never creates it again,
+#                          and "Send to TEAMS again" brings it back)
 #   extra time on the DOL  tests/browser/teacherWorkflow/dolExtraTimeJourneys.mjs
 #                          (D7: a student with extra time keeps working after
 #                          the class's DOL closed and reads their own close;
@@ -466,6 +472,12 @@ jobs:
           PLAYWRIGHT_MODULE: playwright
           VIEWPORTS: "1440x900,390x844"
         run: node tests/browser/teacherWorkflow/districtIdJourneys.mjs
+      - name: Remove a lesson from TEAMS in Grade Export, confirm its grades, and send it back
+        if: ${{ !cancelled() }}
+        env:
+          PLAYWRIGHT_MODULE: playwright
+          VIEWPORTS: "1440x900,390x844"
+        run: node tests/browser/teacherWorkflow/teamsRemovalJourneys.mjs
 
   # Its own runner: the teacher job is near its time limit. About six
   # minutes: four journeys on desktop, Chromebook and phone.
