@@ -20,6 +20,10 @@
 //                         inside the question engine while window.__mmCrash is
 //                         true (secureExamCrashProbe.jsx): the item says what
 //                         the Test can promise, not the engine's own panel
+//   ?scenario=step        a course Test whose parts show a step first (SP-4b):
+//                         points picked on the plane before a slope, and moves
+//                         in Step Algebra before a solution
+//   ?supports=everyPart   the student's See every part at once support
 //   ?supports=glossary    the student's own plan grants Read aloud, Vocabulary
 //                         and Spanish on a test (course scenario): the Rich
 //                         Tool item's tray must offer Vocabulary, terms only
@@ -107,6 +111,34 @@ const undrawable = () => ({
   key: { answers: { answer: '2' }, display: '2' },
 });
 
+// SHOW THE STEP (SP-4b): a field with a checkpoint, as the server issues it
+// (functions/lib/mathPath.js publicCheckpoint).
+const stepPointsItem = () => ({
+  question: {
+    questionType: 'response',
+    prompt: 'The boundary line of an inequality passes through $(0, 3)$ and $(1, 1)$. Enter its slope and its $y$-intercept.',
+    responseFields: [
+      { id: 'slope', label: 'Slope of the boundary line', inputProfile: 'number', checkpoint: { kind: 'pickPoints', count: 2, of: '(0, 3) and (1, 1)' } },
+      { id: 'intercept', label: 'The y-intercept', inputProfile: 'number' },
+    ],
+    choices: [],
+    alignmentKeys: ['texas:A.3B'],
+    runtimeMode: 'secureTest',
+  },
+  key: { answers: { slope: '-2', intercept: '3' }, display: '-2 and 3' },
+});
+const stepMovesItem = () => ({
+  question: {
+    questionType: 'response',
+    prompt: 'Solve $4x + 7 = x - 8$.',
+    responseFields: [{ id: 'answer', label: 'The value of x', inputProfile: 'number', checkpoint: { kind: 'stepMoves', of: '4x + 7 = x - 8' } }],
+    choices: [],
+    alignmentKeys: ['texas:A.5A'],
+    runtimeMode: 'secureTest',
+  },
+  key: { answers: { answer: '-5' }, display: '-5' },
+});
+
 const COURSE_ITEMS = [
   field('Which value of $x$ makes $3x - 4 = 11$ true?', 'c', { choices: [{ id: 'a', label: '$3$' }, { id: 'b', label: '$4$' }, { id: 'c', label: '$5$' }, { id: 'd', label: '$7$' }], display: '$5$' }),
   intervalTool(),
@@ -118,6 +150,7 @@ const COURSE_ITEMS = [
 // A support plan as the student profile carries it (secureItemAccess.js reads it).
 const SUPPORT_PROFILES = {
   glossary: { accommodations: ['text-to-speech', 'glossary-lookup'], translationLanguage: 'es' },
+  everyPart: { accommodations: ['every-part-at-once'] },
 };
 const supportProfile = SUPPORT_PROFILES[params.get('supports')] || null;
 
@@ -128,6 +161,13 @@ harness.list = () => listStudentSecureExamSessions();
 harness.integrity = (type = 'window_blur') => recordSecureExamIntegrityEvent({ examSessionId: harness.sessionId, eventId: `harness_${Date.now()}_${Math.random()}`, type });
 // The released record of the session under test (after `proctor('releaseFeedback')`).
 harness.review = () => getStudentSecureExamReview({ examSessionId: harness.sessionId });
+// A draft saved for the item at `position` from elsewhere (another device),
+// and the draft the server holds for it now.
+harness.saveDraft = async (position, responses) => {
+  const issued = await issueSecureExamQuestion({ examSessionId: harness.sessionId, position });
+  await saveSecureExamDraft({ examSessionId: harness.sessionId, questionInstanceId: issued.questionInstance.questionInstanceId, responsePayload: { responses } });
+};
+harness.draft = async (position) => (await issueSecureExamQuestion({ examSessionId: harness.sessionId, position }))?.draftResponse?.responsePayload?.responses || null;
 harness.session = async () => (await listStudentSecureExamSessions()).sessions.find((entry) => entry.examSessionId === harness.sessionId) || null;
 
 const shell = (children) => (
@@ -205,6 +245,14 @@ const mount = async () => {
     });
     harness.sessionId = session.examSessionId;
     root.render(shell(<CourseTest examSessionId={session.examSessionId} title={title} examType={examType} delivery={{ timed: true, timeLimitMinutes: 30, calculatorMode: 'none', questionCount: 1 }} />));
+  } else if (scenario === 'step') {
+    const items = [stepPointsItem(), stepMovesItem()];
+    const { session } = await createSecureExamSession({
+      studentId: 'harness-student', examType: 'courseTest', title: 'Unit 3 Test: Lines',
+      questionCount: items.length, timeLimitMinutes: 30, sandboxItems: items, calculatorMode: 'none',
+    });
+    harness.sessionId = session.examSessionId;
+    root.render(shell(<CourseTest examSessionId={session.examSessionId} title="Unit 3 Test: Lines" delivery={{ timed: true, timeLimitMinutes: 30, calculatorMode: 'none', questionCount: items.length }} />));
   } else if (scenario === 'timeout') {
     // Six seconds: long enough to open the first question, short enough to watch run out.
     const { session } = await createSecureExamSession({

@@ -161,6 +161,11 @@ const LazyShowTheStep = lazy(() => import('./platform/supports/showTheStep/ShowT
 // The Step Algebra workspace a `stepMoves` step is done in is the one this
 // engine already holds; it is handed in, so the step's chunk brings none.
 const ShowTheStep = (props) => <LazyShowTheStep {...props} StepByStepAlgebraCore={StepByStepAlgebraCore} />;
+// The same step for the screens that draw a field's box themselves, with no
+// engine around it (SP-4b: a secure Test's field item, Corrections, My Math
+// Path). They load it through this module, which they already load lazily, so
+// no new chunk joins anyone's first load.
+export const ShowTheStepForField = ShowTheStep;
 // THE PINNED REFERENCE CARDS (WE-H): loaded, with the card library, only for a
 // question with a card pinned (referenceCardRule.js), so a DOL, quiz, test or
 // Home downloads none of it. A chunk that cannot be fetched draws nothing: the

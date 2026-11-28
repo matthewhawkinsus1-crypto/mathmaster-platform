@@ -117,12 +117,20 @@ export const issueTestCycleCorrectionQuestion = async () => {
     openInstance = {
       questionInstanceId: `harness-correction-${issued}`, questionType: 'response',
       prompt: 'Solve $3x + 4 = 19$ for $x$.',
-      responseFields: [{ id: 'answer', label: 'x', inputProfile: 'number' }], choices: [],
+      responseFields: [{
+        id: 'answer', label: 'x', inputProfile: 'number',
+        // ?correctionStep=1: the part shows a step first (SP-4b), as the
+        // server issues it (functions/lib/mathPath.js publicCheckpoint).
+        ...(new URLSearchParams(window.location.search).get('correctionStep') === '1'
+          ? { checkpoint: { kind: 'pickPoints', count: 2, of: 'y = 3x + 4' } } : {}),
+      }],
+      choices: [],
     };
   }
   return { success: true, secure: false, hintsAllowed: true, attemptsAllowed: 3, attemptsUsed: 0, questionInstance: openInstance };
 };
-export const submitTestCycleCorrectionResponse = async () => {
+export const submitTestCycleCorrectionResponse = async ({ responsePayload } = {}) => {
+  window.__correctionSubmits = [...(window.__correctionSubmits || []), responsePayload];
   openInstance = null;
   return { success: true, isCorrect: true, attemptsUsed: 1, progress: { total: 2, complete: 1 }, correctionsComplete: false };
 };

@@ -328,8 +328,32 @@ function normalizeResponseFields(fields = [], question = {}, { keepIssued = fals
       // SP-3: the parts this field's label builds on, so the screen writes the
       // student's own values into it. Never the follow-through answer: a key.
       ...(publicFollowThrough(field) ? { followThrough: publicFollowThrough(field) } : {}),
+      // SP-4b: the step the student shows in a tool before this field's box
+      // opens. Its `of` is what the step works on, stimulus the student
+      // already sees, never a key (docs/platform/SHOWING_THE_PROCESS.md
+      // section 5). No grader reads it.
+      ...(publicCheckpoint(field) ? { checkpoint: publicCheckpoint(field) } : {}),
     };
   });
+}
+
+// A field's checkpoint, as a public copy carries it: { kind, count?, of },
+// bounded, and nothing else (the same shape as
+// src/platform/supports/showTheStep/checkpointShape.js checkpointOf, which
+// this CommonJS module cannot load).
+const CHECKPOINT_KINDS = new Set(['pickPoints', 'stepMoves', 'factorPair', 'tableRow']);
+const COUNTED_CHECKPOINT_KINDS = new Set(['pickPoints', 'tableRow']);
+const MAX_CHECKPOINT_COUNT = 6;
+const MAX_CHECKPOINT_OF_LENGTH = 240;
+function publicCheckpoint(field) {
+  const value = field?.checkpoint;
+  if (!value || typeof value !== 'object' || Array.isArray(value) || !CHECKPOINT_KINDS.has(value.kind)) return null;
+  const of = typeof value.of === 'string' ? value.of.trim() : '';
+  if (!of || of.length > MAX_CHECKPOINT_OF_LENGTH) return null;
+  const count = COUNTED_CHECKPOINT_KINDS.has(value.kind) && Number.isInteger(value.count) && value.count >= 1
+    ? { count: Math.min(MAX_CHECKPOINT_COUNT, value.count) }
+    : {};
+  return { kind: value.kind, ...count, of };
 }
 
 // A field's follow-through parts, as a public copy may carry them (the same

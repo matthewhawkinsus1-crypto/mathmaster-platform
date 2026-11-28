@@ -32,6 +32,7 @@ import { createToolWorkGate } from './toolWorkGate.js';
 import { draftNormalizer, draftShape } from '../../tools/shared/toolDraftShape.js';
 import { assessmentSupportProfile, getStudentSupportPresentation } from '../../studentSupport.js';
 import { SUBMIT_VERB, submitActionLabel, submitTryCost } from '../../platform/student/submitCost.js';
+import { checkpointOf, checkpointWorkKey } from '../../platform/supports/showTheStep/checkpointShape.js';
 
 /*
  * THE SHARED RICH QUESTION RUNTIME.
@@ -87,6 +88,11 @@ import { SUBMIT_VERB, submitActionLabel, submitTryCost } from '../../platform/st
  */
 
 const QuestionEngine = lazy(() => import('../../QuestionEngine.jsx'));
+// SHOW THE STEP (SP-4b): a field's checkpoint, the step the student does in a
+// tool before its answer box opens. Loaded only for a field that has one, from
+// the engine's module (the step and the Step Algebra workspace it hands in).
+const StepForPart = lazy(() => import('../../QuestionEngine.jsx').then((module) => ({ default: module.ShowTheStepForField })));
+const NO_STEPS = Object.freeze({});
 
 const belongsToDraft = (key, draftKey) => Boolean(draftKey) && (key === draftKey || String(key || '').startsWith(`${draftKey}:`));
 
@@ -194,7 +200,7 @@ const partButtonStyle = (enabled, quiet = false) => ({
   fontSize: 'calc(15 * var(--mm-px))', fontWeight: 800, cursor: enabled ? 'pointer' : 'not-allowed',
 });
 
-const FieldItem = ({ question, policy, calculatorPolicy, studentSupportProfile, rawStudentSupportProfile = null, graphReadOut = false, initialResponsePayload, busy, closed, feedback, attempt = null, navigationMode = false, calculatorInToolbar = false, examType = null, mainLandmark = true, partByPart = false, onSubmit, onDraftChange }) => {
+const FieldItem = ({ question, policy, calculatorPolicy, studentSupportProfile, rawStudentSupportProfile = null, graphReadOut = false, draftKey = null, initialResponsePayload, busy, closed, feedback, attempt = null, navigationMode = false, calculatorInToolbar = false, examType = null, mainLandmark = true, partByPart = false, onSubmit, onDraftChange }) => {
   const Landmark = mainLandmark ? 'main' : 'div';
   const [responses, setResponses] = useState(() => restoredFieldResponses(initialResponsePayload));
   const [calculatorUsed, setCalculatorUsed] = useState(false);
@@ -254,8 +260,36 @@ const FieldItem = ({ question, policy, calculatorPolicy, studentSupportProfile, 
     const message = typed ? typedEntryNotice(responses[field.id], { words, tries: !navigationMode }) : '';
     return [field.id, message && navigationMode ? `${message} As it stands it cannot be marked right.` : message];
   }));
-  const complete = fields.every((field) => String(responses[field.id] ?? '').trim()) && !Object.values(entryProblems).some(Boolean);
   const locked = busy || closed;
+  // SHOW THE STEP (SP-4b; docs/platform/SHOWING_THE_PROCESS.md section 5). A
+  // field with a `checkpoint` asks for one step in a tool before its box
+  // opens, as on the assignment's own runner: the same step, the same engine,
+  // and the same line beside the answer (`<id>::step` among the responses),
+  // so the draft and the recorded response carry it. No grader reads it.
+  //   a secure Test       nothing says right or wrong: the box opens once the
+  //                       step is done, as on a DOL;
+  //   Corrections         "Check my step" says what is off, and after two
+  //                       refusals "Answer without this step" opens the box;
+  //   See every part      (the student's support) the box is open at once.
+  //   at once
+  // A closed item draws no step: there is nothing left to answer.
+  const verdictsWithheld = policy.secure || !policy.capabilities?.immediateFeedback;
+  const everyPartAtOnce = getStudentSupportPresentation(studentSupportProfile).everyPartAtOnce === true;
+  const [stepStatus, setStepStatus] = useState(NO_STEPS);
+  // A field that already had an answer when the item opened (a saved draft,
+  // perhaps from another device) keeps its box open, showing that answer: the
+  // step never locks an answer already given behind redoing it. Its step is
+  // still drawn to be done; one that did not come with the draft is recorded
+  // as nothing (no line), neither skipped nor done.
+  const [answeredOnOpen] = useState(() => new Set(Object.entries(restoredFieldResponses(initialResponsePayload))
+    .filter(([id, value]) => !id.endsWith('::step') && String(value ?? '').trim())
+    .map(([id]) => id)));
+  const stepOf = (field) => (closed ? null : checkpointOf(field));
+  const stepIsOpen = (field) => everyPartAtOnce || !stepOf(field) || answeredOnOpen.has(field.id) || stepStatus[field.id]?.open === true;
+  const reportStep = useCallback((id, status) => setStepStatus((current) => (
+    current[id]?.open === status.open && current[id]?.done === status.done ? current : { ...current, [id]: status }
+  )), []);
+  const complete = fields.every((field) => String(responses[field.id] ?? '').trim() && stepIsOpen(field)) && !Object.values(entryProblems).some(Boolean);
 
   // PART BY PART (SP-1b; docs/platform/SHOWING_THE_PROCESS.md section 3), as
   // MultiAnswerGrader does it for a tool item: a field item of two or more
@@ -270,7 +304,7 @@ const FieldItem = ({ question, policy, calculatorPolicy, studentSupportProfile, 
   // once (a per-student support) and a closed item draw every field.
   const walkFields = partByPart === true && !closed && fields.length > 1
     && getStudentSupportPresentation(studentSupportProfile).everyPartAtOnce !== true;
-  const fieldDone = (field) => Boolean(String(responses[field.id] ?? '').trim()) && !entryProblems[field.id];
+  const fieldDone = (field) => Boolean(String(responses[field.id] ?? '').trim()) && !entryProblems[field.id] && stepIsOpen(field);
   const firstOpenField = () => fields.find((field) => !fieldDone(field))?.id ?? null;
   const [walk, setWalk] = useState(() => ({ open: firstOpenField(), focus: 0, announcement: '' }));
   // A field emptied since it was passed (a restored draft) opens again.
@@ -402,6 +436,9 @@ const FieldItem = ({ question, policy, calculatorPolicy, studentSupportProfile, 
               }
               const next = walkFields ? nextField(field.id) : undefined;
               const done = fieldDone(field);
+              const step = stepOf(field);
+              const stepKey = checkpointWorkKey(field.id);
+              const boxOpen = stepIsOpen(field);
               return (
                 <fieldset key={field.id} style={{ border: 0, padding: 0, margin: 0 }} {...(walkFields ? { 'data-part-state': 'open', 'data-part-id': field.id, 'data-part-index': fieldIndex, 'data-part-value': String(responses[field.id] ?? '') } : {})}>
                   {walkFields && (
@@ -410,7 +447,25 @@ const FieldItem = ({ question, policy, calculatorPolicy, studentSupportProfile, 
                   <legend style={{ fontSize: 'calc(13 * var(--mm-px))', fontWeight: 900, color: 'var(--mm-text)', marginBottom: 7 }}>
                     <MathText>{field.label || `Response ${fieldIndex + 1}`}{field.unit ? ` (${field.unit})` : ''}</MathText>
                   </legend>
-                  {fieldChoices.length ? fieldChoices.map((choice) => {
+                  {step ? (
+                    <div style={{ marginBottom: 14 }}>
+                      <Suspense fallback={<p role="status" style={{ margin: 0, color: 'var(--mm-text-muted)' }}>Loading the step…</p>}>
+                        <StepForPart
+                          checkpoint={field.checkpoint}
+                          value={String(responses[stepKey] ?? '')}
+                          onChange={(line) => updateResponse(stepKey, line)}
+                          onStatus={(status) => reportStep(field.id, status)}
+                          verdictsWithheld={verdictsWithheld}
+                          optional={everyPartAtOnce}
+                          carriedOver={answeredOnOpen.has(field.id)}
+                          disabled={locked}
+                          draftKey={draftKey ? `${draftKey}:step-${field.id}` : null}
+                          partLabel={field.label || `Response ${fieldIndex + 1}`}
+                        />
+                      </Suspense>
+                    </div>
+                  ) : null}
+                  {!boxOpen ? null : fieldChoices.length ? fieldChoices.map((choice) => {
                     const selected = responses[field.id] === choice.id;
                     return (
                       <label key={choice.id} style={{ display: 'flex', gap: 10, alignItems: 'flex-start', padding: '12px 13px', marginBottom: 8, border: selected ? '2px solid var(--mm-primary)' : '1px solid var(--mm-border)', borderRadius: 9, cursor: 'pointer', background: selected ? 'var(--mm-primary-subtle)' : 'var(--mm-surface)', boxShadow: selected ? '0 0 0 1px rgba(26,115,232,.08)' : 'none' }}>
@@ -436,7 +491,7 @@ const FieldItem = ({ question, policy, calculatorPolicy, studentSupportProfile, 
                       examType={examType}
                     />
                   )}
-                  <TypedEntryNotice message={locked ? '' : entryProblems[field.id]} entry={responses[field.id] ?? ''} />
+                  {boxOpen ? <TypedEntryNotice message={locked ? '' : entryProblems[field.id]} entry={responses[field.id] ?? ''} /> : null}
                   {walkFields && (
                     <button type="button" disabled={!done || locked} onClick={() => moveToField(next)} style={{ ...partButtonStyle(done && !locked), marginTop: 10 }}>
                       {next === null ? 'Review all parts' : 'Next part'}
@@ -776,6 +831,7 @@ export default function RichQuestionRuntime({
       studentSupportProfile={supportProfile}
       rawStudentSupportProfile={studentSupportProfile}
       graphReadOut={graphReadOut}
+      draftKey={draftKey}
       initialResponsePayload={initialResponsePayload}
       busy={busy}
       closed={closed}

@@ -42,7 +42,8 @@ test('My Math Path: Check is held back while a box is unfinished or too long, an
 
   // The player gates both Check and Enter on it, and each box draws the sentence.
   const player = read('src/components/student/PathSessionPlayer.jsx');
-  assert.match(player, /const complete = pathResponseComplete\(fields, values\);/);
+  // (…and, for a field that shows a step first, its step: SP-4b, showTheStepSecure.test.mjs.)
+  assert.match(player, /const complete = pathResponseComplete\(fields, values\)( && stepsReady)?;/);
   assert.match(region(player, 'const submit = async () => {', 'await onSubmitAnswer', 'the generic renderer\'s submit'), /if \(!complete \|\| isSubmitting \|\| finalized\) return;/);
   const boxes = read('src/components/student/PathResponseFields.jsx');
   for (const box of ['function WordField(', 'function MathField(']) {
@@ -102,7 +103,8 @@ test('the secure field item: Corrections cannot submit such an entry, and a secu
   assert.match(item, /typedEntryNotice\(responses\[field\.id\], \{ words, tries: !navigationMode \}\)/);
   // A choice is not typed.
   assert.match(item, /const typed = !\(field\.choices\?\.length \|\| \(fields\.length === 1 && choices\.length\)\);/);
-  assert.match(item, /const complete = fields\.every\(\(field\) => String\(responses\[field\.id\] \?\? ''\)\.trim\(\)\) && !Object\.values\(entryProblems\)\.some\(Boolean\);/);
+  // Every field answered (and its step open where it has one: SP-4b), and no entry problem.
+  assert.match(item, /const complete = fields\.every\(\(field\) => String\(responses\[field\.id\] \?\? ''\)\.trim\(\)( && stepIsOpen\(field\))?\) && !Object\.values\(entryProblems\)\.some\(Boolean\);/);
   // Where there is a Submit (Corrections: every press spends a try), it is held back.
   assert.match(item, /if \(navigationMode \|\| !complete \|\| locked\) return;/);
   // (and, on a follow-through item, held until its rules arrive: SP-3)
@@ -202,6 +204,6 @@ test('Review all parts, then submit: an unfinished answer in a text box that nam
   const problems = region(runtime, 'const entryProblems = Object.fromEntries(', '}));', 'each box\'s entry problem');
   assert.match(problems, /const words = secureFieldTakesWords\(field\);/);
   assert.match(problems, /typedEntryNotice\(responses\[field\.id\], \{ words,/);
-  assert.match(runtime, /const fieldDone = \(field\) => Boolean\(String\(responses\[field\.id\] \?\? ''\)\.trim\(\)\) && !entryProblems\[field\.id\];/);
+  assert.match(runtime, /const fieldDone = \(field\) => Boolean\(String\(responses\[field\.id\] \?\? ''\)\.trim\(\)\) && !entryProblems\[field\.id\]( && stepIsOpen\(field\))?;/);
   assert.match(runtime, /return fieldDone\(field\) \? 'answered' : 'hidden';/);
 });

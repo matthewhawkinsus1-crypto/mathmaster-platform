@@ -143,9 +143,17 @@ function StepMoves({ source, onWork, disabled, draftKey, verdictsWithheld, value
   // line beside the answer is changed from outside (the answer boxes' Undo),
   // it is written again from the moves the workspace still shows.
   const stepsRef = useRef(null);
+  // On a device that does not hold the workspace's draft (the item reopened
+  // elsewhere) the workspace opens with no moves. Until it has held a move
+  // here, it must not erase the moves the saved line already records.
+  const heldMoves = useRef(false);
+  const valueRef = useRef(value);
+  valueRef.current = value;
   const report = useCallback((steps) => {
     stepsRef.current = steps;
     const lines = [{ left: pristine.left, right: pristine.right }, ...(Array.isArray(steps) ? steps : []).map((step) => step?.after).filter((after) => after?.left && after?.right)];
+    if (lines.length > 1) heldMoves.current = true;
+    else if (!heldMoves.current && String(valueRef.current || '').trim()) return;
     onWork(lines.length > 1 ? { lines } : null);
   }, [onWork, pristine]);
   useEffect(() => {
@@ -221,7 +229,7 @@ function TableRows({ source, work, onWork, disabled }) {
 
 export default function ShowTheStep({
   checkpoint, value = '', onChange, onStatus, verdictsWithheld = false, optional = false, disabled = false, draftKey = null, partLabel = '',
-  StepByStepAlgebraCore = null,
+  StepByStepAlgebraCore = null, carriedOver = false,
 }) {
   const read = useMemo(() => readCheckpointSource(checkpoint), [checkpoint]);
   // A step in Step Algebra needs the workspace its host holds. Without it the
@@ -253,7 +261,11 @@ export default function ShowTheStep({
   // Algebra, once a move is made, so a student who cannot finish solving is
   // not kept from answering.
   const attempted = check.done || (kind === CHECKPOINT_KIND.STEP_MOVES && (work?.lines?.length || 0) >= 2);
-  const open = !source.ok || optional || (verdictsWithheld ? attempted : accepted || skipped);
+  // `carriedOver`: the part already had an answer when it opened (a saved
+  // draft, perhaps on another device). That answer is never locked behind
+  // the step again: the box is open, and the step is there to do. A step
+  // that did not come with it is recorded as nothing: not skipped, not done.
+  const open = !source.ok || optional || carriedOver || (verdictsWithheld ? attempted : accepted || skipped);
   const offerSkip = !verdictsWithheld && !optional && !open && refusals >= 2;
   const onStatusRef = useRef(onStatus);
   onStatusRef.current = onStatus;
@@ -305,6 +317,7 @@ export default function ShowTheStep({
           ? (check.ok ? `${stepSummary(source, check)} Now answer the part below.` : stepProblemText(source, check))
           : skipped ? 'You chose to answer without this step. It does not change your score. You can still do the step: your teacher sees what you did.'
             : optional ? 'This step is optional for you. Any work you do here is saved with your answer.'
+              : carriedOver && !check.done ? 'Your answer from before is kept. Your step was not carried over: you can do it again, and your teacher sees what you do.'
               : verdictsWithheld && attempted ? 'Step recorded. Now answer the part below.'
                 : 'The answer box opens when this step is done.'}
       </p>

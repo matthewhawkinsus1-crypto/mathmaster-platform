@@ -337,6 +337,22 @@ for (const device of DEVICES) {
     await page.close();
   }
 
+  /* --- a part's shown step in the review (SP-4b) ------------------------ */
+  {
+    const { page, errors } = await openPage(context, 'scene=review&session=course-step');
+    await page.waitForSelector('[data-results-score]', { timeout: 15000 });
+    const rows = await page.locator('article[data-result-status] [data-result-block="yours"] [data-answer-row]').evaluateAll((nodes) => nodes.map((node) => [node.dataset.answerRow, node.innerText.replace(/\s+/g, ' ').trim()]));
+    const kinds = rows.map(([kind]) => kind).join(',');
+    check(kinds === 'answer,step,answer', at('review: a part\'s step is a row of its own, right after its part'), JSON.stringify(rows));
+    check(/^Step shown for "Slope": points picked on the plane \(0, 3\) \(1, 1\); rise -2; run 1$/.test(rows[1]?.[1] || ''), at('review: the step row says what the student did, with no result of its own'), rows[1]?.[1]);
+    // An unfinished answer keeps its note in the same list (#621), on its own row.
+    const unfinishedRows = await page.locator('article[data-result-status] [data-result-block="yours"] [data-answer-row]').evaluateAll((nodes) => nodes.map((node) => Boolean(node.querySelector('[data-review-unfinished]'))));
+    check(unfinishedRows.join(',') === 'false,false,true', at('review: the unfinished intercept keeps its note, after the step row'), unfinishedRows.join(','));
+    await shot(page, device, 'review-step-row');
+    noErrors(errors, at('review with a step'));
+    await page.close();
+  }
+
   /* --- the card, stage by stage ------------------------------------------ */
   const openCard = async (stage, shownAs = stage) => {
     const opened = await openPage(context, `scene=card&stage=${stage}`);
@@ -467,6 +483,49 @@ for (const device of DEVICES) {
     const opened = await page.evaluate(() => window.__reviewsOpened);
     check(opened.every((id) => id === 'course-test'), at('only the released Test was opened'), opened.join(','));
     noErrors(errors, at('corrections'));
+    await page.close();
+  }
+
+  // SP-4b: a Corrections question whose part shows a step first. Corrections
+  // say what is off ("Check my step"), and after two refusals the student may
+  // answer without it; the step is sent with the answer, recorded as skipped.
+  {
+    const opened = await openPage(context, 'scene=card&stage=corrections&correctionStep=1');
+    const { page, errors } = opened;
+    await page.waitForSelector('[data-test-cycle-stage="corrections"]', { timeout: 15000 });
+    await cardButton(page, 'Continue Corrections').click();
+    const skipReflection = page.getByRole('button', { name: 'Skip for now' });
+    if (await skipReflection.first().waitFor({ timeout: 5000 }).then(() => true).catch(() => false)) await skipReflection.first().click();
+    const scope = page.locator('section[aria-label="Corrections question"]');
+    const stepBox = scope.locator('[data-show-the-step]').first();
+    await stepBox.waitFor({ timeout: 15000 });
+    const stepSays = async () => (await stepBox.locator('[data-step-status]').innerText()).replace(/\s+/g, ' ').trim();
+    check(await scope.locator('[data-secure-answer-editor]').count() === 0, at('corrections step: no answer box before the step'));
+    check(await scope.locator('form button[type="submit"]').isDisabled(), at('corrections step: Submit waits for the step'));
+    const press = async (...keys) => { for (const key of keys) { await page.keyboard.press(key); await new Promise((resolve) => { setTimeout(resolve, 30); }); } };
+    // (0, 4) and (1, 5): the second is off y = 3x + 4.
+    await stepBox.locator('svg[data-mm-plane]').focus();
+    await press('ArrowUp', 'ArrowUp', 'ArrowUp', 'ArrowUp', 'Enter', 'ArrowRight', 'ArrowUp', 'Enter');
+    await stepBox.locator('[data-step-entry="rise"]').fill('1');
+    await stepBox.locator('[data-step-entry="run"]').fill('1');
+    await stepBox.locator('[data-step-check]').click();
+    check(/^\(1, 5\) is not on the line\./.test(await stepSays()), at('corrections step: Check my step says which point is off, in words'), await stepSays());
+    check(await stepBox.locator('[data-step-skip]').count() === 0, at('corrections step: one refusal offers no way round'));
+    await stepBox.locator('[data-step-check]').click();
+    const skip = stepBox.locator('[data-step-skip]');
+    check(await skip.count() === 1, at('corrections step: after two refusals, Answer without this step'));
+    await skip.click();
+    const boxOpen = await scope.locator('[data-secure-answer-editor]').first().waitFor({ state: 'visible', timeout: 8000 }).then(() => true).catch(() => false);
+    check(boxOpen, at('corrections step: the box opens'));
+    check(/^You chose to answer without this step\. It does not change your score\./.test(await stepSays()), at('corrections step: skipping costs nothing, and says so'), await stepSays());
+    const editor = scope.locator('[data-secure-answer-editor]').first();
+    if (await editor.getAttribute('data-secure-answer-editor') === 'math') { await editor.locator('math-field').click(); await page.keyboard.type('5'); } else { await editor.fill('5'); }
+    await shot(page, device, 'corrections-step-skipped');
+    await scope.locator('form button[type="submit"]').click();
+    await page.waitForFunction(() => (window.__correctionSubmits || []).length > 0, null, { timeout: 8000 }).catch(() => {});
+    const sent = await page.evaluate(() => (window.__correctionSubmits || [])[0]?.responses || null);
+    check(sent?.answer === '5' && sent?.['answer::step'] === 'skipped; (0, 4) (1, 5); rise 1; run 1', at('corrections step: the answer is sent with the step beside it, recorded as skipped'), JSON.stringify(sent));
+    noErrors(errors, at('corrections step'));
     await page.close();
   }
 

@@ -111,7 +111,8 @@ const meaningful = (value) => {
 };
 /** As the server reads it: a typed field answer, or any Rich Tool construction. */
 const mockHasWork = (payload) => (
-  Object.values(payload?.responses && typeof payload.responses === 'object' ? payload.responses : {}).some((value) => String(value ?? '').trim())
+  // A part's shown step (`<id>::step`) is not an answer (secureItems.payloadHasWork).
+  Object.entries(payload?.responses && typeof payload.responses === 'object' ? payload.responses : {}).some(([id, value]) => !id.endsWith('::step') && String(value ?? '').trim())
   || meaningful(payload?.raw)
 );
 

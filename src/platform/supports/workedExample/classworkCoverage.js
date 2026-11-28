@@ -11,8 +11,11 @@
  *   own               the question names its own `example` (an id in
  *                     `lessonSupports.examples`, or an example written inline);
  *   builtIn           the platform works a sibling for it today: its support
- *                     family's (buildSimilarWorkedExample) or the item's own
- *                     numbers changed (buildNumericVariant);
+ *                     family's (buildSimilarWorkedExample), the item's own
+ *                     numbers changed (buildNumericVariant), or a replay the
+ *                     student's example player plays on the item's own tool
+ *                     (workedExampleFor: the radical and plane replays, WE-D
+ *                     and WE-E);
  *   earlierSameSkill  an earlier Classwork question of the lesson, on the same
  *                     skill, is covered, so the example a student met there
  *                     teaches this one too;
@@ -53,6 +56,7 @@
 import { familyFor } from '../families/index.js';
 import { buildNumericVariant } from './numericVariant.js';
 import { buildSimilarWorkedExample } from './similarProblem.js';
+import { workedExampleFor } from './examplePlayer.js';
 import { exampleKindOf, exampleSkillOf, primaryStandardOf } from './exampleSkill.js';
 
 export const EXAMPLE_COVERAGE_STATUS = Object.freeze({
@@ -168,10 +172,16 @@ const workBuiltIn = (question) => {
   try {
     if (buildNumericVariant(question)) return 'numericVariant';
   } catch { /* nor does a variant that cannot */ }
+  // A question the example player plays a replay for (its sibling, worked on
+  // the item's own tool and marked right by that tool's grader before it
+  // plays): exactly what the student is shown, so the same call decides.
+  try {
+    if (workedExampleFor(question)?.format === 'replay') return 'replay';
+  } catch { /* the player shows nothing for it either */ }
   return null;
 };
 
-/** Where the platform's own sibling for this question comes from: 'family', 'numericVariant', or null. */
+/** Where the platform's own sibling for this question comes from: 'family', 'numericVariant', 'replay', or null. */
 export const builtInExampleSource = (question) => {
   if (!isObject(question)) return null;
   if (byObject.has(question)) return byObject.get(question);
@@ -229,7 +239,7 @@ const emptyByStatus = () => Object.fromEntries(Object.values(EXAMPLE_COVERAGE_ST
  * Each Classwork question's coverage, in the order a student meets them, and the totals.
  *
  *   questions: [{ questionId, questionNumber, sectionId, kind, standard, skill, status, ... }]
- *     own: exampleId · builtIn: builtIn ('family' | 'numericVariant') ·
+ *     own: exampleId · builtIn: builtIn ('family' | 'numericVariant' | 'replay') ·
  *     earlierSameSkill: coveredBy (that question's id) · exempt: reason ·
  *     uncovered: fillWith, and missingExample when it names an example the lesson lacks
  *   summary: { total, covered, exempt, uncovered, byStatus, byKind, byFill }

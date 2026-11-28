@@ -335,9 +335,11 @@ What the student meets:
   says whether it is right.
 - **See every part at once** (a student's support). The answer box is open
   from the start, and any step work is still recorded.
-- **A secure Test, Corrections and My Math Path** do not open a step yet. A
-  part with a checkpoint is drawn there as its answer box, and marked as
-  before.
+- **A secure Test** opens the step as a DOL does: the box opens once it is
+  done, and nothing says whether it is right.
+- **Corrections and My Math Path** open it as Classwork does: "Check my step",
+  and "Answer without this step" after two refusals. On all three the part is
+  marked on its answer, as before.
 
 `followThrough` and `checkpoint` go on a `responses` part of an answer-box
 question (`"studentActions": ["multipleResponses"]`). A tool that keeps no

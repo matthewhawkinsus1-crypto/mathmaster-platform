@@ -5,7 +5,8 @@ import QuestionEngine from '../../QuestionEngine.jsx';
 import useActionBarFocusReveal from '../common/useActionBarFocusReveal.js';
 import QuestionPrompt from '../../QuestionPrompt.jsx';
 import MathText from '../common/MathText.jsx';
-import PathResponseFields, { pathResponseComplete } from './PathResponseFields.jsx';
+import PathResponseFields, { pathFieldsHaveSteps, pathResponseComplete } from './PathResponseFields.jsx';
+import { getStudentSupportPresentation } from '../../studentSupport.js';
 import PathQuestionStimulus from './PathQuestionStimulus.jsx';
 import PathSolutionReview from './PathSolutionReview.jsx';
 import { getEffectiveActivityPolicy, isActivityRole } from '../../platform/policies/activityPolicies.js';
@@ -332,6 +333,9 @@ export const PathSessionPlayer = ({
   mainLandmark = true,
 }) => {
   const [responsesByQuestion, setResponsesByQuestion] = useState({});
+  // SHOW THE STEP (SP-4b): whether each field's step lets its box open, for
+  // the question on screen (PathResponseFields reports it).
+  const [stepsOpen, setStepsOpen] = useState({ instanceId: '', open: true });
   const [calculatorUsed, setCalculatorUsed] = useState(false);
   const [contextScaffoldUsed, setContextScaffoldUsed] = useState(false);
   const [hintOpen, setHintOpen] = useState(false);
@@ -612,7 +616,12 @@ export const PathSessionPlayer = ({
     ? questionInstance.responseFields
     : [{ id: 'answer', label: 'Answer', inputProfile: questionInstance.choices?.length ? 'choice' : 'text' }];
   const values = responsesByQuestion[instanceId] || {};
-  const complete = pathResponseComplete(fields, values);
+  // A field with a step is not answered, and Check waits, until its step lets
+  // the box open (SP-4b). The student's See every part at once support opens
+  // every box at once.
+  const stepsOptional = getStudentSupportPresentation(studentProfile).everyPartAtOnce === true;
+  const stepsReady = stepsOptional || !pathFieldsHaveSteps(fields) || (stepsOpen.instanceId === instanceId && stepsOpen.open);
+  const complete = pathResponseComplete(fields, values) && stepsReady;
 
   const setFieldValue = (fieldId, value) => {
     setResponsesByQuestion((current) => ({
@@ -709,12 +718,17 @@ export const PathSessionPlayer = ({
         <PathQuestionStimulus stimulus={questionInstance.stimulus} />
 
         <PathResponseFields
+          key={instanceId}
           fields={fields}
           questionChoices={questionInstance.choices || []}
           values={values}
           onChangeField={setFieldValue}
           onSubmit={submit}
           disabled={isSubmitting || finalized}
+          stepsClosed={finalized}
+          stepsOptional={stepsOptional}
+          draftKey={`path-${instanceId}`}
+          onStepsOpenChange={(open) => setStepsOpen((current) => (current.instanceId === instanceId && current.open === open ? current : { instanceId, open }))}
         />
 
         {/* The conceptual hint, released by the server on the second miss and

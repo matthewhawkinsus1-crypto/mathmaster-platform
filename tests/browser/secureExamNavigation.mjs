@@ -64,6 +64,12 @@
 //   - a tool that throws inside the question engine says the same, not the
 //     engine's own panel ("your grade is not affected", "Start this question
 //     fresh", a copyable report), and Try again draws the tool again;
+//   - a part with a step (SP-4b) opens on the step, with no answer box: points
+//     picked on the plane from the keyboard, moves made in Step Algebra. The
+//     box opens once the step is done, right or not, and nothing says which
+//     (no Check my step, no Answer without this step); a reopened Test brings
+//     the step back; the released record keeps it beside the answer, and the
+//     score is the answers' alone. See every part at once opens the box at once;
 //   - no sideways scroll, and every control in these screens at least 44px.
 
 import { spawn } from 'node:child_process';
@@ -72,6 +78,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { screenshotKeepingTouch } from './support/touchEmulation.mjs';
 import { answerParts, openPart, partValues } from './support/partByPart.mjs';
+import { solveLinearInEquationWorkspace } from './equationWorkspacePlanner.mjs';
 
 const { chromium } = await import(process.env.PLAYWRIGHT_MODULE || '/opt/node22/lib/node_modules/playwright/index.mjs');
 
@@ -1228,6 +1235,172 @@ const legacyJourney = async (context, device) => {
   await page.close();
 };
 
+/* ------------------------------- show the step ------------------------------- */
+
+// SP-4b: a secure Test's field opens on its step, as a DOL does. Nothing on
+// the screen judges the step; the box opens once it is done.
+const STEP_VERDICT = /not on the (line|graph)|are on the (line|graph)|do not match|match them|solves? the equation|not right|choose again|Count again|Check my step|Answer without this step/i;
+const stepJourney = async (context, device) => {
+  const { page, errors } = await openPage(context, 'step', device);
+  const label = (name) => `${device.id} step ${name}`;
+  const theStep = () => page.locator('main [data-show-the-step]').first();
+  const stepStatus = async () => (await theStep().locator('[data-step-status]').innerText()).replace(/\s+/g, ' ').trim();
+  const answerEditors = () => page.locator('main [data-secure-answer-editor]').count();
+  const press = async (...keys) => { for (const key of keys) { await page.keyboard.press(key); await wait(30); } };
+  const pickFrom = async ([x, y], from = [0, 0]) => press(
+    ...Array.from({ length: Math.abs(x - from[0]) }, () => (x > from[0] ? 'ArrowRight' : 'ArrowLeft')),
+    ...Array.from({ length: Math.abs(y - from[1]) }, () => (y > from[1] ? 'ArrowUp' : 'ArrowDown')),
+    'Enter',
+  );
+  const boxOpens = () => page.waitForFunction(() => document.querySelector('main [data-show-the-step]')?.getAttribute('data-step-open') === 'true'
+    && document.querySelectorAll('main [data-secure-answer-editor]').length > 0, null, { timeout: 8000 }).then(() => true).catch(() => false);
+  const judged = async (where) => {
+    const text = await page.locator('main').innerText();
+    const match = text.match(STEP_VERDICT);
+    check(!match, label(`${where}: nothing judges the step`), match ? `found "${match[0]}"` : '');
+    await noVerdict(page, label(where));
+  };
+
+  await page.waitForSelector('[data-secure-start-rules]');
+  await page.getByRole('button', { name: 'Start Test' }).click();
+  await page.waitForSelector('[data-secure-navigator-toggle]');
+  await theStep().waitFor({ timeout: 20000 });
+  check(await theStep().getAttribute('data-show-the-step') === 'pickPoints', label('the first part opens on its step'));
+  check(await answerEditors() === 0, label('there is no answer box before the step'));
+  check(await theStep().locator('[data-step-check], [data-step-skip]').count() === 0, label('no Check my step and no way round it on a secure Test'));
+  check(await page.getByRole('button', { name: 'Next part' }).isDisabled(), label('Next part waits for the step'));
+  await judged('before the step');
+  await shot(page, device, 'step-01-points');
+
+  // Two points from the keyboard, the second off the line: on a Test the
+  // box opens all the same, and nothing says so.
+  await theStep().locator('svg[data-mm-plane]').focus();
+  await pickFrom([0, 3]);
+  await pickFrom([1, 2], [0, 3]);
+  await theStep().locator('[data-step-entry="rise"]').fill('-1');
+  await theStep().locator('[data-step-entry="run"]').fill('1');
+  check(await boxOpens(), label('the box opens once the step is done'));
+  check(await stepStatus() === 'Step recorded. Now answer the part below.', label('the step says it is recorded, and no more'), await stepStatus());
+  await judged('a step done with a point off the line');
+  await waitSaved(page);
+  await shot(page, device, 'step-02-box-open');
+  // Take the stray point back and pick one on the line: still no verdict.
+  await theStep().locator('svg[data-mm-plane]').focus();
+  await press('Enter');
+  await pickFrom([1, 1], [1, 2]);
+  await theStep().locator('[data-step-entry="rise"]').fill('-2');
+  await theStep().locator('[data-step-entry="run"]').fill('1');
+  await judged('the step done right');
+  // The parts, typed as the other journeys type a secure field.
+  const fillPart = async (box, value) => {
+    if (await box.evaluate((element) => element.tagName === 'INPUT')) { await box.fill(value); return; }
+    await box.focus();
+    await box.evaluate((element) => element.executeCommand?.('selectAll'));
+    await page.keyboard.type(value);
+  };
+  await answerParts(page, ['-2', '3'], { root: 'main', type: fillPart });
+  await page.getByRole('heading', { name: 'Review all parts, then submit' }).waitFor();
+  check((await partValues(page, { root: 'main' })).join('|') === '-2|3', label('both parts are answered after the step'), (await partValues(page, { root: 'main' })).join('|'));
+  await waitSaved(page);
+
+  // The moves, in Step Algebra's own workspace, loaded for this step only.
+  await next(page);
+  await atQuestion(page, 'Question 2 of 2');
+  await page.waitForFunction(() => document.querySelector('main [data-show-the-step]')?.getAttribute('data-show-the-step') === 'stepMoves', null, { timeout: 20000 });
+  await theStep().locator('.algebra-embedded').waitFor({ timeout: 20000 });
+  check(await answerEditors() === 0, label('no answer box before a move'));
+  await judged('Step Algebra before a move');
+  await solveLinearInEquationWorkspace(page, theStep());
+  check(await boxOpens(), label('the box opens once a move is made'));
+  check(await stepStatus() === 'Step recorded. Now answer the part below.', label('the moves are recorded with no verdict'), await stepStatus());
+  await judged('Step Algebra after the moves');
+  await typedAnswer(page).fill('-5');
+  await waitSaved(page);
+  await shot(page, device, 'step-03-moves');
+
+  // Leave the Test and open it again: the step is back, and the box with it.
+  await page.evaluate(() => window.__secureHarness.remount());
+  await page.waitForSelector('[data-secure-start-rules], [data-secure-navigator-toggle]', { timeout: 15000 });
+  if (await page.getByRole('button', { name: /^(Resume|Continue|Start)/ }).count()) await page.getByRole('button', { name: /^(Resume|Continue|Start)/ }).first().click();
+  await page.waitForSelector('[data-secure-navigator-toggle]');
+  if (!/Question 1 of 2/.test(await headerPosition(page))) { await previous(page); await atQuestion(page, 'Question 1 of 2'); }
+  // Answered, it reopens as its parts' lines; Change opens the part and its step.
+  await page.getByRole('heading', { name: 'Review all parts, then submit' }).waitFor({ timeout: 20000 });
+  await openPart(page, 0, { root: 'main' });
+  await theStep().waitFor({ timeout: 20000 });
+  const pointsAgain = (await theStep().locator('[data-step-points]').innerText()).trim();
+  check(pointsAgain === 'Your points: (0, 3) and (1, 1).', label('a reopened Test brings the step back'), pointsAgain);
+  check(await boxOpens(), label('and the box with it'));
+
+  // Submit: the record keeps each step beside its answer; the score is the answers'.
+  await page.locator('[data-secure-nav="review"]').click();
+  await page.waitForSelector('[data-secure-review="submit"]');
+  await page.getByRole('button', { name: 'Submit test' }).click();
+  await page.waitForSelector('[data-secure-finished]');
+  await page.evaluate(() => window.__secureHarness.proctor('releaseFeedback'));
+  const record = await page.evaluate(async () => (await window.__secureHarness.review()).review.items.map((item) => ({
+    responses: item.responsePayload?.responses || {}, score: item.grading?.score ?? item.score ?? null, isCorrect: item.grading?.isCorrect ?? item.isCorrect ?? null,
+  })));
+  const [points, moves] = record;
+  check(points?.responses?.['slope::step'] === '(0, 3) (1, 1); rise -2; run 1' && points.responses.slope === '-2' && points.responses.intercept === '3', label('the record keeps the points beside the answers'), JSON.stringify(points?.responses));
+  check(/^4x \+ 7 = x - 8/.test(moves?.responses?.['answer::step'] || '') && moves.responses.answer === '-5', label('the record keeps the moves beside the answer'), JSON.stringify(moves?.responses));
+  check(record.every((item) => item.isCorrect !== false), label('each item is marked on its answers'), JSON.stringify(record.map((item) => [item.score, item.isCorrect])));
+  check(errors.length === 0, label('no console errors'), errors.slice(0, 3).join(' | '));
+  await page.close();
+
+  // Reopened on another device: the drafts hold the answers, and the device
+  // holds no step state (no points for the first item; for the second, its
+  // saved line and no Step Algebra workspace). An answer already given is
+  // never locked behind redoing the step: the box is open, with the answer.
+  const other = await openPage(context, 'step', device);
+  const otherPage = other.page;
+  await otherPage.waitForSelector('[data-secure-start-rules]');
+  await otherPage.getByRole('button', { name: 'Start Test' }).click();
+  await otherPage.waitForSelector('[data-secure-navigator-toggle]');
+  await otherPage.locator('main [data-show-the-step]').first().waitFor({ timeout: 20000 });
+  const MOVES_LINE = '4x + 7 = x - 8 ; 3x + 7 = -8 ; 3x = -15 ; x = -5';
+  await otherPage.evaluate(async (line) => {
+    await window.__secureHarness.saveDraft(0, { slope: '-2', intercept: '3' });
+    await window.__secureHarness.saveDraft(1, { answer: '-5', 'answer::step': line });
+    // The other device: none of this one's own drafts.
+    window.localStorage.clear();
+    window.__secureHarness.remount();
+  }, MOVES_LINE);
+  await otherPage.waitForSelector('[data-secure-start-rules], [data-secure-navigator-toggle]', { timeout: 15000 });
+  if (await otherPage.getByRole('button', { name: /^(Resume|Continue|Start)/ }).count()) await otherPage.getByRole('button', { name: /^(Resume|Continue|Start)/ }).first().click();
+  await otherPage.waitForSelector('[data-secure-navigator-toggle]');
+  if (!/Question 1 of 2/.test(await headerPosition(otherPage))) { await previous(otherPage); await atQuestion(otherPage, 'Question 1 of 2'); }
+  const keptAnswers = await otherPage.waitForFunction(() => [...document.querySelectorAll('main [data-part-state]')].map((part) => part.getAttribute('data-part-value')).join('|') === '-2|3', null, { timeout: 8000 }).then(() => true).catch(() => false);
+  check(keptAnswers, label('another device: an item answered without its step state opens with both answers, not behind the step'), (await partValues(otherPage, { root: 'main' })).join('|'));
+  await openPart(otherPage, 0, { root: 'main' });
+  const carried = (await otherPage.locator('main [data-show-the-step] [data-step-status]').first().innerText()).replace(/\s+/g, ' ').trim();
+  check(await otherPage.locator('main [data-show-the-step]').first().getAttribute('data-step-open') === 'true' && await otherPage.locator('main [data-part-state="open"] [data-secure-answer-editor]').count() === 1,
+    label('another device: the part opened again shows its answer box open'));
+  check(/^Your answer from before is kept\. Your step was not carried over/.test(carried), label('another device: the step says it was not carried over, and is neither done nor skipped'), carried);
+  check(!(await otherPage.evaluate(async () => (await window.__secureHarness.draft(0))?.['slope::step'])), label('another device: no step line is written for it until the student does the step'));
+  await next(otherPage);
+  await atQuestion(otherPage, 'Question 2 of 2');
+  await otherPage.locator('main [data-show-the-step="stepMoves"] .algebra-embedded').waitFor({ timeout: 20000 });
+  await wait(800);
+  check(await typedAnswer(otherPage).inputValue() === '-5', label('another device: the moves item opens with its answer'), await typedAnswer(otherPage).inputValue());
+  const keptLine = await otherPage.evaluate(async () => (await window.__secureHarness.draft(1))?.['answer::step']);
+  check(keptLine === MOVES_LINE, label('another device: Step Algebra opening empty does not erase the moves the draft records'), keptLine);
+  check(other.errors.length === 0, label('another device: no console errors'), other.errors.slice(0, 3).join(' | '));
+  await otherPage.close();
+
+  // See every part at once: the box is open from the start, the step still there.
+  const supported = await openPage(context, 'step', device, '&supports=everyPart');
+  const supportedPage = supported.page;
+  await supportedPage.waitForSelector('[data-secure-start-rules]');
+  await supportedPage.getByRole('button', { name: 'Start Test' }).click();
+  await supportedPage.locator('main [data-show-the-step]').first().waitFor({ timeout: 20000 });
+  const opened = await supportedPage.waitForFunction(() => document.querySelectorAll('main [data-secure-answer-editor]').length === 2, null, { timeout: 8000 }).then(() => true).catch(() => false);
+  check(opened, label('See every part at once: every box is open from the start'));
+  check(/This step is optional for you\./.test(await supportedPage.locator('main [data-show-the-step] [data-step-status]').first().innerText()), label('See every part at once: the step says it is optional'));
+  check(supported.errors.length === 0, label('See every part at once: no console errors'), supported.errors.slice(0, 3).join(' | '));
+  await supportedPage.close();
+};
+
 /* ------------------------------ status list ------------------------------- */
 
 const dashboardJourney = async (context, device) => {
@@ -1264,7 +1437,7 @@ for (const device of DEVICES) {
     return route.abort();
   });
   const only = (process.env.SECURE_NAV_JOURNEYS || '').split(',').map((name) => name.trim()).filter(Boolean);
-  const journeys = [practiceJourney, courseJourney, toolTriesJourney, supportsJourney, backtrackJourney, darkJourney, timeoutJourney, brokenItemJourney, toolThrowsJourney, toolGoneJourney, legacyJourney, dashboardJourney]
+  const journeys = [practiceJourney, courseJourney, toolTriesJourney, supportsJourney, backtrackJourney, stepJourney, darkJourney, timeoutJourney, brokenItemJourney, toolThrowsJourney, toolGoneJourney, legacyJourney, dashboardJourney]
     .filter((journey) => !only.length || only.includes(journey.name.replace(/Journey$/, '')));
   for (const journey of journeys) {
     try {
