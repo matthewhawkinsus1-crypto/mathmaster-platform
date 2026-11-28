@@ -21,6 +21,16 @@
 // In a secure test there is no per-question Submit: the draft is still saved
 // as typed, and the box says the entry cannot be marked right as it stands.
 //
+// Two more, on the same page as the student meets them:
+//
+//   Live Challenge, a box that builds on an earlier one (SP-3): its label says
+//   "your slope of the boundary line" before the slope has an answer, the
+//   student's own slope once it has, and never a raw {slope}
+//   a secure test, part by part ("Review all parts, then submit"): `12 +` in
+//   a text box that names a number format keeps its part open (it is not an
+//   answered line) and says it is not finished; an "Explain" box of words
+//   takes `12 +` as written words, and says nothing
+//
 // Exits non-zero on any failure.
 const { chromium } = await import(process.env.PLAYWRIGHT_MODULE || '/opt/node22/lib/node_modules/playwright/index.mjs');
 const ORIGIN = process.env.AUDIT_ORIGIN || 'http://localhost:5199';
@@ -173,6 +183,79 @@ for (const device of DEVICES) {
       if (surface.action) check(fine.held === false, `${label}: ${keys} can be submitted`, `disabled ${fine.held}`);
       await fine.page.close();
     }
+  }
+  await context.close();
+}
+
+for (const device of DEVICES) {
+  const context = await browser.newContext(device.options);
+
+  // Live Challenge: the later box's label, before and after the slope.
+  {
+    const label = `${device.name}, Live Challenge follow-through`;
+    const { page, field, errors } = await open(context, { id: 'challenge-follow' });
+    // The later box's label as drawn: the innermost element that holds all of it.
+    const later = () => page.evaluate(() => {
+      const whole = (node) => /Using your slope of[\s\S]*write the inequality/.test(node.textContent || '');
+      const holders = [...document.querySelectorAll('section *')].filter((node) => whole(node) && ![...node.children].some(whole));
+      const node = holders[0];
+      if (!node) return '';
+      // Mathematics drawn by KaTeX keeps a hidden copy of its source: read the drawn text only.
+      const copy = node.cloneNode(true);
+      copy.querySelectorAll('.katex-mathml, annotation').forEach((hidden) => hidden.remove());
+      return (copy.textContent || '').replace(/\s+/g, ' ').trim();
+    });
+    const before = await later();
+    check(/Using your slope of your slope of the boundary line, write the inequality/.test(before), `${label}: before the slope has an answer the label says "your slope of the boundary line"`, JSON.stringify(before));
+    await focus(device, field, page);
+    await page.keyboard.type('-3', { delay: 30 });
+    await page.waitForFunction(() => !/your slope of the boundary/.test(document.body.textContent), null, { timeout: 8000 }).catch(() => {});
+    const after = await later();
+    check(/Using your slope of\s*[-−]\s*3(?:\s*negative 3)?\s*,\s*write the inequality/.test(after), `${label}: once it has one the label carries the student's slope`, JSON.stringify(after));
+    for (const [when, text] of [['before', before], ['after', after]]) {
+      check(!/\{slope\}|\{|y\s*>/.test(text), `${label}: never a raw {slope} or a key (${when})`, JSON.stringify(text));
+    }
+    check(!errors.length, `${label}: no page errors`, errors.slice(0, 2).join(' | '));
+    await page.close();
+  }
+
+  // A secure test, part by part.
+  {
+    const label = `${device.name}, secure test part by part`;
+    pages += 1;
+    const page = await context.newPage();
+    const errors = [];
+    page.on('pageerror', (error) => errors.push(error.message));
+    await page.goto(`${ORIGIN}/tests/browser/typedEntryRefusal.html?surface=secure-parts&run=${run}-${pages}`, { waitUntil: 'networkidle' });
+    const openPart = () => page.locator('[data-part-state="open"]').first();
+    await openPart().waitFor({ timeout: 30000 });
+    const box = () => openPart().locator('input[type="text"], textarea, math-field').first();
+    const nextButton = () => openPart().getByRole('button', { name: /^(Next part|Review all parts)$/ });
+    const fill = async (text) => {
+      const input = box();
+      if (device.touch) await input.tap(); else await input.click();
+      await input.fill(text);
+      await page.waitForTimeout(1300);
+    };
+    await fill('12 +');
+    check((await openPart().getAttribute('data-part-id')) === 'total', `${label}: the number part is open`);
+    check(await nextButton().isDisabled(), `${label}: \`12 +\` in a text box that names a number format does not let the part be passed`);
+    const said = await notices(page);
+    check(said.length === 1 && NOT_FINISHED.test(said[0]), `${label}: …and the box says it is not finished`, JSON.stringify(said));
+    check((await page.locator('[data-part-state="answered"]').count()) === 0, `${label}: …and it is no answered line`);
+    await fill('15');
+    check(!(await nextButton().isDisabled()), `${label}: a finished number lets the part be passed`);
+    if (device.touch) await nextButton().tap(); else await nextButton().click();
+    await page.waitForFunction(() => document.querySelector('[data-part-state="open"]')?.getAttribute('data-part-id') === 'explain', null, { timeout: 8000 }).catch(() => {});
+    await fill('12 +');
+    check((await notices(page)).length === 0, `${label}: an "Explain" box of words takes \`12 +\` as written, and says nothing`, JSON.stringify(await notices(page)));
+    check(!(await nextButton().isDisabled()), `${label}: …and lets its part be passed`);
+    if (device.touch) await nextButton().tap(); else await nextButton().click();
+    await page.getByRole('heading', { name: 'Review all parts, then submit' }).waitFor({ timeout: 8000 }).catch(() => {});
+    const lines = await page.locator('[data-part-state="answered"]').evaluateAll((nodes) => nodes.map((node) => node.getAttribute('data-part-value')));
+    check(JSON.stringify(lines) === JSON.stringify(['15', '12 +']), `${label}: Review all parts, then submit lists both parts as answered`, JSON.stringify(lines));
+    check(!errors.length, `${label}: no page errors`, errors.slice(0, 2).join(' | '));
+    await page.close();
   }
   await context.close();
 }

@@ -80,7 +80,11 @@ export function createAttendanceExtensionControls(
         toDateKey: windowEnds.sort().at(-1) || event.evidence?.dateKey,
       })
       : [];
-    const results = requireTeacherKit().reconcileAssignmentExtensionsForCorrection({
+    // Loaded when a correction needs it, not with a teacher's first page
+    // (scripts/check-first-load-budget.mjs). If it cannot load, the caller
+    // records the retry, as for any failed reconciliation.
+    const { buildStudentExtensionPatch, reconcileAssignmentExtensionsForCorrection } = await import('../../../platform/attendance/extensionReconciliation.js');
+    const results = reconcileAssignmentExtensionsForCorrection({
       assignments: affectedAssignments,
       studentId: event.studentId,
       classId: event.classId,
@@ -97,7 +101,7 @@ export function createAttendanceExtensionControls(
     let reviewCount = 0;
     await Promise.all(results.map(async ({ assignment, resolution }) => {
       if (resolution.reviewNeeded) { reviewCount += 1; return; }
-      const patch = requireTeacherKit().buildStudentExtensionPatch({
+      const patch = buildStudentExtensionPatch({
         assignment, studentId: event.studentId, resolution, actorEmail: user.email,
       });
       if (patch) await applyStudentOverridePatch({ assignmentId: assignment.id, studentId: event.studentId, classId: event.classId, patch });

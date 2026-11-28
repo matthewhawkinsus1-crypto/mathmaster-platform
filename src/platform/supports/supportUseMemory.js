@@ -128,6 +128,10 @@ export const attemptSupportUsageFrom = ({
   // "Spot the mistake" answered (WE-F): a fact, kept only when true, so an
   // attempt without it records exactly what it did before.
   spotTheMistakeUsed = false,
+  // A reference card was pinned beside the question (WE-H; ReferenceCards.jsx):
+  // a fact, kept only when true. It is on the screen without being asked for,
+  // so it is never help asked for and leaves independence as it was.
+  referenceCardShown = false,
   backUpStepDone = false,
   backUpStepSource = 'platform',
   scaffoldUsed = false,
@@ -146,6 +150,7 @@ export const attemptSupportUsageFrom = ({
     workedExampleUsed: Boolean(workedExampleUsed),
     ...(workedExampleShown ? { workedExampleShown: WORKED_EXAMPLE_SHOWN_AUTO } : {}),
     ...(spotTheMistakeUsed ? { spotTheMistakeUsed: true } : {}),
+    ...(referenceCardShown ? { referenceCardShown: true } : {}),
     feedbackAssisted: Boolean(feedbackAssisted),
     calculatorUsed: Boolean(calculatorUsed),
     // The host's own "not independent" (a teacher's help, a modification) stands.

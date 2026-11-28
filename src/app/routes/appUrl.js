@@ -54,7 +54,7 @@ export const MATH_PATH_TABS = Object.freeze(['path', 'dashboard', 'progress', 'c
 export const TEACHER_TABS = Object.freeze([
   'home', 'assignments', 'library',
   'classesWorkspace', 'students', 'weeklyPath', 'pacing',
-  'actionCenter', 'attendanceHistory', 'parentContacts',
+  'actionCenter', 'attendanceHistory', 'parentContacts', 'discipline',
   'grades', 'gradeTransfer', 'standards', 'analytics', 'exams',
   'liveChallenge', 'mathTools', 'simulator', 'demo',
   'classes', 'classroom', 'access',

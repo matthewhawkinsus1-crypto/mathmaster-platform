@@ -32,6 +32,7 @@ import { multiAnswerFields, systemSolutionKey } from './ordinaryResponseGrading.
 import { resolveGradingSurfaceId } from './serverGrading/gradingManifest.mjs';
 import { isToolResponse, readToolWork } from './serverGrading/toolResponseContract.mjs';
 import { graderReading } from './responseInspectorReasons.mjs';
+import { followThroughKeys, followThroughOf, followThroughValue } from './followThrough.mjs';
 
 const list = (value) => (Array.isArray(value) ? value : []);
 const isObject = (value) => Boolean(value) && typeof value === 'object' && !Array.isArray(value);
@@ -313,11 +314,43 @@ const COMPARED_AS = Object.freeze({
   'simplest-radical-form': 'compared in simplest radical form',
 });
 
+/*
+ * SP-3: a follow-through part is marked right when it matches the key built
+ * from the student's own earlier answer, or its own answer
+ * (followThrough.mjs withFollowThroughKeys). Its expected cell is the key the
+ * grader used, said to be built from the earlier answer, with the authored
+ * answer beside it. With no value to build from (a blank or unfinished
+ * earlier answer), the grader used the authored answer alone, and the cell
+ * says so. The verdict is the recorded one either way.
+ */
+const followThroughExpected = ({ field, authored, responsesById, keyed, own: ownCell }) => {
+  const rule = followThroughOf(field);
+  if (!rule) return ownCell;
+  const byId = new Map(authored.map((entry) => [viewText(entry.id), entry]));
+  const sources = rule.from.map((id) => byId.get(id)).filter(Boolean);
+  const named = sources.map((source) => {
+    const found = safely(() => followThroughValue(responsesById[viewText(source.id)], source), null);
+    const label = viewText(source.label || source.id);
+    return found ? `${label} (${viewText(found.shown)})` : label;
+  }).join(', ') || rule.from.map(viewText).join(', ');
+  if (!keyed?.length) {
+    return ownCell ? { ...ownCell, note: `No key built from the student's answer to ${named}: graded against the authored answer` } : null;
+  }
+  return {
+    text: viewText(keyed.join(' or ')),
+    note: `Built from the student's answer to ${named}`,
+    ...(ownCell?.text ? { authored: { text: ownCell.text } } : {}),
+  };
+};
+
 const multiAnswerRows = ({ question, response, result, workspace, expected, trace }) => {
   const parts = partsById(result);
   const values = submittedFields(response);
   const traces = new Map(list(trace?.fields).map((field) => [viewText(field?.id), field]));
   const authored = multiAnswerFields(question);
+  // What the grader read for each box, as followThroughKeys reads it.
+  const responsesById = Object.fromEntries([...parts.entries()].map(([id, part]) => [id, part?.response]).concat([...values.entries()]));
+  const keyedById = expected?.available === false ? new Map() : safely(() => followThroughKeys(authored, responsesById), new Map());
   const stepParts = checkpointParts(question);
   const ids = withStepsAfterParts([...new Set([...authored.map((field) => viewText(field.id)), ...values.keys(), ...parts.keys()])], question).slice(0, MAX_ROWS);
   return ids.map((id) => {
@@ -368,7 +401,7 @@ const multiAnswerRows = ({ question, response, result, workspace, expected, trac
         ? expectedCell(expected, [])
         : choice
           ? (() => { const shown = keys.map((key) => choiceCell(field, key)); return shown.length ? { text: shown.map((entry) => entry.option || entry.text).join(' or ') } : null; })()
-          : expectedCell(expected, keys),
+          : followThroughExpected({ field, authored, responsesById, keyed: keyedById.get(id), own: expectedCell(expected, keys) }),
       result: resultCell(parts.get(id)),
     };
   });

@@ -12,6 +12,7 @@ import { getStudentSecureExamReview } from '../../services/secureExamService.js'
 import { describeToolWork, rawToolWorkOf, toolWorkLabel } from '../../platform/assessment/secureToolWorkSummary.js';
 import { withFollowThroughLabels } from '../../../functions/shared/followThroughNames.mjs';
 import { useFollowThroughRules } from '../../platform/interaction/useFollowThroughRules.js';
+import { unfinishedReviewNote } from '../../platform/assessment/unfinishedAnswer.js';
 import {
   RESULT_STATUS,
   answerIsLatex,
@@ -86,7 +87,10 @@ const responseRows = (item, followThrough = null) => {
         .map((entry) => fieldChoices.find((choice) => choice.id === entry)?.label || String(entry ?? '').trim())
         .filter(Boolean)
         .join(', ');
-      return { id: fieldId, label: field?.label || 'Your response', value, math: answerIsLatex(value) };
+      // An unfinished entry (`12 +`, `4*`) was kept as typed and never marked
+      // right: it is read as unfinished, in the answer box's words.
+      const unfinished = Array.isArray(raw) ? '' : unfinishedReviewNote(raw, field || null);
+      return { id: fieldId, label: field?.label || 'Your response', value, math: answerIsLatex(value), ...(unfinished ? { unfinished } : {}) };
     })
     .filter((row) => row.value);
 };
@@ -109,9 +113,12 @@ const answerValueStyle = { color: 'var(--mm-text-strong)', fontSize: 'calc(15 * 
 const AnswerRows = ({ rows }) => rows.map((row, index) => (
   <div key={row.id || index} style={{ display: 'grid', gridTemplateColumns: row.label ? 'minmax(90px, auto) minmax(0, 1fr)' : 'minmax(0, 1fr)', gap: 10, alignItems: 'baseline', marginTop: index === 0 ? 0 : 6 }}>
     {row.label && <MathText style={{ color: 'var(--mm-text-muted)', fontSize: 'calc(12 * var(--mm-px))', fontWeight: 800 }}>{row.label}</MathText>}
-    {row.math
-      ? <span style={answerValueStyle}><MathDisplay value={row.value} format="latex" inline /></span>
-      : <MathText style={answerValueStyle}>{row.value}</MathText>}
+    <span style={{ minWidth: 0 }}>
+      {row.math
+        ? <span style={answerValueStyle}><MathDisplay value={row.value} format="latex" inline /></span>
+        : <MathText style={answerValueStyle}>{row.value}</MathText>}
+      {row.unfinished && <span data-review-unfinished="" style={{ display: 'block', marginTop: 4, color: 'var(--mm-text)', fontSize: 'calc(13 * var(--mm-px))', fontWeight: 700 }}>{row.unfinished}</span>}
+    </span>
   </div>
 ));
 

@@ -68,6 +68,14 @@ function ValueCell({ value, question, readable = false, empty = 'Not recorded' }
       {value.option ? <span style={{ display: 'block', fontWeight: 700 }}>{asText(value.option)}</span> : null}
       {value.text !== undefined && (value.text !== '' || !value.note) ? <WrittenValue text={value.text} question={question} readable={readable} /> : null}
       {value.note ? <span style={{ ...mutedStyle, display: 'block' }}>{asText(value.note)}</span> : null}
+      {/* SP-3: a follow-through part's key is built from the student's earlier
+          answer; the authored answer it also takes is shown beside it. */}
+      {value.authored && typeof value.authored === 'object' ? (
+        <span style={{ display: 'block', marginTop: 4 }} data-inspector-authored="">
+          <span style={mutedStyle}>Authored answer: </span>
+          <WrittenValue text={value.authored.text} question={question} readable={readable} />
+        </span>
+      ) : null}
     </>
   );
 }

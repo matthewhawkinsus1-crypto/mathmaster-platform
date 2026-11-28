@@ -9,6 +9,15 @@
 //   ?record=partial|expired        the item's record: one half-right attempt, or
 //                                  out of attempts
 //   ?review=1                      the teacher has released the assignment's feedback
+//   ?card=1                        the lesson around the item declares reference cards
+//                                  (WE-H): one with no sections (every Classwork and
+//                                  Practice section) and one forged to name this very
+//                                  section, by role and by id, as a stored record
+//                                  could. The item is the lesson's question, with
+//                                  its section's own role
+//   ?section=<role>                with ?card=1, the section's OWN role when it is not
+//                                  ?role (?role=practice&section=dol: a DOL practised
+//                                  after its due date)
 //   ?ask=1&hand=1&locked=1         an "Ask my teacher" host, a hand already raised on
 //                                  this question, the section locked (every call the
 //                                  engine makes lands in __mmHelp)
@@ -234,7 +243,19 @@ const FIXTURES = {
   }),
 };
 
-const question = FIXTURES[which]?.();
+const fixture = FIXTURES[which]?.();
+const withCards = params.get('card') === '1';
+const sectionRole = params.get('section') || role;
+// The lesson a published assignment hands over: its questions carry their
+// section's role and id (flattenV5Sections), and its cards are in lessonSupports.
+const question = withCards && fixture ? { ...fixture, activityRole: sectionRole, sectionId: 'leak-gates-section' } : fixture;
+const lessonQuestions = withCards && question ? [question] : null;
+const lessonSupports = withCards ? {
+  referenceCards: [
+    { id: 'leak-card-every-section', skill: 'lines.slopeFormula' },
+    { id: 'leak-card-named-here', skill: 'factor.sumDifferenceOfCubes', sections: [sectionRole, 'leak-gates-section'] },
+  ],
+} : null;
 window.__mmGraded = [];
 window.__mmStepGrades = [];
 window.__mmHelp = [];
@@ -270,6 +291,9 @@ function Harness() {
         feedbackReleased={released}
         assessmentReviewReleased={reviewReleased}
         assignmentLocked={sectionLocked}
+        lessonQuestions={lessonQuestions}
+        lessonGiven={lessonQuestions ? '0' : null}
+        lessonSupports={lessonSupports}
         onAskTeacher={asking ? (requested) => { window.__mmHelp.push(requested); } : null}
         helpRequested={handRaised}
         maximumAttempts={3}

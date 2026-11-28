@@ -22,6 +22,7 @@ import {
   buildServiceLogEntry, buildStaffEvidenceEvent, buildStudentEvidenceEvent, engagementDocId, epochMinuteOf, utcDayOf,
 } from '../../../functions/shared/supportEvidenceModel.mjs';
 import { WORKSPACE_DRAFT_SCHEMA_VERSION, workspaceDraftDocumentId } from '../../../functions/shared/workspaceDraftSchema.mjs';
+import { disciplineDateKey } from '../../../functions/shared/disciplineTracker.mjs';
 import {
   OVERRIDE_MIGRATION_ID,
   OVERRIDE_STORAGE_FLAG,
@@ -520,6 +521,9 @@ export const buildTeacherWorkflowFixture = ({ now = Date.now(), Timestamp, param
   // about two boxes on screen at once (restoredDraftFocusRaceJourneys.mjs).
   addSupportEvidence({ fixture, now, Timestamp, supported: p3[1], legacy: p3[4], everyPartAtOnce: params?.get?.('everyPartAtOnce') === '1' });
   addCaseReviewEvidence({ fixture, now, Timestamp, student: p3[1] });
+  // Opt-in (`&conduct=1`, the case review journeys): the same student's
+  // Discipline Tracker records and a family contact.
+  if (params?.get?.('conduct') === '1') addCaseReviewConduct({ fixture, now, student: p3[1] });
   // Opt-in (`&reduced=1`) so every other journey sees the school unchanged.
   if (params?.get?.('reduced') === '1') addReducedWorkloadScenario({ fixture, now, Timestamp, classRecord: byId['c-alg1-p5'] });
   if (params?.get?.('eb') === '1') addLanguageSupportScenario({ fixture, now, Timestamp, classRecord: byId['c-alg1-p5'] });
@@ -1000,6 +1004,58 @@ const QUESTIONS = [
   { suffix: 'p2', role: 'practice', code: 'A.5A' },
   { suffix: 'd1', role: 'dol', code: 'A.5A' },
 ];
+/*
+ * STUDENT CASE REVIEW — conduct, for the same student: a tardy last week and
+ * an ID violation yesterday recorded in the Discipline Tracker (both on the
+ * district form), a tap the teacher undid (never a record), and the family
+ * call logged in Parent Contacts after yesterday's. Synthetic.
+ */
+const addCaseReviewConduct = ({ fixture, now, student }) => {
+  const classRecord = fixture[`classes/${student.classId}`] || {};
+  const tap = (id, ms, type, extra = {}) => {
+    fixture[`disciplineIncidents/${student.classId}_${id}`] = {
+      classId: student.classId,
+      classPeriod: String(classRecord.period || ''),
+      classLabel: classRecord.name || String(classRecord.period || ''),
+      studentId: student.id,
+      type,
+      detail: '',
+      occurredAtMs: ms,
+      dateKey: disciplineDateKey(ms),
+      teacherOfRecord: TEACHER_EMAIL,
+      recordedByEmail: TEACHER_EMAIL,
+      recordedByUid: 'harness-teacher-uid',
+      form: { state: 'submitted', attempts: 1, submittedAtMs: ms + 20 * 60_000 },
+      ...extra,
+    };
+  };
+  const yesterday = previousSchoolDay(now);
+  tap('case-tardy', now - 8 * DAY + 60_000, 'tardy');
+  tap('case-id', yesterday - 30 * 60_000, 'idViolation', { detail: 'noLanyard' });
+  tap('case-undone', yesterday - 25 * 60_000, 'dressCode', { voidedAtMs: yesterday - 24 * 60_000, voidedByEmail: TEACHER_EMAIL, voidReason: 'Undone by the teacher' });
+  const calledAt = new Date(yesterday - 15 * 60_000).toISOString();
+  fixture[`parentContactLogs/case-${student.id}-call`] = {
+    schemaVersion: 1,
+    recordType: 'contact',
+    parentContactId: null,
+    studentId: student.id,
+    studentName: [student.firstName, student.lastName].filter(Boolean).join(' ') || null,
+    classId: student.classId,
+    classPeriod: String(classRecord.period || '') || null,
+    occurredAt: calledAt,
+    method: 'phone',
+    category: 'behavior',
+    notes: 'Called about wearing the ID on a lanyard.',
+    outcome: 'Discipline message sent',
+    followUpDate: null,
+    createdByEmail: TEACHER_EMAIL,
+    originTeacherEmail: TEACHER_EMAIL,
+    originClassId: student.classId,
+    authorizedTeacherEmails: [TEACHER_EMAIL],
+    createdAt: calledAt,
+  };
+};
+
 const addCaseReviewEvidence = ({ fixture, now, Timestamp, student }) => {
   const at = (ms) => Timestamp.fromMillis(ms);
   const base = `grades/${student.id}`;
