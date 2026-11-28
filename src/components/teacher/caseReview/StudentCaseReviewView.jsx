@@ -7,7 +7,7 @@ import { selectReportAssignments } from '../../../platform/supportEvidence/suppo
 import { buildStudentCaseReview } from '../../../platform/caseReview/studentCaseReview.js';
 import { loadStudentCaseRecords, saveSisSnapshot } from '../../../platform/caseReview/caseReviewStore.js';
 import {
-  caseAssignmentsCsv, caseFactsCsv, caseQuestionsCsv, caseReviewFileName, caseReviewJson, caseSignalsCsv, TEACHER_AUTHORED_LABEL,
+  caseAssignmentsCsv, caseConductCsv, caseFactsCsv, caseQuestionsCsv, caseReviewFileName, caseReviewJson, caseSignalsCsv, TEACHER_AUTHORED_LABEL,
 } from '../../../platform/caseReview/caseReviewExport.js';
 import {
   NEXT_STEPS_MAX_LENGTH, forgetOtherAccountsDrafts, nextStepsDraftAvailable, readNextStepsDraft, writeNextStepsDraft,
@@ -19,6 +19,7 @@ import CaseQuestionsTab from './CaseQuestionsTab.jsx';
 import CaseSkillsTab from './CaseSkillsTab.jsx';
 import CaseDolTab from './CaseDolTab.jsx';
 import CaseSignalsTab from './CaseSignalsTab.jsx';
+import CaseConductTab from './CaseConductTab.jsx';
 import CaseCompletionTab from './CaseCompletionTab.jsx';
 import CaseSupportTab from './CaseSupportTab.jsx';
 import CaseTimelineTab from './CaseTimelineTab.jsx';
@@ -41,8 +42,9 @@ import './caseReview.css';
  * data — is fetched until the teacher opens it and presses "Build case
  * review". The records come through the same rules-guarded readers as the
  * Student Support Evidence Report plus the read-only `loadStudentCaseEvidence`
- * callable (caseReviewStore.js); the case file itself is a pure function of
- * them (studentCaseReview.js). This component only renders it.
+ * and `loadStudentConductEvidence` callables (caseReviewStore.js); the case
+ * file itself is a pure function of them (studentCaseReview.js). This
+ * component only renders it.
  *
  * Navigation keeps the teacher's place: every tab stays mounted once visited
  * (its page, filters and scroll position survive), the questions tab drills
@@ -59,6 +61,7 @@ const TABS = [
   { key: 'signals', label: 'Work-pattern signals' },
   { key: 'completion', label: 'Completion' },
   { key: 'supports', label: 'Supports' },
+  { key: 'conduct', label: 'Conduct & family contact' },
   { key: 'timeline', label: 'Timeline' },
   { key: 'gradebook', label: 'Official gradebook' },
   { key: 'facts', label: 'Narrative facts' },
@@ -214,6 +217,8 @@ export default function StudentCaseReviewView({
       extensionGrants: records.extensionGrants,
       attemptSignals: records.attemptSignals,
       attemptSignalsMeta: records.attemptSignalsMeta,
+      conductEvidence: records.conductEvidence,
+      conductEvidenceError: records.conductEvidenceError,
       sisSnapshot: sis.snapshot,
       sisConfirmedMatches: sis.confirmedMatches,
       nowValue: records.loadedAtMs,
@@ -342,6 +347,7 @@ export default function StudentCaseReviewView({
     if (kind === 'assignments') download(caseAssignmentsCsv(model), caseReviewFileName(model, 'assignments', 'csv'), 'text/csv');
     if (kind === 'questions') download(caseQuestionsCsv(model), caseReviewFileName(model, 'questions', 'csv'), 'text/csv');
     if (kind === 'signals') download(caseSignalsCsv(model), caseReviewFileName(model, 'work-pattern-signals', 'csv'), 'text/csv');
+    if (kind === 'conduct') download(caseConductCsv(model), caseReviewFileName(model, 'conduct-and-family-contact', 'csv'), 'text/csv');
     if (kind === 'facts') download(caseFactsCsv(model), caseReviewFileName(model, 'facts', 'csv'), 'text/csv');
     setNotice('Download started.');
   };
@@ -356,6 +362,7 @@ export default function StudentCaseReviewView({
       case 'signals': return <CaseSignalsTab model={model} onOpenQuestion={openQuestion} />;
       case 'completion': return <CaseCompletionTab model={model} />;
       case 'supports': return <CaseSupportTab model={model} onOpenSupportReport={onOpenSupportReport} />;
+      case 'conduct': return <CaseConductTab model={model} />;
       case 'timeline': return <CaseTimelineTab model={model} />;
       case 'gradebook': return (
         <CaseGradebookTab
@@ -394,6 +401,7 @@ export default function StudentCaseReviewView({
               <button type="button" className="tw-btn tw-btn--sm" onClick={() => exportsFor('assignments')}>Assignments CSV</button>
               <button type="button" className="tw-btn tw-btn--sm" onClick={() => exportsFor('questions')}>Questions CSV</button>
               <button type="button" className="tw-btn tw-btn--sm" onClick={() => exportsFor('signals')}>Signals CSV</button>
+              <button type="button" className="tw-btn tw-btn--sm" onClick={() => exportsFor('conduct')}>Conduct CSV</button>
               <button type="button" className="tw-btn tw-btn--sm" onClick={() => exportsFor('facts')}>Facts CSV</button>
               <button type="button" className="tw-btn tw-btn--sm" onClick={() => exportsFor('json')}>JSON (full case file)</button>
               {notice && <span className="cr-note" role="status">{notice}</span>}

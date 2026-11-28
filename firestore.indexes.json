@@ -391,6 +391,14 @@
       ]
     },
     {
+      "collectionGroup": "disciplineIncidents",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "teacherOfRecord", "order": "ASCENDING" },
+        { "fieldPath": "dateKey", "order": "ASCENDING" }
+      ]
+    },
+    {
       "collectionGroup": "parentContactLogs",
       "queryScope": "COLLECTION",
       "fields": [

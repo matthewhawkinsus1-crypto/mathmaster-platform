@@ -216,4 +216,5 @@ export const PlatformHealth = teacherPanel(() => import('../components/admin/Pla
 export const PathCoverageAudit = teacherPanel(() => import('../components/teacher/PathCoverageAudit.jsx'));
 export const AttendanceHistoryPanel = teacherPanel(() => import('../components/teacher/AttendanceHistoryPanel.jsx'));
 export const ParentContactCenter = teacherPanel(() => import('../components/teacher/ParentContactCenter.jsx'));
+export const DisciplineTracker = teacherPanel(() => import('../components/teacher/DisciplineTracker.jsx'));
 export const TeacherActionCenter = teacherPanel(() => import('../components/teacher/TeacherActionCenter.jsx'));

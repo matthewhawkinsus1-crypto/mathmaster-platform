@@ -80,6 +80,9 @@ const SERVER_ONLY = [
   'activePathLocks', // the lock that keeps one open My Math Path session per skill
   'masteryEvidenceApplications', // the marker that a Path answer was already applied to mastery
   'secureTestManifests', // a secure Test's blueprint and issuance record
+  'disciplineIncidents', // a teacher's violation taps for their students
+  'disciplineSettings', // a teacher's principal address and names for messages
+  'disciplineStatus', // the last check of the district's violation form
   'teamsSyncClasses', // which TEAMS sections a class is linked to, and the batch a sync runner holds
   'teamsSyncTargets', // the grades Grade Transfer published for the TEAMS sync to send
   'teamsSyncLedger', // what MathMaster wrote to each TEAMS cell
