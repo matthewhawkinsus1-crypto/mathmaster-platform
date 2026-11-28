@@ -10,6 +10,7 @@ import { splitIntegrityConsequence } from '../../functions/shared/integrityOverr
 import { SUPPORT_EVENT_KIND, SUPPORT_EVENT_LABEL } from '../../src/platform/teacher/studentSupportSignals.js';
 import { region } from './helpers/sourceContract.mjs';
 import { functionsBackendSource, topLevelDeclaration } from './helpers/functionsBackendSource.mjs';
+import { teacherWorkspaceSource } from './helpers/appScreens.mjs';
 
 test('assignment override helper accepts only active numeric server projection', () => {
   const student = {
@@ -35,7 +36,7 @@ test('assignment override helper accepts only active numeric server projection',
 test('Grade Center exposes the two explicit zero reasons and a restore path', () => {
   const controls = readFileSync(new URL('../../src/components/teacher/AssignmentGradeOverrideControls.jsx', import.meta.url), 'utf8');
   // The gradebook is the teacher's screen, its own module since G2.
-  const app = readFileSync(new URL('../../src/app/teacher/TeacherWorkspace.jsx', import.meta.url), 'utf8');
+  const app = teacherWorkspaceSource();
   assert.match(controls, /cellPhoneUse/);
   assert.match(controls, /academicDishonesty/);
   assert.match(controls, /restoreAutomatic/);

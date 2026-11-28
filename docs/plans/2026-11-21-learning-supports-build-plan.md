@@ -84,7 +84,7 @@ gate, and merges with a merge commit when CI is green.
 | **WE-F** Spot the mistake, model answers, why this step? | lead | WE-A | Spot the mistake from `solutionReview.commonError`. A model answer and checklist for explain questions. One "why this step?" choice per Classwork example. | Each reads existing fields, except the model answer, which is authored (AG-1). |
 | **WE-G** The teacher's view of examples | build session F | WE-A, SP-2 | Per skill: which students opened examples, and whether the next question then went right. Shown with the SP-2 signals. | It is shown in the teacher's results and appears in the teacher journeys. |
 | **WE-H** Reference cards | lead | AG-1 | `lessonSupports.referenceCards`, pinned on Classwork and Practice, absent on DOL, quiz and test | Leak guards. Read aloud reads them. |
-| **WE-I** More built-in generators | lead and helpers | WE-B | Sibling generators for the skills the coverage report ranks highest among answer-box questions (247 uncovered today) | Each generator passes `similarExampleIsSafe` over the real questions it claims. |
+| **WE-I** More built-in generators | lead and helpers | WE-B | Sibling generators for the skills the coverage report ranks highest among answer-box questions (247 uncovered today). Algebra II and the synthetic and long division replay: built (WORKED_EXAMPLES.md, "Where the division replay lives"). | Each generator passes `similarExampleIsSafe` over the real questions it claims. |
 
 ## Track AG: authoring for future assignments
 

@@ -27,6 +27,7 @@ import { buildCancellationModel } from '../../src/algebraCancellationModel.js';
 
 import { projectedAssignmentTrackerFor } from '../../src/platform/grading/canonicalGradeProjection.js';
 import { functionsBackendSource } from './helpers/functionsBackendSource.mjs';
+import { teacherWorkspaceSource } from './helpers/appScreens.mjs';
 
 const read = (path) => fs.readFileSync(path, 'utf8');
 
@@ -239,8 +240,8 @@ test('server passback re-derives algebra step credit and versioned reconciliatio
  * the DOL cell is computed from the saved tracker, and the gradebook row does
  * not read a score off the finalized DOL snapshot.
  */
-// The teacher's screen left App.jsx for its own lazily loaded module (G2).
-const TEACHER_WORKSPACE = 'src/app/teacher/TeacherWorkspace.jsx';
+// The teacher's screen left App.jsx for its own lazily loaded module (G2), and
+// the gradebook's JSX left that for its own (teacherWorkspaceSource).
 const gradebookStudentRow = (app) => {
   const start = app.indexOf('<th>Overall</th>');
   assert.notEqual(start, -1, 'teacher gradebook table not found in the teacher workspace');
@@ -250,7 +251,7 @@ const gradebookStudentRow = (app) => {
 };
 
 test('closed DOL gradebook display recalculates from saved question records instead of freezing an old snapshot', () => {
-  const row = gradebookStudentRow(read(TEACHER_WORKSPACE));
+  const row = gradebookStudentRow(teacherWorkspaceSource());
 
   // The section scores come from the canonical tracker split, so they re-derive
   // from saved question records every render. The row reads the one shared
@@ -301,7 +302,7 @@ test('closed DOL gradebook display recalculates from saved question records inst
  * prevent. Gate the cell on evidence, not on the section merely existing.
  */
 test('teacher gradebook section scores show no evidence rather than a zero for unattempted sections', () => {
-  const row = gradebookStudentRow(read(TEACHER_WORKSPACE));
+  const row = gradebookStudentRow(teacherWorkspaceSource());
   for (const section of ['warmup', 'classwork', 'practice', 'dol']) {
     assert.match(
       row,

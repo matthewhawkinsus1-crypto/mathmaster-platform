@@ -53,6 +53,10 @@
 //                           DOL practised after its due date
 //   ?newskill=1             this is the first Classwork question on a new skill
 //                           (tests/browser/workedExamplePlayer.mjs)
+//   ?card=<skill>[,<skill>] with ?section, the lesson declares a reference card on
+//                           each skill (WE-H; tests/browser/referenceCards.mjs), with
+//   ?cardsections=<a,b>     these `sections` (by role or id), or none: every
+//                           Classwork and Practice section
 //   ?run=<id>               a fresh draft namespace
 //   ?secure=1               mount it the way a secure Test item is mounted:
 //                           server-graded (RichQuestionRuntime), and still
@@ -81,6 +85,9 @@ import learningSupportsLesson from '../platform/fixtures/learningSupportsLessonF
 import radicalEquationsLesson from '../../teacher-import-jsons/algebra2-polynomials-radicals-honors/5_Solving_Radical_Equations_Honors_Step_Algebra.json';
 import graphingInequalitiesLesson from '../../teacher-import-jsons/algebra1-module3/T2_L4_Graphing_Inequalities_in_Two_Variables.json';
 import graphingSystemsLesson from '../../teacher-import-jsons/algebra1-module3/T2_L1_Solving_Systems_by_Graphing.json';
+import dividingPolynomialsLesson from '../../teacher-import-jsons/algebra2-honors-module2/L2_Dividing_Polynomials.json';
+import remainderTheoremsLesson from '../../teacher-import-jsons/algebra2-polynomials-radicals/2_Remainder_and_Factor_Theorems.json';
+import rationalExponentsLesson from '../../teacher-import-jsons/algebra2-polynomials-radicals/4_Rational_Exponents.json';
 import { parseAssignmentBlueprintText } from '../../src/assignmentBlueprint.js';
 import { canonicalV5PersistencePatch, getStoredAssignmentQuestions } from '../../src/platform/contract/storedAssignmentV5.js';
 import '../../src/index.css';
@@ -294,11 +301,28 @@ const RADICAL_QUESTIONS = { radical: 'srh-cw-1', radical2: 'srh-cw-2', radicalpr
 //   ?q=planeline  the warm-up, graph a line                      (m3t2l1-wu-2)
 const INEQUALITY_QUESTIONS = { plane: 'm3t2l4-cw-6', plane2: 'm3t2l4-cw-8', planerw: 'm3t2l4-p-3', planepr: 'm3t2l4-p-1', planedol: 'm3t2l4-dol-1' };
 const SYSTEM_QUESTIONS = { planesys: 'm3t2l1-cw-7', planeline: 'm3t2l1-wu-2' };
-const REPLAY_QUESTIONS = { replay: 'ls-cw-2', replay2: 'ls-cw-3', replaypr: 'ls-pr-1', replaydol: 'ls-dol-1', ...RADICAL_QUESTIONS, ...INEQUALITY_QUESTIONS, ...SYSTEM_QUESTIONS };
+// Two published Algebra II lessons answered in the Polynomial Workshop's
+// division views, for the division replay (WE-I):
+//   ?q=division      Classwork, synthetic division by x − 2     (dp-cw-8)
+//   ?q=division2     Classwork, the next on the skill (faded)   (dp-cw-9)
+//   ?q=divisionscale Classwork, a divisor 2y − 1: divide by 2   (dp-cw-10)
+//   ?q=divisionlong  Classwork, long division                   (dp-cw-3)
+//   ?q=divisionpr    Practice, synthetic division               (dp-pr-4)
+//   ?q=divisiondol   the DOL                                    (dp-dol-3)
+//   ?q=divisionthm   Classwork, the Remainder Theorem table     (rf-cw-1)
+// and one answer-box lesson for the built-in Algebra II generators:
+//   ?q=a2box         Classwork, the properties of exponents     (re-cw-1)
+const DIVISION_QUESTIONS = { division: 'dp-cw-8', division2: 'dp-cw-9', divisionscale: 'dp-cw-10', divisionlong: 'dp-cw-3', divisionpr: 'dp-pr-4', divisiondol: 'dp-dol-3' };
+const THEOREM_QUESTIONS = { divisionthm: 'rf-cw-1' };
+const ANSWER_BOX_QUESTIONS = { a2box: 're-cw-1' };
+const REPLAY_QUESTIONS = { replay: 'ls-cw-2', replay2: 'ls-cw-3', replaypr: 'ls-pr-1', replaydol: 'ls-dol-1', ...RADICAL_QUESTIONS, ...INEQUALITY_QUESTIONS, ...SYSTEM_QUESTIONS, ...DIVISION_QUESTIONS, ...THEOREM_QUESTIONS, ...ANSWER_BOX_QUESTIONS };
 const replayLessonSource = RADICAL_QUESTIONS[which] ? radicalEquationsLesson
   : INEQUALITY_QUESTIONS[which] ? graphingInequalitiesLesson
     : SYSTEM_QUESTIONS[which] ? graphingSystemsLesson
-      : learningSupportsLesson;
+      : DIVISION_QUESTIONS[which] ? dividingPolynomialsLesson
+        : THEOREM_QUESTIONS[which] ? remainderTheoremsLesson
+          : ANSWER_BOX_QUESTIONS[which] ? rationalExponentsLesson
+            : learningSupportsLesson;
 const replayLesson = REPLAY_QUESTIONS[which]
   ? { id: 'replay-lesson', ...canonicalV5PersistencePatch(parseAssignmentBlueprintText(JSON.stringify(replayLessonSource)).assignmentV5) }
   : null;
@@ -334,6 +358,13 @@ const lessonQuestions = replayQuestions || (params.get('section')
     : [onTheSkill({ ...question, questionId: 'earlier-on-the-skill' }), question])
   : null);
 if (lessonQuestions && !replayQuestions) Object.assign(question, onTheSkill(question));
+
+// The lesson's reference cards (WE-H), as the assignment stores them.
+const cardSkills = (params.get('card') || '').split(',').map((skill) => skill.trim()).filter(Boolean);
+const cardSections = params.get('cardsections') ? params.get('cardsections').split(',') : null;
+const lessonSupports = cardSkills.length
+  ? { ...(replayLesson?.lessonSupports || {}), referenceCards: cardSkills.map((skill, index) => ({ id: `card-${index + 1}`, skill, ...(cardSections ? { sections: cardSections } : {}) })) }
+  : replayLesson?.lessonSupports || null;
 
 window.__mmGrades = [];
 window.__mmHelp = [];
@@ -381,7 +412,7 @@ function Harness() {
           studentProfile={studentProfile}
           lessonQuestions={lessonQuestions}
           lessonGiven={lessonQuestions ? lessonQuestions.map((_, index) => index).join() : null}
-          lessonSupports={replayLesson?.lessonSupports || null}
+          lessonSupports={lessonSupports}
           partByPart={params.get('parts') === '1'}
           onGrade={onGrade}
           serverGrading={serverGrading}

@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
-import { appAndTeacherWorkspaceSource } from './helpers/appScreens.mjs';
+import { appAndTeacherWorkspaceSource, teacherWorkspaceSource } from './helpers/appScreens.mjs';
 
 test('Full Assignment Audit offers corrected content release creation', async () => {
   const source = await readFile('src/components/teacher/FullAssignmentAudit.jsx', 'utf8');
@@ -24,7 +24,7 @@ test('Library shows Content version and hides superseded siblings by default', a
 test('assigned copy exposes V2 preview and fundamental repair choices', async () => {
   // The teacher's screen lives in its own module since G2.
   const [appSource, modalSource] = await Promise.all([
-    readFile('src/app/teacher/TeacherWorkspace.jsx', 'utf8'),
+    teacherWorkspaceSource(),
     readFile('src/components/teacher/AssignmentContentUpgradeModal.jsx', 'utf8'),
   ]);
   assert.match(appSource, /latestCurrentLibraryRelease/);

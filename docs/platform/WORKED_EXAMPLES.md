@@ -3,7 +3,9 @@
 Status: **decided by the owner on 2026-11-20. Slice A (the player and the
 section rules), slice B (the coverage report), slice C (the Step Algebra
 replay), slice D (the radical replay with its factoring slides), slice E (the
-plane and inequality replay) and slice G (the teacher's view) are built. Of
+plane and inequality replay) and slice G (the teacher's view) are built, and
+so are the division replay and the Algebra II answer-box generators of WE-I
+(build plan). Of
 slice F, Spot the mistake and Why this step? are built; the model answer is
 not, because no field holds one yet (below). H is not built.**
 This page is the spec. The build is split into slices that can ship in any
@@ -63,9 +65,46 @@ Where slice G lives:
   of `tests/browser/teacherWorkflow/teacherSignalsJourneys.mjs`.
 
 What slice A plays: the question family's sibling, or the step card a lesson
-wrote (`steps`), when it passes `similarExampleIsSafe`. Not yet: a sibling for
-a question no family claims (an authored step card, or the generators of WE-I
-in the build plan).
+wrote (`steps`), when it passes `similarExampleIsSafe`. A question no family
+claims has none until a lesson writes one, or a WE-I generator claims it:
+WE-I's Algebra I batch (below) and its Algebra II batch (further on).
+
+Where WE-I's Algebra I batch lives, and what it plays:
+- **The family:** `src/platform/supports/families/linearReasoning.js`, last in
+  the index, so it takes only an Algebra I (`A.`) multi-part answer box that no
+  other family reads. It works one sibling per skill, as a step card: a sales
+  or savings model and a goal, an inequality solved by dividing by a negative,
+  how many solutions an equation has, a solution checked by substituting, a
+  system written from a situation, solved by substitution, or sorted into
+  parallel, the same line and crossing lines, the intercepts and slope of a
+  linear model, a two-variable inequality from a situation or from a graph, a
+  system of inequalities tested at points or sorted by region, and a linear
+  function shifted or stretched. Each step says the move and why.
+- **The perpendicular-lines sibling:** `perpendicularLines.js` now works one
+  for a multi-part item (the slope perpendicular to a line, the line through a
+  point; or horizontal and vertical lines). Never for the proof that a quarter
+  turn makes slopes negative reciprocals, a sort or a choice: their answers are
+  the facts a sibling would show.
+- **The guard both use:** `siblingGuard.js`. A sibling is generated, never
+  copied, and offered only when its prompt, steps and answer state none of the
+  item's answers in any spelling a step could write (≤ for <=, − for -,
+  spaces, (1/2)x for 1/2x), and its prompt states no equation the item states.
+  The platform's `similarExampleIsSafe` runs after it.
+- **What a student sees while the item is open** is otherwise unchanged: these
+  families give no hint, back-up step or extra answer spelling, so the item's
+  own hints and scaffold are kept.
+- **What it leaves uncovered, and why.** A field that asks for the name of a
+  property of equality (the sibling would name the same properties), and an
+  item whose answers are the general rules a sibling would show (an equation
+  with no solution or infinitely many, the slope of every horizontal line):
+  the guard refuses every sibling for those, so they still need an example the
+  lesson writes. A sibling that decides a case works every case side by side,
+  so it never says which case the item is.
+- **Never on a DOL, quiz or test:** the section rule shows none there, and
+  `linearReasoning` does not even claim a question whose role is one of those.
+- **Tests:** `tests/platform/weI_algebra1Siblings.test.mjs` walks every
+  lesson in `teacher-import-jsons/` and holds each of these for every real
+  question it claims.
 
 Where slice C lives, and what it plays:
 - **The replay:** `src/platform/supports/workedExample/stepAlgebraReplay.js`.
@@ -196,6 +235,133 @@ Where slice E lives, and what it plays:
   does not classify the region or list its vertices, where the item asks that.
 - **Tests:** `tests/platform/planeReplay.test.mjs` and
   `tests/browser/planeReplay.mjs`.
+
+Where the division replay lives (WE-I), and what it plays:
+- **The replay:** `src/platform/supports/workedExample/divisionReplay.js`. A
+  question answered in the Polynomial Workshop's division views had no
+  example. It now gets a sibling played as the view's own work, one move per
+  slide:
+  - `syntheticDivision` (a divisor ax + b written as text): divide the dividend
+    and the divisor by a first where a ≠ 1; r in the box and the coefficient
+    row, a 0 for every missing power; bring down; one slide per column
+    (multiply by r, add); read the bottom row; the remainder over the divisor
+    as written where a ≠ 1; the answer as quotient + remainder ÷ divisor;
+  - `synthetic` (the Remainder and Factor Theorems table): the same table, then
+    what the item asks of it: P(r) read off the remainder, the depressed
+    polynomial, whether x − r is a factor;
+  - `longDivision`: per round, divide the leading terms, multiply back,
+    subtract and bring down; then the quotient, the remainder and the answer.
+- **Every line comes from the view's own engine.** The numbers are the view's
+  key (`syntheticDivisionKey`, `longDivisionKey`, the synthetic table in
+  `polynomialMath.mjs`), written with its own writers, and the work the example
+  stands for is handed to the workshop's grader
+  (`serverGrading/tools/polynomialWorkshop.mjs`). Work it does not mark right is
+  not played.
+- **The table** (`board.synthetic`) is drawn as a table: a caption naming r,
+  its rows named (coefficients, products, the bottom row whose last number is
+  the remainder), its columns named by power, a cell not yet filled said as
+  "not yet", the remainder boxed. At 200% text on a phone it scrolls inside a
+  frame the keyboard can focus, never the page.
+- **The sibling** (`divisionSiblingFor`) keeps the letter, the degree, which
+  powers are missing (so the 0 placeholder is where the item needs one),
+  whether the divisor's leading coefficient is 1, −1 or another number (so the
+  "divide by a first" slide is where the item's is), the sign of r and what a
+  theorems item asks. It never keeps the item's remainder: whether a division
+  comes out even is part of its answer. A division answered with a quotient
+  and a remainder always has a remainder that is not 0; an item asking whether
+  x − r is a factor gets a sibling where it is, and the slide says what a
+  remainder that is not 0 would have meant. None of its lines holds the item's
+  quotient, remainder or P(r).
+- **The example guard knows the item's answers** through the family's
+  `exampleAnswers` (no workshop item has answer fields), read by
+  `similarExampleIsSafe` only: the hint guard is unchanged, so no hint a
+  lesson shows today is dropped. (One is worth a look by the lesson's owner:
+  Remainder and Factor Theorems, Classwork 1, hint 2 works the table through
+  to P(4) = 42, the item's own answer.)
+- **No item on the assignment:** besides its prompt, a sibling names its
+  problems (`problems`: here the dividend), and the player refuses one written
+  in any question on the assignment (`mentionsAssignmentItem`).
+- **Faded:** the first move only (the set-up, or the first divide); a faded
+  example never reads the quotient or the remainder (`fadeLimit`).
+- **Coverage:** the family `polynomialDivision` claims these questions, so the
+  coverage report counts them; its only other contract answers are empty (no
+  hints, no back-up step).
+- **Not played:** long division by a divisor whose leading coefficient is not
+  ±1, or of degree 2 or more; a theorems table with a fractional r.
+- **Tests:** `tests/platform/divisionReplay.test.mjs` and
+  `tests/browser/divisionReplay.mjs`.
+
+Where the Algebra II answer-box generators live (WE-I), and what they claim:
+- **The family:** `src/platform/supports/families/algebra2AnswerBoxes.js`, an
+  example family: it claims an answer-box (`multiAnswer`) or sort question on
+  an Algebra II standard (`A2.`; never `A.`) that one of its generators reads
+  whole, and adds a worked sibling and nothing else (no hints, no back-up
+  step, no answers for the hint guard).
+- **A generator claims a question only when it reads every answer field** as a
+  part it can work; its sibling works each kind of part with other numbers,
+  each step `{ show, why }` (the player shows the why; `similarProblem.js`
+  keeps a family's reasons apart as `parts`). A field whose answer is a reason
+  in words (why a step works, which student erred) is not a part any generator
+  reads: a worked example of the same method would give that reason away.
+- **The generators** (`./algebra2/`):
+  - `rationalExponents` (A2.7G): b^(p/q) evaluated, ⁿ√b, radical and
+    exponential form, and whether a negative base to a power is real (the
+    sibling's case drawn from the seed, never from the item's);
+  - `monomialRules` (A2.7G, A2.7C): products, quotients and powers of
+    monomials with whole or rational exponents, positive exponents only, on
+    a small monomial engine (`monomials.js`);
+  - `rootVocabulary` (A2.7G): index, radicand, and both real even roots;
+  - `polynomialOverMonomial` (A2.7C): a polynomial divided by a monomial,
+    term by term;
+  - `rationalZeroChain` (A2.7D): possible rational zeros, a zero tested, the
+    division, the quotient factored, the factorization and the zeros, of a
+    cubic built from its zeros;
+  - `quadraticForm` (A2.7D, A2.7E): x⁴ − bx² + c with u = x²;
+  - `groupFourTerms` (A2.7E): four terms grouped in pairs;
+  - `realRoots` and `likeRadicals` (A2.7G sorts): how many real nth roots, and
+    which radicals combine with √n.
+- **Never the item's answer.** The answer guard reads a number as a token, so a
+  sibling may not even mention a number the item answers with; each part is
+  drawn until its own text passes (`firstFitting`), and the whole sibling
+  passes `similarExampleIsSafe`. Mathematics is written in plain text with
+  superscripts, as the items' labels are, and the reasons are written in words
+  with no letter standing alone.
+- **What a sibling assumes about its variables.** An even root, or a rational
+  power with an even denominator, follows the exponent rules only for
+  positive values ((x⁴)^(1/4) is |x|). A sibling that uses one says "Assume
+  all variables are positive." and its answer is the one that holds then, with
+  no absolute values, as the lessons write it; any other says no variable is
+  zero where it divides by one. An item whose own prompt lets its variables be
+  negative gets no such sibling (`itemAllowsNegative`, `shared.js`).
+- **Every sibling states something true.** Each names the identities it states
+  (`identities`: its starting expression, its answer, the assumption), and
+  `tests/platform/workedExampleSiblingIdentities.test.mjs` evaluates both sides
+  with mathjs, from the plain text alone, at random values that satisfy the
+  assumption, over every real item each WE-I family claims and seeds 0 to 20:
+  they must agree to 1e-9. It covers the division replay too.
+- **Each answer line is in parts** ("Quotient = …; remainder = …"), so
+  "Practise one like this" can check the student's answer part by part.
+- **Every sentence translates.** Its mathematics is set in `$…$` (`math`,
+  `shared.js`), so each sentence has one shape whatever its numbers, and each
+  shape has its Spanish in `src/platform/language/packs/esSupport.js`
+  (`platformFamilySentences`, the WE-I block); `readAloudAndTranslate.test.mjs`
+  holds every family's sentences to that.
+- **Coverage, from `node scripts/report-classwork-example-coverage.mjs`**
+  (2026-11-27): covered 371 → 443 of 687 Classwork questions, uncovered 316 →
+  244, built in 165 → 200. Every change is on an `A2.` standard: 34 questions
+  are built in directly (14 by the division replay, 18 answer boxes and 2
+  sorts by the generators) and 38 more are covered by an earlier question on
+  the same skill. With the Algebra I batch merged too (2026-11-28): covered
+  562, uncovered 125 (78 a generator could cover, 47 that need an example
+  the lesson writes).
+- **Not claimed:** a radical equation in answer boxes (A2.4G, A2.7H). Each such
+  item's own answers include small numbers (2, 4) that any worked squaring
+  writes, so no sibling would pass the guard; those items keep needing an
+  example the lesson writes.
+- **Tests:** `tests/platform/algebra2AnswerBoxExamples.test.mjs` (every claim
+  over the real lessons), `workedExampleSiblingIdentities.test.mjs` (every
+  sibling's mathematics, numerically) and the answer-box scenario of
+  `tests/browser/divisionReplay.mjs`.
 
 Where slice F lives, and what it does:
 - **The section rules:** `exampleSectionRule` (`examplePlayer.js`) says
@@ -351,7 +517,7 @@ Build on these; do not write a second version of any of them.
 | "See a similar problem worked" | `src/platform/supports/workedExample/similarProblem.js`, `examplePlayer.js`, `QuestionEngine.jsx` | The question's support family works a sibling problem with different numbers. Since slice A it plays one slide at a time, and on Classwork it opens by itself before the first question on a new skill; before that it was a list of text steps, shown only on request. `similarExampleIsSafe` refuses a sibling that shares the question's prompt or answer, or whose steps state that answer. Opening one is recorded as `workedExampleUsed`. It is withheld wherever hints are, and on every DOL, quiz and test section. |
 | "Practise one like this" | `practiceLikeThis.js`, `PracticeLikeThis.jsx` | After a miss on Classwork or Practice, an unscored sibling the student answers. Nothing is recorded. |
 | Sibling builders | `numericVariant.js`, `factoringVariant.js`, `radicalVariant.js`, `polynomialVariant.js`, `matrixSystemVariant.js` | New numbers for an item whose method does not change. |
-| Support families | `src/platform/supports/families/` (11 families) | Each has `similarProblem`. Nine also write `workedSolution`. |
+| Support families | `src/platform/supports/families/` (12 families) | Each has `similarProblem`. Nine also write `workedSolution`. |
 | Guided notes | `guidedNotes.js`, `GuidedClassworkCoach.jsx` | Authored `guidedNotes.steps`. Pre-Flight's `guidedNotesBySection` is automatic on Classwork and off on Practice. |
 | Solution Review | `closedQuestionReview.js` | `solutionReview.reasoning` (or `steps`), `answerSummary` and `commonError`, shown after the item closes. |
 | Hints and scaffolds | `questionHints.js` | `hintRelease` gives nothing where `hintsAllowed` is false (DOL, quiz, test). |
@@ -411,6 +577,15 @@ student's item and never another item on the same assignment.
 | **Model answer** | "Explain" and "describe" questions | A short strong answer, and a checklist of what it includes. |
 | **Why this step?** | Classwork examples, once per example | One tap: pick the reason for a step before it plays. |
 | **Reference card** | Lesson level, pinned on Classwork and Practice | The formula or pattern with its parts named (for example, sum and difference of cubes). |
+
+**Reference cards today (WE-H).** A lesson names a card's skill, and the
+platform supplies the card from its built-in library. The cards and their skills
+are listed in `docs/assignments/AUTHORING_LEARNING_SUPPORTS.md` section 4. A card
+shows only where a lesson declares one in `lessonSupports.referenceCards`.
+Existing lessons are not back-filled. Of today's lessons, only the Algebra II
+Honors Thanksgiving packet declares one: the sum and difference of cubes, on its
+Unit 8 Classwork section. Everywhere else a card appears only once an author adds
+one to a new assignment, and in the test fixtures.
 
 ## 5. Behaviour by section
 
@@ -541,9 +716,15 @@ counts the 483 authored ones). Then it was checked for a sibling from
 
 | | Count |
 |---|---|
-| Have a built-in example today | 137 of 496 |
+| Have a built-in example today | 137 of 496 (274 since WE-I) |
 | Have none | 359 |
 | Lessons with no built-in example on any classwork question | 14 of 41 |
+
+Since WE-I's Algebra I batch the same 496 questions measure 240 with a
+built-in example and 256 without (144 of them answer boxes), and 9 of the 41
+lessons have none. Of the uncovered Algebra I answer boxes, 140 became 14.
+With its Algebra II batch as well they measure 274 and 222 (126 answer
+boxes, and no synthetic or long division), and 3 lessons have none.
 
 The 359 without one, by kind:
 - `multipleResponses` 247;

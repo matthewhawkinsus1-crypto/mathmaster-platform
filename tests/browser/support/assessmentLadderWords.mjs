@@ -34,6 +34,7 @@ import {
   WHY_THIS_STEP_RIGHT,
 } from '../../../src/platform/supports/workedExample/exampleSlides.js';
 import { SPOT_THE_MISTAKE_GENERIC } from '../../../src/platform/supports/workedExample/spotTheMistake.js';
+import { REFERENCE_CARD_TEXT } from '../../../src/platform/supports/referenceCards/referenceCardLibrary.js';
 
 // Authored supports (marked LEAKCHECK in the fixtures) and the ladder's own
 // words.
@@ -70,7 +71,12 @@ export const LADDER_WORDS = Object.freeze(['LEAKCHECK', 'A hint is ready', 'Show
   // the controls themselves (EXAMPLE_CONTROL_SELECTORS).
   SPOT_THE_MISTAKE_INTRO, SPOT_THE_MISTAKE_QUESTION, SPOT_THE_MISTAKE_RIGHT, SPOT_THE_MISTAKE_OTHER, SPOT_THE_MISTAKE_NOTE,
   SPOT_THE_MISTAKE_DIFFERENT, SPOT_THE_MISTAKE_THIS_STEP, "Not this step's mistake", "not this step's mistake",
-  ...SPOT_THE_MISTAKE_GENERIC, WHY_THIS_STEP_PROMPT, WHY_THIS_STEP_RIGHT, WHY_THIS_STEP_OTHER]);
+  ...SPOT_THE_MISTAKE_GENERIC, WHY_THIS_STEP_PROMPT, WHY_THIS_STEP_RIGHT, WHY_THIS_STEP_OTHER,
+  // The reference cards (WE-H): every fixed word of a card, in English and in
+  // Spanish (its name, its note, its parts heading, what Read aloud calls it).
+  // A card's own titles and formulas ("The slope formula") are words real
+  // prompts use, so the gate looks for the card itself (REFERENCE_CARD_SELECTORS).
+  ...Object.values(REFERENCE_CARD_TEXT).flatMap((words) => Object.values(words))]);
 
 /**
  * Every control of the worked example: the open example, the player inside
@@ -85,6 +91,19 @@ export const EXAMPLE_CONTROL_SELECTORS = Object.freeze([
   // WE-F: Spot the mistake (its step, its choices, its answer) and Why this step?.
   '[data-spot-the-mistake]', '[data-spot-line]', '[data-spot-choice]', '[data-spot-feedback]', '[data-spot-chosen]', '[data-why-this-step]', '[data-why-choice]', '[data-why-skip]', '[data-why-feedback]',
 ]);
+
+/**
+ * Every part of a pinned reference card (WE-H): the cards, each card, its
+ * formulas, its parts and their disclosure, and the row that holds them. None
+ * may be in a DOL, quiz or test page's document, drawn or hidden.
+ */
+export const REFERENCE_CARD_SELECTORS = Object.freeze([
+  '[data-reference-cards-row]', '[data-reference-cards]', '[data-reference-card]', '[data-reference-card-skill]', '[data-reference-card-note]', '[data-reference-card-name]',
+  '[data-reference-card-title]', '[data-reference-card-formulas]', '[data-reference-card-formula]', '[data-reference-card-conditions]', '[data-reference-card-condition]', '[data-reference-card-parts]', '[data-reference-card-part]',
+]);
+
+/** Every control or support a DOL, quiz or test page may not carry: the worked example's and the reference card's. */
+export const ASSESSMENT_LEAK_SELECTORS = Object.freeze([...EXAMPLE_CONTROL_SELECTORS, ...REFERENCE_CARD_SELECTORS]);
 
 // Every misconception and generic miss message.
 export const MISS_MESSAGES = Object.freeze([...Object.values(MISCONCEPTION_STUDENT_MESSAGES), ...Object.values(GENERIC_MISS_MESSAGES)]);

@@ -30,7 +30,7 @@ import {
   firebaseFunctionTargets,
 } from '../../scripts/response-inspector-deploy-surface.mjs';
 import { functionsBackendSource, topLevelDeclaration } from './helpers/functionsBackendSource.mjs';
-import { appFactorySource } from './helpers/appScreens.mjs';
+import { appFactorySource, teacherWorkspaceSource } from './helpers/appScreens.mjs';
 
 const { weightedQuestionTotals } = questionWeights;
 
@@ -566,7 +566,7 @@ test('PR250 universal draft-persistence certification and tool cache cleanup rem
   const previewNavigation = appFactorySource('createTeacherPreviewNavigation');
   assert.match(previewNavigation, /forgetAssignmentToolDrafts\(\{ studentId: 'teacher-preview', assignmentId \}\);/);
   // The inspector is opened from the teacher's screen, its own module since G2.
-  const teacherWorkspace = fs.readFileSync(new URL('../../src/app/teacher/TeacherWorkspace.jsx', import.meta.url), 'utf8');
+  const teacherWorkspace = teacherWorkspaceSource();
   assert.match(teacherWorkspace, /<StudentResponseInspector/);
   assert.match(teacherWorkspace, /Inspect Response \/ Override Grade/);
 });

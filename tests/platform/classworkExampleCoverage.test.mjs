@@ -208,27 +208,38 @@ const baselineMeasurement = () => {
   };
 };
 
-test('the lessons written before the rule: 137 of 496 Classwork questions have a built-in example, and 14 of 41 lessons have none (WORKED_EXAMPLES.md section 8)', () => {
+// Section 8 measured 137 of 496 with a built-in example and 14 of 41 lessons
+// with none. WE-I's batches are built-in examples too, so the same lessons now
+// measure more: the Algebra I batch (the linearReasoning family, and the
+// perpendicularLines sibling) works a sibling for 103 more answer boxes, and
+// the Algebra II batch (the division replay and the answer-box generators)
+// for 34 more (tests/platform/algebra2AnswerBoxExamples.test.mjs,
+// divisionReplay.test.mjs). The lessons themselves did not change.
+test('the lessons written before the rule: 274 of 496 Classwork questions have a built-in example, and 3 of 41 lessons have none (WORKED_EXAMPLES.md section 8, then WE-I)', () => {
   const { lessons, summary, lessonsWithClasswork, lessonsWithNoBuiltIn } = baselineMeasurement();
   assert.equal(lessonsWithClasswork, 41);
   assert.equal(summary.total, 496);
-  assert.equal(summary.byStatus.builtIn, 137);
-  assert.equal(lessonsWithNoBuiltIn, 14);
-  // The 359 without one, by kind, as section 8 lists them.
+  assert.equal(summary.byStatus.builtIn, 274);
+  assert.equal(lessonsWithNoBuiltIn, 3);
+  // The 222 without one, by kind (section 8 listed 359, 247 of them answer boxes).
   const without = {};
   lessons.flatMap((lesson) => lesson.questions).filter(({ status }) => status !== STATUS.BUILT_IN)
     .forEach(({ kind }) => { without[kind] = (without[kind] || 0) + 1; });
-  assert.equal(Object.values(without).reduce((sum, count) => sum + count, 0), 359);
-  const named = { multipleResponses: 247, solveInequalitySystem: 30, matchFigures: 10, syntheticDivision: 10, sortIntoCategories: 10, solveRadicalEquation: 10, analyzeTransformations: 9 };
+  assert.equal(Object.values(without).reduce((sum, count) => sum + count, 0), 222);
+  // Synthetic and long division have none left without one: the division replay plays them all.
+  assert.equal(without.syntheticDivision, undefined);
+  assert.equal(without.longDivision, undefined);
+  const named = { multipleResponses: 126, solveInequalitySystem: 30, matchFigures: 10, sortIntoCategories: 8, solveRadicalEquation: 10, analyzeTransformations: 9 };
   for (const [kind, count] of Object.entries(named)) assert.equal(without[kind], count, kind);
   const rest = Object.entries(without).filter(([kind]) => !(kind in named));
-  assert.equal(rest.length, 12, '12 other kinds');
-  assert.equal(rest.reduce((sum, [, count]) => sum + count, 0), 33, '33 more questions');
+  assert.equal(rest.length, 11, '11 other kinds');
+  assert.equal(rest.reduce((sum, [, count]) => sum + count, 0), 29, '29 more questions');
   // None of these lessons writes an example or an exemption (existing lessons
-  // are not back-filled), so the rest of the rule is the same-skill one: 43
-  // more questions follow an earlier covered question on their skill.
-  assert.deepEqual(summary.byStatus, { own: 0, earlierSameSkill: 43, builtIn: 137, exempt: 0, uncovered: 316 });
-  assert.equal(summary.covered, 180);
+  // are not back-filled), so the rest of the rule is the same-skill one: 97
+  // more questions follow an earlier covered question on their skill (43
+  // before WE-I).
+  assert.deepEqual(summary.byStatus, { own: 0, earlierSameSkill: 97, builtIn: 274, exempt: 0, uncovered: 125 });
+  assert.equal(summary.covered, 371);
 });
 
 test('a lesson written since the rule writes its own examples, and leaves no Classwork question uncovered', () => {
@@ -264,7 +275,8 @@ test('the real lessons: every uncovered question has a fill hint, and generator 
     const claimed = Boolean(familyFor(asQuestionEngineReceivesIt(questionsById.get(`${lesson.file}#${entry.questionId}`))));
     assert.equal(entry.fillWith, claimed ? FILL.GENERATOR : FILL.AUTHORED_EXAMPLE, `${lesson.file} ${entry.questionId}`);
   }));
-  assert.deepEqual(realMeasurement().summary.byFill, { generator: 100, authoredExample: 216 });
+  // { generator: 100, authoredExample: 216 } before WE-I; its two batches covered 22 of the first and 169 of the second.
+  assert.deepEqual(realMeasurement().summary.byFill, { generator: 78, authoredExample: 47 });
 });
 
 test('Pre-Flight\'s view of a question gives the same answer as the student\'s screen', () => {

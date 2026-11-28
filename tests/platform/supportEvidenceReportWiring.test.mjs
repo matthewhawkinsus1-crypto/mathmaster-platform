@@ -8,12 +8,13 @@ import { readFileSync } from 'node:fs';
 
 import { region, executableSource } from './helpers/sourceContract.mjs';
 import { importsComponent } from './helpers/componentImport.mjs';
+import { teacherWorkspaceSource } from './helpers/appScreens.mjs';
 
 const read = (path) => readFileSync(new URL(`../../${path}`, import.meta.url), 'utf8');
 const app = read('src/App.jsx');
 // The teacher's screen (drawer, gradebook, roster, report mount) is its own
 // module since G2; App keeps openIEPReport and hands it over by name.
-const teacherWorkspace = read('src/app/teacher/TeacherWorkspace.jsx');
+const teacherWorkspace = teacherWorkspaceSource();
 const view = read('src/components/teacher/SupportEvidenceReportView.jsx');
 // The report's print rules: a sheet of their own since PF01, linked before
 // App.css on every first load (src/app/shell/leadingStyles.js), where

@@ -19,6 +19,7 @@ import { studentRequiredQuestions } from '../../src/assignmentLifecycle.js';
 import { buildAssignmentEvidenceRow, workloadFactFor } from '../../src/platform/supportEvidence/evidenceAggregation.js';
 import { buildSupportEvidenceReport } from '../../src/platform/supportEvidence/supportEvidenceReport.js';
 import { region, executableSource } from './helpers/sourceContract.mjs';
+import { teacherWorkspaceSource } from './helpers/appScreens.mjs';
 
 const ID = 'reduced-item-count-same-rigor';
 const NOW = Date.parse('2026-10-06T15:00:00Z');
@@ -218,7 +219,7 @@ test('App records the workload with its details, its content variant and the gov
   assert.match(lifecycleImport[1], /\bstudentRequiredQuestions,/);
   // The workload summary is shown by the teacher's gradebook, its own module
   // since G2: imported there, next to its call.
-  const teacherWorkspace = readFileSync(new URL('../../src/app/teacher/TeacherWorkspace.jsx', import.meta.url), 'utf8');
+  const teacherWorkspace = teacherWorkspaceSource();
   assert.match(teacherWorkspace, /^import \{ describeWorkloadSummary \} from '\.\.\/\.\.\/\.\.\/functions\/shared\/reducedWorkload\.mjs';$/m);
   assert.match(teacherWorkspace, /describeWorkloadSummary\(/);
 });

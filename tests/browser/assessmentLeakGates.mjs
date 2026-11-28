@@ -41,6 +41,14 @@
 //                      tool: none of its text anywhere in the document on a DOL
 //                      or test, before or after Submit; and the partial-credit
 //                      breakdown ("still to fix: …") only where feedback is open
+//   reference-cards    a lesson that declares reference cards on every section
+//                      (WE-H), one of them forged to name the very section it is
+//                      on: practice and classwork pin both (the control), and a
+//                      right answer there is graded right and records the card
+//                      only as a fact; on a DOL, quiz or test, and on a DOL
+//                      practised after its due date, no part of a card and none
+//                      of its words anywhere in the document, before or after
+//                      Submit, and the card's chunk is never fetched
 //   graph-reading      a given graph whose intercepts are the answer: no feature
 //                      value in its description and no data table, in any role
 //   keypad             a typed box's keypad, on a laptop (1366×768) and a phone
@@ -62,7 +70,8 @@ import path from 'node:path';
 import { chooseVariable, choosePair, combineRound, scaleEquation } from './day2NonuniqueDriver.mjs';
 import { setMathField, settle } from './stepAlgebraDriver.mjs';
 import { screenshotKeepingTouch } from './support/touchEmulation.mjs';
-import { ASSESSMENT_LEAK_TEXTS, EXAMPLE_CONTROL_SELECTORS } from './support/assessmentLadderWords.mjs';
+import { ASSESSMENT_LEAK_SELECTORS, ASSESSMENT_LEAK_TEXTS, REFERENCE_CARD_SELECTORS } from './support/assessmentLadderWords.mjs';
+import { REFERENCE_CARD_TEXT } from '../../src/platform/supports/referenceCards/referenceCardLibrary.js';
 
 const ORIGIN = process.env.AUDIT_ORIGIN || 'http://127.0.0.1:5199';
 // Screenshots of any journey that could not be completed.
@@ -756,9 +765,9 @@ const threePlaneReveal = async () => {
 // still be answered, nor after a submission whose outcome is held.
 const ladderLeaks = async (page) => {
   const html = await page.evaluate(() => document.documentElement.outerHTML);
-  // And no control of the worked example (WE-A): a DOL, quiz or test never
-  // shows one, opened, offered or hidden.
-  const exampleControls = await page.evaluate((selectors) => selectors.filter((selector) => document.querySelector(selector)), EXAMPLE_CONTROL_SELECTORS);
+  // And no control of the worked example (WE-A) and no part of a reference
+  // card (WE-H): a DOL, quiz or test never shows one, opened, offered or hidden.
+  const exampleControls = await page.evaluate((selectors) => selectors.filter((selector) => document.querySelector(selector)), ASSESSMENT_LEAK_SELECTORS);
   return [...ASSESSMENT_LEAK_TEXTS.filter((text) => html.includes(text.replace(/&/g, '&amp;'))), ...exampleControls];
 };
 const typeAnswer = async (page, value) => {
@@ -1047,6 +1056,67 @@ const keypadSurface = async () => {
   }
 };
 
+/* ------------------------------------------------------- reference cards */
+
+// A card's own words and parts. A DOL practised after its due date runs as
+// practice and keeps the ladder (its hints are not a card's leak), so there
+// only these are looked for; a DOL, quiz or test is held to the whole ladder.
+const REFERENCE_CARD_WORDS = Object.values(REFERENCE_CARD_TEXT).flatMap((words) => Object.values(words));
+const cardLeaks = async (page) => {
+  const html = await page.evaluate(() => document.documentElement.outerHTML);
+  const parts = await page.evaluate((selectors) => selectors.filter((selector) => document.querySelector(selector)), REFERENCE_CARD_SELECTORS);
+  return [...REFERENCE_CARD_WORDS.filter((text) => html.includes(text)), ...parts];
+};
+const referenceCards = async () => {
+  const cases = [
+    { role: 'practice', pinned: true },
+    { role: 'classwork', pinned: true },
+    { role: 'dol', pinned: false },
+    { role: 'quiz', pinned: false },
+    { role: 'test', pinned: false },
+    // A DOL practised after its due date runs as practice and is still a DOL.
+    { role: 'practice', section: 'dol', pinned: false },
+  ];
+  for (const { role, section, pinned } of cases) {
+    const label = section ? `${role} (a ${section} section) reference-cards` : `${role} reference-cards`;
+    const leaksOf = section ? cardLeaks : ladderLeaks;
+    await scenario(label, async () => {
+      pageCount += 1;
+      const page = await context.newPage();
+      pages.push(page);
+      page.setDefaultTimeout(8000);
+      page.on('pageerror', (error) => check(false, `${label}: page error`, error.message));
+      const fetched = [];
+      page.on('request', (request) => { if (/ReferenceCards\.jsx|referenceCardLibrary\.js/.test(request.url())) fetched.push(request.url()); });
+      await page.goto(`${ORIGIN}/tests/browser/assessmentLeakGates.html?role=${role}&q=feedback-ladder&card=1${section ? `&section=${section}` : ''}&run=${run}-${pageCount}`, { waitUntil: 'networkidle' });
+      await page.locator('[data-leak-fixture]').waitFor();
+      if (pinned) await page.locator('[data-reference-card]').first().waitFor().catch(() => {});
+      await settle(page, 900);
+      const cards = await page.locator('[data-reference-card]').evaluateAll((nodes) => nodes.map((node) => node.getAttribute('data-reference-card')));
+      if (pinned) {
+        check(cards.join(' ') === 'leak-card-every-section leak-card-named-here', `${label}: both cards are pinned (the control: the negative cases below are not vacuous)`, cards.join(' '));
+        check(fetched.length >= 1, `${label}: the card's chunk was fetched`);
+      } else {
+        check(cards.length === 0, `${label}: no reference card`, cards.join(' '));
+        check((await leaksOf(page)).length === 0, `${label}: nothing of a card in the document before Submit`, (await leaksOf(page)).join(' | '));
+        check(fetched.length === 0, `${label}: the card's chunk is never fetched`, fetched.join(' '));
+      }
+      await typeAnswer(page, '\\frac{3}{4}');
+      await submitAnswer(page);
+      const grade = await lastGrade(page);
+      check(grade?.isCorrect === true, `${label}: the right answer is graded right`, brief(grade));
+      if (pinned) {
+        check(grade?.supportUsage?.referenceCardShown === true && grade?.supportUsage?.isMathematicallyIndependent === true && grade?.supportUsage?.hintUsed === false,
+          `${label}: the card is recorded as a fact, and the attempt stays independent`, JSON.stringify(grade?.supportUsage));
+      } else {
+        check(!('referenceCardShown' in (grade?.supportUsage || {})), `${label}: no card is recorded`, JSON.stringify(grade?.supportUsage));
+        check((await leaksOf(page)).length === 0, `${label}: nothing of a card in the document after Submit`, (await leaksOf(page)).join(' | '));
+        check(fetched.length === 0, `${label}: and its chunk is still never fetched`);
+      }
+    });
+  }
+};
+
 /* ----------------------------------------------------------------- runner */
 
 const SURFACES = {
@@ -1059,6 +1129,7 @@ const SURFACES = {
   'composed-algebra': composedAlgebra,
   'three-plane-reveal': threePlaneReveal,
   'feedback-ladder': feedbackLadder,
+  'reference-cards': referenceCards,
   'graph-reading': graphReading,
   keypad: keypadSurface,
 };

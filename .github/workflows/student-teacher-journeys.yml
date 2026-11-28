@@ -707,6 +707,17 @@ jobs:
           PLAYWRIGHT_MODULE: playwright
           AUDIT_ORIGIN: "http://127.0.0.1:5199"
         run: node tests/browser/workedExamplePlayer.mjs
+      # WE-H: a lesson's reference cards are pinned on Classwork and Practice,
+      # read aloud and translated, recorded only as a fact with the score
+      # unchanged, and never on a DOL, quiz or test (the chunk is not fetched).
+      # By keyboard, on a phone, at 200% text, in the dark theme and in forced
+      # colours.
+      - name: Reference cards (pinned on Classwork and Practice, never on assessments)
+        if: ${{ !cancelled() }}
+        env:
+          PLAYWRIGHT_MODULE: playwright
+          AUDIT_ORIGIN: "http://127.0.0.1:5199"
+        run: node tests/browser/referenceCards.mjs
       # WE-C: a Step Algebra example plays as the tool's own moves, faded on the
       # second question on the skill, on request on Practice, never on a DOL.
       - name: Step Algebra replay (the worked example on the board's engine)
@@ -733,6 +744,16 @@ jobs:
           PLAYWRIGHT_MODULE: playwright
           AUDIT_ORIGIN: "http://127.0.0.1:5199"
         run: node tests/browser/planeReplay.mjs
+      # WE-I: synthetic and long division play as the Polynomial Workshop's
+      # own work (the table one column at a time, faded before the quotient,
+      # never on a DOL), and an Algebra II answer box gets a built-in sibling
+      # with a reason for every step.
+      - name: Division replay and the Algebra II answer-box examples
+        if: ${{ !cancelled() }}
+        env:
+          PLAYWRIGHT_MODULE: playwright
+          AUDIT_ORIGIN: "http://127.0.0.1:5199"
+        run: node tests/browser/divisionReplay.mjs
       # SP-4: a part's checkpoint opens one step in a tool (the plane, Step
       # Algebra, a factor pair, a table's rows) before its answer box. The
       # engine checks it; the DOL says nothing of right or wrong; the grade is

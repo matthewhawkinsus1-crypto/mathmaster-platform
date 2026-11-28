@@ -61,7 +61,7 @@ undone; each one was undone once and seen to go red (see the last section).
 | --- | --- | --- | --- | --- | --- | --- |
 | 1 | Results (student) | 1.4.4 text, 1.4.10 | the "Worth a conversation" list beside a question (`[data-question-signals] ul`) | 1366×900 at 200% text, all modes | Its grid column was sized by its widest content. The "Mark reviewed" label set the column at 328 px inside a 207 px card, and the signal facts ran past the results' edge, cut off. The column is now `minmax(0, 1fr)`. `src/components/teacher/QuestionSignalNotes.jsx` | `results/student-signals-worked-examples` `text` |
 | 2 | Results (student) | 1.4.4 text | the grade override's "Optional note" field | 1366×900 at 200% text | The field was `width: 100%` plus padding and border, so it ran 20 px past its label. It now uses `box-sizing: border-box`. `src/components/teacher/AssignmentGradeOverrideControls.jsx` | `results/student-signals-worked-examples` `text` |
-| 3 | Results (student) | 1.4.4 text, 1.4.10 | the results header column: the student and assignment, the score, the grade override and the incident form | 390×844 at 200% text, all modes | A flex item was held at its content width (514 px on a 390 px phone), so everything right of 339 px was cut by the app's overflow clip. The column now has `min-width: 0`. `src/app/teacher/TeacherWorkspace.jsx` | `results/student-signals-worked-examples` `text` (phone) |
+| 3 | Results (student) | 1.4.4 text, 1.4.10 | the results header column: the student and assignment, the score, the grade override and the incident form | 390×844 at 200% text, all modes | A flex item was held at its content width (514 px on a 390 px phone), so everything right of 339 px was cut by the app's overflow clip. The column now has `min-width: 0`. `src/app/teacher/gradebookTabView.jsx` | `results/student-signals-worked-examples` `text` (phone) |
 | 4 | Grade Export | 2.4.3 focus order (dialog focus return) | the export review's Cancel or Escape | all sizes and modes | "Download ZIP" used React `autoFocus`, which moves focus during commit, before the shared Dialog notes which control opened it. Closing the review then dropped focus to the page. It now uses `data-autofocus`, the Dialog's own initial focus. `src/components/teacher/GradeTransferCenter.jsx` | `grade-export/review` `dialog` `focus-restored` |
 | 5 | Library | 2.4.3 focus order (dialog focus return) | the "+ New" folder dialog | all sizes and modes | Same cause: the folder path field used `autoFocus`. It now uses `data-autofocus`. `src/AssignmentLibraryBase.jsx` | `library/folder-dialog` `dialog` `focus-restored` |
 | 6 | Library | 1.4.4 text | a folder's ⋯ actions button | 1366×900 at 200% text | The button was a fixed 28×28 px, and its ⋯ ran 12 px past it. It now has a 28 px minimum and grows. `src/AssignmentLibraryBase.jsx` | `library/page` `text` |
@@ -73,9 +73,9 @@ undone; each one was undone once and seen to go red (see the last section).
 | 12 | Discipline Tracker | 4.1.3 status messages | the screen's notice ("Report copied.", "Message copied.", "Loading…") | all | Same pattern, in two regions. It is now one region, always in the page. `src/components/teacher/DisciplineTracker.jsx` | `discipline/families-and-report` `live` |
 | 13 | Case Review | 4.1.3 status messages | Print & export's notice ("Download started.") | all | Same pattern. The region is now always beside the export buttons. `src/components/teacher/caseReview/StudentCaseReviewView.jsx` | `case-review/print` `live` |
 
-Every fix is a style or attribute change in a lazily loaded screen. There is one exception: #3 adds `minWidth: 0` to
-one element in `TeacherWorkspace.jsx`. No module was added, and no first-load chunk grew by more than a few bytes. `npm run
-check:first-load` is within its baseline, with teacherHome at 865.4 KB.
+Every fix is a style or attribute change in a lazily loaded screen. #3 was first made in `TeacherWorkspace.jsx`;
+#633 moved the gradebook's view into the lazily loaded `gradebookTabView.jsx`, and the fix moved with it. No module was
+added and no first-load chunk grew: `npm run check:first-load` is within the baseline #633 lowered (see the PR).
 
 ### For the owner (a design decision)
 

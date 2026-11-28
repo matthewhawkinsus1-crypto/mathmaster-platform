@@ -31,6 +31,7 @@
  */
 import { all, create } from 'mathjs';
 import { withSimplifyCoreOnce } from './simplifyCoreOnce.mjs';
+import { withSimplifyFirstMatch } from './simplifyFirstMatch.mjs';
 import { withSimplifyRulesParsedOnce } from './simplifyRulesParsedOnce.mjs';
 
 /*
@@ -53,9 +54,12 @@ import { withSimplifyRulesParsedOnce } from './simplifyRulesParsedOnce.mjs';
  * first rule, simplifyCore, is mathjs's own too, but simplifies each node once,
  * where mathjs's simplifies the first operand of every sum and product twice:
  * 2^(n-1) visits for a chain of n terms (simplifyCoreOnce.mjs, issue #559).
- * The answers are mathjs's.
+ * And it looks for the first match of each rule, which is the one mathjs
+ * uses, where mathjs's builds and writes out every match: about the cube of
+ * a side's length for like terms with different coefficients
+ * (simplifyFirstMatch.mjs, the same issue). The answers are mathjs's.
  */
-const math = create(withSimplifyRulesParsedOnce(withSimplifyCoreOnce(all)));
+const math = create(withSimplifyRulesParsedOnce(withSimplifyFirstMatch(withSimplifyCoreOnce(all))));
 
 let hardened = null;
 const hardenedMath = () => {
