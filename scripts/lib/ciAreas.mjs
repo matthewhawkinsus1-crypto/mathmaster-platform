@@ -317,6 +317,7 @@ export const CI_AREAS = {
     'tests/browser/closedQuestionEnter*',
     'tests/browser/feedbackTeaches*',
     'tests/browser/workedExamplePlayer*',
+    'tests/browser/referenceCards*',
     'tests/browser/stepAlgebraReplay*',
     'tests/browser/radicalReplay*',
     'tests/browser/planeReplay*',
@@ -397,6 +398,7 @@ export const CI_AREAS = {
     // page, and every lesson file it compiles.
     'tests/browser/everyQuestionRenders*',
     'teacher-import-jsons/**',
+    'tests/browser/referenceCards*',
     'tests/browser/stepAlgebraReplay*',
     'tests/browser/radicalReplay*',
     'tests/browser/planeReplay*',

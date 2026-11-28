@@ -12,6 +12,10 @@ const shownExample = (supportUsage) => (supportUsage?.workedExampleShown === 'au
 // not recorded, it is absent from every independence test, and a record
 // without it keeps exactly the shape it had.
 const spotTheMistake = (supportUsage) => (supportUsage?.spotTheMistakeUsed === true ? { spotTheMistakeUsed: true } : {});
+// A reference card pinned beside the question (WE-H), kept the same way: a
+// fact for the teacher, never a grade, absent from every independence test,
+// and a record without it keeps exactly the shape it had.
+const referenceCard = (supportUsage) => (supportUsage?.referenceCardShown === true ? { referenceCardShown: true } : {});
 const MAX_STORED_STEP_GRADES = 80;
 
 const SIMPLE_CHOICE_TYPES = new Set([
@@ -380,6 +384,7 @@ export const normalizeQuestionRecord = (record) => {
       workedExampleUsed: Boolean(record.supportUsage?.workedExampleUsed),
       ...shownExample(record.supportUsage),
       ...spotTheMistake(record.supportUsage),
+      ...referenceCard(record.supportUsage),
       calculatorUsed: Boolean(record.supportUsage?.calculatorUsed),
       isMathematicallyIndependent: record.supportUsage?.isMathematicallyIndependent !== false
         && !record.supportUsage?.hintUsed
@@ -485,6 +490,7 @@ export const recordQuestionStep = ({
       workedExampleUsed: Boolean(supportUsage.workedExampleUsed),
       ...shownExample(supportUsage),
       ...spotTheMistake(supportUsage),
+      ...referenceCard(supportUsage),
       calculatorUsed: Boolean(supportUsage.calculatorUsed),
       isMathematicallyIndependent: supportUsage.isMathematicallyIndependent !== false
         && !supportUsage.hintUsed
@@ -624,6 +630,7 @@ export const recordQuestionAttempt = ({
       workedExampleUsed: Boolean(supportUsage.workedExampleUsed),
       ...shownExample(supportUsage),
       ...spotTheMistake(supportUsage),
+      ...referenceCard(supportUsage),
       calculatorUsed: Boolean(supportUsage.calculatorUsed),
       isMathematicallyIndependent: supportUsage.isMathematicallyIndependent !== false
         && !supportUsage.hintUsed

@@ -22,16 +22,20 @@
  * than on every call (functions/shared/algebra/simplifyRulesParsedOnce.mjs),
  * and its simplifyCore simplifies each node once, where mathjs's simplifies the
  * first operand of every sum and product twice
- * (functions/shared/algebra/simplifyCoreOnce.mjs), as the shared graders'
- * instance does: mathjs's answers, without 2^(n-1) visits for n terms.
+ * (functions/shared/algebra/simplifyCoreOnce.mjs), and it looks for the first
+ * match of each rule, which is the one mathjs uses, where mathjs's builds and
+ * writes out every match (functions/shared/algebra/simplifyFirstMatch.mjs), as
+ * the shared graders' instance does: mathjs's answers, without 2^(n-1) visits
+ * for n terms or the cube of a side's length for like terms.
  */
 import { all, create } from 'mathjs';
 import { withSimplifyCoreOnce } from '../../../functions/shared/algebra/simplifyCoreOnce.mjs';
+import { withSimplifyFirstMatch } from '../../../functions/shared/algebra/simplifyFirstMatch.mjs';
 import { withSimplifyRulesParsedOnce } from '../../../functions/shared/algebra/simplifyRulesParsedOnce.mjs';
 
 // The factories the instance builds each function from, with their
 // dependencies: what idleMathSteps.js needs to build one ahead of its first use.
-export const factories = withSimplifyRulesParsedOnce(withSimplifyCoreOnce(all));
+export const factories = withSimplifyRulesParsedOnce(withSimplifyFirstMatch(withSimplifyCoreOnce(all)));
 
 export const math = create(factories);
 

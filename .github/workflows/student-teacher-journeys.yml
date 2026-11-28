@@ -707,6 +707,17 @@ jobs:
           PLAYWRIGHT_MODULE: playwright
           AUDIT_ORIGIN: "http://127.0.0.1:5199"
         run: node tests/browser/workedExamplePlayer.mjs
+      # WE-H: a lesson's reference cards are pinned on Classwork and Practice,
+      # read aloud and translated, recorded only as a fact with the score
+      # unchanged, and never on a DOL, quiz or test (the chunk is not fetched).
+      # By keyboard, on a phone, at 200% text, in the dark theme and in forced
+      # colours.
+      - name: Reference cards (pinned on Classwork and Practice, never on assessments)
+        if: ${{ !cancelled() }}
+        env:
+          PLAYWRIGHT_MODULE: playwright
+          AUDIT_ORIGIN: "http://127.0.0.1:5199"
+        run: node tests/browser/referenceCards.mjs
       # WE-C: a Step Algebra example plays as the tool's own moves, faded on the
       # second question on the skill, on request on Practice, never on a DOL.
       - name: Step Algebra replay (the worked example on the board's engine)

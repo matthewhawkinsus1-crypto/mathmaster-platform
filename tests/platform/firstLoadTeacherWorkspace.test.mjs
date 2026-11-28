@@ -58,6 +58,7 @@ for (const [file, why] of [
   ['src/assignmentBlueprint.js', 'the compiler: an import, and Create\'s last checks'],
   ['src/tools/toolSchemas.js', 'the compiler\'s tool schemas'],
   ['functions/shared/algebra/simplifyRulesParsedOnce.mjs', 'the graders\' simplify rules, reached through the compiler\'s checks'],
+  ['functions/shared/algebra/simplifyFirstMatch.mjs', 'the graders\' simplify, reached through the compiler\'s checks'],
   ['src/platform/contract/semanticValidation.js', 'an import\'s checks'],
   ['src/platform/preflight/assignmentAuthoringState.js', 'an import held for repair (the intake loads it itself)'],
   ['src/platform/preflight/incompleteAssignmentDraftStore.js', 'Create closes the incomplete draft it came from'],
