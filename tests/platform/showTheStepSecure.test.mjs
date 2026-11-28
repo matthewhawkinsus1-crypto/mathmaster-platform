@@ -28,6 +28,7 @@ import { fileURLToPath } from 'node:url';
 import { checkpointWorkKey } from '../../src/platform/supports/showTheStep/checkpointShape.js';
 import { writeCheckpointWork } from '../../src/platform/supports/showTheStep/checkpointLine.js';
 import { stepFieldId } from '../../functions/shared/showTheStepFields.mjs';
+import { responseRowOrder } from '../../functions/shared/showTheStepRows.mjs';
 import { executableSource, region } from './helpers/sourceContract.mjs';
 import { fieldItem, mathPath, secureGrade, secureScore, simulatorGrade } from './helpers/followThroughFixtures.mjs';
 
@@ -171,11 +172,21 @@ test('an answer saved before the item opened is never locked behind redoing the 
 // ------------------------------------------------------------------ 4. the review
 
 test('the released review shows a step in a row of its own after its part, named for what was done', () => {
+  const fields = [{ id: 'slope', label: 'Slope' }, { id: 'inequality', label: 'Inequality', checkpoint: POINTS }];
+  // The question's order, each step after its part, whatever order the record holds.
+  assert.deepEqual(responseRowOrder({ 'inequality::step': RIGHT_STEP, inequality: 'y > -2x + 3', slope: '-2' }, fields), ['slope', 'inequality', 'inequality::step']);
+  // A step whose part has no answer never drops out: its part keeps its place
+  // (a "No answer" row), and the step follows it.
+  assert.deepEqual(responseRowOrder({ slope: '-2', 'inequality::step': RIGHT_STEP }, fields), ['slope', 'inequality', 'inequality::step']);
+  assert.deepEqual(responseRowOrder({ slope: '-2', inequality: '', 'inequality::step': RIGHT_STEP }, fields), ['slope', 'inequality', 'inequality::step']);
+  // An empty step line is no work, and has no row; a step-shaped name no
+  // checkpoint asked for is left where it was.
+  assert.deepEqual(responseRowOrder({ slope: '-2', 'inequality::step': '' }, fields), ['slope']);
+  assert.deepEqual(responseRowOrder({ 'slope::step': 'x', slope: '-2' }, fields), ['slope', 'slope::step']);
   const review = source('src/components/assessment/SecureExamReview.jsx');
   const rows = region(review, 'const responseRows = ', '\n};\n', 'the review rows');
-  // The question's order, then each part's step after it (the browser driver
-  // secureResults.mjs reads the rows on the screen).
-  assert.match(rows, /const fieldOrder = snapshotFields\.map/);
-  assert.match(rows, /withStepsAfterParts\(ordered, \{ answerFields: snapshotFields \}\)/);
+  assert.match(rows, /return responseRowOrder\(responses, snapshotFields\)/);
   assert.match(rows, /label: stepRowLabel\(stepPart\.checkpoint\.kind, label\)/);
+  // The part with no answer says so, rather than being filtered out with its value.
+  assert.match(rows, /if \(!value && stepParts\.has\(fieldId\) && String\(responses\[stepFieldId\(fieldId\)\] \?\? ''\)\.trim\(\)\) \{\n\s+return \{ id: fieldId, label: field\?\.label \|\| 'Your response', value: 'No answer', math: false \};/);
 });

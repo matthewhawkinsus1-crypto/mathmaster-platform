@@ -12,8 +12,8 @@ import { getStudentSecureExamReview } from '../../services/secureExamService.js'
 import { describeToolWork, rawToolWorkOf, toolWorkLabel } from '../../platform/assessment/secureToolWorkSummary.js';
 import { withFollowThroughLabels } from '../../../functions/shared/followThroughNames.mjs';
 import { useFollowThroughRules } from '../../platform/interaction/useFollowThroughRules.js';
-import { checkpointParts, partIdOfStepField } from '../../../functions/shared/showTheStepFields.mjs';
-import { stepRowLabel, withStepsAfterParts } from '../../../functions/shared/showTheStepRows.mjs';
+import { checkpointParts, partIdOfStepField, stepFieldId } from '../../../functions/shared/showTheStepFields.mjs';
+import { responseRowOrder, stepRowLabel } from '../../../functions/shared/showTheStepRows.mjs';
 import {
   RESULT_STATUS,
   answerIsLatex,
@@ -82,10 +82,9 @@ const responseRows = (item, followThrough = null) => {
   // part, named for what the student did, with no result of its own.
   const stepParts = checkpointParts({ answerFields: snapshotFields });
   // In the question's own order, each part followed by its step; anything
-  // else the record holds after them, as stored.
-  const fieldOrder = snapshotFields.map((entry) => entry?.id).filter((id) => Object.prototype.hasOwnProperty.call(responses, id));
-  const ordered = [...fieldOrder, ...Object.keys(responses).filter((id) => !fieldOrder.includes(id))];
-  return withStepsAfterParts(ordered, { answerFields: snapshotFields })
+  // else the record holds after them, as stored. A step whose part has no
+  // answer keeps its part's place, the part saying "No answer".
+  return responseRowOrder(responses, snapshotFields)
     .map((fieldId) => {
       const raw = responses[fieldId];
       const stepPart = stepParts.get(partIdOfStepField(fieldId) ?? '');
@@ -101,6 +100,9 @@ const responseRows = (item, followThrough = null) => {
         .map((entry) => fieldChoices.find((choice) => choice.id === entry)?.label || String(entry ?? '').trim())
         .filter(Boolean)
         .join(', ');
+      if (!value && stepParts.has(fieldId) && String(responses[stepFieldId(fieldId)] ?? '').trim()) {
+        return { id: fieldId, label: field?.label || 'Your response', value: 'No answer', math: false };
+      }
       return { id: fieldId, label: field?.label || 'Your response', value, math: answerIsLatex(value) };
     })
     .filter((row) => row.value);
