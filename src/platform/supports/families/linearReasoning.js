@@ -287,7 +287,7 @@ const inequalityModelSibling = (random) => {
     `The greatest whole number less than ${num(highCount)} is ${greatest}. Only whole numbers from 0 up make sense here, because no one sells part of a ${place.one}.`,
   ];
   // One line "Practise one like this" reads into boxes it can check (practiceLikeThis.js).
-  return { prompt, steps, answer: `least ${least}; greatest ${greatest}` };
+  return { prompt, steps, answer: `least ${least}; greatest ${greatest}`, asks: ['the least number', 'the greatest number'] };
 };
 
 // inequalityModel, two models: when does the one with no head start earn more?
@@ -304,7 +304,7 @@ const compareModelsSibling = (random) => {
       `${place.who} can earn money from ${place.item} in two ways.`,
       `Plan A earns ${money(slow)} per ${place.one} plus ${money(head)} up front: A(n) = ${linear(slow, head, 'n')}.`,
       `Plan B earns ${money(fast)} per ${place.one} with nothing up front: B(n) = ${linear(fast, 0, 'n')}.`,
-      `For which numbers of ${place.item} does Plan B earn more?`,
+      `For which numbers of ${place.item} does Plan B earn more, and what is the least whole number of them?`,
     ].join(' ');
     const steps = [
       `The graphs meet where the plans earn the same, so set them equal: ${linear(fast, 0, 'n')} = ${linear(slow, head, 'n')}.`,
@@ -319,7 +319,7 @@ const compareModelsSibling = (random) => {
       `The symbol is > and not ≥, because at ${num(meet)} ${place.item} the plans earn the same, which is not more. The least whole number of ${place.item} is the next one, ${meet + 1}.`,
       `On the graph, the line of Plan B is above the line of Plan A to the right of the meeting point. Plan B earns ${money(gap)} more on each ${place.one}, so it catches up with the head start of Plan A and then passes it.`,
     ];
-    return { prompt, steps, answer: `n > ${num(meet)}; least ${meet + 1}` };
+    return { prompt, steps, answer: `solution n > ${num(meet)}; least ${meet + 1}`, asks: ['the numbers', 'the least whole number'] };
   }
   return null;
 };
@@ -347,7 +347,7 @@ const reverseTwoWaysSibling = (random) => {
     `${num(root)} ${symbol} x and x ${flipped} ${num(root)} say the same thing, read from opposite sides, so the two ways agree.`,
     `Check x = ${num(test)}, a number in the solution set: ${num(p)} ${MINUS} ${k}(${num(test)}) = ${num(p - k * test)}, and ${num(p - k * test)} ${symbol} ${num(q)} is true.`,
   ];
-  return { prompt, steps, answer: `x ${flipped} ${num(root)}` };
+  return { prompt, steps, answer: `x ${flipped} ${num(root)}`, asks: ['the solution'] };
 };
 
 const reverseDistributiveSibling = (random) => {
@@ -366,7 +366,7 @@ const reverseDistributiveSibling = (random) => {
     `Second way: divide both sides by ${MINUS}${k} first, and reverse the symbol now, because ${MINUS}${k} is negative: ${inside} ${flipped} ${num(c / -k)}.`,
     `Then ${undo(-h)} both sides: x ${flipped} ${num(root)}, the same answer as the first way.`,
   ];
-  return { prompt, steps, answer: `x ${flipped} ${num(root)}` };
+  return { prompt, steps, answer: `x ${flipped} ${num(root)}`, asks: ['the solution'] };
 };
 
 export const DRAINING_SITUATIONS = Object.freeze([
@@ -391,7 +391,7 @@ const decreasingModelSibling = (random) => {
     `The amount is above ${num(above)} only before ${num(t1)} ${place.time}, because it goes down as time goes on.`,
     `V(t) ≤ ${num(below)} means ${rule} ≤ ${num(below)}, so ${MINUS}${rate}t ≤ ${num(below - total)}. Dividing by ${MINUS}${rate} reverses ≤ to ≥: t ≥ ${num(t2)}.`,
   ];
-  return { prompt, steps, answer: `t < ${num(t1)}; t ≥ ${num(t2)}` };
+  return { prompt, steps, answer: `t < ${num(t1)}; t ≥ ${num(t2)}`, asks: ['the first inequality', 'the second inequality'] };
 };
 
 const letterCoefficientSibling = (random) => {
@@ -407,7 +407,7 @@ const letterCoefficientSibling = (random) => {
     `So for k > 0 the solutions are x < ${num(gap)}/k, and for k < 0 they are x > ${num(gap)}/k: the sign of k decides the direction.`,
     `When k = 0 you cannot divide by 0, so put 0 in for k instead: 0 < ${num(gap)}. ${gap > 0 ? 'That is true, so every real number x is a solution.' : 'That is false, so no x is a solution.'}`,
   ];
-  return { prompt, steps, answer: `x < ${frac(gap, positive)}; x > ${frac(gap, -positive)}` };
+  return { prompt, steps, answer: `positive k: x < ${frac(gap, positive)}; negative k: x > ${frac(gap, -positive)}; zero k: ${gap > 0 ? 'every x' : 'no x'}`, asks: ['the positive k', 'the negative k', 'k = 0'] };
 };
 
 // solutionCount: one, none, or infinitely many, side by side.
@@ -441,7 +441,7 @@ const solutionCountSibling = (random) => {
       `Check C: ${a}(${num(xOne)} ${h > 0 ? MINUS : '+'} ${Math.abs(h)}) ${e > 0 ? '+' : MINUS} ${Math.abs(e)} = ${num(a * xOne + b)}, and ${substituted(steeper, oneRhs, xOne)} = ${num(steeper * xOne + oneRhs)}.`,
       `For infinitely many solutions both sides must be the same: ${parameter} = ${linear(p, p * q)}, so k must be ${num(p * q)}. Any other value of k leaves a false statement, and then there is no solution.`,
     ];
-    return { prompt, steps, answer: `C: x = ${num(xOne)}; k = ${num(p * q)}` };
+    return { prompt, steps, answer: `A: infinitely many; B: none; C: x = ${num(xOne)}; k = ${num(p * q)}`, asks: ['A', 'B', 'C', 'k'] };
   }
   return null;
 };
@@ -466,7 +466,7 @@ const verifySolutionSibling = (random) => {
       `Substitute x = ${num(s)} into each side of the final equation: ${substituted(times - minus, c1, s)} = ${num((times - minus) * s + c1)}, and ${num(r1)} ${MINUS} ${minus}(${num(s)}) = ${num(r1 - minus * s)}.`,
       `The two sides are equal, so x = ${num(s)} is still a solution: each move did the same thing to both sides, so every equation in the chain has the same solution.`,
     ];
-    return { prompt, steps, answer: `${left} = ${right}, true for x = ${num(s)}` };
+    return { prompt, steps, answer: `${left} = ${right}, true for x = ${num(s)}`, asks: ['the new equation', 'the check'] };
   }
   return null;
 };
@@ -504,7 +504,7 @@ const systemWordSibling = (random) => {
     `Check in both: ${xCount} + ${yCount} = ${total}, and ${high}(${xCount}) + ${low}(${yCount}) = ${value}. So there were ${xCount} ${story.first} and ${yCount} ${story.second}.`,
     `The total can only be from ${money(low * total)}, if all of them are ${story.second}, to ${money(high * total)}, if all of them are ${story.first}: any other total would need a negative count.`,
   ];
-  return { prompt, steps, answer: `x = ${xCount}, y = ${yCount}` };
+  return { prompt, steps, answer: `x + y = ${total}; ${high}x + ${low}y = ${value}; x = ${xCount}, y = ${yCount}`, asks: ['the count equation', 'the value equation', 'x', 'y'] };
 };
 
 const substitutionSibling = (random, { exactVersusGraph = false } = {}) => {
@@ -536,7 +536,7 @@ const substitutionSibling = (random, { exactVersusGraph = false } = {}) => {
         `Substitute x = ${xs} into y = ${linear(m, b)}: y = ${ys}. So the solution is (${xs}, ${ys}).`,
         `A graph shows it only roughly, near (${num(xNum / den)}, ${num(yNum / den)}), because the lines cross between grid lines, and substitution gives the exact point.`,
       ];
-      return { prompt, steps, answer: `(${xs}, ${ys})` };
+      return { prompt, steps, answer: `(${xs}, ${ys})`, asks: ['the solution'] };
     }
     const x0 = nonZero(random, -6, 6);
     const y0 = m * x0 + b;
@@ -550,7 +550,7 @@ const substitutionSibling = (random, { exactVersusGraph = false } = {}) => {
       `Check in both equations: ${substituted(m, b, x0)} = ${num(y0)}, and ${other(x0)}(${num(y0)}) = ${num(C)}.`,
       `So ${pair(x0, y0)} is the solution: it lies on both lines, where their graphs cross.`,
     ];
-    return { prompt, steps, answer: pair(x0, y0) };
+    return { prompt, steps, answer: pair(x0, y0), asks: ['the solution'] };
   }
   return null;
 };
@@ -587,7 +587,12 @@ const systemCasesSibling = (random, { withLetter = false } = {}) => {
         `The intercepts ${num(b)} and ${num(other)} are already different, so k = ${num(m)} gives no solution, and no k gives the same line.`,
       ] : []),
     ];
-    return { prompt, steps, answer: withLetter ? `C: ${pair(xCross, yCross)}; k = ${num(m)}` : `C: ${pair(xCross, yCross)}` };
+    return {
+      prompt,
+      steps,
+      answer: `A: none; B: infinitely many; C: ${pair(xCross, yCross)}${withLetter ? `; k = ${num(m)}` : ''}`,
+      asks: withLetter ? ['A', 'B', 'C', 'k'] : ['A', 'B', 'C'],
+    };
   }
   return null;
 };
@@ -608,7 +613,7 @@ const interceptsSibling = (random) => {
   const yi = C / b;
   const prompt = [
     `A club wants to raise ${money(C)} selling ${story.first} at ${money(a)} and ${story.second} at ${money(b)}: ${a}x + ${b}y = ${C}, where x is the number of ${story.first} and y the number of ${story.second}.`,
-    'Find both intercepts and what they mean, the slope and what it means, and the reasonable domain.',
+    'Find both intercepts, the slope and the reasonable domain of x. Each step says what its value means.',
   ].join(' ');
   const steps = [
     `For the x-intercept, substitute 0 for y, because the intercept is where the line meets the x-axis: ${a}x = ${C}, so x = ${xi}. The point ${pair(xi, 0)} means ${xi} ${story.first} and no ${story.second} make exactly ${money(C)}.`,
@@ -619,7 +624,7 @@ const interceptsSibling = (random) => {
       ? `As a mathematical line the domain is all real numbers, but here only whole numbers of ${story.first} from 0 to ${xi} make sense. Likewise only whole numbers of ${story.second} from 0 to ${yi}.`
       : `Here only whole numbers of ${story.first} from 0 to ${xi} make sense, because no one sells part of one, or fewer than none. Likewise only whole numbers of ${story.second} from 0 to ${yi}.`,
   ];
-  return { prompt, steps, answer: `x-intercept ${pair(xi, 0)}; y-intercept ${pair(0, yi)}; slope ${frac(-yi, xi)}` };
+  return { prompt, steps, answer: `x-intercept ${pair(xi, 0)}; y-intercept ${pair(0, yi)}; slope ${frac(-yi, xi)}; domain 0 ≤ x ≤ ${xi}`, asks: ['the x-intercept', 'the y-intercept', 'the slope', 'the domain'] };
 };
 
 const decreasingInterceptsSibling = (random) => {
@@ -627,14 +632,14 @@ const decreasingInterceptsSibling = (random) => {
   const rate = pick(random, [4, 6, 8, 12, 15, 25]);
   const end = integer(random, 12, 60);
   const total = rate * end;
-  const prompt = `${place.what} ${place.rateWord} at a steady rate: H(t) = ${num(total)} ${MINUS} ${rate}t is ${place.measure} after t ${place.time}. Find the slope, the y-intercept and the t-intercept, and what each means.`;
+  const prompt = `${place.what} ${place.rateWord} at a steady rate: H(t) = ${num(total)} ${MINUS} ${rate}t is ${place.measure} after t ${place.time}. Find the slope, the y-intercept and the t-intercept. Each step says what its value means.`;
   const steps = [
     `The slope is the number multiplying t, ${MINUS}${rate}. It is the change each ${place.each}: the amount goes down ${rate} ${place.unit} each ${place.each}, which is why it is negative.`,
     `The y-intercept is the value when t = 0, H(0) = ${num(total)}: the amount at the start.`,
     `The t-intercept is the t that makes H(t) = 0. Solve ${num(total)} ${MINUS} ${rate}t = 0: add ${rate}t to both sides and divide by ${rate}, so t = ${end}. After ${end} ${place.time}, ${place.empty}.`,
     `So the reasonable domain runs from 0 to ${end} ${place.time}: before 0 the situation has not started, and after ${end} the rule would give a negative amount.`,
   ];
-  return { prompt, steps, answer: `slope ${MINUS}${rate}; y-intercept ${num(total)}; t-intercept ${end}` };
+  return { prompt, steps, answer: `slope ${MINUS}${rate}; y-intercept ${num(total)}; t-intercept ${end}`, asks: ['the slope', 'the y-intercept', 'the t-intercept'] };
 };
 
 /* ------------------------------------------- inequalities in two variables */
@@ -661,7 +666,7 @@ const twoVariableContextSibling = (random) => {
     const prompt = [
       `${story.who} can spend at most ${money(C)} on ${story.first} at ${money(a)} each and ${story.second} at ${money(b)} each.`,
       `Let x be the number of ${story.first} and y the number of ${story.second}.`,
-      `Write the inequality, then test ${pair(...below)}, ${pair(xOn, yOn)} and ${pair(...above)}.`,
+      `Write the inequality, then decide whether ${pair(...below)}, ${pair(xOn, yOn)} and ${pair(...above)} make it true.`,
     ].join(' ');
     const steps = [
       `The total cost is ${a}x + ${b}y: each price times how many are bought, added.`,
@@ -671,7 +676,12 @@ const twoVariableContextSibling = (random) => {
       `Test ${pair(...above)}: ${shown(above)} = ${cost(above)}, more than ${C}. That is false, so the point is above the line and costs too much.`,
       'A point like (1.5, 2) can make the inequality true, but it does not make sense here, because no one buys half of one. So only whole numbers, 0 or more, are solutions in this situation.',
     ];
-    return { prompt, steps, answer: `${a}x + ${b}y ≤ ${C}` };
+    return {
+      prompt,
+      steps,
+      answer: `${a}x + ${b}y ≤ ${C}; ${pair(...below)} true; ${pair(xOn, yOn)} true; ${pair(...above)} false`,
+      asks: ['the inequality', 'the first point', 'the second point', 'the third point'],
+    };
   }
   return null;
 };
@@ -680,22 +690,32 @@ const inequalityGraphSibling = (random) => {
   for (let tries = 0; tries < 40; tries += 1) {
     const rise = nonZero(random, -5, 5);
     const run = integer(random, 1, 4);
-    if (gcd(rise, run) !== 1) continue;
+    // rise −1 would write the standard form "x + …", which practice cannot check (it reads a leading letter as a word).
+    if (gcd(rise, run) !== 1 || rise === -1) continue;
     const b = nonZero(random, -6, 6);
     const slope = frac(rise, run);
+    // The same boundary with whole-number coefficients: y ≥ (r/u)x + b is −r·x + u·y ≥ u·b (u > 0 keeps the symbol).
+    const standard = twoTerms(-rise, run);
+    const standardRight = num(run * b);
     const boundary = `${coefficient(rise, run)}x ${b < 0 ? MINUS : '+'} ${Math.abs(b)}`;
     const prompt = [
       `The boundary of a shaded half-plane passes through (0, ${num(b)}), and its y changes by ${num(rise)} for every ${run} to the right.`,
-      'Write the inequality for each graph: solid and shaded above, dashed and shaded above, solid and shaded below, and dashed and shaded below.',
+      'Find the slope and the y-intercept of the boundary, then write the inequality for each graph: solid and shaded above, dashed and shaded above, solid and shaded below, and dashed and shaded below.',
     ].join(' ');
     const steps = [
       `The y-intercept is ${num(b)}, where the line crosses the y-axis, and the slope is rise over run, ${slope}, so the boundary is y = ${boundary}.`,
       'A solid line means points on the line are solutions, so the symbol includes equal to, ≤ or ≥. A dashed line leaves them out, < or >.',
       'Shaded above means y is greater than the y-value of the line, so > or ≥. Shaded below means y is less, so < or ≤.',
       `So solid and above is y ≥ ${boundary}, dashed and above is y > ${boundary}, solid and below is y ≤ ${boundary}, and dashed and below is y < ${boundary}.`,
+      `With x and y on one side and whole numbers, y ≥ ${boundary} is ${standard} ≥ ${standardRight}: move the x-term across${run === 1 ? '' : ` and multiply both sides by the positive ${run}, which keeps the symbol`}.`,
       `Check with a test point not on the line, (0, 0): in y ≥ ${boundary} it gives 0 ≥ ${num(b)}. ${b < 0 ? 'That is true, so (0, 0) must be in the shaded region above the line.' : 'That is false, so (0, 0) must be outside the shading above the line.'}`,
     ];
-    return { prompt, steps, answer: `slope ${slope}; y-intercept ${num(b)}` };
+    return {
+      prompt,
+      steps,
+      answer: `slope ${slope}; y-intercept ${num(b)}; solid above: ${standard} ≥ ${standardRight}; dashed above: ${standard} > ${standardRight}; solid below: ${standard} ≤ ${standardRight}; dashed below: ${standard} < ${standardRight}`,
+      asks: ['the slope', 'the y-intercept', 'solid above', 'dashed above', 'solid below', 'dashed below'],
+    };
   }
   return null;
 };
@@ -723,7 +743,7 @@ const inequalitySystemPointsSibling = (random) => {
     const prompt = [
       `${story.who} has ${story.room} ${cap} ${story.limit} and wants at least ${money(goal)} in ${story.money}.`,
       `Each of the ${story.first} (x) brings ${money(p1)}, and each of the ${story.second} (y) brings ${money(p2)}.`,
-      `Write the system, then test ${pair(gx, gy)}, (1, 1) and ${pair(fx, fy)}.`,
+      `Write the system, then find which of ${pair(gx, gy)}, (1, 1) and ${pair(fx, fy)} is a solution.`,
     ].join(' ');
     const steps = [
       `x + y counts all the ${story.limit}, and at most ${cap} means ≤, so x + y ≤ ${cap}.`,
@@ -733,7 +753,7 @@ const inequalitySystemPointsSibling = (random) => {
       `Test ${pair(fx, fy)}: ${fx} + ${fy} = ${fx + fy}, which is more than ${cap}, though ${p1}(${fx}) + ${p2}(${fy}) = ${p1 * fx + p2 * fy} ≥ ${goal}. It fails only the first inequality: meeting one limit is not enough.`,
       `So of these three, only ${pair(gx, gy)} is a solution: a solution of a system makes every one of its inequalities true, and on a graph it lies where the two shadings overlap.`,
     ];
-    return { prompt, steps, answer: `x + y ≤ ${cap}; ${p1}x + ${p2}y ≥ ${goal}; solution ${pair(gx, gy)}` };
+    return { prompt, steps, answer: `${cap} ≥ x + y; ${p1}x + ${p2}y ≥ ${goal}; solution ${pair(gx, gy)}`, asks: ['the first inequality', 'the second inequality', 'the solution'] };
   }
   return null;
 };
@@ -748,7 +768,7 @@ const inequalitySystemRegionSibling = (random) => {
     const xCheck = nonZero(random, -4, 4);
     const yCheck = m * xCheck + b2 + integer(random, 1, b1 - b2 - 1);
     const prompt = [
-      'Rewrite each system with y alone, and decide whether its solutions are above both lines, below both, between them, or none.',
+      'Decide whether the solutions of each system are above both lines, below both, between them, or none. Rewrite each inequality with y alone first.',
       `System A is y < ${written(b1)} and ${written(b2)} > y, system B is ${written(b1)} < y and y > ${written(b2)}, system C is y < ${written(b1)} and y > ${written(b2)}, and system D is y > ${written(b1)} and ${written(b2)} > y.`,
     ].join(' ');
     const steps = [
@@ -760,7 +780,7 @@ const inequalitySystemRegionSibling = (random) => {
       `D is y > ${line(b1)} and y < ${line(b2)}: above the upper line and below the lower line at once is impossible, so D has no solution.`,
       `Check C with a point between the lines, ${pair(xCheck, yCheck)}: there the upper line is at ${num(m * xCheck + b1)} and the lower at ${num(m * xCheck + b2)}, and ${num(yCheck)} < ${num(m * xCheck + b1)} and ${num(yCheck)} > ${num(m * xCheck + b2)}.`,
     ];
-    return { prompt, steps, answer: `upper line y = ${line(b1)}; lower line y = ${line(b2)}` };
+    return { prompt, steps, answer: 'A: below both; B: above both; C: between; D: none', asks: ['A', 'B', 'C', 'D'] };
   }
   return null;
 };
@@ -785,7 +805,12 @@ const linearShiftSibling = (random) => {
     `Right ${k}: g(x ${MINUS} ${k}) = ${right}, and down ${k}: g(x) ${MINUS} ${k} = ${down}. These are different, parallel lines, and right ${k} gives the same line as ${vertical(-m * k)}.`,
     `${k}·g(x) multiplies every output by ${k}, giving ${linear(k * m, k * b)}, and g(${k}x) multiplies every input by ${k}, giving ${linear(k * m, b)}. The slopes agree, but the y-intercepts ${num(k * b)} and ${num(b)} differ, so for this function they are different lines.`,
   ];
-  return { prompt, steps, answer: `up ${k}: ${up}; left ${k}: ${left}; right ${k}: ${right}; down ${k}: ${down}` };
+  return {
+    prompt,
+    steps,
+    answer: `up: ${up}; left: ${left}; right: ${right}; down: ${down}; outputs stretched: ${linear(k * m, k * b)}; inputs stretched: ${linear(k * m, b)}`,
+    asks: ['up', 'left', 'right', 'down', 'outputs stretched', 'inputs stretched'],
+  };
 };
 
 /* ---------------------------------------------------------------------------

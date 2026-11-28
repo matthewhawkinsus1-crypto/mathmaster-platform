@@ -116,14 +116,17 @@ export const seededRandom = (seed, question) => {
   };
 };
 
-/** The first sibling of `attempts` draws that passes siblingIsSafe, as { prompt, steps, answer }; null when none does. */
+/** The first sibling of `attempts` draws that passes siblingIsSafe, as { prompt, steps, answer, asks? }; null when none does. */
 export const firstSafeSibling = (question, seed, generate, attempts = 200) => {
   const guard = siblingGuardOf(question);
   const random = seededRandom(seed, question);
   for (let attempt = 0; attempt < attempts; attempt += 1) {
     const example = generate(random);
     if (siblingIsSafe(question, guard, example)) {
-      return { prompt: text(example.prompt), steps: example.steps.map(text).filter(Boolean), answer: text(example.answer) };
+      const sibling = { prompt: text(example.prompt), steps: example.steps.map(text).filter(Boolean), answer: text(example.answer) };
+      // What the prompt asks for, one entry per part of the answer (tests/platform/weI_algebra1Siblings.test.mjs).
+      if (Array.isArray(example.asks)) sibling.asks = example.asks.map(text);
+      return sibling;
     }
   }
   return null;

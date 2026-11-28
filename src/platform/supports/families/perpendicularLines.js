@@ -1363,7 +1363,7 @@ const perpendicularSibling = (random) => {
     const showProduct = random() < 0.5;
     const steps = [
       `The slope of line r is the change in y over the change in x between its two points: (${sibNum(y2)} ${SIB_MINUS} ${y1 < 0 ? `(${sibNum(y1)})` : sibNum(y1)}) / (${sibNum(x2)} ${SIB_MINUS} ${x1 < 0 ? `(${sibNum(x1)})` : sibNum(x1)}) = ${scale === 1 ? sibFrac(rise, run) : `${sibNum(rise * scale)}/${run * scale} = ${sibFrac(rise, run)}`}.`,
-      `A line perpendicular to r has the negative reciprocal slope: flip ${sibFrac(rise, run)} to get ${sibFrac(run, rise).replace(SIB_MINUS, '')}, then change its sign, because a quarter turn swaps the rise and the run and reverses one of them: ${sibFrac(-run, rise)}.`,
+      `A line perpendicular to r has the negative reciprocal slope: flip ${sibFrac(rise, run)} to get ${sibFrac(run, rise)}, then change its sign, because a quarter turn swaps the rise and the run and reverses one of them: ${sibFrac(-run, rise)}.`,
       ...(showProduct ? [`Check: (${sibFrac(rise, run)})(${sibFrac(-run, rise)}) multiplies out to ${sibFrac(-rise * run, run * rise)}, as the slopes of two perpendicular lines always do.`] : []),
       `The perpendicular line through ${sibPair(x2, y2)}: start from y = ${sibCoefficient(-run, rise)}x + b and put in the point, because the point must make the equation true: ${sibNum(y2)} = (${sibFrac(-run, rise)})(${sibNum(x2)}) + b, so b = ${sibNum(intercept)}. The line is ${sibLine(-run, rise, intercept)}.`,
       `The same flip-and-change-sign turns a slope of ${sibFrac(otherRise, otherRun)} into ${sibFrac(-otherRun, otherRise)}, and a slope of ${sibNum(whole)} (that is, ${sibNum(whole)}/1) into ${sibFrac(-1, whole)}.`,
@@ -1371,7 +1371,8 @@ const perpendicularSibling = (random) => {
     return {
       prompt: `Line r passes through ${sibPair(x1, y1)} and ${sibPair(x2, y2)}. Find its slope, the slope of a line perpendicular to it, and the perpendicular line through ${sibPair(x2, y2)}. Then give the perpendicular slopes for slopes of ${sibFrac(otherRise, otherRun)} and ${sibNum(whole)}.`,
       steps,
-      answer: `slope ${sibFrac(rise, run)}; perpendicular slope ${sibFrac(-run, rise)}; ${sibLine(-run, rise, intercept)}; ${sibFrac(-otherRun, otherRise)} and ${sibFrac(-1, whole)}`,
+      answer: `slope ${sibFrac(rise, run)}; perpendicular slope ${sibFrac(-run, rise)}; perpendicular line ${sibLine(-run, rise, intercept)}; second perpendicular slope ${sibFrac(-otherRun, otherRise)}; third perpendicular slope ${sibFrac(-1, whole)}`,
+      asks: ['the slope', 'the perpendicular slope', 'the perpendicular line', 'the second perpendicular slope', 'the third perpendicular slope'],
     };
   }
   return null;
@@ -1392,7 +1393,8 @@ const axisLinesSibling = (random) => {
         `On a vertical line every point is the same distance across, so the x-coordinate never changes. Through ${sibPair(a, b)} that is ${sibNum(a)}: the line is x = ${sibNum(a)}.`,
         `y = ${sibNum(c)} is horizontal, and a vertical line meets a horizontal one at a right angle, so the perpendicular line is vertical. Through ${sibPair(px, py)} it is x = ${sibNum(px)}.`,
       ],
-      answer: `y = ${sibNum(b)}; x = ${sibNum(a)}; x = ${sibNum(px)}`,
+      answer: `horizontal y = ${sibNum(b)}; vertical x = ${sibNum(a)}; perpendicular x = ${sibNum(px)}`,
+      asks: ['the horizontal line', 'the vertical line', 'the perpendicular line'],
     };
   }
   return null;

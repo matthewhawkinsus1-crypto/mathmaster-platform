@@ -18,6 +18,11 @@
  *   - worked, not just shown: several steps, and the steps say why;
  *   - in Spanish too: every sentence is one the Spanish pack knows
  *     (esSupport.js, linearReasoningSiblings), so Translate gives all of it;
+ *   - asked and answered alike: the answer line has one labelled part for each
+ *     thing the sibling's prompt asks (the family says which, `asks`), so the
+ *     boxes "Practise one like this" builds from it check the whole task;
+ *   - right in every step: each value a step states agrees with the next step
+ *     and with the answer (arithmetic, a sign change, a reversed symbol);
  *   - Algebra I only: no "A2." question is claimed by the new family (another
  *     package owns those).
  */
@@ -35,6 +40,7 @@ import * as perpendicularLines from '../../src/platform/supports/families/perpen
 import { answerSpellings, siblingGuardOf, siblingIsSafe, statedEquations as statedMath } from '../../src/platform/supports/families/siblingGuard.js';
 import { buildSimilarWorkedExample, similarExampleIsSafe } from '../../src/platform/supports/workedExample/similarProblem.js';
 import { assignmentProblemKeys, exampleSectionRule, workedExampleFor } from '../../src/platform/supports/workedExample/examplePlayer.js';
+import { buildPracticeLikeThis, checkPracticePart, readPracticeAnswer } from '../../src/platform/supports/workedExample/practiceLikeThis.js';
 import { hintRevealsAnswer } from '../../functions/shared/pathSolutionSupport.mjs';
 import { TRANSLATION_COVERAGE, loadLanguagePack, translateWithPack } from '../../src/platform/language/translationProviders.js';
 
@@ -205,4 +211,137 @@ test('coverage of the Algebra I answer boxes, from the report: before WE-I 140 u
   // horizontal and vertical lines are the answers), A.12C 1 (a sequence).
   assert.deepEqual(uncovered, { 'A.12C': 1, 'A.2G': 2, 'A.5A': 7, 'A.2I': 2, 'A.5C': 2 });
   assert.equal(total, 14);
+});
+
+/* ------------------------------------------------------------------------
+ * The two classes of defect the first review found (#623): a practice whose
+ * boxes check less than its prompt asks, and a step whose stated value does
+ * not follow from the one before it. Each is held for every sibling of every
+ * real item the two families claim, seeds 0 to 20.
+ * --------------------------------------------------------------------- */
+
+const SIBLING_SEEDS = Array.from({ length: 21 }, (_, index) => index);
+const claimedItems = () => walk().flatMap((lesson) => lesson.sections.flatMap((section) => section.questions
+  .filter(({ question }) => NEW_FAMILIES.has(familyFor(question)))
+  .map(({ stored, question }) => ({ where: `${lesson.file}#${stored.questionId}`, question, family: familyFor(question) }))));
+
+test('every sibling answers each part its prompt asks, and "Practise one like this" boxes exactly those parts', () => {
+  let checked = 0;
+  let practices = 0;
+  for (const { where, question, family } of claimedItems()) {
+    const asksByPrompt = new Map();
+    for (const seed of SIBLING_SEEDS) {
+      const sibling = family.similarProblem(question, { seed });
+      if (!sibling) continue;
+      checked += 1;
+      assert.ok(Array.isArray(sibling.asks) && sibling.asks.length > 0, `${where} seed ${seed}: the family says what the prompt asks`);
+      asksByPrompt.set(sibling.prompt, sibling.asks);
+      const { parts } = readPracticeAnswer(sibling.answer);
+      assert.equal(parts.length, sibling.asks.length, `${where} seed ${seed}: "${sibling.answer}" has ${parts.length} parts for ${sibling.asks.join(', ')}`);
+      assert.ok(parts.some((part) => part.checkable), `${where} seed ${seed}: some part can be checked`);
+      parts.forEach((part) => {
+        // A label must not swallow the value ("Up | 2: 3x + 5").
+        assert.doesNotMatch(String(part.expected), /^[-−]?\d+(?:\/\d+)?:\s/, `${where} seed ${seed}: ${part.label} | ${part.expected}`);
+        assert.notEqual(checkPracticePart(part, part.expected), 'incorrect', `${where} seed ${seed}: its own answer`);
+      });
+    }
+    // The practice the student is given is one of these siblings, boxed the same way.
+    const practice = buildPracticeLikeThis(question, { seed: 0 });
+    if (!practice || practice.source !== 'family') continue;
+    let asks = asksByPrompt.get(practice.prompt);
+    for (let offset = 1; !asks && offset <= 12; offset += 1) {
+      for (let attempt = 0; !asks && attempt < 6; attempt += 1) {
+        const sibling = family.similarProblem(question, { seed: 97 * offset + attempt, keepCase: true });
+        if (sibling?.prompt === practice.prompt) asks = sibling.asks;
+      }
+    }
+    assert.ok(asks, `${where}: the practice is the family's sibling`);
+    assert.equal(practice.parts.length, asks.length, `${where}: the practice boxes ${practice.parts.length} parts for ${asks.join(', ')}`);
+    practices += 1;
+  }
+  assert.ok(checked > 2000, `${checked} siblings`);
+  assert.ok(practices > 100, `${practices} practices`);
+});
+
+// Pure arithmetic, as a step writes it: "4(89) + 25", "−3/4", "15(8) + 9(3)".
+const ARITHMETIC = /^[-−\d.()+×·/\s]+$/;
+const evaluate = (expression) => {
+  const source = expression.replace(/[−]/g, '-').replace(/[×·]/g, '*').replace(/(\d|\))\s*\(/g, '$1*(').replace(/\)\s*(\d)/g, ')*$1');
+  if (!/\d/.test(source) || !/^[-\d.()+*/\s]+$/.test(source)) return null;
+  try {
+    const value = Function(`"use strict"; return (${source});`)();
+    return Number.isFinite(value) ? value : null;
+  } catch {
+    return null;
+  }
+};
+const valueOf = (written) => evaluate(String(written).trim().replace(/[.,]$/, ''));
+const FLIPPED = { '<': '>', '>': '<', '≤': '≥', '≥': '≤' };
+const claimCount = { arithmetic: 0, flips: 0, symbols: 0 };
+
+/** Every claim a step makes that can be checked by itself; returns the ones that are false. */
+const falseClaims = (sibling) => {
+  const wrong = [];
+  sibling.steps.forEach((step) => {
+    // "a = b = c": consecutive pieces that are pure arithmetic must agree.
+    // A run of arithmetic counts only when no variable is attached to it:
+    // "x + 11 = 17" and "3x + 55 = 73" state nothing to check here.
+    step.split(/[:;]|,\s(?![\d−-])|\.\s|\bso\b|\band\b|\bthen\b|\bbut\b|\bwhich\b/).forEach((clause) => {
+      const pieces = clause.split('=');
+      for (let index = 0; index + 1 < pieces.length; index += 1) {
+        const leftPiece = pieces[index];
+        const left = leftPiece.match(/[-−\d.()+×·/\s]*$/)[0].trim();
+        const before = leftPiece.slice(0, leftPiece.length - leftPiece.match(/[-−\d.()+×·/\s]*$/)[0].length);
+        const rightPiece = pieces[index + 1];
+        const right = rightPiece.match(/^[-−\d.()+×·/\s]*/)[0].trim().replace(/[\s+×·/−-]+$/, '');
+        const after = rightPiece.slice(rightPiece.match(/^[-−\d.()+×·/\s]*/)[0].length);
+        if (!/^[-−]?[\d(]/.test(left) || !/^[-−]?[\d(]/.test(right)) continue;
+        if (/(?:^|[^A-Za-z])[A-Za-z]$|[A-Za-z0-9)]$/.test(before) || /^[A-Za-z(]/.test(after)) continue;
+        if (pieces[index].trim() !== left && /[+−\-×·/]\s*$/.test(before.trimEnd())) continue;
+        const a = valueOf(left);
+        const b = valueOf(right);
+        if (a === null || b === null) continue;
+        claimCount.arithmetic += 1;
+        if (Math.abs(a - b) > 1e-6) wrong.push(`${left} = ${right}`);
+      }
+    });
+    // "flip A to get B, then change its sign …: C": B is 1/A, and C is −B.
+    const flip = /flip (\S+) to get (\S+), then change its sign[^:]*: (\S+?)\.?$/.exec(step);
+    if (flip) {
+      claimCount.flips += 1;
+      const [a, b, c] = flip.slice(1).map(valueOf);
+      if (a === null || b === null || c === null || Math.abs(a * b - 1) > 1e-9 || Math.abs(c + b) > 1e-9) wrong.push(flip[0]);
+      if (!new RegExp(`perpendicular slope ${flip[3].replace(/[()]/g, '\\$&')}(;|$)`).test(sibling.answer)) wrong.push(`answer does not give ${flip[3]}`);
+    }
+    // "so < turns into >", "so ≥ becomes ≤", "reverses ≤ to ≥": the symbol is the reversed one.
+    for (const match of step.matchAll(/([<>≤≥]) (?:turns into|becomes|to) ([<>≤≥])/g)) {
+      claimCount.symbols += 1;
+      if (FLIPPED[match[1]] !== match[2]) wrong.push(match[0]);
+    }
+  });
+  return wrong;
+};
+
+test('every value a sibling step states agrees with the next step and with the answer', () => {
+  let checked = 0;
+  for (const { where, question, family } of claimedItems()) {
+    for (const seed of SIBLING_SEEDS) {
+      const sibling = family.similarProblem(question, { seed });
+      if (!sibling) continue;
+      checked += 1;
+      assert.deepEqual(falseClaims(sibling), [], `${where} seed ${seed}\n${[sibling.prompt, ...sibling.steps, sibling.answer].join('\n')}`);
+    }
+  }
+  assert.ok(checked > 2000, `${checked} siblings`);
+  // The checker checked something: thousands of sums, every perpendicular flip, every reversed symbol.
+  assert.ok(claimCount.arithmetic > 5000 && claimCount.flips > 100 && claimCount.symbols > 100, JSON.stringify(claimCount));
+});
+
+test('the step checker can fail: a sign change that keeps the sign, a sum that is off, a symbol not reversed', () => {
+  const sibling = (steps, answer = 'slope 3; perpendicular slope −1/3') => ({ prompt: 'p', steps, answer });
+  assert.deepEqual(falseClaims(sibling(['Flip it: flip 3 to get 1/3, then change its sign, because a quarter turn reverses one: −1/3.'])), []);
+  assert.equal(falseClaims(sibling(['Flip it: flip −3 to get 1/3, then change its sign, because a quarter turn reverses one: 1/3.'], 'slope −3; perpendicular slope 1/3')).length, 1);
+  assert.equal(falseClaims(sibling(['Check: 4(89) + 25 = 382, which is at least 379.'])).length, 1);
+  assert.deepEqual(falseClaims(sibling(['Check: 4(89) + 25 = 381, which is at least 379.'])), []);
+  assert.equal(falseClaims(sibling(['Divide by −2. So < turns into <: x < 3.'])).length, 1);
 });
