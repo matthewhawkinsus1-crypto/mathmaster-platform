@@ -59,6 +59,7 @@ import { familyFor } from '../families/index.js';
 import { isStepAlgebraReplayEntry, replayHandOver, replayStepAlgebra, stepAlgebraMovesFor } from './stepAlgebraReplay.js';
 import { RADICAL_REPLAY_TOOL, isRadicalReplayEntry, radicalItemIsVerified, radicalSiblingEquation, replayRadicalEquation } from './radicalReplay.js';
 import { planeSiblingFor, replayPlaneExample } from './planeReplay.js';
+import { divisionSiblingFor, replayDivisionExample } from './divisionReplay.js';
 
 // A step as { show, why } (the same reading exampleSlides.js gives it; that
 // module is the player's own, and is not imported here: see its header).
@@ -126,7 +127,7 @@ export const questionExampleExemption = (question) => {
 // Text a problem is recognised by, as the authoring contract reads it
 // (lessonSupportsV5.js): case, spaces and $ delimiters do not count.
 const problemKey = (value) => lower(value).replace(/[\s$]+/g, '');
-const PROBLEM_FIELDS = Object.freeze(['prompt', 'equation', 'expression', 'inequality', 'equationLatex']);
+const PROBLEM_FIELDS = Object.freeze(['prompt', 'equation', 'expression', 'inequality', 'equationLatex', 'dividend']);
 
 /** Every problem on the assignment, as keys an example's problem is checked against. */
 export const assignmentProblemKeys = (questions = []) => new Set(list(questions)
@@ -136,6 +137,36 @@ export const assignmentProblemKeys = (questions = []) => new Set(list(questions)
 const isAssignmentItem = (prompt, assignmentProblems) => Boolean(
   assignmentProblems && typeof assignmentProblems.has === 'function' && assignmentProblems.has(problemKey(prompt)),
 );
+
+// A problem written as text or as LaTeX, read one way: x³ and x^{3} and x^3
+// alike, − as -, no spaces, $ or \left/\right.
+const SUPERSCRIPT_DIGITS = Object.freeze({ '⁰': '0', '¹': '1', '²': '2', '³': '3', '⁴': '4', '⁵': '5', '⁶': '6', '⁷': '7', '⁸': '8', '⁹': '9', '⁻': '-' });
+const mathKey = (value) => lower(value)
+  .replace(/\\left|\\right|\\,|[\s$]+/g, '')
+  .replace(/[⁰¹²³⁴⁵⁶⁷⁸⁹⁻]+/g, (run) => `^${run.split('').map((character) => SUPERSCRIPT_DIGITS[character]).join('')}`)
+  .replace(/\^\{([^{}]*)\}/g, '^$1')
+  .replace(/[−–]/g, '-')
+  .replace(/\\div/g, '÷');
+
+/**
+ * Whether one of the example's problems (a sibling's polynomial, its
+ * expressions: what a family names in `problems`) is written anywhere in a
+ * problem on the assignment. A sibling whose prompt differs from every item's
+ * can still be another item's polynomial; that is still an item on the same
+ * assignment, and is not shown.
+ */
+const mentionsAssignmentItem = (problems, assignmentProblems) => {
+  if (!Array.isArray(problems) || !problems.length || !assignmentProblems || typeof assignmentProblems.forEach !== 'function') return false;
+  const wanted = problems.map(mathKey).filter((key) => key.length >= 5);
+  if (!wanted.length) return false;
+  let found = false;
+  assignmentProblems.forEach((key) => {
+    if (found) return;
+    const written = mathKey(key);
+    found = wanted.some((problem) => written.includes(problem));
+  });
+  return found;
+};
 
 // Where a faded example hands over: after `handOverAfter` steps, or before
 // step `fromStep`. Zero where nothing is left for the student to do.
@@ -303,6 +334,36 @@ const planeFamilyReplay = (question, { seed = 0, assignmentProblems = null, asRe
   return null;
 };
 
+// A question answered in the Polynomial Workshop's division views (synthetic
+// division, the Remainder and Factor Theorems table, long division): its
+// example is a sibling played as the view's own work, graded by the
+// workshop's grader (divisionReplay.js). Null where the question is not one
+// of these, or no sibling of it can be played.
+const divisionFamilyReplay = (question, { seed = 0, assignmentProblems = null, asReplay = true } = {}) => {
+  for (let turn = 0; turn < 4; turn += 1) {
+    const sibling = divisionSiblingFor(question, { seed: (Number(seed) || 0) + turn });
+    if (!sibling) return null;
+    // Asked only whether the question has an example: it has, and nothing is drawn.
+    if (!asReplay) return { source: 'family', format: 'steps', prompt: 'A division like this one.', steps: [{ show: 'Played on request.', why: '' }], answer: '', handOverAfter: 0 };
+    const replay = replayDivisionExample(sibling);
+    if (!replay.ok) continue;
+    if (mentionsAssignmentItem(replay.problems, assignmentProblems)) continue;
+    const example = {
+      source: 'family',
+      format: 'replay',
+      tool: replay.tool,
+      prompt: replay.prompt,
+      steps: replay.steps,
+      answer: replay.answer,
+      // A built-in replay fades after its first move, and never reads the quotient.
+      handOverAfter: Math.min(1, replay.fadeLimit),
+      fadeLimit: replay.fadeLimit,
+    };
+    if (!isAssignmentItem(example.prompt, assignmentProblems) && safeFor(question, example)) return example;
+  }
+  return null;
+};
+
 function safeFor(question, example) {
   return similarExampleIsSafe(question, {
   prompt: example.prompt,
@@ -340,17 +401,20 @@ export const workedExampleFor = (question, { seed = 0, lessonSupports = null, se
     if (radical) return withSubSkillMode(radical, subSkills, sectionRole);
     const plane = planeFamilyReplay(question, { seed, assignmentProblems, asReplay });
     if (plane) return plane;
+    const division = divisionFamilyReplay(question, { seed, assignmentProblems, asReplay });
+    if (division) return division;
     // The family tries six seeds from the one it is given, so each pass here is six new ones.
     for (let pass = 0; pass < 3; pass += 1) {
       const sibling = buildSimilarWorkedExample(question, { seed: (Number(seed) || 0) + pass * 6 });
       if (!sibling) return null;
-      if (!isAssignmentItem(sibling.prompt, assignmentProblems)) {
+      if (!isAssignmentItem(sibling.prompt, assignmentProblems) && !mentionsAssignmentItem(sibling.problems, assignmentProblems)) {
         // `asReplay: false` asks only whether the question has an example at
         // all (lessonExampleContext, for the questions before this one): the
         // sibling's text answers that without playing it on the engine.
         const replay = asReplay ? familyReplay(question, sibling) : null;
         if (replay && !isAssignmentItem(replay.prompt, assignmentProblems) && safeFor(question, replay)) return replay;
-        return { source: 'family', format: 'steps', prompt: sibling.prompt, steps: sibling.steps.map(stepOf), answer: sibling.answer, handOverAfter: 0 };
+        // A family that writes each move's reason apart hands over `parts`.
+        return { source: 'family', format: 'steps', prompt: sibling.prompt, steps: (Array.isArray(sibling.parts) ? sibling.parts : sibling.steps).map(stepOf), answer: sibling.answer, handOverAfter: 0 };
       }
     }
     return null;
