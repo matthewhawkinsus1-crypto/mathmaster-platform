@@ -1,5 +1,7 @@
 /*
- * WHAT THE ACTION CENTER READS, LIVE: SUPPORT EVENTS, PARENT CONTACTS, GRADES AND PRACTICE PASSES FOR ITS CLASSES, RETEST RECOVERY, SESSION SUMMARIES, AND THE ITEMS AND OPEN COUNT THEY ADD UP TO.
+ * WHAT THE ACTION CENTER READS, LIVE: SUPPORT EVENTS, PARENT CONTACTS, GRADES AND PRACTICE PASSES FOR ITS CLASSES, RETEST RECOVERY, THE DISCIPLINE TRACKER'S ROWS, SESSION SUMMARIES, AND THE ITEMS AND OPEN COUNT THEY ADD UP TO.
+ *
+ * The Action Center's own model (platform/teacher/teacherActionCenter.js) and its Discipline Tracker rows (platform/teacher/disciplineActionItems.js) load when the Action Center is opened, not with a teacher's first load (scripts/check-first-load-budget.mjs).
  *
  * Moved verbatim from App.jsx, which calls this where the code was and passes what it reads by position (tests/platform/appSplitTeacherLiveData.test.mjs holds the two sides to the same names in the same order). App owns the state these fill. Its hooks keep their place among App's hooks (scripts/app-hook-ledger.mjs).
  */
@@ -16,7 +18,8 @@ export function useTeacherActionCenterData(
   setStudentSupportEvents, studentSupportEvents, parentContacts, setParentContacts, actionGradeSnapshots,
   setActionGradeSnapshots, actionPracticePasses, setActionPracticePasses, setTeacherActionOpenCountCache,
   teacherActionOpenCountCache, teacherKit, retestRecoveryActions, setRetestRecoveryActions,
-  setStudentSessionSummaries, now, classSchedule,
+  setStudentSessionSummaries, now, classSchedule, actionCenterModel, setActionCenterModel,
+  actionDisciplineItems, setActionDisciplineItems,
 ) {
   // Persistent support/intervention history is teacher-authorized and
   // append-only. It is loaded independently of the live presence stream.
@@ -83,15 +86,41 @@ export function useTeacherActionCenterData(
     }));
   }, [teacherKit, teacherWorkspaceMode, teacherTab, classes, allStudents, studentSupportEvents, assignments, classSchedule, now]);
 
+  // The model, the first time the Action Center opens.
+  useEffect(() => {
+    if (actionCenterModel || teacherWorkspaceMode !== 'teacher' || teacherTab !== 'actionCenter') return undefined;
+    let cancelled = false;
+    import('../../platform/teacher/teacherActionCenter.js')
+      .then((model) => { if (!cancelled) setActionCenterModel(model); })
+      .catch((error) => console.error('Action Center failed to load:', error));
+    return () => { cancelled = true; };
+  }, [actionCenterModel, teacherWorkspaceMode, teacherTab]);
+
+  // The Discipline Tracker's rows, read each time the Action Center opens:
+  // sends and family messages that need the teacher, and the week's
+  // principal report.
+  useEffect(() => {
+    if (user?.role !== 'teacher' || teacherWorkspaceMode !== 'teacher' || teacherTab !== 'actionCenter' || teacherPreviewRuntimeActive) {
+      setActionDisciplineItems([]);
+      return undefined;
+    }
+    let cancelled = false;
+    import('../../platform/teacher/disciplineActionItems.js')
+      .then(({ loadDisciplineActionItems }) => loadDisciplineActionItems({ nowMs: Date.now() }))
+      .then((items) => { if (!cancelled) setActionDisciplineItems(items); })
+      .catch((error) => console.error('Action Center discipline rows failed:', error));
+    return () => { cancelled = true; };
+  }, [user?.role, teacherWorkspaceMode, teacherPreviewRuntimeActive, teacherTab]);
+
   const teacherActionItems = useMemo(() => {
-    if (!teacherKit || teacherWorkspaceMode !== 'teacher' || teacherTab !== 'actionCenter') return [];
-    return teacherKit.buildTeacherActionItems({
+    if (!actionCenterModel || teacherWorkspaceMode !== 'teacher' || teacherTab !== 'actionCenter') return [];
+    return actionCenterModel.buildTeacherActionItems({
       students: allStudents, classes, supportEvents: studentSupportEvents, parentContacts,
       returnCheckIns: actionReturnCheckIns, gradeTransferUnits: actionGradeScope.units,
-      retestRecoveryActions, now, todayDateKey: localDateKeyOf(now),
+      retestRecoveryActions, extraItems: actionDisciplineItems, now, todayDateKey: localDateKeyOf(now),
     });
-  }, [teacherKit, teacherWorkspaceMode, teacherTab, allStudents, classes, studentSupportEvents, parentContacts, actionReturnCheckIns, actionGradeScope.units, retestRecoveryActions, now]);
-  const currentTeacherActionOpenCount = teacherKit ? teacherKit.openTeacherActionCount(teacherActionItems) : 0;
+  }, [actionCenterModel, teacherWorkspaceMode, teacherTab, allStudents, classes, studentSupportEvents, parentContacts, actionReturnCheckIns, actionGradeScope.units, retestRecoveryActions, actionDisciplineItems, now]);
+  const currentTeacherActionOpenCount = actionCenterModel ? actionCenterModel.openTeacherActionCount(teacherActionItems) : 0;
   const teacherActionOpenCount = teacherTab === 'actionCenter'
     ? currentTeacherActionOpenCount
     : teacherActionOpenCountCache;

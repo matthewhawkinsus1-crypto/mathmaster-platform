@@ -83,6 +83,30 @@ export const daySummary = (incidents = []) => {
   };
 };
 
+/**
+ * Other days in the loaded window, by class, where something waits on the
+ * teacher: a violation the district form refused or did not answer, or a
+ * family message that did not go out or may not have (the latest for that
+ * student's day). Newest first, so the Action Center's rows are one tap away.
+ */
+export const otherDaysNeedingTeacher = ({ incidents = [], familyMessages = [], dateKey, classId = '' } = {}) => {
+  const counts = new Map();
+  const add = (day, cls) => {
+    if (!day || (day === dateKey && cls === classId)) return;
+    const key = `${day}|${cls}`;
+    counts.set(key, { dateKey: day, classId: cls, count: (counts.get(key)?.count || 0) + 1 });
+  };
+  (incidents || []).filter((incident) => !isVoidedIncident(incident) && ['unknown', 'failed'].includes(incident.form?.state))
+    .forEach((incident) => add(incident.dateKey, incident.classId));
+  const latest = new Map();
+  (familyMessages || []).forEach((entry) => {
+    const key = entry.messageKey || `${entry.classId}|${entry.dateKey}|${entry.studentId}`;
+    if (!latest.has(key) || (Number(entry.sequence) || 1) > (Number(latest.get(key).sequence) || 1)) latest.set(key, entry);
+  });
+  [...latest.values()].filter((entry) => ['failed', 'unknown'].includes(entry.state)).forEach((entry) => add(entry.dateKey, entry.classId));
+  return [...counts.values()].sort((left, right) => right.dateKey.localeCompare(left.dateKey) || left.classId.localeCompare(right.classId));
+};
+
 /** A family contact logged on the same day, after the first violation, for this student. */
 export const contactForDay = (contacts = [], { studentId, dateKey, afterMs = 0 }) => (contacts || [])
   .filter((contact) => contact?.studentId === studentId && contact?.recordType !== 'followUpResolution')

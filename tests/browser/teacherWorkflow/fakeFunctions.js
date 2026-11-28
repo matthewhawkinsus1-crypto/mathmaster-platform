@@ -793,9 +793,20 @@ const handlers = {
     throw rejection('permission-denied', 'This action is restricted to the MathMaster root administrator.');
   },
   getDisciplineSettings: () => ({ principalEmail: '', principalName: '', teacherName: '', ...(harnessStore.get(`disciplineSettings/${lower(TEACHER_EMAIL)}`) || {}) }),
+  // As the real callable: the teacher's own record of a principal report sent, the newest 20 kept.
+  recordPrincipalReportSent: ({ studentIds = [] } = {}) => {
+    const ids = [...new Set((Array.isArray(studentIds) ? studentIds : []).map((id) => String(id || '').trim()).filter(Boolean))].slice(0, 200);
+    if (!ids.length) throw rejection('invalid-argument', 'The report lists no students.');
+    const path = `disciplineSettings/${lower(TEACHER_EMAIL)}`;
+    const stored = harnessStore.get(path) || {};
+    const report = { sentAtMs: Date.now(), studentIds: ids };
+    harnessStore.set(path, { ...stored, principalReports: [...(stored.principalReports || []), report].slice(-20) });
+    return report;
+  },
   saveDisciplineSettings: (settings = {}) => {
     const saved = { principalEmail: String(settings.principalEmail || ''), principalName: String(settings.principalName || ''), teacherName: String(settings.teacherName || '') };
-    harnessStore.set(`disciplineSettings/${lower(TEACHER_EMAIL)}`, saved);
+    // Merged, as the real callable's set(..., { merge: true }): the reports marked sent stay.
+    harnessStore.set(`disciplineSettings/${lower(TEACHER_EMAIL)}`, { ...(harnessStore.get(`disciplineSettings/${lower(TEACHER_EMAIL)}`) || {}), ...saved });
     return saved;
   },
   submitDisciplineFormsNow: ({ classId = '', dateKey = '' } = {}) => {

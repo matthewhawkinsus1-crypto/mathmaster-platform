@@ -286,11 +286,43 @@ exports.loadStudentConductEvidence = onCall(async (request) => {
   });
 });
 
+// The principal reports kept per teacher (recordPrincipalReportSent).
+const PRINCIPAL_REPORTS_KEPT = 20;
+
 exports.getDisciplineSettings = onCall(async (request) => {
   await requireTeacher(request);
   const email = callerEmail(request);
   const data = (await getFirestore().collection("disciplineSettings").doc(email).get()).data() || {};
-  return { principalEmail: data.principalEmail || "", principalName: data.principalName || "", teacherName: data.teacherName || "" };
+  return {
+    principalEmail: data.principalEmail || "",
+    principalName: data.principalName || "",
+    teacherName: data.teacherName || "",
+    // The principal reports the teacher marked sent (recordPrincipalReportSent).
+    principalReports: Array.isArray(data.principalReports) ? data.principalReports.slice(-PRINCIPAL_REPORTS_KEPT) : [],
+  };
+});
+
+/*
+ * The teacher says the principal report went out (they send it from Outlook;
+ * MathMaster cannot see that). Kept in their own settings: the Action Center
+ * stops asking about these students until one of them has a new violation.
+ * Only the newest few are kept.
+ */
+exports.recordPrincipalReportSent = onCall(async (request) => {
+  await requireTeacher(request);
+  const email = callerEmail(request);
+  const ids = Array.isArray(request.data?.studentIds) ? request.data.studentIds : [];
+  const studentIds = [...new Set(ids.map((id) => disciplineText(id, 320)).filter(Boolean))].slice(0, 200);
+  if (!studentIds.length) throw new HttpsError("invalid-argument", "The report lists no students.");
+  const db = getFirestore();
+  const ref = db.collection("disciplineSettings").doc(email);
+  const report = { sentAtMs: Date.now(), studentIds };
+  await db.runTransaction(async (transaction) => {
+    const stored = (await transaction.get(ref)).data()?.principalReports;
+    const reports = [...(Array.isArray(stored) ? stored : []), report].slice(-PRINCIPAL_REPORTS_KEPT);
+    transaction.set(ref, { principalReports: reports, updatedAt: FieldValue.serverTimestamp() }, { merge: true });
+  });
+  return report;
 });
 
 exports.saveDisciplineSettings = onCall(async (request) => {

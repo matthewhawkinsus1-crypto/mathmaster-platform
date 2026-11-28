@@ -18,6 +18,8 @@ const CALLABLES = [
   'queueFamilyMessages', 'resolveFamilyMessage', 'familyMessageOutbox', 'setFamilyMessagingMode',
   // The case review's read (caseReviewConduct.test.mjs pins the rest of it).
   'loadStudentConductEvidence',
+  // The teacher's record of a principal report sent (disciplineActionItems.test.mjs).
+  'recordPrincipalReportSent',
 ];
 const body = (name) => executableSource(functionsDeclaration(name));
 const moduleSource = () => executableSource(readFileSync('functions/disciplineFunctions.js', 'utf8'));

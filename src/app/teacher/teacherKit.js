@@ -1,9 +1,9 @@
 /*
  * THE TEACHER-ONLY LOGIC APP.JSX RUNS ITSELF (student pass 3, first load 2).
  *
- * App builds the needs-attention queue and the Action Center's items (and
- * their grade-transfer units, return check-ins and Test Cycle retest
- * actions), opens Assignment Review, offers a teacher's worksheets, publishes
+ * App builds the needs-attention queue and the Action Center's
+ * grade-transfer units, return check-ins and Test Cycle retest actions,
+ * opens Assignment Review, offers a teacher's worksheets, publishes
  * to Google Classroom, reconciles extensions after an attendance correction,
  * opens, grants, closes, extends and moves a DOL and writes its attempts,
  * reads and records student support history, and names who is still working
@@ -14,9 +14,12 @@
  * teacher sees is ever computed without it.
  *
  * Only re-exports: the logic stays in its own module, where its tests are.
+ *
+ * Not here: the Action Center's own model (platform/teacher/teacherActionCenter.js).
+ * It is used only while the Action Center is open, so it loads then
+ * (useTeacherActionCenterData), not before a teacher's Home draws.
  */
 export { buildNeedsAttentionQueue } from '../../platform/teacher/needsAttention.js';
-export { buildTeacherActionItems, openTeacherActionCount } from '../../platform/teacher/teacherActionCenter.js';
 export { projectGradeTransferUnits } from '../../platform/gradeTransfer/gradeTransferProjection.js';
 export { projectTestCycleTeacherActions } from '../../platform/teacher/testCycleActionProjection.js';
 export {

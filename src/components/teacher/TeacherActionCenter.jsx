@@ -10,6 +10,17 @@ const kindLabels = {
   [TEACHER_ACTION_KIND.EXTENSION_RECONCILIATION]: 'Extension / reopen',
   [TEACHER_ACTION_KIND.GRADE_UPLOAD]: 'Grade export / upload',
   [TEACHER_ACTION_KIND.RETEST_RECOVERY]: 'Retest / recovery',
+  [TEACHER_ACTION_KIND.DISCIPLINE_FORM]: 'District violation form',
+  [TEACHER_ACTION_KIND.FAMILY_MESSAGE]: 'Family message',
+  [TEACHER_ACTION_KIND.PRINCIPAL_REPORT]: 'Principal report',
+};
+// Where each row's own workflow is.
+const workflowLabel = (item) => {
+  if (item.sourceType === 'discipline') return 'Open Discipline Tracker';
+  if (item.kind === TEACHER_ACTION_KIND.GRADE_UPLOAD) return 'Open Grade Transfer';
+  if (item.kind === TEACHER_ACTION_KIND.RETURN_FROM_ABSENCE || item.kind === TEACHER_ACTION_KIND.EXTENSION_RECONCILIATION) return 'Open Attendance';
+  if (item.kind === TEACHER_ACTION_KIND.RETEST_RECOVERY) return 'Open retest workflow';
+  return 'Open Parent Contacts';
 };
 const button = { padding: '7px 10px', border: '1px solid var(--mm-border)', borderRadius: 7, background: 'var(--mm-surface)', fontWeight: 800, cursor: 'pointer' };
 const displayActionDate = (value) => {
@@ -64,7 +75,7 @@ export default function TeacherActionCenter({ students = [], classes = [], assig
         <td style={{ padding: 10 }}>{studentCell(item)}</td><td>{item.classLabel || '—'}</td>
         <td><strong>{item.title}</strong><div style={{ color: 'var(--mm-text-muted)', fontSize: 'calc(12 * var(--mm-px))' }}>{item.summary}</div>{item.context?.map((entry) => <div key={entry} style={{ fontSize: 'calc(12 * var(--mm-px))', color: 'var(--mm-warning-text)' }}>{entry}</div>)}</td>
         <td>{displayActionDate(item.dueAt || item.createdAt)}</td><td>{item.status}</td>
-        <td style={{ padding: 8 }}><button type="button" style={button} onClick={() => onOpenWorkflow?.(item)}>{item.kind === TEACHER_ACTION_KIND.GRADE_UPLOAD ? 'Open Grade Transfer' : item.kind === TEACHER_ACTION_KIND.RETURN_FROM_ABSENCE || item.kind === TEACHER_ACTION_KIND.EXTENSION_RECONCILIATION ? 'Open Attendance' : item.kind === TEACHER_ACTION_KIND.RETEST_RECOVERY ? 'Open retest workflow' : 'Open Parent Contacts'}</button>{item.availableActions.includes('resolveReturnCheckIn') && <button type="button" style={{ ...button, marginLeft: 6, background: 'var(--mm-success-bg)' }} onClick={() => onResolveReturnCheckIn?.(returnCheckIns.find((candidate) => candidate.key === item.sourceId))}>Resolve check-in</button>}</td>
+        <td style={{ padding: 8 }}><button type="button" style={button} onClick={() => onOpenWorkflow?.(item)}>{workflowLabel(item)}</button>{item.availableActions.includes('resolveReturnCheckIn') && <button type="button" style={{ ...button, marginLeft: 6, background: 'var(--mm-success-bg)' }} onClick={() => onResolveReturnCheckIn?.(returnCheckIns.find((candidate) => candidate.key === item.sourceId))}>Resolve check-in</button>}</td>
       </tr>)}</tbody>
     </table></div>}
   </section>;

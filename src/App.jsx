@@ -579,6 +579,9 @@ function App() {
     return teacherKit;
   };
   const [retestRecoveryActions, setRetestRecoveryActions] = useState([]);
+  // The Action Center's model and its Discipline Tracker rows, loaded when it opens.
+  const [actionCenterModel, setActionCenterModel] = useState(null);
+  const [actionDisciplineItems, setActionDisciplineItems] = useState([]);
   const [parentContactSourceAction, setParentContactSourceAction] = useState(null);
   const [studentSessionSummaries, setStudentSessionSummaries] = useState([]);
   // Curriculum pacing and per-class skill overrides. Teacher-owned inputs to
@@ -3310,7 +3313,8 @@ function App() {
     setStudentSupportEvents, studentSupportEvents, parentContacts, setParentContacts, actionGradeSnapshots,
     setActionGradeSnapshots, actionPracticePasses, setActionPracticePasses, setTeacherActionOpenCountCache,
     teacherActionOpenCountCache, teacherKit, retestRecoveryActions, setRetestRecoveryActions,
-    setStudentSessionSummaries, now, classSchedule,
+    setStudentSessionSummaries, now, classSchedule, actionCenterModel, setActionCenterModel,
+    actionDisciplineItems, setActionDisciplineItems,
   );
 
   const [attendanceReviewBusyKey, setAttendanceReviewBusyKey] = useState(null);

@@ -2875,6 +2875,12 @@ export default function TeacherWorkspace({
                   openGradeExport({ classIds: item.classId ? [item.classId] : [], assignmentId: item.assignmentId || null });
                   return;
                 }
+                // A Discipline Tracker row opens the tracker on its class.
+                if (item.sourceType === 'discipline') {
+                  if (item.classId) setActiveClass({ classId: item.classId, classPeriod: classesById[item.classId]?.period || '' });
+                  setTeacherTab('discipline');
+                  return;
+                }
                 setTeacherTab(item.sourceType === 'returnCheckIn' ? 'attendanceHistory' : item.sourceType === 'testCycle' ? 'exams' : 'parentContacts');
               }}
             />
