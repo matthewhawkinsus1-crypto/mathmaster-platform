@@ -15,7 +15,7 @@
  * the Assignments list take from ./teacherAuthoringKit.js (./authoringKitLoader
  * .js) instead of importing them, so they are not downloaded before Home.
  */
-import { Suspense, use, useEffect, useState } from 'react';
+import { Suspense, use, useEffect, useRef, useState } from 'react';
 // Shared with App so the sheets form their own chunk that links before App.css.
 import '../shell/leadingStyles.js';
 // The teacher's own sheets, here and not on a student's first load (PF01). The
@@ -333,6 +333,28 @@ export default function TeacherWorkspace({
   // the authoring code, while the browser is idle once the workspace has drawn.
   useEffect(() => prefetchTeacherPanels(), []);
   useEffect(() => prefetchAuthoringKit(), []);
+  // THE EXTENSION'S TEAMS SYNC, FROM ANY TEACHER SCREEN
+  // (window.mathmasterTeamsSync, platform/gradeTransfer/teamsSyncBridge.js).
+  // The MathMaster extension's 30-minute timer lists the linked classes and
+  // runs sync steps through this tab, whichever screen it shows; the grades
+  // come from the server's 30-minute publish, and Grade Export adds its own
+  // "Send now" while it is open. Loaded after the workspace draws, so the
+  // first load carries none of it.
+  const teamsSyncWorkspace = useRef(null);
+  useEffect(() => {
+    teamsSyncWorkspace.current = { classes, teacherEmail: user?.email || '', isRootAdmin: user?.isRootAdmin === true };
+  });
+  useEffect(() => {
+    let undo = () => {};
+    let closed = false;
+    import('../../platform/gradeTransfer/teamsSyncBridge.js').then(({ createTeamsSyncBridge, installTeamsSyncBridge, layeredTeamsSyncContext, workspaceTeamsSyncContext }) => {
+      if (closed) return;
+      undo = installTeamsSyncBridge(createTeamsSyncBridge({
+        getContext: layeredTeamsSyncContext(() => workspaceTeamsSyncContext(teamsSyncWorkspace.current || {})),
+      }));
+    }).catch(() => {});
+    return () => { closed = true; undo(); };
+  }, []);
   if (authoringKitError) throw authoringKitError;
   const authoringKit = () => loadAuthoringKit().catch((error) => {
     setAuthoringKitError(error);

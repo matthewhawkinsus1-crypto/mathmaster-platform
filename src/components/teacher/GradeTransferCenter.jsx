@@ -228,9 +228,9 @@ export default function GradeTransferCenter({
     includeAssignment: (assignment) => resolveAssignmentGradingPeriod(assignment, gradingPeriodSettings || {}).isCurrent,
   });
 
-  // The TEAMS Sync extension (extensions/teams-sync) works through this
-  // screen while it is open: window.mathmasterTeamsSync publishes
-  // buildSyncTargets, read fresh at each call.
+  // The MathMaster extension's TEAMS sync reads this screen while it is
+  // open: window.mathmasterTeamsSync (installed by TeacherWorkspace on every
+  // teacher screen) publishes buildSyncTargets, read fresh at each call.
   const teamsSyncContext = useRef(null);
   useEffect(() => {
     teamsSyncContext.current = {
@@ -243,8 +243,8 @@ export default function GradeTransferCenter({
   useEffect(() => {
     let undo = () => {};
     let closed = false;
-    import('../../platform/gradeTransfer/teamsSyncBridge.js').then(({ createTeamsSyncBridge, installTeamsSyncBridge }) => {
-      if (!closed) undo = installTeamsSyncBridge(createTeamsSyncBridge({ getContext: () => teamsSyncContext.current || { ready: false } }));
+    import('../../platform/gradeTransfer/teamsSyncBridge.js').then(({ registerGradeTransferTeamsContext }) => {
+      if (!closed) undo = registerGradeTransferTeamsContext(() => teamsSyncContext.current || { ready: false });
     }).catch(() => {});
     return () => { closed = true; undo(); };
   }, []);

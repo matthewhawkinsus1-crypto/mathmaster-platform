@@ -1,0 +1,92 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>MathMaster</title>
+<style>
+  :root { color-scheme: light; --ink: #182947; --muted: #4a5a78; --line: #cdd5e3; --accent: #1f5fbf; --warn: #8a4b00; --warn-bg: #fff4d6; --bad: #a3192a; --ok: #1d6b3a; }
+  body { max-width: 56rem; margin: 2rem auto; padding: 0 1rem; font: 16px/1.5 system-ui, sans-serif; color: var(--ink); background: #fff; }
+  h1 { font-size: 1.6rem; margin: 0 0 .25rem; }
+  h2 { font-size: 1.25rem; margin: 2rem 0 .5rem; border-bottom: 2px solid var(--line); padding-bottom: .25rem; }
+  h3 { font-size: 1.05rem; margin: 0 0 .25rem; }
+  .lede { color: var(--muted); margin: 0 0 1rem; }
+  .card { border: 1px solid var(--line); border-radius: 8px; padding: 1rem; margin: 0 0 1rem; }
+  .meta { color: var(--muted); font-size: .9rem; margin: 0 0 .75rem; }
+  button { font: inherit; padding: .45rem .9rem; border-radius: 6px; border: 1px solid var(--accent); background: #fff; color: var(--accent); cursor: pointer; }
+  button.primary { background: var(--accent); color: #fff; }
+  button.danger { border-color: var(--bad); color: var(--bad); }
+  button:disabled { opacity: .5; cursor: default; }
+  .row { display: flex; gap: .5rem; flex-wrap: wrap; align-items: center; }
+  .switch { display: flex; gap: .5rem; align-items: center; font-weight: 600; }
+  .switch input { width: 1.2rem; height: 1.2rem; }
+  fieldset { border: 1px solid var(--line); border-radius: 6px; margin: .75rem 0; }
+  label { display: block; margin: .2rem 0; }
+  .log { white-space: pre-wrap; font: 13px/1.45 ui-monospace, monospace; background: #f4f6fa; border-radius: 6px; padding: .75rem; max-height: 18rem; overflow: auto; }
+  .result { margin: .75rem 0 0; }
+  .result table { border-collapse: collapse; width: 100%; font-size: .9rem; }
+  .result th, .result td { text-align: left; border-bottom: 1px solid var(--line); padding: .25rem .4rem; }
+  .banner { border-radius: 8px; padding: .75rem 1rem; margin: 0 0 1rem; font-weight: 700; font-size: 1.1rem; }
+  .banner.test { background: var(--warn-bg); border: 3px solid var(--warn); color: var(--warn); }
+  .banner.live { background: #fde8eb; border: 3px solid var(--bad); color: var(--bad); }
+  .banner.off { background: #f4f6fa; border: 1px solid var(--line); color: var(--muted); font-weight: 600; }
+  dl { display: grid; grid-template-columns: max-content 1fr; gap: .25rem 1rem; margin: 0 0 .75rem; }
+  dt { color: var(--muted); }
+  .body { white-space: pre-wrap; border: 1px solid var(--line); border-radius: 6px; padding: .75rem; background: #f9fafc; margin: 0 0 .75rem; }
+  .bad { color: var(--bad); } .warn { color: var(--warn); } .ok { color: var(--ok); }
+  [hidden] { display: none !important; }
+</style>
+</head>
+<body>
+<h1>MathMaster</h1>
+<p class="lede">Works through your own signed-in tabs: MathMaster, DeSoto TEAMS and SchoolStatus. Your passwords never leave those tabs.</p>
+
+<h2>TEAMS grades</h2>
+<section class="card" aria-labelledby="auto-heading">
+  <h3 id="auto-heading">Automatic sync</h3>
+  <p class="meta">Every 30 minutes from 6 am to 10 pm, MathMaster sends your linked classes' grades to TEAMS, using the grades it published in the last half hour. It needs Chrome open with MathMaster (any teacher screen) and TEAMS signed in. If you are using the TEAMS tab at that moment it waits for the next time.</p>
+  <label class="switch"><input id="auto" type="checkbox"> Sync TEAMS automatically</label>
+  <p id="next" class="meta" aria-live="polite"></p>
+  <p id="last" aria-live="polite">—</p>
+  <div class="row"><button id="runNow" type="button">Run now</button></div>
+  <details><summary>Activity</summary><div id="autoLog" class="log" role="log"></div></details>
+</section>
+<section aria-labelledby="classes-heading">
+  <h3 id="classes-heading">Classes</h3>
+  <p class="meta">Link a class to its TEAMS section(s), preview, or sync one class now. Leave the TEAMS tab on <strong>Enter Classroom Grading</strong> and alone while a sync runs.</p>
+  <div class="row"><button id="refresh" type="button">Load my classes</button></div>
+  <div id="classes" aria-live="polite"></div>
+  <details><summary>Activity</summary><div id="log" class="log" role="log" aria-live="polite"></div></details>
+</section>
+
+<h2>SchoolStatus family messages</h2>
+<p class="lede">Keep MathMaster on the <strong>Discipline Tracker</strong>, and SchoolStatus signed in. Every message sent here reaches a family's phone.</p>
+<div id="banner" class="banner off" role="status">Checking MathMaster…</div>
+<section class="card">
+  <h3>Queue</h3>
+  <p id="counts" class="lede" aria-live="polite">—</p>
+  <div class="row">
+    <button id="ssRefresh" type="button">Refresh</button>
+    <button id="send" type="button" class="primary" disabled>Send queued messages</button>
+    <button id="stop" type="button" class="danger" disabled>Stop</button>
+  </div>
+</section>
+<section id="confirm" class="card" hidden aria-live="assertive">
+  <h3>Test message: check it before it goes</h3>
+  <p class="lede">Before you confirm, look at this student's Contacts in SchoolStatus: every parent or guardian listed below must be you.</p>
+  <dl>
+    <dt>Student</dt><dd id="c-student"></dd>
+    <dt>District ID</dt><dd id="c-id"></dd>
+    <dt>Texts to</dt><dd id="c-recipients"></dd>
+  </dl>
+  <div id="c-body" class="body"></div>
+  <div class="row">
+    <button id="c-yes" type="button" class="primary">Send this test message</button>
+    <button id="c-no" type="button">Don't send</button>
+  </div>
+</section>
+<details open><summary>Activity</summary><div id="ssLog" class="log" role="log" aria-live="polite"></div></details>
+
+<script type="module" src="panel.js"></script>
+</body>
+</html>

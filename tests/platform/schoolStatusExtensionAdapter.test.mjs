@@ -9,7 +9,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { readFileSync } from 'node:fs';
 import { executableSource, region } from './helpers/sourceContract.mjs';
-import { createSchoolStatusAdapter, isParentOrGuardian, sameDistrictId } from '../../extensions/schoolstatus-messages/lib/schoolStatusAdapter.js';
+import { createSchoolStatusAdapter, isParentOrGuardian, sameDistrictId } from '../../extensions/mathmaster/lib/schoolstatus/schoolStatusAdapter.js';
 
 // A clock the waits move, so nothing really sleeps.
 const clock = () => {
@@ -168,7 +168,7 @@ test('who counts as a parent or guardian, and district IDs with leading zeros', 
 });
 
 test('the page presses Send only for the right guardian, with exactly the message, and never returns contact details', () => {
-  const source = executableSource(readFileSync('extensions/schoolstatus-messages/lib/schoolStatusPage.js', 'utf8'));
+  const source = executableSource(readFileSync('extensions/mathmaster/lib/schoolstatus/schoolStatusPage.js', 'utf8'));
   const press = region(source, "case 'pressSend': {", "case 'readSent': {", 'the press');
   const click = press.indexOf('button.click();');
   assert.ok(click > 0);

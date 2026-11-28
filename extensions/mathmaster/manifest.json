@@ -1,0 +1,16 @@
+{
+  "manifest_version": 3,
+  "name": "MathMaster",
+  "version": "1.0.0",
+  "description": "Sends MathMaster grades to DeSoto TEAMS (by hand, or every 30 minutes) and the Discipline Tracker's family messages through SchoolStatus, from your own signed-in tabs.",
+  "permissions": ["scripting", "storage", "alarms"],
+  "host_permissions": [
+    "https://mathmaster-aleks.web.app/*",
+    "https://mathmasterlearning.com/*",
+    "https://desoto.teams.hosting/*",
+    "https://secure.schoolstatus.com/*"
+  ],
+  "action": { "default_title": "Open MathMaster" },
+  "background": { "service_worker": "background.js", "type": "module" },
+  "minimum_chrome_version": "116"
+}

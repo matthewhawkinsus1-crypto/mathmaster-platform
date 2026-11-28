@@ -1,5 +1,5 @@
-// The SchoolStatus extension's send loop (extensions/schoolstatus-messages/
-// lib/runner.js) against the real queue rules (functions/lib/
+// The SchoolStatus extension's send loop (extensions/mathmaster/lib/
+// schoolstatus/runner.js) against the real queue rules (functions/lib/
 // familyMessageOutbox.js on a Firestore stand-in) and a fake SchoolStatus
 // page that records every Send press.
 //
@@ -13,7 +13,7 @@ import test from 'node:test';
 import { readFileSync } from 'node:fs';
 import { at, contactsIn, messagesIn, outbox, queue, serverTimestamp, TEACHER, world } from './helpers/familyMessageWorld.mjs';
 import { executableSource } from './helpers/sourceContract.mjs';
-import { runFamilyMessages, sameStudentName, stopRun } from '../../extensions/schoolstatus-messages/lib/runner.js';
+import { runFamilyMessages, sameStudentName, stopRun } from '../../extensions/mathmaster/lib/schoolstatus/runner.js';
 
 const RUNNER = 'ext-0123456789abcdef01234567';
 
@@ -283,7 +283,7 @@ test('names match on first and last name, either order, ignoring case, spaces, a
 });
 
 test('the extension presses Send in exactly one place, right after a successful start', () => {
-  const source = executableSource(readFileSync('extensions/schoolstatus-messages/lib/runner.js', 'utf8'));
+  const source = executableSource(readFileSync('extensions/mathmaster/lib/schoolstatus/runner.js', 'utf8'));
   assert.equal(source.match(/\.pressSend\(/g)?.length, 1, 'one call to the page\'s Send');
   const once = source.slice(source.indexOf('const pressSendOnce = async'), source.indexOf('export const runFamilyMessages'));
   assert.match(once, /if \(!state\.started\) throw/);

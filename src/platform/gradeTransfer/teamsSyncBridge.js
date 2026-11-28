@@ -1,6 +1,11 @@
-// What Grade Transfer offers the MathMaster TEAMS Sync Chrome extension
-// (extensions/teams-sync, route E of #612): `window.mathmasterTeamsSync`,
-// present only while a teacher has Grade Transfer open.
+// What MathMaster offers its Chrome extension's TEAMS sync
+// (extensions/teams-sync, extensions/mathmaster; route E of #612):
+// `window.mathmasterTeamsSync`, present on every teacher screen
+// (TeacherWorkspace installs it), so the extension's 30-minute timer can sync
+// with any MathMaster screen open. From any screen it lists the linked
+// classes and runs sync steps on the grades the server publishes every 30
+// minutes. While Grade Transfer is open it adds its own context
+// (registerGradeTransferTeamsContext): publishing its current targets.
 //
 // The extension has no MathMaster sign-in of its own. It runs these calls in
 // the teacher's MathMaster tab, so each one goes through the same callables,
@@ -13,10 +18,38 @@
 // The bridge only reaches classes Grade Transfer itself may export; the
 // server checks every call again.
 
+// Through the projection, already in a teacher's first load: imported from
+// gradeTransferScope.js directly it would become a first-load file of its own.
+import { authorizedGradeTransferClasses } from './gradeTransferProjection.js';
+
 // The callables load with Firebase only when the extension first calls.
 const loadStore = () => import('./teamsSyncStore.js');
 
 export const TEAMS_SYNC_BRIDGE_VERSION = 1;
+
+// Grade Transfer's context while it is open, else none.
+let gradeTransferContext = null;
+
+/** Grade Transfer, while open: the bridge reads its context first. Returns the undo. */
+export const registerGradeTransferTeamsContext = (getContext) => {
+  const entry = { getContext };
+  gradeTransferContext = entry;
+  return () => { if (gradeTransferContext === entry) gradeTransferContext = null; };
+};
+
+/**
+ * Any teacher screen: the classes Grade Transfer may export, and no targets
+ * of its own (`workspace`): publishing waits for Grade Transfer, and the
+ * server's 30-minute publish keeps the sync's grades current meanwhile.
+ */
+export const workspaceTeamsSyncContext = ({ classes = [], teacherEmail = '', isRootAdmin = false } = {}) => ({
+  ready: false,
+  workspace: true,
+  authorizedClasses: authorizedGradeTransferClasses({ classes, teacherEmail, isRootAdmin }),
+});
+
+/** Grade Transfer's context while it is open, else the workspace's. */
+export const layeredTeamsSyncContext = (getWorkspaceContext) => () => gradeTransferContext?.getContext?.() || getWorkspaceContext();
 
 /**
  * `getContext()` returns Grade Transfer's current state: { ready,
@@ -67,6 +100,7 @@ export const createTeamsSyncBridge = ({ getContext, api = null }) => {
     async publish({ classId }) {
       authorized(classId);
       const context = getContext();
+      if (context.workspace) throw new Error('Open Grade Export in MathMaster to send grades now. MathMaster also sends them to the sync every 30 minutes.');
       if (!context.ready) throw new Error('Grade Transfer is still loading the export history. Try again in a moment.');
       if (typeof context.buildTargets !== 'function') throw new Error('Grade Transfer cannot build TEAMS sync grades yet. Reload Grade Export and try again.');
       const targets = context.buildTargets(String(classId));

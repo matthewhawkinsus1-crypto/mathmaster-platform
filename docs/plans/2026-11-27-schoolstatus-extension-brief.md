@@ -171,7 +171,9 @@ It never guesses.
 
 ## Build it this way
 
-- **A new folder, `extensions/schoolstatus-messages`** (Manifest V3), loaded
+- **In the MathMaster extension, `extensions/mathmaster`** (Manifest V3; it
+  began as `extensions/schoolstatus-messages` and joined the TEAMS sync on
+  2026-11-28), loaded
   unpacked like the TEAMS one. The live TEAMS extension stays untouched
   while this one is in test mode, and each asks only for its own site's
   permission.
@@ -262,4 +264,4 @@ Break each of these once and confirm the test fails.
   nothing is sent.
 
 What was checked live, and what still needs the test student:
-`extensions/schoolstatus-messages/README.md`.
+`extensions/mathmaster/README.md`.

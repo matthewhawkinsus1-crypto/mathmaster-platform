@@ -6,7 +6,10 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import fs from 'node:fs';
-import { TEAMS_SYNC_BRIDGE_VERSION, createTeamsSyncBridge, installTeamsSyncBridge } from '../../src/platform/gradeTransfer/teamsSyncBridge.js';
+import { executableSource as executableSourceOf } from './helpers/sourceContract.mjs';
+import {
+  TEAMS_SYNC_BRIDGE_VERSION, createTeamsSyncBridge, installTeamsSyncBridge, layeredTeamsSyncContext, registerGradeTransferTeamsContext, workspaceTeamsSyncContext,
+} from '../../src/platform/gradeTransfer/teamsSyncBridge.js';
 
 const recordingApi = () => {
   const calls = [];
@@ -105,11 +108,50 @@ test('installing puts the bridge on the window, and the undo removes only that b
   assert.equal(target.mathmasterTeamsSync, newer, 'a later Grade Transfer keeps its own bridge');
 });
 
-test('Grade Transfer installs the bridge while it is open, reading its current inputs', () => {
+test('from any teacher screen the bridge lists the classes and runs steps; publishing waits for Grade Transfer', async () => {
+  const { api, calls } = recordingApi();
+  const classes = [
+    { classId: 'c1', name: 'Algebra II Honors 3rd', teacherOfRecord: 'teacher@school.org' },
+    { classId: 'c9', name: 'Someone else\'s class', teacherOfRecord: 'other@school.org' },
+  ];
+  const bridge = createTeamsSyncBridge({ getContext: layeredTeamsSyncContext(() => workspaceTeamsSyncContext({ classes, teacherEmail: 'teacher@school.org' })), api });
+  assert.deepEqual((await bridge.listClasses()).map((entry) => entry.classId), ['c1'], 'only the classes Grade Transfer may export');
+  await bridge.step({ classId: 'c1', runnerId: 'ext-abc', readbacks: {} });
+  assert.deepEqual(calls.at(-1)[0], 'step');
+  await assert.rejects(bridge.step({ classId: 'c9', runnerId: 'ext-abc' }), /not one Grade Transfer can sync/);
+  await assert.rejects(bridge.publish({ classId: 'c1' }), /Open Grade Export in MathMaster to send grades now/);
+  assert.ok(!calls.some(([name]) => name === 'publish'), 'nothing is published without Grade Transfer\'s targets');
+
+  // While Grade Transfer is open its context comes first; when it closes the workspace's is back.
+  const undo = registerGradeTransferTeamsContext(() => context());
+  await bridge.publish({ classId: 'c1' });
+  assert.deepEqual(calls.at(-1), ['publish', { classId: 'c1', targets: built('c1') }]);
+  undo();
+  await assert.rejects(bridge.publish({ classId: 'c1' }), /Open Grade Export/);
+  // An older Grade Transfer's undo does not remove a newer one.
+  const first = registerGradeTransferTeamsContext(() => context());
+  const second = registerGradeTransferTeamsContext(() => context({ buildTargets: (classId) => [{ key: `${classId}__x`, rows: [] }] }));
+  first();
+  await bridge.publish({ classId: 'c1' });
+  assert.deepEqual(calls.at(-1)[1].targets, [{ key: 'c1__x', rows: [] }]);
+  second();
+});
+
+test('every teacher screen installs the bridge; Grade Transfer adds its context while it is open', () => {
+  const workspace = fs.readFileSync(new URL('../../src/app/teacher/TeacherWorkspace.jsx', import.meta.url), 'utf8');
+  assert.match(workspace, /import\('\.\.\/\.\.\/platform\/gradeTransfer\/teamsSyncBridge\.js'\)/, 'loaded lazily, off the first load');
+  assert.doesNotMatch(workspace, /^import .*teamsSyncBridge/m);
+  assert.match(workspace, /installTeamsSyncBridge\(createTeamsSyncBridge\(\{\s*getContext: layeredTeamsSyncContext\(\(\) => workspaceTeamsSyncContext\(teamsSyncWorkspace\.current \|\| \{\}\)\),/);
+  assert.match(workspace, /teamsSyncWorkspace\.current = \{ classes, teacherEmail: user\?\.email \|\| '', isRootAdmin: user\?\.isRootAdmin === true \};/);
   const source = fs.readFileSync(new URL('../../src/components/teacher/GradeTransferCenter.jsx', import.meta.url), 'utf8');
   assert.match(source, /import\('\.\.\/\.\.\/platform\/gradeTransfer\/teamsSyncBridge\.js'\)/, 'loaded lazily, off the first load');
   assert.doesNotMatch(source, /^import .*teamsSyncBridge/m);
-  assert.match(source, /installTeamsSyncBridge\(createTeamsSyncBridge\(\{ getContext: \(\) => teamsSyncContext\.current/);
+  assert.match(source, /registerGradeTransferTeamsContext\(\(\) => teamsSyncContext\.current \|\| \{ ready: false \}\)/);
+  assert.doesNotMatch(executableSourceOf(source), /installTeamsSyncBridge/, 'one bridge: Grade Transfer no longer installs its own');
+});
+
+test('Grade Transfer\'s context reads its current inputs', () => {
+  const source = fs.readFileSync(new URL('../../src/components/teacher/GradeTransferCenter.jsx', import.meta.url), 'utf8');
   assert.match(source, /ready: stateLoaded/, 'targets wait for the export history, as an export does');
   assert.match(source, /students: projectedStudents/, 'with the corrected district IDs an export uses');
   // One builder for every publisher: the extension (through the bridge) and
