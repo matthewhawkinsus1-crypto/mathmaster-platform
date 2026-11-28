@@ -904,7 +904,10 @@ export function createAssignmentActions(scope) {
       // authoritative call, and no assignment is saved/assigned before it
       // passes.
       if (isTestCycleAssignment(assignmentV5)) {
-        const authoritative = await preflightTestCycleCandidate({ assignment: assignmentV5 });
+        const authoritative = await preflightTestCycleCandidate({
+          assignment: assignmentV5,
+          sourceAssignmentId: assignmentPreflight?.sourceAssignmentId || null,
+        });
         if (authoritative.preflight?.blocked) {
           throw new Error(`This Test Cycle cannot be published:\n${(authoritative.preflight.errors || []).join('\n')}`);
         }
@@ -1263,7 +1266,7 @@ export function createAssignmentActions(scope) {
       },
       `Library · ${assignment.title}`,
       draftOverrides,
-      { sourceContentLineage: assignment.contentLineage || null },
+      { sourceContentLineage: assignment.contentLineage || null, sourceAssignmentId: assignment.id || null },
     );
     if (opened !== true) throw new Error(opened?.error || 'Could not open Assignment Review for this saved assignment.');
     return prepared.assignmentV5;

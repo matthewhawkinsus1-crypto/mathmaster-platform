@@ -640,6 +640,7 @@ export default function ClassroomManagerV2({
             <h3 style={sectionTitle}>1. Classroom connection</h3>
             <div style={{ color: 'var(--mm-text-muted)', fontSize: 'calc(13 * var(--mm-px))', marginTop: 4 }}>
               {connection.connected ? 'Connected' : 'Not connected'}
+              {connection.connected && connection.googleAccountEmail ? ` as ${connection.googleAccountEmail}` : ''}
               {connection.needsReconnect ? ' · reconnect required for current permissions' : ''}
             </div>
           </div>

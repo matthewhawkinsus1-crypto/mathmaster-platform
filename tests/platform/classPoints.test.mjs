@@ -292,7 +292,9 @@ test('a stale roster field naming a teacher other than the class\'s authoritativ
     teacherEmail: TEACHER_A, classRecord: currentClass, studentRecord: staleStudent, requestedClassId: 'class-a',
   });
   assert.equal(asStaleTeacher.authorized, false);
-  assert.equal(asStaleTeacher.reason, 'failed-precondition');
+  // Teacher A is not the teacher of record, so they are refused as one: the
+  // roster's state is not theirs to learn.
+  assert.equal(asStaleTeacher.reason, 'permission-denied');
 
   // The class's real current teacher is also refused until the roster catches
   // up — a mismatch is treated as "this data is not trustworthy right now",
@@ -593,4 +595,20 @@ test('remove-from-class and account-disable preserve historical Class Points (ne
   // An account-disable action does not call reauthorization at all, and
   // certainly not with a class change; simulating "no class involved" is the
   // same null-classRecord case, so the wallet is provably untouched either way.
+});
+
+test('a caller who is not the teacher of record gets one permission-denied, before any archived, membership, roster or student refusal', () => {
+  const cases = [
+    { classRecord: classA({ status: 'archived' }), studentRecord: studentInClassA() },
+    { classRecord: classA(), studentRecord: { classId: 'class-b', assignedTeacherEmail: TEACHER_A } },
+    { classRecord: classA(), studentRecord: studentInClassA({ assignedTeacherEmail: TEACHER_B }) },
+    { classRecord: classA(), studentRecord: null },
+    { classRecord: classA({ teacherOfRecord: '' }), studentRecord: studentInClassA() },
+  ];
+  const decisions = cases.map((entry) => authorizeClassPointsActor({ teacherEmail: TEACHER_B, requestedClassId: 'class-a', ...entry }));
+  decisions.forEach((decision) => assert.equal(decision.reason, 'permission-denied'));
+  assert.equal(new Set(decisions.map((decision) => decision.message)).size, 1, 'the same words every time');
+  // The teacher of record still learns why.
+  assert.equal(authorizeClassPointsActor({ teacherEmail: TEACHER_A, requestedClassId: 'class-a', ...cases[0] }).reason, 'failed-precondition');
+  assert.equal(authorizeClassPointsActor({ teacherEmail: TEACHER_A, requestedClassId: 'class-a', ...cases[3] }).reason, 'not-found');
 });

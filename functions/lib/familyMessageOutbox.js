@@ -336,16 +336,54 @@ async function listFamilyMessages({ db, teacherEmail, fromDateKey, toDateKey, cl
     .filter((message) => !classId || message.classId === classId);
 }
 
-/** For the extension's panel: the switch and how much is waiting. */
-async function familyMessageStatus({ db, teacherEmail, nowMs }) {
-  const { tracker } = await loadShared();
+/*
+ * THE TEST DISTRICT IDS A CALLER IS SHOWN.
+ *
+ * In test mode a teacher is shown only the test district IDs of students on
+ * their own rosters: the students whose grade record names them as the
+ * assigned teacher, and the students of the classes they are teacher of
+ * record for. The root administrator, who sets the list, sees all of it.
+ */
+async function visibleTestDistrictIds({ db, teacherEmail, isRootAdmin = false, testDistrictIds = [] }) {
+  const ids = Array.isArray(testDistrictIds) ? testDistrictIds : [];
+  if (isRootAdmin || !ids.length) return ids;
+  const teacher = lower(teacherEmail);
+  if (!teacher) return [];
+  const { messages } = await loadShared();
+  const [assigned, owned] = await Promise.all([
+    db.collection("grades").where("assignedTeacherEmail", "==", teacher).select("sisStudentId").get(),
+    db.collection("classes").where("teacherOfRecord", "==", teacher).select().get(),
+  ]);
+  const classIds = owned.docs.map((entry) => entry.id);
+  const classMembers = [];
+  for (let index = 0; index < classIds.length; index += 30) {
+    // eslint-disable-next-line no-await-in-loop
+    const snapshot = await db.collection("grades").where("classId", "in", classIds.slice(index, index + 30)).select("sisStudentId").get();
+    classMembers.push(...snapshot.docs);
+  }
+  const onRoster = new Set([...assigned.docs, ...classMembers]
+    .map((entry) => messages.districtIdOf(entry.id, entry.data() || {}))
+    .filter(Boolean));
+  return ids.filter((id) => onRoster.has(id));
+}
+
+/** The messaging settings as one caller is shown them. */
+async function messagingSettingsForCaller({ db, teacherEmail, isRootAdmin = false }) {
   const settings = await readMessagingSettings(db);
+  if (settings.mode !== "test") return { ...settings, testDistrictIds: [] };
+  return { ...settings, testDistrictIds: await visibleTestDistrictIds({ db, teacherEmail, isRootAdmin, testDistrictIds: settings.testDistrictIds }) };
+}
+
+/** For the extension's panel: the switch and how much is waiting. */
+async function familyMessageStatus({ db, teacherEmail, nowMs, isRootAdmin = false }) {
+  const { tracker } = await loadShared();
+  const settings = await messagingSettingsForCaller({ db, teacherEmail, isRootAdmin });
   const today = tracker.disciplineDateKey(nowMs);
   const list = await listFamilyMessages({ db, teacherEmail, fromDateKey: shiftDateKey(today, -18), toDateKey: today, nowMs });
   const count = (state) => list.filter((message) => message.state === state).length;
   return {
     mode: settings.mode,
-    testDistrictIds: settings.mode === "test" ? settings.testDistrictIds : [],
+    testDistrictIds: settings.testDistrictIds,
     queued: count("queued"),
     inFlight: count("claimed") + count("sending"),
     needsTeacher: count("unknown"),
@@ -356,6 +394,7 @@ module.exports = {
   claimNextFamilyMessage,
   familyMessageStatus,
   listFamilyMessages,
+  messagingSettingsForCaller,
   queueFamilyMessages,
   readMessagingSettings,
   releaseFamilyMessage,

@@ -77,6 +77,10 @@ export function createAssignmentPreflightControls(requireTeacherKit, setAssignme
         existingAssignmentId: reviewOptions.existingAssignmentId || null,
         allowQuestionRepair: reviewOptions.allowQuestionRepair !== false,
         sourceContentLineage: reviewOptions.sourceContentLineage || null,
+        // The saved assignment this review was opened from (an update, or a
+        // reuse for more classes): a Test Cycle's secure test reference is
+        // checked against it.
+        sourceAssignmentId: reviewOptions.sourceAssignmentId || reviewOptions.existingAssignmentId || null,
         // The intake says the assignment is being imported or authored now; a
         // stored Library assignment opened for reuse does not. Only then does
         // Review give SP-5's two authoring warnings (newAssignmentRulesApply).

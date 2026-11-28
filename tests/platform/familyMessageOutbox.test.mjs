@@ -204,3 +204,22 @@ test('the switch is saved checked', async () => {
   assert.deepEqual(saved, { mode: 'test', testDistrictIds: ['1500101'] });
   assert.deepEqual(await outbox.readMessagingSettings(db), saved);
 });
+
+test('test mode shows a teacher only the test district IDs of students on their own rosters; the root administrator sees all', async () => {
+  const db = world({ testDistrictIds: ['1500101', '1600999'] });
+  // A student of another teacher's class carries the second test ID.
+  db.store.set('classes/geo-p2', { name: 'Geometry', period: 'Period 2', teacherOfRecord: OTHER });
+  db.store.set('grades/u-cy', { classId: 'geo-p2', sisStudentId: '1600999' });
+  const status = await outbox.familyMessageStatus({ db, teacherEmail: TEACHER, nowMs: at('09:00') });
+  assert.equal(status.mode, 'test');
+  assert.deepEqual(status.testDistrictIds, ['1500101']);
+  assert.deepEqual((await outbox.familyMessageStatus({ db, teacherEmail: OTHER, nowMs: at('09:00') })).testDistrictIds, ['1600999']);
+  assert.deepEqual((await outbox.familyMessageStatus({ db, teacherEmail: 'nobody@desotoisd.org', nowMs: at('09:00') })).testDistrictIds, []);
+  assert.deepEqual((await outbox.familyMessageStatus({ db, teacherEmail: TEACHER, nowMs: at('09:00'), isRootAdmin: true })).testDistrictIds, ['1500101', '1600999']);
+  // A student assigned to the teacher directly is on their roster too.
+  db.store.set('grades/u-dee', { classId: 'geo-p2', assignedTeacherEmail: TEACHER, sisStudentId: '1600999' });
+  assert.deepEqual((await outbox.messagingSettingsForCaller({ db, teacherEmail: TEACHER })).testDistrictIds, ['1500101', '1600999']);
+  // Outside test mode no test IDs are shown at all.
+  db.store.set('disciplineStatus/familyMessaging', { mode: 'on', testDistrictIds: ['1500101'] });
+  assert.deepEqual((await outbox.messagingSettingsForCaller({ db, teacherEmail: TEACHER, isRootAdmin: true })).testDistrictIds, []);
+});

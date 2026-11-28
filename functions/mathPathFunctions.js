@@ -51,6 +51,9 @@ const {
   safeBuildTemplateIssuePlan,
   serializableDate,
   studentMatchesAssignmentAudience,
+  studentOverrideRef,
+  privateOverrideFrom,
+  authoritativeStudentClassId,
   writeAdminAudit,
 } = require("./functionsCommon");
 
@@ -3219,14 +3222,35 @@ exports.getMyPathSessionRecap = onCall((request) => withPathCallableDiagnostics(
 // Phase 6A: DOK 3/4 modeling labs are graded from a teacher-authored private
 // definition. The browser submits only student telemetry; it never supplies the
 // target criteria used to award the score.
+//
+// Attempts are counted per student, assignment and lab, on one server-owned
+// ledger read and written in the submission's transaction, and capped at
+// MODELING_LAB_MAX_ATTEMPTS. Each attempt's marker is keyed by that identity
+// and the server's own attempt number; the browser's `submissionId` is only a
+// retry token, so resending the same submission returns the attempt it already
+// counted. The lab must be open for the student (their own final close, with
+// any extension) and assigned to their class. The model-accuracy line of the
+// rubric is returned on the final attempt, or once the lab is mastered; the
+// marker keeps the whole evaluation for the gradebook.
+const MODELING_LAB_MAX_ATTEMPTS = 3;
+
+function modelingLabPublicEvaluation(evaluation, { revealModelAccuracy }) {
+  if (revealModelAccuracy) return evaluation;
+  const { modelAccuracy: _withheld, ...rubricBreakdown } = evaluation.rubricBreakdown || {};
+  return { ...evaluation, rubricBreakdown, modelAccuracyWithheld: true };
+}
+
 exports.submitModelingLab = onCall(async (request) => {
   const { studentId } = requireStudent(request);
   const assignmentId = String(request.data?.assignmentId || "").trim();
   const labId = String(request.data?.labId || "").trim();
-  const submissionId = String(request.data?.submissionId || "").trim();
+  const requestToken = String(request.data?.submissionId || "").trim();
   const submission = request.data?.submission && typeof request.data.submission === "object" ? request.data.submission : {};
-  if (!assignmentId || !labId || !submissionId) throw new HttpsError("invalid-argument", "assignmentId, labId, and submissionId are required.");
-  if (submissionId.length > 180) throw new HttpsError("invalid-argument", "submissionId is too long.");
+  if (!assignmentId || !labId) throw new HttpsError("invalid-argument", "assignmentId and labId are required.");
+  if (assignmentId.length > 180 || labId.length > 180 || assignmentId.includes("/") || labId.includes("/")) {
+    throw new HttpsError("invalid-argument", "assignmentId and labId must each be one document id.");
+  }
+  if (requestToken.length > 180) throw new HttpsError("invalid-argument", "submissionId is too long.");
   if (String(submission.studentHypothesis || "").length > 2000 || String(submission.studentJustification || "").length > 8000) {
     throw new HttpsError("invalid-argument", "Modeling lab written responses exceed the supported length.");
   }
@@ -3235,25 +3259,48 @@ exports.submitModelingLab = onCall(async (request) => {
   const assignmentRef = db.collection("assignments").doc(assignmentId);
   const labRef = db.collection("modelingLabDefinitions").doc(labId);
   const studentRef = db.collection("grades").doc(studentId);
-  const markerRef = db.collection("modelingLabSubmissions").doc(mathPath.opaqueId("labsub", studentId, assignmentId, labId, submissionId));
+  // The attempt ledger lives beside the markers, server-only like them. It
+  // carries no `result`, so ingestion never reads it as an evaluation.
+  const ledgerRef = db.collection("modelingLabSubmissions").doc(mathPath.opaqueId("labledger", studentId, assignmentId, labId));
+  const markerRefFor = (attemptSubmissionId) => db.collection("modelingLabSubmissions")
+    .doc(mathPath.opaqueId("labsub", studentId, assignmentId, labId, attemptSubmissionId));
+  const overrideRef = await studentOverrideRef(db, studentId, assignmentId);
+  const { assignmentFinalCloseAt } = await import("./shared/sectionDeadline.mjs");
 
   const result = await db.runTransaction(async (transaction) => {
-    const [marker, assignmentSnapshot, labSnapshot, studentSnapshot] = await Promise.all([
-      transaction.get(markerRef),
+    const [ledgerSnapshot, assignmentSnapshot, labSnapshot, studentSnapshot, overrideSnapshot] = await Promise.all([
+      transaction.get(ledgerRef),
       transaction.get(assignmentRef),
       transaction.get(labRef),
       transaction.get(studentRef),
+      overrideRef ? transaction.get(overrideRef) : Promise.resolve(null),
     ]);
-    if (marker.exists) return marker.data()?.result;
+    const ledger = ledgerSnapshot.exists ? (ledgerSnapshot.data() || {}) : {};
+    const attemptCount = Math.max(0, Math.floor(Number(ledger.attemptCount) || 0));
+    const requests = ledger.requests && typeof ledger.requests === "object" ? ledger.requests : {};
+    // The same submission sent again: the attempt it already counted.
+    if (requestToken && Object.prototype.hasOwnProperty.call(requests, requestToken)) {
+      const counted = await transaction.get(markerRefFor(String(requests[requestToken])));
+      if (counted.exists && counted.data()?.publicResult) return counted.data().publicResult;
+    }
     if (!assignmentSnapshot.exists || !labSnapshot.exists) throw new HttpsError("not-found", "That modeling lab is not available.");
-    const assignment = assignmentSnapshot.data() || {};
+    const assignment = { id: assignmentSnapshot.id, ...assignmentSnapshot.data() };
     const labDefinition = labSnapshot.data() || {};
     if (String(labDefinition.assignmentId || "") !== assignmentId) throw new HttpsError("failed-precondition", "The modeling lab is not attached to this assignment.");
     const studentData = studentSnapshot.exists ? (studentSnapshot.data() || {}) : {};
-    const classPeriod = String(studentData.classPeriod || "Unassigned");
-    if (!studentMatchesAssignmentAudience({ assignment, classId: studentData.classId || null, classPeriod })) {
+    if (!studentMatchesAssignmentAudience({ assignment, classId: authoritativeStudentClassId(studentData), gradeData: studentData, assignmentId })) {
       throw new HttpsError("permission-denied", "This modeling lab is not assigned to your MathMaster class.");
     }
+    const now = Date.now();
+    const finalCloseAtMs = assignmentFinalCloseAt(assignment, null, studentId, studentData.profile || null, { privateOverride: privateOverrideFrom(overrideSnapshot) });
+    if (finalCloseAtMs !== null && now > Number(finalCloseAtMs)) {
+      throw new HttpsError("failed-precondition", "This modeling lab is closed.");
+    }
+    if (attemptCount >= MODELING_LAB_MAX_ATTEMPTS) {
+      throw new HttpsError("resource-exhausted", `This modeling lab allows ${MODELING_LAB_MAX_ATTEMPTS} attempts.`);
+    }
+    const attemptNumber = attemptCount + 1;
+    const submissionId = `attempt-${attemptNumber}`;
 
     let evaluation;
     try {
@@ -3281,7 +3328,6 @@ exports.submitModelingLab = onCall(async (request) => {
       calculatorUsed: Boolean(supportSource.calculatorUsed),
     };
     supportUsage.isMathematicallyIndependent = mathPath.mathematicalIndependence(supportUsage);
-    const now = Date.now();
     const eventKey = mathPath.opaqueId("evlab", studentId, assignmentId, labId, submissionId);
     const eventRef = db.collection("grades").doc(studentId).collection("evidenceEvents").doc(eventKey);
     const alignmentKeys = (labDefinition.teksAlignments || []).map(mathPath.canonicalAlignmentKey).filter(Boolean);
@@ -3302,15 +3348,29 @@ exports.submitModelingLab = onCall(async (request) => {
         dok: Number(labDefinition.dokLevel) || 3,
       },
       source: { kind: "modelingLab", assignmentId, activityRole: labDefinition.activityRole || "classwork", labId },
-      performance: { score: evaluation.compositeScore, isCorrect: evaluation.isMastered, attemptNumber: 1, status: "finalized", isMathematicallyIndependent: supportUsage.isMathematicallyIndependent },
+      performance: { score: evaluation.compositeScore, isCorrect: evaluation.isMastered, attemptNumber, status: "finalized", isMathematicallyIndependent: supportUsage.isMathematicallyIndependent },
       supportUsage,
       supportTelemetry: mathPath.supportTelemetry(supportUsage),
       modeling: { rubricBreakdown: evaluation.rubricBreakdown, trialCount: evaluation.trialCount, uniqueTrialCount: evaluation.uniqueTrialCount, constraintViolationCount: evaluation.constraintViolations.length },
     };
-    const response = { success: true, submissionId, evaluation, gradingAuthority: "server" };
+    const attempts = { attemptNumber, maxAttempts: MODELING_LAB_MAX_ATTEMPTS, attemptsRemaining: MODELING_LAB_MAX_ATTEMPTS - attemptNumber };
+    const revealModelAccuracy = evaluation.isMastered === true || attemptNumber >= MODELING_LAB_MAX_ATTEMPTS;
+    // `result` is what ingestion grades from; `publicResult` is what the student is sent.
+    const response = { success: true, submissionId, evaluation, gradingAuthority: "server", ...attempts };
+    const publicResult = { ...response, evaluation: modelingLabPublicEvaluation(evaluation, { revealModelAccuracy }) };
     transaction.set(eventRef, event);
-    transaction.set(markerRef, { studentId, assignmentId, labId, submissionId, createdAt: now, result: response });
-    return response;
+    transaction.set(markerRefFor(submissionId), { studentId, assignmentId, labId, submissionId, attemptNumber, createdAt: now, result: response, publicResult });
+    transaction.set(ledgerRef, {
+      kind: "modelingLabAttemptLedger",
+      studentId,
+      assignmentId,
+      labId,
+      attemptCount: attemptNumber,
+      // At most MODELING_LAB_MAX_ATTEMPTS entries: one per counted attempt.
+      requests: requestToken ? { ...requests, [requestToken]: submissionId } : requests,
+      updatedAt: now,
+    });
+    return publicResult;
   });
   return result;
 });

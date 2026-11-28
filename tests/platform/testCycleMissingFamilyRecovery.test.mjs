@@ -177,8 +177,8 @@ test('the review screen imports the missing families through the validated impor
   assert.match(register, /await seedPathQuestionBank\(documents,/);
   // …and the authoritative preflight runs again afterwards.
   assert.match(register, /setServerCyclePreflightRun\(\(run\) => run \+ 1\)/);
-  const effect = region(lessonPreflight, 'preflightTestCycleCandidate({ assignment: effectiveAssignmentV5 })', 'const testCycleCandidate = useMemo(', 'server preflight effect');
-  assert.match(effect, /\}, \[effectiveAssignmentV5, serverCyclePreflightRun\]\);/);
+  const effect = region(lessonPreflight, 'preflightTestCycleCandidate({ assignment: effectiveAssignmentV5', 'const testCycleCandidate = useMemo(', 'server preflight effect');
+  assert.match(effect, /\}, \[effectiveAssignmentV5, serverCyclePreflightRun(?:, sourceAssignmentId)?\]\);/);
   // Offered to the root administrator; App says who that is.
   assert.match(executableSource(lessonPreflight), /\{canManageSecureBank \? \(/);
   // The modal is mounted by the teacher's screen, its own module since G2.
@@ -198,11 +198,11 @@ test('the review screen opens the full Test, Corrections and Retest preview for 
 
 test('the server previews and grades a candidate behind the teacher check, inside the blueprint and preview seed', () => {
   const issue = region(functionsIndex, 'exports.previewTestCycleSecureItems = onCall(', 'exports.gradeTestCyclePreviewItem', 'preview issue');
-  assert.match(issue, /teacherUid = await requireTeacher\(request\);\s*loaded = \{ \.\.\.\(await loadTestCycleCandidate\(db, request\.data\?\.assignment\)\), candidate: true \};/);
+  assert.match(issue, /teacherUid = await requireTeacher\(request\);\s*loaded = \{ \.\.\.\(await loadTestCycleCandidate\(db, request\.data\?\.assignment(?:, request)?\)\), candidate: true \};/);
   assert.match(issue, /\.\.\.\(loaded\.candidate \? \{ c: 1 \} : \{ a: assignmentId \}\)/);
   const grade = topLevelDeclaration(functionsIndex, 'exports.gradeTestCyclePreviewItem');
   const candidateBranch = region(grade, 'if (decoded.c === 1) {', '} else {', 'candidate branch');
-  assert.match(candidateBranch, /teacherUid = await requireTeacher\(request\);[\s\S]*loadTestCycleCandidate\(db, request\.data\?\.assignment\)/);
+  assert.match(candidateBranch, /teacherUid = await requireTeacher\(request\);[\s\S]*loadTestCycleCandidate\(db, request\.data\?\.assignment(?:, request)?\)/);
   // Both branches then meet the same two checks before anything is graded.
   const afterBranches = grade.slice(grade.indexOf('if (!blueprintFamilyIds(blueprint).includes(String(decoded.f)))'));
   assert.ok(afterBranches.length < grade.length, 'the family check follows the branches');

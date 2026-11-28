@@ -116,9 +116,13 @@ export const preflightTestCycleAssignment = async ({ assignmentId }) => {
 };
 
 /** Authoritative pre-save validation for an assignment not in Firestore yet. */
-export const preflightTestCycleCandidate = async ({ assignment }) => {
+// `sourceAssignmentId`: the saved assignment a candidate was opened from, which
+// a candidate's secure test reference must match.
+const withSource = (sourceAssignmentId) => (sourceAssignmentId ? { sourceAssignmentId } : {});
+
+export const preflightTestCycleCandidate = async ({ assignment, sourceAssignmentId = null }) => {
   if (isSandbox()) return { success: true, testCycle: true, preflight: { errors: [], warnings: [], checks: [], blocked: false } };
-  return call('preflightTestCycleCandidate', { assignment });
+  return call('preflightTestCycleCandidate', { assignment, ...withSource(sourceAssignmentId) });
 };
 
 export const listTeacherTestCycleRecords = async ({ assignmentId }) => {
@@ -171,15 +175,15 @@ export const updateTestCyclePolicy = async ({ assignmentId, policy }) => {
 // item: 'test' (default) and 'retest' are secure, 'corrections' instructional.
 // `candidate` previews a Test Cycle that is not saved yet (the review screen):
 // the server is sent its contract (testCycleCandidateContract), never an id.
-export const previewTestCycleSecureItems = async ({ assignmentId = null, candidate = null, draw = 1, stage = 'test' }) => {
+export const previewTestCycleSecureItems = async ({ assignmentId = null, candidate = null, sourceAssignmentId = null, draw = 1, stage = 'test' }) => {
   if (isSandbox()) return sandboxRefusal('Previewing secure items')();
-  return call('previewTestCycleSecureItems', candidate ? { assignment: candidate, draw, stage } : { assignmentId, draw, stage });
+  return call('previewTestCycleSecureItems', candidate ? { assignment: candidate, ...withSource(sourceAssignmentId), draw, stage } : { assignmentId, draw, stage });
 };
 
 // A candidate's item is checked against the same candidate it was issued from.
-export const gradeTestCyclePreviewItem = async ({ previewItemId, responsePayload, candidate = null }) => {
+export const gradeTestCyclePreviewItem = async ({ previewItemId, responsePayload, candidate = null, sourceAssignmentId = null }) => {
   if (isSandbox()) return sandboxRefusal('Checking a preview answer')();
-  return call('gradeTestCyclePreviewItem', { previewItemId, responsePayload, ...(candidate ? { assignment: candidate } : {}) });
+  return call('gradeTestCyclePreviewItem', { previewItemId, responsePayload, ...(candidate ? { assignment: candidate, ...withSource(sourceAssignmentId) } : {}) });
 };
 
 export const attachTestCycleContract = async ({ assignmentId, assessmentPolicy, testBlueprint = null, secureTestReference = null }) => {

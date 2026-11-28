@@ -163,7 +163,7 @@ test('Corrections and the teacher preview render through the same runtime', () =
   // The preview asks the server for the stage's real policy — for a saved
   // Test Cycle and for the unsaved one on the review screen alike.
   assert.match(preview, /previewTestCycleSecureItems\(\{ assignmentId: assignment\.id, draw: nextDraw, stage \}\)/);
-  assert.match(preview, /previewTestCycleSecureItems\(\{ candidate, draw: nextDraw, stage \}\)/);
+  assert.match(preview, /previewTestCycleSecureItems\(\{ candidate, (?:sourceAssignmentId, )?draw: nextDraw, stage \}\)/);
   // And keeps nothing: when it closes it clears its drafts under the SAME key
   // every draft was written with. (An unsaved candidate has no assignment id,
   // so the key is not always the id; what matters is that the two agree.)

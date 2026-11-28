@@ -89,7 +89,24 @@ async function exchangeCodeForTokens(code) {
   return tokens;
 }
 
-async function saveTeacherTokens(tokens, teacherUid) {
+/**
+ * The email of the Google account these tokens belong to, from Classroom's own
+ * profile of "me" (the granted classroom.profile.emails scope), or null.
+ */
+async function fetchGoogleAccountEmail(tokens) {
+  const oauth2Client = createOAuthClient();
+  oauth2Client.setCredentials(tokens);
+  const classroom = classroomApi().classroom({ version: "v1", auth: oauth2Client });
+  const response = await classroom.userProfiles.get({ userId: "me" });
+  const email = String(response?.data?.emailAddress || "").trim().toLowerCase();
+  return email || null;
+}
+
+/**
+ * `googleAccountEmail`, when given (a connect, not a token refresh), is stored
+ * as the account the connection belongs to; null clears an older one.
+ */
+async function saveTeacherTokens(tokens, teacherUid, { googleAccountEmail } = {}) {
   const db = getFirestore();
   const ref = db.doc(integrationDoc(teacherUid));
   const existing = await ref.get();
@@ -107,6 +124,7 @@ async function saveTeacherTokens(tokens, teacherUid) {
       googleTokens: merged,
       connectionState: "connected",
       lastError: null,
+      ...(googleAccountEmail !== undefined ? { googleAccountEmail: googleAccountEmail || null } : {}),
       updatedAt: new Date().toISOString(),
     },
     { merge: true }
@@ -233,6 +251,8 @@ async function getConnectionHealth(teacherUid) {
   if (!tokens?.refresh_token) {
     return { connected: false, needsReconnect: false, missingScopes: [] };
   }
+  const integration = await getFirestore().doc(integrationDoc(teacherUid)).get();
+  const googleAccountEmail = integration.exists ? integration.data()?.googleAccountEmail || null : null;
 
   const missing = missingScopes(tokens);
   try {
@@ -246,6 +266,7 @@ async function getConnectionHealth(teacherUid) {
       connected: true,
       needsReconnect: missing.length > 0,
       missingScopes: missing,
+      googleAccountEmail,
     };
   } catch (error) {
     const code = String(error?.response?.data?.error || "");
@@ -258,6 +279,7 @@ async function getConnectionHealth(teacherUid) {
         connected: false,
         needsReconnect: true,
         missingScopes: missing,
+        googleAccountEmail,
         error: "Google Classroom authorization expired or was revoked. Reconnect the teacher account.",
       };
     }
@@ -607,6 +629,7 @@ module.exports = {
   SCOPES,
   buildAuthUrl,
   exchangeCodeForTokens,
+  fetchGoogleAccountEmail,
   saveTeacherTokens,
   getStoredTokens,
   isConnected,

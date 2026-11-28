@@ -417,18 +417,35 @@ exports.oauthCallback = onRequest({ secrets: GOOGLE_API_SECRETS }, async (req, r
   }
 
   const db = getFirestore();
+  if (typeof state !== "string" || !/^[A-Za-z0-9_-]{1,200}$/.test(state)) {
+    res.status(400).send("Invalid or expired OAuth state.");
+    return;
+  }
   const stateRef = db.doc(`oauthStates/${state}`);
-  const stateSnap = await stateRef.get();
-  const stateData = stateSnap.exists ? stateSnap.data() : null;
+  // Read and deleted in one transaction: a state is used once, however many
+  // callbacks carry it at the same moment.
+  const stateData = await db.runTransaction(async (transaction) => {
+    const stateSnap = await transaction.get(stateRef);
+    if (!stateSnap.exists) return null;
+    transaction.delete(stateRef);
+    return stateSnap.data() || null;
+  });
   if (!stateData || stateData.expiresAt < Date.now()) {
     res.status(400).send("Invalid or expired OAuth state.");
     return;
   }
-  await stateRef.delete();
 
   try {
     const tokens = await classroomLib().exchangeCodeForTokens(String(code));
-    await classroomLib().saveTeacherTokens(tokens, stateData.createdBy);
+    // The Google account that granted access, shown beside the connection.
+    // Not knowing it never blocks the connection.
+    let googleAccountEmail = null;
+    try {
+      googleAccountEmail = await classroomLib().fetchGoogleAccountEmail(tokens);
+    } catch (emailError) {
+      logger.warn("Could not read the connected Google account email", { message: emailError?.message || String(emailError) });
+    }
+    await classroomLib().saveTeacherTokens(tokens, stateData.createdBy, { googleAccountEmail });
     res.redirect(302, `${appBaseUrl}?classroomConnected=1`);
   } catch (err) {
     logger.error("OAuth token exchange failed", err);

@@ -78,6 +78,9 @@ const {
   privateOverrideFrom,
   questionWasAttempted,
   readAllDeviceReportsForStudent,
+  deviceReportReportedAtMs,
+  MAX_DEVICE_REPORTS_PER_STUDENT,
+  DEVICE_REPORT_STALE_MS,
   readPersistencePending,
   requireClassTeacher,
   requireStudent,
@@ -2464,12 +2467,19 @@ function trustedResponseInspectionEvidence(snapshot, {
  * no responses, no records, nothing that could become a grade. The report is
  * keyed by device so one student's two Chromebooks are two rows.
  */
+// The largest count one device report may store, per field.
+const DEVICE_QUEUE_COUNT_MAX = 10_000;
+// How many of a student's rows a new device's report reads to find the oldest.
+const DEVICE_REPORT_EVICTION_SCAN = 200;
+
 exports.reportStudentDeviceQueue = onCall(async (request) => {
   const { studentId } = requireStudent(request);
   const deviceId = String(request.data?.deviceId || "").replace(/[^A-Za-z0-9_-]/g, "").slice(0, 64);
   if (!deviceId) throw new HttpsError("invalid-argument", "A device id is required.");
   const summary = request.data?.summary && typeof request.data.summary === "object" ? request.data.summary : {};
-  const number = (value) => Math.max(0, Math.min(100_000, Number(value) || 0));
+  // Every count is a whole number in [0, DEVICE_QUEUE_COUNT_MAX]: far above
+  // what one device's queue holds, and small enough to sum safely.
+  const number = (value) => Math.max(0, Math.min(DEVICE_QUEUE_COUNT_MAX, Math.floor(Number(value) || 0)));
   const countMap = (value) => Object.fromEntries(
     Object.entries(value && typeof value === "object" ? value : {})
       .slice(0, 40)
@@ -2546,6 +2556,11 @@ exports.reportStudentDeviceQueue = onCall(async (request) => {
    */
   const outcome = await db.runTransaction(async (transaction) => {
     const previousSnapshot = await transaction.get(reportRef);
+    // This student's rows, read before any write: past the cap, the oldest
+    // stale or drained rows are evicted (never a fresh row still holding work).
+    const siblingSnapshot = await transaction.get(
+      db.collection(DEVICE_QUEUE_REPORT_COLLECTION).where("studentId", "==", studentId).limit(DEVICE_REPORT_EVICTION_SCAN),
+    );
     const previousData = previousSnapshot.data() || {};
     const storedGeneration = Math.max(0, Number(previousData.reportGeneration) || 0);
 
@@ -2568,6 +2583,21 @@ exports.reportStudentDeviceQueue = onCall(async (request) => {
         storedGeneration,
         previousByAssignment: previousData.queuedGradeBearingByAssignment || {},
       };
+    }
+
+    const others = siblingSnapshot.docs.filter((doc) => doc.id !== reportRef.id);
+    const overCap = others.length + 1 - MAX_DEVICE_REPORTS_PER_STUDENT;
+    if (overCap > 0) {
+      const nowMs = Date.now();
+      const holdsWork = (data) => Object.values(data?.queuedGradeBearingByAssignment || {}).some((count) => Number(count) > 0);
+      others
+        .filter((doc) => {
+          const data = doc.data() || {};
+          return nowMs - deviceReportReportedAtMs(data) > DEVICE_REPORT_STALE_MS || !holdsWork(data);
+        })
+        .sort((a, b) => deviceReportReportedAtMs(a.data()) - deviceReportReportedAtMs(b.data()))
+        .slice(0, overCap)
+        .forEach((doc) => transaction.delete(doc.ref));
     }
 
     transaction.set(reportRef, {
@@ -3688,6 +3718,9 @@ exports.listGradeTransferState = onCall(async (request) => {
   return { snapshots, practicePassKeys };
 });
 
+// The most rows one Grade Transfer snapshot may hold: far above a class roster.
+const GRADE_TRANSFER_MAX_ROWS = 300;
+
 exports.persistGradeTransferSnapshot = onCall(async (request) => {
   await requireTeacher(request);
   const db = getFirestore();
@@ -3706,7 +3739,14 @@ exports.persistGradeTransferSnapshot = onCall(async (request) => {
   const sectionLabel = String(input.sectionLabel || "").trim().slice(0, 80);
   const authority = await gradeTransferClassAuthority(db, request, classId);
 
-  const rows = (Array.isArray(input.rows) ? input.rows : []).map((row) => {
+  const inputRows = Array.isArray(input.rows) ? input.rows : [];
+  if (inputRows.length > GRADE_TRANSFER_MAX_ROWS) {
+    throw new HttpsError("invalid-argument", `A Grade Transfer snapshot holds at most ${GRADE_TRANSFER_MAX_ROWS} rows.`);
+  }
+  // Only this class's own students: a row for anyone else is dropped.
+  const rosterSnapshot = await db.collection("grades").where("classId", "==", classId).select().get();
+  const roster = new Set(rosterSnapshot.docs.map((entry) => entry.id));
+  const rows = inputRows.filter((row) => roster.has(String(row?.studentId || "").trim())).map((row) => {
     const grade = Number(row?.grade);
     if (!Number.isInteger(grade) || grade < 0 || grade > 100) {
       throw new HttpsError("invalid-argument", "Every TEAMS grade must be a whole number from 0 to 100.");

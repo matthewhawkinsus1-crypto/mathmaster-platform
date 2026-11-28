@@ -842,6 +842,10 @@ async function resolveSecureTestBlueprint(db, assignment, shared) {
   if (!secureManifestId) {
     return { blueprint: embedded, blueprintSource: null, secureReferencePresent: false, secureReferenceResolved: false, secureManifestId: null };
   }
+  // A manifest id is one document id, or it resolves to nothing.
+  if (!validDocumentId(secureManifestId)) {
+    return { blueprint: embedded, blueprintSource: null, secureReferencePresent: true, secureReferenceResolved: false, secureManifestId: null };
+  }
   const manifestSnapshot = await db.collection("secureTestManifests").doc(secureManifestId).get();
   const blueprintSource = manifestSnapshot.exists
     ? manifestSnapshot.data()?.testBlueprint || manifestSnapshot.data()?.blueprint
@@ -1041,47 +1045,60 @@ const persistenceResolutionDocumentId = ({ studentId, assignmentId } = {}) => (
 );
 
 /*
- * EVERY DEVICE THIS STUDENT HAS EVER REPORTED FROM. NOT THE FIRST TEN.
+ * A STUDENT'S DEVICE REPORTS: BOUNDED WHEN WRITTEN, BOUNDED WHEN READ.
  *
- * These rows are the only evidence of work that exists nowhere a server query
- * can see, and they are read to decide whether a final Google Classroom grade
- * may go out. The query used to be `.limit(10)` with no ordering, so a student
- * with eleven device rows — a class set of Chromebooks, a browser-storage
- * reset, the old unstable fallback id minting a row per report — could have
- * the ONE device still holding an unsynced answer silently omitted. The total
- * came back zero and the final grade went out over the top of real work.
+ * `reportStudentDeviceQueue` keeps a student's rows near
+ * MAX_DEVICE_REPORTS_PER_STUDENT: past it, each report evicts the oldest rows
+ * that are stale or drained. A fresh row still holding work is never evicted.
  *
- * There is no cap here, silent or otherwise. The pages are read to exhaustion.
- * `MAX_DEVICE_REPORT_PAGES` is a runaway guard, not a limit: reaching it means
- * something is badly wrong, and it THROWS rather than returning a short list,
- * because on this path a short list is indistinguishable from good news. A
- * throw withholds the final passback and surfaces in the teacher report; a
- * quiet under-count publishes a grade that should not exist.
+ * The reader reads one bounded page, DEVICE_REPORT_READ_LIMIT rows, and never
+ * throws on volume. A read that did not reach the end says so (`complete:
+ * false`), and `readPersistencePending` then holds the final passback rather
+ * than reading a partial set as the whole.
+ *
+ * A row last reported more than DEVICE_REPORT_STALE_MS ago is not evidence of
+ * work still on a device: `readPersistencePending` ignores it when deciding
+ * whether a final passback is held. The teacher's recovery report still
+ * lists it.
  */
-const DEVICE_REPORT_PAGE_SIZE = 300;
-const MAX_DEVICE_REPORT_PAGES = 50;
+const MAX_DEVICE_REPORTS_PER_STUDENT = 20;
+const DEVICE_REPORT_READ_LIMIT = 100;
+const DEVICE_REPORT_STALE_MS = 14 * 24 * 60 * 60 * 1000;
+
+/** Up to DEVICE_REPORT_READ_LIMIT of the student's rows, and whether that is all of them. */
+async function readDeviceReportsForStudent({ db, studentId }) {
+  const snapshot = await db.collection(DEVICE_QUEUE_REPORT_COLLECTION)
+    .where("studentId", "==", studentId)
+    .orderBy(FieldPath.documentId())
+    .limit(DEVICE_REPORT_READ_LIMIT + 1)
+    .get();
+  return {
+    documents: snapshot.docs.slice(0, DEVICE_REPORT_READ_LIMIT),
+    complete: snapshot.size <= DEVICE_REPORT_READ_LIMIT,
+  };
+}
 
 async function readAllDeviceReportsForStudent({ db, studentId }) {
-  const documents = [];
-  let cursor = null;
-  for (let page = 0; page < MAX_DEVICE_REPORT_PAGES; page += 1) {
-    let query = db.collection(DEVICE_QUEUE_REPORT_COLLECTION)
-      .where("studentId", "==", studentId)
-      // Ordering by document id is what makes the cursor stable; an unordered
-      // paginated read can repeat and skip rows.
-      .orderBy(FieldPath.documentId())
-      .limit(DEVICE_REPORT_PAGE_SIZE);
-    if (cursor) query = query.startAfter(cursor);
-    // eslint-disable-next-line no-await-in-loop
-    const snapshot = await query.get();
-    documents.push(...snapshot.docs);
-    if (snapshot.size < DEVICE_REPORT_PAGE_SIZE) return documents;
-    cursor = snapshot.docs[snapshot.docs.length - 1].id;
-  }
-  throw new Error(
-    `Student ${studentId} has more than ${MAX_DEVICE_REPORT_PAGES * DEVICE_REPORT_PAGE_SIZE} device persistence `
-    + "reports; refusing to decide final-grade safety from a partial read.",
-  );
+  return (await readDeviceReportsForStudent({ db, studentId })).documents;
+}
+
+/** When a device report was last written, in ms (0 when unknown). */
+function deviceReportReportedAtMs(data = {}) {
+  const value = data?.reportedAt;
+  if (typeof value?.toMillis === "function") return value.toMillis();
+  const number = Number(value);
+  return Number.isFinite(number) ? number : 0;
+}
+
+/**
+ * Reports written inside the stale window: the ones that may hold a passback.
+ * A row with no readable time is kept, so an unreadable row still holds.
+ */
+function freshDeviceReports(documents = [], nowMs = Date.now()) {
+  return documents.filter((snapshot) => {
+    const reportedAtMs = deviceReportReportedAtMs(snapshot.data());
+    return !reportedAtMs || nowMs - reportedAtMs <= DEVICE_REPORT_STALE_MS;
+  });
 }
 
 let persistencePendingModule = null;
@@ -1119,7 +1136,7 @@ async function readPersistencePending({
 }) {
   const { workspaceDraftDocumentId } = await import("./shared/workspaceDraftSchema.mjs");
   const [deviceDocuments, checkpointSnapshot, sessionSnapshot, draftSnapshot, resolutionSnapshot] = await Promise.all([
-    readAllDeviceReportsForStudent({ db, studentId }),
+    readDeviceReportsForStudent({ db, studentId }),
     db.collection(CHECKPOINT_COLLECTION).where("studentId", "==", studentId)
       .where("assignmentId", "==", assignmentId).where("status", "==", CHECKPOINT_STATUS_ACTIVE).limit(200).get(),
     db.collection(STUDENT_SESSION_SUMMARY_COLLECTION).where("studentId", "==", studentId)
@@ -1130,9 +1147,11 @@ async function readPersistencePending({
       .doc(persistenceResolutionDocumentId({ studentId, assignmentId })).get(),
   ]);
   const assignmentKey = encodeURIComponent(assignmentId);
-  const queuedGradeBearing = deviceDocuments.reduce(
+  const queuedFromReports = freshDeviceReports(deviceDocuments.documents).reduce(
     (total, snapshot) => total + (Number(snapshot.data()?.queuedGradeBearingByAssignment?.[assignmentKey]) || 0), 0,
   );
+  // A read that did not reach the end of the student's rows holds the passback.
+  const queuedGradeBearing = deviceDocuments.complete ? queuedFromReports : Math.max(1, queuedFromReports);
   const worked = sessionSnapshot.docs.reduce(
     (maximum, snapshot) => Math.max(maximum, Number(snapshot.data()?.answered) || 0), 0,
   );
@@ -1312,6 +1331,9 @@ module.exports = {
   privateOverrideFrom,
   questionWasAttempted,
   readAllDeviceReportsForStudent,
+  deviceReportReportedAtMs,
+  MAX_DEVICE_REPORTS_PER_STUDENT,
+  DEVICE_REPORT_STALE_MS,
   readPersistencePending,
   requireClassTeacher,
   requireRootAdmin,
