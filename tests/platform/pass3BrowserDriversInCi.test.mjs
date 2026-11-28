@@ -105,6 +105,9 @@ const DRIVERS = [
   // #386 R12: the operand typed on a fresh Step Algebra stage outlives the
   // server's copy of the drafts arriving, in the real App.
   ['student-teacher-journeys.yml', 'step-algebra-operand', 'teacher', ['teacherWorkflow/stepAlgebraOperandDraftJourneys']],
+  // Every question of every lesson renders for a student (2026-11-28 audit):
+  // the driver's self-test, then a stratified sample (its test is below).
+  ['student-teacher-journeys.yml', 'every-question-renders', 'plain', ['everyQuestionRenders']],
 ];
 
 for (const [workflow, job, server, drivers] of DRIVERS) {
@@ -312,4 +315,17 @@ test('no workflow here runs on pull_request_target', () => {
   ['student-runtime-browser-gates.yml', 'student-teacher-journeys.yml', 'student-pass3-emulator-journeys.yml'].forEach((name) => {
     assert.doesNotMatch(read(name), /pull_request_target/, name);
   });
+});
+
+// The full run (about 1,500 questions on two screens in two themes) is local;
+// CI runs the self-test and the stratified sample, inside its time limit.
+test('every-question-renders runs the self-test and the sample, and is its own short job', () => {
+  const job = jobsOf(read('student-teacher-journeys.yml'))['every-question-renders'];
+  const minutes = Number(job.match(/timeout-minutes: (\d+)/)[1]);
+  assert.ok(minutes <= 15, `${minutes} minutes`);
+  const step = stepsOf(job).find((entry) => /run: node tests\/browser\/everyQuestionRenders\.mjs\s*$/m.test(entry));
+  assert.match(step, /EVERY_QUESTION_MODE: ci$/m, 'CI runs the self-test first, then the sample');
+  for (const file of ['tests/browser/everyQuestionRenders.mjs', 'tests/browser/everyQuestionRenders.html', 'tests/browser/everyQuestionRendersMain.jsx', 'teacher-import-jsons/algebra1-dol1/District_DOL1_Technology_Graph_Analysis_Review.json']) {
+    assert.ok(runsOnPullRequest('student-teacher-journeys.yml', file), file);
+  }
 });

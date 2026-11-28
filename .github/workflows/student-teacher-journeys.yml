@@ -765,6 +765,34 @@ jobs:
           AUDIT_ORIGIN: "http://127.0.0.1:5199"
         run: node tests/browser/familyPinContainment.mjs --slow
 
+  # Every question of every lesson in teacher-import-jsons/, compiled as a
+  # teacher's import reaches a student and mounted in the real QuestionEngine
+  # at 1366x900 and on a 390x844 phone, light and dark: no error or boundary,
+  # no blank body, no raw LaTeX or stray $, no {name} slot, nothing wider than
+  # the screen, every control named, the answer box or tool mounted; 200% text
+  # on the phone for one question of each type. First its self-test (each
+  # check must see a fault put on screen), then a stratified sample: one
+  # question of each lesson x section x type, about 450 of 1,500, about 3
+  # minutes locally. The full run is local: npm run audit:every-question.
+  every-question-renders:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v6
+      - uses: ./.github/actions/setup
+        with: { browser: "true" }
+      - name: Start the student harness server
+        run: |
+          npx vite --host 127.0.0.1 --port 5199 --strictPort >/tmp/student-harness.log 2>&1 &
+          for i in {1..120}; do curl -fsS http://127.0.0.1:5199/tests/browser/everyQuestionRenders.html >/dev/null && exit 0; sleep 1; done
+          cat /tmp/student-harness.log; exit 1
+      - name: Every question renders (self-test, then a stratified sample of every lesson)
+        env:
+          PLAYWRIGHT_MODULE: playwright
+          AUDIT_ORIGIN: "http://127.0.0.1:5199"
+          EVERY_QUESTION_MODE: ci
+        run: node tests/browser/everyQuestionRenders.mjs
+
   # The representations board, and its Process Mode (see student).
   student-representations:
     runs-on: ubuntu-24.04

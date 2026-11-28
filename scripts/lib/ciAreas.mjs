@@ -393,6 +393,10 @@ export const CI_AREAS = {
     'tests/browser/familyPinContainment*',
     'tests/browser/feedbackTeaches*',
     'tests/browser/workedExamplePlayer*',
+    // Every question of every lesson renders (its own job): the driver, its
+    // page, and every lesson file it compiles.
+    'tests/browser/everyQuestionRenders*',
+    'teacher-import-jsons/**',
     'tests/browser/stepAlgebraReplay*',
     'tests/browser/radicalReplay*',
     'tests/browser/planeReplay*',
