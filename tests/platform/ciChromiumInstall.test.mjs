@@ -162,12 +162,17 @@ test('an unreadable package list falls back to Playwright\'s own install', () =>
 
 test('the setup action restores the cache before the script and saves it only after a download, a key per runner image', () => {
   const action = readFileSync(path.join(repo, '.github/actions/setup/action.yml'), 'utf8');
-  const restore = action.indexOf('uses: actions/cache/restore@');
-  const install = action.indexOf('run: bash "$GITHUB_ACTION_PATH/install-chromium.sh"');
-  const save = action.indexOf('uses: actions/cache/save@');
-  assert.ok(restore > 0 && restore < install && install < save, 'restore, install, then save');
-  assert.match(action.slice(save - 200, save), /if: inputs\.browser == 'true' && steps\.chromium\.outputs\.fetched == 'true'/);
-  assert.match(action, /prefix="playwright-debs-\$\{ImageOS:-unknown\}-\$\{RUNNER_ARCH\}-\$\(npx playwright --version[^"]*\)-"/,
+  // The action also caches node_modules and the browser builds
+  // (ciDependencyCache.test.mjs): these are the restore and the save of the
+  // system packages, the steps whose path is their cache.
+  const steps = action.split(/^ {2}steps:\n/m)[1].split(/^(?= {4}- )/m).filter((step) => /^ {4}- /.test(step));
+  const debsStep = (kind) => steps.findIndex((step) => step.includes(`uses: actions/cache/${kind}@`) && /path: ~\/\.cache\/playwright-debs\n/.test(step));
+  const restore = debsStep('restore');
+  const install = steps.findIndex((step) => step.includes('run: bash "$GITHUB_ACTION_PATH/install-chromium.sh"'));
+  const save = debsStep('save');
+  assert.ok(restore >= 0 && restore < install && install < save, 'restore, install, then save');
+  assert.match(steps[save], /if: inputs\.browser == 'true' && steps\.chromium\.outputs\.fetched == 'true'/);
+  assert.match(action, /version="\$\(npx playwright --version[^"]*\)"\n\s+prefix="playwright-debs-\$\{ImageOS:-unknown\}-\$\{RUNNER_ARCH\}-\$version-"/,
     'one OS, architecture and Playwright');
   assert.match(action, /echo "key=\$prefix\$\{ImageVersion:-unknown\}"/, 'a new runner image gets its own cache');
   // and starts from the newest one before it, which the script installs only

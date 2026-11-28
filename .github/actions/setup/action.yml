@@ -1,8 +1,9 @@
 name: Set up MathMaster
 description: >-
-  Node, the locked dependencies and, for the browser drivers, Playwright's
-  Chromium with its system packages from a cache instead of the Ubuntu mirror.
-  Every job checks out first, then uses this.
+  Node, the locked dependencies (node_modules from a cache, checked against the
+  lockfile) and, for the browser drivers, Playwright's Chromium with its system
+  packages, each from a cache instead of the network. Every job checks out
+  first, then uses this.
 
 inputs:
   browser:
@@ -22,8 +23,48 @@ runs:
         node-version: ${{ inputs.node-version }}
         cache: npm
 
-    - shell: bash
+    # node_modules as `npm ci` leaves it, from a cache (docs/audits/
+    # 2026-11-28-ci-throughput.md). `npm ci` took about 32 s in every job, even
+    # with its downloads cached; the installed tree restores in about 6. The
+    # key is everything that decides what `npm ci` installs: the lockfile, the
+    # exact Node, the OS image and the architecture. A restored tree is used
+    # only once scripts/check-lockfile-install.mjs finds every package at the
+    # lockfile's version, read from git HEAD; anything else is deleted and
+    # installed again with `npm ci`, as before. It is saved right after
+    # `npm ci`, before anything (Playwright) is added on top.
+    - id: modules-key
+      shell: bash
+      run: echo "key=node-modules-${ImageOS:-unknown}-${RUNNER_ARCH}-node$(node -p 'process.versions.node')-${{ hashFiles('package-lock.json') }}" >> "$GITHUB_OUTPUT"
+
+    - id: modules
+      uses: actions/cache/restore@v4
+      with:
+        path: node_modules
+        key: ${{ steps.modules-key.outputs.key }}
+
+    - if: steps.modules.outputs.cache-hit == 'true'
+      id: restored
+      shell: bash
+      run: |
+        if node scripts/check-lockfile-install.mjs; then
+          echo "matches=true" >> "$GITHUB_OUTPUT"
+        else
+          echo "The cached node_modules is not the lockfile's: installing it again."
+          rm -rf node_modules
+        fi
+
+    - if: steps.restored.outputs.matches != 'true'
+      shell: bash
       run: npm ci
+
+    # Best effort, like the system packages below: another job may have saved
+    # the same key first.
+    - if: steps.modules.outputs.cache-hit != 'true'
+      uses: actions/cache/save@v4
+      continue-on-error: true
+      with:
+        path: node_modules
+        key: ${{ steps.modules-key.outputs.key }}
 
     # Playwright is not in package.json. CI adds it on top of the lockfile and
     # then proves nothing else moved (tests/platform/ciLockfileInstall.test.mjs).
@@ -40,9 +81,11 @@ runs:
       id: image
       shell: bash
       run: |
-        prefix="playwright-debs-${ImageOS:-unknown}-${RUNNER_ARCH}-$(npx playwright --version | awk '{print $2}')-"
+        version="$(npx playwright --version | awk '{print $2}')"
+        prefix="playwright-debs-${ImageOS:-unknown}-${RUNNER_ARCH}-$version-"
         echo "prefix=$prefix" >> "$GITHUB_OUTPUT"
         echo "key=$prefix${ImageVersion:-unknown}" >> "$GITHUB_OUTPUT"
+        echo "browsers=playwright-browsers-${ImageOS:-unknown}-${RUNNER_ARCH}-$version" >> "$GITHUB_OUTPUT"
 
     - if: inputs.browser == 'true'
       uses: actions/cache/restore@v4
@@ -51,10 +94,29 @@ runs:
         key: ${{ steps.image.outputs.key }}
         restore-keys: ${{ steps.image.outputs.prefix }}
 
+    # The browser builds this Playwright downloads (Chromium, its headless shell
+    # and ffmpeg, about 280 MB), which took about 14 s to fetch in every job.
+    # A Playwright version names exactly one build of each, so the key is that
+    # version, the OS and the architecture. install-chromium.sh still ends with
+    # `npx playwright install chromium`, which fetches whatever is missing.
+    - if: inputs.browser == 'true'
+      id: browsers
+      uses: actions/cache/restore@v4
+      with:
+        path: ~/.cache/ms-playwright
+        key: ${{ steps.image.outputs.browsers }}
+
     - if: inputs.browser == 'true'
       id: chromium
       shell: bash
       run: bash "$GITHUB_ACTION_PATH/install-chromium.sh"
+
+    - if: inputs.browser == 'true' && steps.browsers.outputs.cache-hit != 'true'
+      uses: actions/cache/save@v4
+      continue-on-error: true
+      with:
+        path: ~/.cache/ms-playwright
+        key: ${{ steps.image.outputs.browsers }}
 
     # Saved as soon as it is downloaded, not when the job ends, so a job whose
     # tests fail still spares the next one the mirror. Best effort: another job
