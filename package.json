@@ -26,6 +26,7 @@
     "fuzz:graders": "node scripts/fuzz-graders.mjs",
     "audit:grading-parity": "node scripts/audit-grading-parity-real-items.mjs",
     "audit:answer-acceptance": "node scripts/audit-correct-answer-acceptance.mjs --samples 12",
+    "audit:every-question": "node tests/browser/everyQuestionRenders.mjs --serve",
     "audit:assignment-authoring-boundary": "node scripts/audit-assignment-authoring-boundary.mjs",
     "audit:legacy-assignment-source": "node scripts/audit-legacy-assignment-source.mjs",
     "audit:server-grading-coverage": "node scripts/report-server-grading-coverage.mjs",
