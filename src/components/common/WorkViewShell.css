@@ -1119,6 +1119,19 @@ html[data-work-view-open="true"] .mathmaster-question-container .mathmaster-desk
   max-width: min(860px, calc(100% - 2 * var(--mm-work-view-opener-space, 176px)));
 }
 
+/* The pinned reference cards (WE-H, ReferenceCards.jsx) are placed as the help
+   panel is: centred, 860px at most, clear of the button where they start the
+   work, and below it on a phone (below). */
+.mathmaster-reference-cards {
+  box-sizing: border-box;
+  margin: 0 auto 12px;
+  max-width: 860px;
+}
+
+.mathmaster-work-view-surface[data-enlarged="false"] > .mathmaster-question-tool-workspace > .mathmaster-top-panel-row:first-child > .mathmaster-reference-cards {
+  max-width: min(860px, calc(100% - 2 * var(--mm-work-view-opener-space, 176px)));
+}
+
 @media (max-width: 600px) {
   .mathmaster-work-view-surface[data-enlarged="false"] .mathmaster-multipart-heading {
     padding-right: var(--mm-work-view-opener-space, 176px);
@@ -1139,6 +1152,10 @@ html[data-work-view-open="true"] .mathmaster-question-container .mathmaster-desk
 
   .mathmaster-work-view-surface[data-enlarged="false"] > .mathmaster-question-tool-workspace > .mathmaster-top-panel-row:first-child > .mathmaster-hint-panel,
   .mathmaster-work-view-surface[data-enlarged="false"] > .mathmaster-question-tool-workspace > .mathmaster-top-panel-row:first-child > .mathmaster-paused-panel {
+    max-width: none;
+  }
+
+  .mathmaster-work-view-surface[data-enlarged="false"] > .mathmaster-question-tool-workspace > .mathmaster-top-panel-row:first-child > .mathmaster-reference-cards {
     max-width: none;
   }
 

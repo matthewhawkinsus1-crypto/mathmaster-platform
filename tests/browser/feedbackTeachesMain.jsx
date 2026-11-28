@@ -53,6 +53,10 @@
 //                           DOL practised after its due date
 //   ?newskill=1             this is the first Classwork question on a new skill
 //                           (tests/browser/workedExamplePlayer.mjs)
+//   ?card=<skill>[,<skill>] with ?section, the lesson declares a reference card on
+//                           each skill (WE-H; tests/browser/referenceCards.mjs), with
+//   ?cardsections=<a,b>     these `sections` (by role or id), or none: every
+//                           Classwork and Practice section
 //   ?run=<id>               a fresh draft namespace
 //   ?secure=1               mount it the way a secure Test item is mounted:
 //                           server-graded (RichQuestionRuntime), and still
@@ -355,6 +359,13 @@ const lessonQuestions = replayQuestions || (params.get('section')
   : null);
 if (lessonQuestions && !replayQuestions) Object.assign(question, onTheSkill(question));
 
+// The lesson's reference cards (WE-H), as the assignment stores them.
+const cardSkills = (params.get('card') || '').split(',').map((skill) => skill.trim()).filter(Boolean);
+const cardSections = params.get('cardsections') ? params.get('cardsections').split(',') : null;
+const lessonSupports = cardSkills.length
+  ? { ...(replayLesson?.lessonSupports || {}), referenceCards: cardSkills.map((skill, index) => ({ id: `card-${index + 1}`, skill, ...(cardSections ? { sections: cardSections } : {}) })) }
+  : replayLesson?.lessonSupports || null;
+
 window.__mmGrades = [];
 window.__mmHelp = [];
 
@@ -401,7 +412,7 @@ function Harness() {
           studentProfile={studentProfile}
           lessonQuestions={lessonQuestions}
           lessonGiven={lessonQuestions ? lessonQuestions.map((_, index) => index).join() : null}
-          lessonSupports={replayLesson?.lessonSupports || null}
+          lessonSupports={lessonSupports}
           partByPart={params.get('parts') === '1'}
           onGrade={onGrade}
           serverGrading={serverGrading}

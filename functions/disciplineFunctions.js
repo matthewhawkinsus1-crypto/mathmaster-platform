@@ -12,10 +12,18 @@
  * report built on the teacher's screen from the same records
  * (shared/disciplineTracker.mjs).
  *
+ * Family messages go out through SchoolStatus, which has no public API: the
+ * teacher presses Send to families, the message is queued here, and the
+ * MathMaster extension in the teacher's own Chrome sends it from their
+ * signed-in SchoolStatus page, reporting back through familyMessageOutbox
+ * (lib/familyMessageOutbox.js). A sent message is logged to Parent Contacts.
+ *
  * Server-only collections (firestore.rules):
  *   disciplineIncidents/{classId_tapId}  one tap; never deleted, an undo marks it voided
  *   disciplineSettings/{teacherEmail}    the principal's address and names for messages
  *   disciplineStatus/form                the last check of the live district form
+ *   disciplineStatus/familyMessaging     the SchoolStatus switch: off, test, live
+ *   familyMessages/{id}                  one message to a family, queued to sent
  */
 
 const { getFirestore, FieldValue } = require("firebase-admin/firestore");
@@ -24,9 +32,11 @@ const { onSchedule } = require("firebase-functions/v2/scheduler");
 const logger = require("firebase-functions/logger");
 const authLib = require("./lib/auth");
 const { submitDisciplineForms } = require("./lib/disciplineFormBatch");
+const familyOutbox = require("./lib/familyMessageOutbox");
 const {
   CLASS_COLLECTION,
   callerEmail,
+  requireRootAdmin,
   requireTeacher,
 } = require("./functionsCommon");
 
@@ -202,9 +212,16 @@ exports.listDisciplineIncidents = onCall(async (request) => {
     .map((entry) => disciplineIncidentView(entry.id, entry.data()))
     .filter((incident) => !authority || incident.classId === authority.classId);
   const formStatus = (await db.collection("disciplineStatus").doc("form").get()).data() || null;
+  const nowMs = Date.now();
+  const [familyMessages, familyMessaging] = await Promise.all([
+    familyOutbox.listFamilyMessages({ db, teacherEmail: teacher, fromDateKey, toDateKey, classId: authority ? authority.classId : "", nowMs }),
+    familyOutbox.readMessagingSettings(db),
+  ]);
   return {
     incidents,
     formStatus: formStatus ? { ok: formStatus.ok !== false, problems: formStatus.problems || [], checkedAtMs: formStatus.checkedAtMs || null } : null,
+    familyMessages,
+    familyMessaging,
   };
 });
 
@@ -355,4 +372,141 @@ exports.submitDisciplineFormsOnSchedule = onSchedule({
     submitted: summary.submitted.length, waiting: summary.waiting.length, blocked: summary.blocked.length,
     retry: summary.retry.length, failed: summary.failed.length, unknown: summary.unknown.length, formProblems: summary.formProblems,
   });
+});
+
+/* ------------------------------------------------------------------------
+ * MESSAGES TO FAMILIES, THROUGH SCHOOLSTATUS
+ *
+ * The rules are in shared/familyMessages.mjs and the queue in
+ * lib/familyMessageOutbox.js; these callables authorize and translate.
+ */
+
+/** The queue's own refusals become callable errors with their code. */
+async function familyMessageCall(fn) {
+  try {
+    return await fn();
+  } catch (error) {
+    if (error?.name === "FamilyMessageError") throw new HttpsError(error.code || "failed-precondition", error.message);
+    throw error;
+  }
+}
+
+/**
+ * Send to families: queue the day's messages for one class (every student
+ * with a violation that day, or the ones named). Only the class's own
+ * teacher of record: the message goes out from their SchoolStatus under
+ * their name, so not even the root administrator queues for another class.
+ */
+exports.queueFamilyMessages = onCall(async (request) => {
+  await requireTeacher(request);
+  const db = getFirestore();
+  const authority = await disciplineClassAuthority(db, request, request.data?.classId);
+  if (authority.teacherOfRecord !== authority.email) {
+    throw new HttpsError("permission-denied", "Only the class's teacher of record can send its family messages: they go out from that teacher's SchoolStatus.");
+  }
+  const dateKey = disciplineText(request.data?.dateKey, 10);
+  if (!DATE_KEY.test(dateKey)) throw new HttpsError("invalid-argument", "Choose a date.");
+  const studentIds = Array.isArray(request.data?.studentIds)
+    ? request.data.studentIds.map((id) => disciplineText(id, 320)).filter(Boolean).slice(0, 200)
+    : null;
+  const result = await familyMessageCall(() => familyOutbox.queueFamilyMessages({
+    db,
+    teacherEmail: authority.email,
+    classId: authority.classId,
+    classData: authority.classData,
+    dateKey,
+    studentIds,
+    fallbackTeacherName: disciplineText(request.auth?.token?.name, 120),
+    nowMs: Date.now(),
+  }));
+  logger.info("Family messages queued", {
+    by: authority.email, classId: authority.classId, dateKey, mode: result.mode,
+    queued: result.results.filter((entry) => ["queued", "updated"].includes(entry.status)).length,
+  });
+  return result;
+});
+
+/** The teacher's decision on one message: cancel, queue again, or record that it was sent. */
+exports.resolveFamilyMessage = onCall(async (request) => {
+  await requireTeacher(request);
+  const db = getFirestore();
+  const action = disciplineText(request.data?.action, 20);
+  if (!["cancel", "requeue", "markSent"].includes(action)) throw new HttpsError("invalid-argument", "Choose cancel, requeue or markSent.");
+  const email = callerEmail(request);
+  if (!email) throw new HttpsError("permission-denied", "A teacher account is required.");
+  return familyMessageCall(() => familyOutbox.resolveFamilyMessage({
+    db, teacherEmail: email, messageId: disciplineText(request.data?.messageId, 80), action, nowMs: Date.now(),
+    serverTimestamp: () => FieldValue.serverTimestamp(),
+  }));
+});
+
+const RUNNER_ID = /^[A-Za-z0-9_-]{6,80}$/;
+const ATTEMPT_ID = /^[A-Za-z0-9-]{8,64}$/;
+
+/**
+ * The MathMaster extension's one door, called through the teacher's open
+ * Discipline Tracker tab (window.mathmasterFamilyMessages), so it is always
+ * the teacher's own session. Messages are only ever the caller's own:
+ *
+ *   status   the switch and how many are waiting
+ *   claim    the next message (or none), with a short lease
+ *   start    about to press Send; refused means do NOT press Send
+ *   report   sent | failed | unknown, with SchoolStatus's confirmation
+ *   release  give back a claim that was not used
+ */
+exports.familyMessageOutbox = onCall(async (request) => {
+  await requireTeacher(request);
+  const db = getFirestore();
+  const email = callerEmail(request);
+  if (!email) throw new HttpsError("permission-denied", "A teacher account is required.");
+  const action = disciplineText(request.data?.action, 20);
+  const nowMs = Date.now();
+  if (action === "status") return familyOutbox.familyMessageStatus({ db, teacherEmail: email, nowMs });
+  const runnerId = disciplineText(request.data?.runnerId, 80);
+  if (!RUNNER_ID.test(runnerId)) throw new HttpsError("invalid-argument", "The extension must name itself (runnerId).");
+  if (action === "claim") return familyMessageCall(() => familyOutbox.claimNextFamilyMessage({ db, teacherEmail: email, runnerId, nowMs }));
+  const messageId = disciplineText(request.data?.messageId, 80);
+  const attemptId = disciplineText(request.data?.attemptId, 64);
+  if (!ATTEMPT_ID.test(attemptId)) throw new HttpsError("invalid-argument", "attemptId is required.");
+  if (action === "start") return familyMessageCall(() => familyOutbox.startFamilyMessage({ db, teacherEmail: email, messageId, attemptId, nowMs }));
+  if (action === "release") {
+    return familyMessageCall(() => familyOutbox.releaseFamilyMessage({ db, teacherEmail: email, messageId, attemptId, reason: disciplineText(request.data?.reason, 200), nowMs }));
+  }
+  if (action === "report") {
+    const confirmation = request.data?.confirmation && typeof request.data.confirmation === "object" ? request.data.confirmation : {};
+    const result = await familyMessageCall(() => familyOutbox.reportFamilyMessage({
+      db, teacherEmail: email, messageId, attemptId,
+      outcome: disciplineText(request.data?.outcome, 20),
+      reason: disciplineText(request.data?.reason, 300),
+      confirmation: {
+        recipientCount: Number(confirmation.recipientCount) || 0,
+        channel: disciplineText(confirmation.channel, 10),
+        note: disciplineText(confirmation.note, 200),
+      },
+      nowMs,
+      serverTimestamp: () => FieldValue.serverTimestamp(),
+    }));
+    logger.info("Family message reported", { by: email, messageId, state: result.state });
+    return result;
+  }
+  throw new HttpsError("invalid-argument", "Choose status, claim, start, report or release.");
+});
+
+/**
+ * The switch, for the root administrator only: off (nothing goes out), test
+ * (only the listed test students' families: while the extension is being
+ * built every send reaches a real phone), or live.
+ */
+exports.setFamilyMessagingMode = onCall(async (request) => {
+  await requireTeacher(request);
+  await requireRootAdmin(request);
+  const db = getFirestore();
+  const settings = await familyMessageCall(() => familyOutbox.saveMessagingSettings({
+    db,
+    input: { mode: disciplineText(request.data?.mode, 10), testDistrictIds: request.data?.testDistrictIds },
+    byEmail: callerEmail(request),
+    nowMs: Date.now(),
+  }));
+  logger.info("Family messaging switch changed", { by: callerEmail(request), mode: settings.mode, testStudents: settings.testDistrictIds.length });
+  return settings;
 });

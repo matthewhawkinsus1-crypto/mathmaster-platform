@@ -18,7 +18,7 @@ import {
   CONDUCT_EVIDENCE_LIMITS, ConductEvidenceInputError, buildConductEvidenceResponse, validateConductEvidenceRequest,
 } from '../../functions/shared/conductEvidence.mjs';
 import {
-  CONDUCT_RECORDS_NOTE, CONDUCT_RECORDS_TRUNCATED, TEACHER_AUTHORED_NOTE, buildConductRecords, conductTimelineEntries,
+  CONDUCT_FORM_LABEL, CONDUCT_RECORDS_NOTE, CONDUCT_RECORDS_TRUNCATED, TEACHER_AUTHORED_NOTE, buildConductRecords, conductTimelineEntries,
 } from '../../src/platform/caseReview/conductRecords.js';
 import { buildStudentCaseReview } from '../../src/platform/caseReview/studentCaseReview.js';
 import { caseConductCsv } from '../../src/platform/caseReview/caseReviewExport.js';
@@ -196,7 +196,7 @@ test('the section counts what was recorded over the case\'s window, type by type
   // Catalog order; Dress Code has no record (both of its taps were undone), so it is not listed at all.
   assert.deepEqual(section.byType.map((entry) => [entry.type, entry.count, entry.days]), [['tardy', 1, 1], ['idViolation', 2, 2], ['deviceCollected', 1, 1]]);
   assert.deepEqual(section.byType[1].details, [{ id: 'noLanyard', label: 'ID not displayed (no lanyard)', count: 2 }]);
-  assert.deepEqual(section.form, { submitted: 2, waiting: 1, needsCheck: 1 });
+  assert.deepEqual(section.form, { submitted: 2, waiting: 1, needsCheck: 1, testOnly: 0 });
   assert.equal(section.days, 3);
   assert.deepEqual(section.lines, [
     '4 conduct records on 3 school days: Tardy 1 · ID Violation 2 · Device Collected 1.',
@@ -217,6 +217,15 @@ test('the section counts what was recorded over the case\'s window, type by type
   const cut = buildStudentCaseReview(caseInputs({ conductEvidence: response({ truncated: { incidents: true } }) }));
   assert.ok(cut.evidenceGaps.includes(CONDUCT_RECORDS_TRUNCATED));
   assert.equal(cut.dataSources.conductRecords.note, CONDUCT_RECORDS_TRUNCATED);
+});
+
+test('a SchoolStatus test student\'s record says it was never sent to the district form, not that it waits (#620)', () => {
+  const [projected] = buildConductEvidenceResponse({
+    studentId: 'u1', fromDateKey: '2026-09-01', toDateKey: '2026-09-30',
+    incidents: [{ id: 'x', studentId: 'u1', type: 'tardy', dateKey: '2026-09-08', occurredAtMs: Date.parse('2026-09-08T14:00:00Z'), form: { state: 'testOnly' } }],
+  }).incidents;
+  assert.equal(projected.formState, 'testOnly');
+  assert.equal(CONDUCT_FORM_LABEL.testOnly, 'A SchoolStatus test student: never sent to the district form');
 });
 
 test('no conduct record changes a grade, a narrative fact or the attention summary', () => {

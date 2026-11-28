@@ -228,3 +228,21 @@ test('Send now for one class and one day leaves the rest alone', async () => {
   await run(db, forms, at('08:20'), { force: true, scope: { teacherEmail: 'teacher@desotoisd.org', classIds: ['alg1-p1'], dateKey: '2026-11-30' } });
   assert.deepEqual(['t1', 't2', 't3', 't4'].map((id) => stateOf(db, id).state), ['submitted', 'pending', 'pending', 'pending']);
 });
+
+test('in SchoolStatus test mode a test student\'s violations never reach the district form, even after going live', async () => {
+  const db = world({ t1: incident('t1'), t2: incident('t2', { studentId: 'u-ben', type: 'deviceCollected' }) });
+  db.store.set('disciplineStatus/familyMessaging', { mode: 'test', testDistrictIds: ['1500101'] });
+  const forms = fakeForms();
+  const summary = await run(db, forms, at('09:41'));
+  assert.deepEqual(forms.posts.map((post) => new URLSearchParams(post.body).get('entry.53561676')), ['1500102'], 'only the real student is posted');
+  assert.equal(stateOf(db, 't1').state, 'testOnly');
+  assert.deepEqual(summary.testOnly.map((entry) => entry.key), ['alg1-p1|2026-11-30|u-ada']);
+  // Live now: the test student's taps stay off the district record.
+  db.store.set('disciplineStatus/familyMessaging', { mode: 'live', testDistrictIds: ['1500101'] });
+  await run(db, forms, at('10:30'), { force: true });
+  assert.equal(forms.posts.length, 1);
+  // In live mode the list means nothing: a listed student's new violation is posted.
+  db.store.set('disciplineIncidents/t3', incident('t3', { occurredAtMs: at('10:31') }));
+  await run(db, forms, at('10:40'), { force: true });
+  assert.deepEqual(forms.posts.map((post) => new URLSearchParams(post.body).get('entry.53561676')), ['1500102', '1500101']);
+});

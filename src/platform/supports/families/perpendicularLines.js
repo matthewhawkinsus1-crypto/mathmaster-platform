@@ -3,7 +3,9 @@
 // Contract (./index.js):
 //   matches(question)            → true when this family can explain EVERY part of the question
 //   hints(question)              → [] (see WHY IT ONLY SPEAKS ONCE THE QUESTION IS CLOSED)
-//   similarProblem(question, { seed }) → null
+//   similarProblem(question, { seed }) → { prompt, steps: [text], answer: text } | null
+//                                  a worked sibling for a multi-part item (WE-I; see
+//                                  THE WORKED SIBLING at the end of this file)
 //   expectedValues(question)     → []
 //   backUpQuestion(question)     → null (the item's own step, or the platform's, is kept)
 //   workedSolution(question)     → { headline, steps: [text], answerSummary } | null
@@ -11,7 +13,7 @@
 //                                  closed-question review only (it states the answers)
 // `implemented` stays false until the family is real: the index skips it.
 //
-// WHY IT ONLY SPEAKS ONCE THE QUESTION IS CLOSED (CT02). It was written so that
+// WHY IT SPEAKS ONLY ONCE THE QUESTION IS CLOSED (CT02), EXCEPT FOR ITS SIBLING. It was written so that
 // the closed questions of Algebra I Module 2 Topic 2 Lesson 3 ("Slopes of
 // Perpendicular Lines and Horizontal & Vertical Lines", Regular and Honors) stop
 // showing only the answer. No family claimed them, so every hint, back-up step
@@ -19,9 +21,11 @@
 // authored hints and scaffold) or the platform's. A family that claims an item
 // is also asked for those, and anything it returned would change what a student
 // sees while working. So this one returns nothing there: no hint, no back-up
-// step, no sibling, and no extra answer spellings for the hint guard (the guard
-// already reads every key the item carries). What a student sees before the
-// question closes is exactly what they saw before this family existed.
+// step, and no extra answer spellings for the hint guard (the guard already
+// reads every key the item carries). Since WE-I it does work a sibling for a
+// multi-part item, on new numbers (THE WORKED SIBLING, at the end of this
+// file); apart from that, what a student sees before the question closes is
+// exactly what they saw before this family existed.
 //
 // WHAT THIS FAMILY OWNS (last in the index order, so it only ever takes an item
 // no other family claims). Every part must be one it reads; one part it cannot
@@ -73,6 +77,7 @@
 //
 // Pure: no React, no I/O.
 import { matchesFieldAnswer } from '../../../../functions/shared/answerUtils.mjs';
+import { firstSafeSibling } from './siblingGuard.js';
 import { readComposedQuestion } from '../../../../functions/shared/toolMath/workflow/questionWorkflow.mjs';
 import { gradeStage } from '../../../../functions/shared/toolMath/workflow/workflowGrading.mjs';
 import {
@@ -1191,11 +1196,10 @@ const modelFor = (question) => {
 export const matches = (question) => Boolean(modelFor(question));
 export const questionKind = (question) => modelFor(question)?.kind || null;
 
-// Nothing while the question is open (see the top of this file).
+// Nothing while the question is open but the sibling (see the top of this file).
 export const hints = () => [];
 export const expectedValues = () => [];
 export const backUpQuestion = () => null;
-export const similarProblem = () => null;
 
 /* ---------------------------------------------------------------------------
  * workedSolution: THIS question, part by part, for the review panel once the
@@ -1279,6 +1283,135 @@ export const workedSolution = (question) => {
     const lines = [worked.headline, ...worked.steps, worked.answerSummary].map(text);
     if (lines.some((line) => !line || SLOPPY.test(line) || leaksUndefined(line))) return null;
     return { headline: text(worked.headline), steps: worked.steps.map(text), answerSummary: text(worked.answerSummary) };
+  } catch {
+    return null;
+  }
+};
+
+/* ---------------------------------------------------------------------------
+ * THE WORKED SIBLING (WE-I): "See a similar problem worked" for a multi-part
+ * item (kind 'parts', a multiAnswer item). Never for the proof that a turn
+ * makes slopes negative reciprocals (kind 'proof': its answers ARE the facts a
+ * sibling would show), nor for a sort or a choice stage.
+ *
+ *   perpendicular  an item about slopes and perpendicular lines: the slope
+ *                  through two points, the slope perpendicular to it, the
+ *                  line through a point, and more slopes turned the same way;
+ *   axisLines      an item about horizontal and vertical lines: the lines
+ *                  through a point, and the line perpendicular to one of them.
+ *
+ * New numbers from the seed and the item's visible text, offered only when no
+ * step names one of the item's answers (siblingGuard.js; the platform checks
+ * again with similarExampleIsSafe). Each step says why it is done.
+ * ------------------------------------------------------------------------- */
+
+const SIB_MINUS = '−';
+const sibNum = (value) => (value < 0 ? `${SIB_MINUS}${Math.abs(value)}` : String(value));
+const sibGcd = (a, b) => {
+  let x = Math.abs(a);
+  let y = Math.abs(b);
+  while (y) [x, y] = [y, x % y];
+  return x || 1;
+};
+const sibFrac = (n, d) => {
+  const sign = (n < 0) !== (d < 0) && n !== 0 ? SIB_MINUS : '';
+  const g = sibGcd(n, d);
+  const top = Math.abs(n) / g;
+  const bottom = Math.abs(d) / g;
+  return `${sign}${bottom === 1 ? top : `${top}/${bottom}`}`;
+};
+const sibCoefficient = (n, d) => {
+  const value = sibFrac(n, d);
+  if (value === '1') return '';
+  if (value === `${SIB_MINUS}1`) return SIB_MINUS;
+  return value.includes('/') ? (value.startsWith(SIB_MINUS) ? `${SIB_MINUS}(${value.slice(1)})` : `(${value})`) : value;
+};
+const sibLine = (n, d, b) => {
+  const term = `${sibCoefficient(n, d)}x`;
+  if (b === 0) return `y = ${term}`;
+  return `y = ${term} ${b < 0 ? SIB_MINUS : '+'} ${Math.abs(b)}`;
+};
+const sibInt = (random, low, high) => low + Math.floor(random() * (high - low + 1));
+const sibNonZero = (random, low, high) => {
+  for (let tries = 0; tries < 50; tries += 1) {
+    const value = sibInt(random, low, high);
+    if (value !== 0) return value;
+  }
+  return high;
+};
+const sibPair = (x, y) => `(${sibNum(x)}, ${sibNum(y)})`;
+
+const perpendicularSibling = (random) => {
+  for (let tries = 0; tries < 60; tries += 1) {
+    const rise = sibNonZero(random, -6, 6);
+    const run = sibInt(random, 1, 6);
+    if (sibGcd(rise, run) !== 1 || Math.abs(rise) === run) continue;
+    const x1 = sibNonZero(random, -6, 6);
+    const y1 = sibNonZero(random, -6, 6);
+    const scale = sibInt(random, 1, 2);
+    const x2 = x1 + run * scale;
+    const y2 = y1 + rise * scale;
+    // The perpendicular slope is −run/rise; its line through (x2, y2) has an integer y-intercept only sometimes, so draw until it does.
+    const interceptTop = y2 * rise + run * x2;
+    if (interceptTop % rise !== 0) continue;
+    const intercept = interceptTop / rise;
+    const otherRise = sibNonZero(random, -5, 5);
+    const otherRun = sibInt(random, 2, 5);
+    if (sibGcd(otherRise, otherRun) !== 1) continue;
+    const whole = sibNonZero(random, -7, 7);
+    if (Math.abs(whole) === 1) continue;
+    const showProduct = random() < 0.5;
+    const steps = [
+      `The slope of line r is the change in y over the change in x between its two points: (${sibNum(y2)} ${SIB_MINUS} ${y1 < 0 ? `(${sibNum(y1)})` : sibNum(y1)}) / (${sibNum(x2)} ${SIB_MINUS} ${x1 < 0 ? `(${sibNum(x1)})` : sibNum(x1)}) = ${scale === 1 ? sibFrac(rise, run) : `${sibNum(rise * scale)}/${run * scale} = ${sibFrac(rise, run)}`}.`,
+      `A line perpendicular to r has the negative reciprocal slope: flip ${sibFrac(rise, run)} to get ${sibFrac(run, rise)}, then change its sign, because a quarter turn swaps the rise and the run and reverses one of them: ${sibFrac(-run, rise)}.`,
+      ...(showProduct ? [`Check: (${sibFrac(rise, run)})(${sibFrac(-run, rise)}) multiplies out to ${sibFrac(-rise * run, run * rise)}, as the slopes of two perpendicular lines always do.`] : []),
+      `The perpendicular line through ${sibPair(x2, y2)}: start from y = ${sibCoefficient(-run, rise)}x + b and put in the point, because the point must make the equation true: ${sibNum(y2)} = (${sibFrac(-run, rise)})(${sibNum(x2)}) + b, so b = ${sibNum(intercept)}. The line is ${sibLine(-run, rise, intercept)}.`,
+      `The same flip-and-change-sign turns a slope of ${sibFrac(otherRise, otherRun)} into ${sibFrac(-otherRun, otherRise)}, and a slope of ${sibNum(whole)} (that is, ${sibNum(whole)}/1) into ${sibFrac(-1, whole)}.`,
+    ];
+    return {
+      prompt: `Line r passes through ${sibPair(x1, y1)} and ${sibPair(x2, y2)}. Find its slope, the slope of a line perpendicular to it, and the perpendicular line through ${sibPair(x2, y2)}. Then give the perpendicular slopes for slopes of ${sibFrac(otherRise, otherRun)} and ${sibNum(whole)}.`,
+      steps,
+      answer: `slope ${sibFrac(rise, run)}; perpendicular slope ${sibFrac(-run, rise)}; perpendicular line ${sibLine(-run, rise, intercept)}; second perpendicular slope ${sibFrac(-otherRun, otherRise)}; third perpendicular slope ${sibFrac(-1, whole)}`,
+      asks: ['the slope', 'the perpendicular slope', 'the perpendicular line', 'the second perpendicular slope', 'the third perpendicular slope'],
+    };
+  }
+  return null;
+};
+
+const axisLinesSibling = (random) => {
+  for (let tries = 0; tries < 40; tries += 1) {
+    const a = sibNonZero(random, -8, 8);
+    const b = sibNonZero(random, -8, 8);
+    const c = sibNonZero(random, -8, 8);
+    const px = sibNonZero(random, -8, 8);
+    const py = sibNonZero(random, -8, 8);
+    if (a === b || px === c) continue;
+    return {
+      prompt: `Write the horizontal line and the vertical line through ${sibPair(a, b)}, and the line perpendicular to y = ${sibNum(c)} through ${sibPair(px, py)}.`,
+      steps: [
+        `On a horizontal line every point has the same height, so the y-coordinate never changes. Through ${sibPair(a, b)} that height is ${sibNum(b)}: the line is y = ${sibNum(b)}.`,
+        `On a vertical line every point is the same distance across, so the x-coordinate never changes. Through ${sibPair(a, b)} that is ${sibNum(a)}: the line is x = ${sibNum(a)}.`,
+        `y = ${sibNum(c)} is horizontal, and a vertical line meets a horizontal one at a right angle, so the perpendicular line is vertical. Through ${sibPair(px, py)} it is x = ${sibNum(px)}.`,
+      ],
+      answer: `horizontal y = ${sibNum(b)}; vertical x = ${sibNum(a)}; perpendicular x = ${sibNum(px)}`,
+      asks: ['the horizontal line', 'the vertical line', 'the perpendicular line'],
+    };
+  }
+  return null;
+};
+
+const siblingKindOf = (question) => {
+  const model = modelFor(question);
+  if (!model || model.kind !== 'parts' || text(question?.type) !== 'multiAnswer') return null;
+  const shown = [text(question.prompt), ...list(question.answerFields).map((field) => text(field?.label))].join(' ');
+  return /\b(horizontal|vertical)\b/i.test(shown) ? 'axisLines' : 'perpendicular';
+};
+
+export const similarProblem = (question, { seed = 0 } = {}) => {
+  try {
+    const kind = siblingKindOf(question);
+    if (!kind) return null;
+    return firstSafeSibling(question, seed, kind === 'axisLines' ? axisLinesSibling : perpendicularSibling);
   } catch {
     return null;
   }
