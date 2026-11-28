@@ -1,8 +1,10 @@
 // Everything Step Algebra and its server work out from a balanced move, as
 // plain JSON, for a test that runs it twice (issue #559): once as the platform
-// runs it, and once with mathjs's own simplifyCore (mathjsOwnSimplifyCore.mjs).
+// runs it, and once with mathjs's own simplifyCore (mathjsOwnSimplifyCore.mjs),
+// or with mathjs's own simplify, which makes every match of a rule where the
+// platform's looks for the first (mathjsOwnSimplify.mjs).
 //
-//   node stepAlgebraMoveReadings.mjs [--mathjs-own]
+//   node stepAlgebraMoveReadings.mjs [--mathjs-own | --mathjs-own-simplify]
 //
 // prints one JSON line: { mathjsOwn, visitsInTenTerms, cases: [{ name, readings }] },
 // the long cases first, then the ordinary ones.
@@ -25,6 +27,9 @@ export const LONG_SIDES = Object.freeze({
   mixed: (terms) => `2x${Array.from({ length: terms }, (_, i) => (i % 2 ? ' + x' : ' + 1')).join('')}`,
   keptAsWritten: (terms) => `3x + 6${Array.from({ length: terms }, (_, i) => (i % 2 ? ' + 2' : ' - 2')).join('')}`,
   product: (terms) => `2x${' * 2'.repeat(terms)}`,
+  // Like terms with different coefficients: a match of mathjs's like-terms
+  // rules at nearly every split of the side (simplifyFirstMatch.mjs).
+  variedCoefficients: (terms) => `2x${Array.from({ length: terms }, (_, i) => ` + ${i + 3}x`).join('')}`,
   fractions: (terms) => `x/2${Array.from({ length: terms }, (_, i) => ` + ${i + 1}/3`).join('')}`,
   decimals: (terms) => `0.5x${Array.from({ length: terms }, (_, i) => ` + 0.${(i % 9) + 1}`).join('')}`,
 });
@@ -156,6 +161,7 @@ export const simplifyCoreVisits = async (terms) => {
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
   const mathjsOwn = process.argv.includes('--mathjs-own');
   if (mathjsOwn) register('./mathjsOwnSimplifyCore.mjs', import.meta.url);
+  if (process.argv.includes('--mathjs-own-simplify')) register('./mathjsOwnSimplify.mjs', import.meta.url);
   const results = [];
   for (const entry of [...longCases(), ...normalCases()]) results.push({ name: entry.name, readings: await moveReadings(entry) });
   process.stdout.write(`${JSON.stringify({ mathjsOwn, visitsInTenTerms: await simplifyCoreVisits(10), cases: results })}\n`);
