@@ -373,7 +373,10 @@ The maths audit of the examples from before WE-I
 - **What it covers:** every source of a built-in example from before WE-I,
   over every real item each claims, seeds 0 to 20: the question families in
   `src/platform/supports/families/` (`polynomialDivision` and
-  `algebra2AnswerBoxes` are WE-I's, checked above), the Step Algebra, radical
+  `algebra2AnswerBoxes` are WE-I's, checked above, and `linearReasoning` is
+  WE-I's Algebra I family, checked step by step by
+  `weI_algebra1Siblings.test.mjs`; the perpendicular-lines siblings that
+  batch added are audited here too), the Step Algebra, radical
   and plane replays, and the Spot the mistake lines. About 11,600 examples.
 - **The start agrees with the answer.** One check per kind of prompt the
   families write (an equation solved, a system, an inequality, a number line,

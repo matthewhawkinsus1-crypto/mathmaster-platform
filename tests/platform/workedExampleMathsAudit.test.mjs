@@ -48,8 +48,9 @@ import { agree, answerValues, evaluator, functionsDefined, plainOf, relationHold
 
 const ROOT = path.resolve(new URL('../..', import.meta.url).pathname);
 const SEEDS = Array.from({ length: 21 }, (_, seed) => seed);
-// WE-I's own sources: checked, from the identities they name, by workedExampleSiblingIdentities.test.mjs.
-const WE_I = new Set(['polynomialDivision', 'algebra2AnswerBoxes']);
+// WE-I's own sources: the Algebra II ones checked, from the identities they name, by
+// workedExampleSiblingIdentities.test.mjs; the Algebra I one, step by step, by weI_algebra1Siblings.test.mjs.
+const WE_I = new Set(['polynomialDivision', 'algebra2AnswerBoxes', 'linearReasoning']);
 const WE_I_TOOLS = new Set(['longDivision', 'syntheticDivision', 'synthetic']);
 
 // Deterministic draws: the same points every run. Nonzero, as no family states an assumption.
@@ -668,6 +669,17 @@ export const claimProblems = (example, counts = { claims: 0 }) => {
     // Factor pairs written out: "1 and −12 add to −11; … The pair 3 and −4 adds to −1".
     for (const [, x, y, sum] of t.matchAll(/(-?\d+) and (-?\d+) adds? to (-?\d+)/g)) claim(Number(x) + Number(y) === Number(sum), `: ${x} + ${y} = ${Number(x) + Number(y)}`, t);
     if ((m = /^The factor pairs of (-?\d+): (.+?)\. The pair/.exec(t))) for (const [, x, y] of m[2].matchAll(/(-?\d+) and (-?\d+) add/g)) claim(Number(x) * Number(y) === Number(m[1]), `: ${x} × ${y} is not ${m[1]}`, t);
+    // Perpendicular slopes in words: "flip −4/3 to get −3/4, then change its sign …: 3/4".
+    if ((m = /flip (-?\d+(?:\/\d+)?) to get (-?\d+(?:\/\d+)?), then change its sign.*: (-?\d+(?:\/\d+)?)\.$/.exec(t))) claim(agree(num(m[2]), 1 / num(m[1])) && agree(num(m[3]), -num(m[2])), ': not the reciprocal, then its opposite', t);
+    if ((m = /^Check: \((-?\d+(?:\/\d+)?)\)\((-?\d+(?:\/\d+)?)\) multiplies out to (-?\d+)/.exec(t))) claim(agree(num(m[1]) * num(m[2]), num(m[3])), `: the product is ${num(m[1]) * num(m[2])}`, t);
+    if ((m = /^The slope of line [a-z] is the change in y over the change in x between its two points: \((-?\d+) - \((-?\d+)\)\) \/ \((-?\d+) - (-?\d+)\) = (-?\d+)\/(\d+) = (-?\d+(?:\/\d+)?)\.$/.exec(t))) {
+      const [[x1, y1], [x2, y2]] = pairsIn(p.split('. Find')[0]);
+      claim(Number(m[1]) === y2 && Number(m[2]) === y1 && Number(m[3]) === x2 && Number(m[4]) === x1 && agree(num(m[7]), (y2 - y1) / (x2 - x1)), ': not the points\' slope', t);
+    }
+    for (const [, from, to] of t.matchAll(/a slope of (-?\d+(?:\/\d+)?)(?: \(that is, -?\d+\/\d+\))? into (-?\d+(?:\/\d+)?)/g)) claim(agree(num(to), -1 / num(from)), `: not the negative reciprocal of ${from}`, t);
+    if ((m = /Through \((-?\d+), (-?\d+)\) (?:that height is|that is) (-?\d+): the line is ([xy]) = (-?\d+)\.$/.exec(t))) claim(m[3] === m[5] && m[5] === (m[4] === 'y' ? m[2] : m[1]), ': not the point\'s coordinate', t);
+    if ((m = /so the perpendicular line is (vertical|horizontal)\. Through \((-?\d+), (-?\d+)\) it is ([xy]) = (-?\d+)\.$/.exec(t))) claim((m[1] === 'vertical') === (m[4] === 'x') && m[5] === (m[4] === 'x' ? m[2] : m[3]), ': not the point\'s line', t);
+    if ((m = /^The perpendicular line through \((-?\d+), (-?\d+)\): .*The line is (y = .+)\.$/.exec(t))) claim(agree(at(m[3].slice(4), { x: Number(m[1]) }), Number(m[2])) && JSON.stringify(m[3]) === JSON.stringify(partNamed(plain(example.answer), 'perpendicular line')), ': not through the point, or not the answer\'s line', t);
     // A plane test point: the same point tested and shaded from.
     if ((m = /^\((-?\d+), (-?\d+)\) makes it (?:true|false), so shade the side (?:with|without) \((-?\d+), (-?\d+)\)/.exec(t))) claim(m[1] === m[3] && m[2] === m[4], ': two different points', t);
   }
@@ -1398,6 +1410,38 @@ const STARTS = [
       const [[x, y]] = pairsIn(p);
       const [[a, b] = []] = pairsIn(example.answer);
       return a === y && b === x ? [] : [`"${example.answer}" is not (${y}, ${x})`];
+    },
+  },
+  {
+    name: 'a line through two points and its perpendicular: the slope from the points, its negative reciprocal, the line through the point with that slope, and each further perpendicular slope',
+    test: (p) => /^Line [a-z] passes through \(.+?\) and \(.+?\)\. Find its slope, the slope of a line perpendicular to it/.test(p),
+    check: (example, p) => {
+      const [[x1, y1], [x2, y2]] = pairsIn(p.split('. Find')[0]);
+      const slope = (y2 - y1) / (x2 - x1);
+      const answer = plain(example.answer);
+      const out = [];
+      const part = (name) => partNamed(answer, name);
+      if (!agree(num(part('slope')), slope)) out.push(`slope ${part('slope')}, the points give ${slope}`);
+      if (!agree(num(part('perpendicular slope')), -1 / slope)) out.push(`perpendicular slope ${part('perpendicular slope')}, not ${-1 / slope}`);
+      const through = pairsIn(/perpendicular line through (\(.+?\))/.exec(p)?.[1] || '')[0];
+      const line = /^y = (.+)$/.exec(part('perpendicular line') || '')?.[1];
+      if (!line || !through || !agree(at(line, { x: through[0] }), through[1]) || !agree(at(line, { x: 1 }) - at(line, { x: 0 }), -1 / slope)) out.push(`perpendicular line "${part('perpendicular line')}"`);
+      const others = [...(/slopes for slopes of (.+)\.$/.exec(p)?.[1] || '').matchAll(/-?\d+(?:\/\d+)?/g)].map((m) => num(m[0]));
+      ['second', 'third'].forEach((nth, index) => {
+        if (others[index] !== undefined && !agree(num(part(`${nth} perpendicular slope`)), -1 / others[index])) out.push(`${nth} perpendicular slope ${part(`${nth} perpendicular slope`)}, not ${-1 / others[index]}`);
+      });
+      return out;
+    },
+  },
+  {
+    name: 'horizontal, vertical and perpendicular lines through points: each line through its point, the perpendicular of a horizontal line vertical and of a vertical one horizontal',
+    test: (p) => /^Write the horizontal line and the vertical line through \(.+?\), and the line perpendicular to [xy] = -?\d+ through \(.+?\)\.$/.test(p),
+    check: (example, p) => {
+      const [[hx, hy], [px, py]] = pairsIn(p);
+      const given = /perpendicular to ([xy]) = -?\d+/.exec(p)[1];
+      const answer = plain(example.answer);
+      const want = `horizontal y = ${hy}; vertical x = ${hx}; perpendicular ${given === 'y' ? `x = ${px}` : `y = ${py}`}`;
+      return answer === want ? [] : [`"${answer}", not "${want}"`];
     },
   },
   {
