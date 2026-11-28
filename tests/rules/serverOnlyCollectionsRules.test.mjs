@@ -82,7 +82,8 @@ const SERVER_ONLY = [
   'secureTestManifests', // a secure Test's blueprint and issuance record
   'disciplineIncidents', // a teacher's violation taps for their students
   'disciplineSettings', // a teacher's principal address and names for messages
-  'disciplineStatus', // the last check of the district's violation form
+  'disciplineStatus', // the last check of the district's violation form, and the SchoolStatus switch
+  'familyMessages', // a family message queued for the extension to send through SchoolStatus
   'teamsSyncClasses', // which TEAMS sections a class is linked to, and the batch a sync runner holds
   'teamsSyncTargets', // the grades Grade Transfer published for the TEAMS sync to send
   'teamsSyncLedger', // what MathMaster wrote to each TEAMS cell

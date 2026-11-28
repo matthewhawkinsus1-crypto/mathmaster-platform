@@ -2467,6 +2467,9 @@ service cloud.firestore {
     match /disciplineIncidents/{incidentId} { allow read, write: if false; }
     match /disciplineSettings/{teacherEmail} { allow read, write: if false; }
     match /disciplineStatus/{statusId} { allow read, write: if false; }
+    // Messages to families, queued for the MathMaster extension to send
+    // through the teacher's SchoolStatus (lib/familyMessageOutbox.js).
+    match /familyMessages/{messageId} { allow read, write: if false; }
 
     /*
      * Immutable SIS transfer evidence. A teacher can create a snapshot only

@@ -53,6 +53,7 @@ export const VIOLATION_TYPES = Object.freeze([
     parent: Object.freeze({
       observed: 'arrived late to class',
       expectation: 'Students are expected to be in the classroom when the bell rings so they do not miss the start of the lesson.',
+      brief: 'be in class when the bell rings',
     }),
   }),
   Object.freeze({
@@ -66,11 +67,13 @@ export const VIOLATION_TYPES = Object.freeze([
         label: 'Swapping in and out of dress code',
         parent: 'was changing in and out of dress code during the school day',
         expectation: 'Students are expected to remain in dress code for the entire school day, including between classes.',
+        brief: 'stay in dress code all day, including between classes',
       }),
     ]),
     parent: Object.freeze({
       observed: 'was out of dress code',
       expectation: 'Students are expected to follow the campus dress code throughout the school day.',
+      brief: 'follow the dress code all day',
     }),
   }),
   Object.freeze({
@@ -98,6 +101,7 @@ export const VIOLATION_TYPES = Object.freeze([
     parent: Object.freeze({
       observed: 'was not wearing their student ID as expected',
       expectation: 'Students are expected to wear their student ID on a lanyard, visible, for the entire school day.',
+      brief: 'wear their student ID on a lanyard, visible, all day',
     }),
   }),
   Object.freeze({
@@ -109,6 +113,7 @@ export const VIOLATION_TYPES = Object.freeze([
     parent: Object.freeze({
       observed: 'had an electronic device collected during class',
       expectation: 'Electronic devices are expected to be put away during class unless the teacher directs otherwise.',
+      brief: 'keep devices put away in class',
     }),
   }),
 ]);
@@ -409,29 +414,54 @@ const firstNameOf = (student = {}) => {
 const joinList = (items) => (items.length <= 1 ? items.join('') : `${items.slice(0, -1).join(', ')} and ${items[items.length - 1]}`);
 
 /**
- * One message to a student's family about one day: what was observed, when
- * and in which class, and the expectation, then an invitation to reply.
- * Factual and courteous; it names only this student.
+ * The longest text SchoolStatus sends: its composer counts "0/480"
+ * (SchoolStatus Classic, read 2026-11-27). Each guardian gets this one text,
+ * so a family message always fits in it.
+ */
+export const FAMILY_TEXT_MAX = 480;
+
+/**
+ * One text to a student's family about one day: who is writing and for which
+ * class, what was observed and when, the expectation, then an invitation to
+ * reply. Factual and courteous; it names only this student, by first name.
+ * The owner chose this short form on 2026-11-27 so it fits one SchoolStatus
+ * text; it never exceeds FAMILY_TEXT_MAX. If an unusual day would, the class
+ * name, then the "please review" line, then the expectations are left out,
+ * in that order, and last the times are dropped.
  */
 export const parentMessage = ({ student = {}, incidents = [], dateKey, teacherName = '', classLabel = '' } = {}) => {
   const first = firstNameOf(student);
   const sorted = [...incidents].filter((incident) => !isVoidedIncident(incident)).sort((left, right) => left.occurredAtMs - right.occurredAtMs);
-  const observed = sorted.map((incident) => {
+  // One phrase per kind of violation, with every time it happened.
+  const groups = new Map();
+  sorted.forEach((incident) => {
     const entry = violationType(incident.type);
     const sub = violationDetail(incident.type, incident.detail);
-    return `${sub?.parent || entry?.parent.observed || 'had a violation'} at ${disciplineTime(incident.occurredAtMs)}`;
+    const phrase = sub?.parent || entry?.parent.observed || 'had a violation';
+    if (!groups.has(phrase)) groups.set(phrase, { phrase, times: [], brief: sub?.brief || entry?.parent.brief || '' });
+    groups.get(phrase).times.push(disciplineTime(incident.occurredAtMs));
   });
-  const expectations = [...new Set(sorted.map((incident) => violationDetail(incident.type, incident.detail)?.expectation || violationType(incident.type)?.parent.expectation).filter(Boolean))];
-  const who = teacherName ? `this is ${teacherName}, ${first}'s ${classLabel ? `${classLabel} ` : ''}teacher.` : `this is ${first}'s ${classLabel ? `${classLabel} ` : ''}teacher.`;
+  const observed = (withTimes) => joinList([...groups.values()].map((group) => (withTimes ? `${group.phrase} at ${joinList(group.times)}` : group.phrase)));
+  const briefs = [...new Set([...groups.values()].map((group) => group.brief).filter(Boolean))];
   const subject = `${first}: ${joinList([...new Set(sorted.map((incident) => violationType(incident.type)?.label))].filter(Boolean))} on ${disciplineShortDay(dateKey)}`;
-  const body = [
-    `Hello, ${who}`,
-    `I want to let you know that on ${disciplineLongDay(dateKey)}, ${first} ${joinList(observed)}.`,
-    ...expectations,
-    `Thank you for reviewing this with ${first}. Please reply to this message if you have any questions.`,
-    teacherName ? `${teacherName}` : '',
-  ].filter(Boolean).join('\n\n');
-  return { subject, body };
+  const day = disciplineShortDay(dateKey);
+  const build = ({ withClass = true, withReview = true, withExpectations = true, withTimes = true } = {}) => {
+    const by = text(teacherName) || `${first}'s teacher`;
+    const header = withClass && text(classLabel) ? `${by} (${text(classLabel)})` : by;
+    return [
+      `${header}: On ${day}, ${first} ${observed(withTimes)}.`,
+      withExpectations && briefs.length ? `Students are expected to ${joinList(briefs)}.` : '',
+      withReview ? `Please review this with ${first}.` : '',
+      'Reply here with any questions.',
+    ].filter(Boolean).join(' ');
+  };
+  const tries = [{}, { withClass: false }, { withClass: false, withReview: false }, { withClass: false, withReview: false, withExpectations: false }, { withClass: false, withReview: false, withExpectations: false, withTimes: false }];
+  let body = '';
+  for (const option of tries) {
+    body = build(option);
+    if (body.length <= FAMILY_TEXT_MAX) break;
+  }
+  return { subject, body: body.length <= FAMILY_TEXT_MAX ? body : `${body.slice(0, FAMILY_TEXT_MAX - 1)}…` };
 };
 
 /* ------------------------------------------------------------ principal report */
@@ -446,6 +476,7 @@ const reportFormNote = (incident = {}) => {
   if (state === 'submitted') return '';
   if (state === 'unknown') return ' (may not be on the district form: its send got no answer)';
   if (state === 'failed') return ' (not on the district form: the send failed)';
+  if (state === 'testOnly') return ' (a SchoolStatus test student: never sent to the district form)';
   return ' (not yet on the district form)';
 };
 
