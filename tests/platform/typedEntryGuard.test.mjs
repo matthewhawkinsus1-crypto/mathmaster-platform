@@ -58,6 +58,31 @@ const onServer = (question, typed) => {
 };
 const pathGrading = (key, extra = {}) => mathPath.privateGradingDefinition({ prompt: 'Write the answer.', responseFields: [{ id: 'answer', label: 'Answer', expected: key, ...extra }] });
 
+// What the work costs, in milliseconds: the smaller of the time on the clock
+// and the CPU time this process spent, quietest of a few readings. On a
+// loaded runner the clock also counts time the scheduler gave to other jobs
+// (CI runs this beside other shards: a 28-character value once "took"
+// 301 ms on the clock), and CPU time does not; a collection on a helper
+// thread can push CPU time past the clock, so the smaller is held. A reading
+// over the budget is read again, up to five times. Work that really costs
+// what #558 measured (2 s to refuse 2,000 characters, 40 s for 48 like terms,
+// 15 s to pair a long roster) costs it in CPU on every reading and still
+// fails; one reading past forty times the budget is not read again.
+const cpuMs = () => {
+  const { user, system } = process.cpuUsage();
+  return (user + system) / 1000;
+};
+const quietestMs = async (work, budget) => {
+  let best = Infinity;
+  for (let reading = 0; reading === 0 || (reading < 5 && best >= budget && best < budget * 40); reading += 1) {
+    const clock = performance.now();
+    const cpu = cpuMs();
+    await work();
+    best = Math.min(best, performance.now() - clock, cpuMs() - cpu);
+  }
+  return best;
+};
+
 test('#557: an unfinished entry is never marked right, by any typed-field grader', async () => {
   for (const [typed, key] of UNFINISHED) {
     assert.equal(sameValue(typed, key), false, `sameValue ${typed}`);
@@ -173,9 +198,9 @@ test('#558: an answer over 240 characters is refused by the comparison, at once'
   // The 2,000-character value of nested brackets that took 2 s (the issue's
   // own measure) is not read at all.
   const nested = '(\\frac{1}{2}+'.repeat(153);
-  const started = performance.now();
-  for (let index = 0; index < 50; index += 1) assert.equal(sameValue(nested, '(x+ 8)^2'), false);
-  const each = (performance.now() - started) / 50;
+  const each = (await quietestMs(() => {
+    for (let index = 0; index < 50; index += 1) assert.equal(sameValue(nested, '(x+ 8)^2'), false);
+  }, 5 * 50)) / 50;
   assert.ok(each < 5, `a ${nested.length}-character value took ${each.toFixed(2)} ms to refuse`);
 });
 
@@ -273,9 +298,8 @@ test('#558, the work: many short terms inside 240 characters cost milliseconds, 
     assert.ok(typed.length <= 240, `${typed.length} characters`);
     for (const [name, compare] of Object.entries(comparisons)) {
       for (const key of keys) {
-        const started = performance.now();
-        try { compare(typed, key); } catch { /* a throw is the fuzz harness's to find; this holds the time */ }
-        const ms = performance.now() - started;
+        // eslint-disable-next-line no-await-in-loop
+        const ms = await quietestMs(() => { try { compare(typed, key); } catch { /* a throw is the fuzz harness's to find; this holds the time */ } }, 250);
         asked += 1;
         if (ms > slowest.ms) slowest = { ms, name, key, typed };
       }
@@ -286,10 +310,11 @@ test('#558, the work: many short terms inside 240 characters cost milliseconds, 
   assert.ok(slowest.ms < 250, `${slowest.name} took ${Math.round(slowest.ms)} ms on ${JSON.stringify(slowest.typed)} for key ${slowest.key}`);
   // …and through the whole graders, as the server runs them.
   for (const typed of [...inputs].slice(0, 40)) {
-    const started = performance.now();
-    onServer(multiAnswer('5x', { inputProfile: 'expression' }), typed);
-    await mathPath.gradeResponse(pathGrading('5x', { inputProfile: 'expression' }), { responses: { answer: typed } });
-    const ms = performance.now() - started;
+    // eslint-disable-next-line no-await-in-loop
+    const ms = await quietestMs(async () => {
+      onServer(multiAnswer('5x', { inputProfile: 'expression' }), typed);
+      await mathPath.gradeResponse(pathGrading('5x', { inputProfile: 'expression' }), { responses: { answer: typed } });
+    }, 250);
     assert.ok(ms < 250, `the server's graders took ${Math.round(ms)} ms on ${JSON.stringify(typed)}`);
   }
 });
@@ -346,10 +371,10 @@ test('review: a refused entry earns no partial credit, and the credit step does 
   }
   // Bounded work: a long roster is refused, not paired element by element.
   const long = `\\{${Array.from({ length: 700 }, (_, index) => index).join(', ')}\\}`;
-  const started = performance.now();
-  for (const result of await whole(long)) assert.equal(result.score, 0);
-  assert.equal(gradeMultiAnswerResponse(question, { value: long }).parts[0].credit, 0);
-  const took = performance.now() - started;
+  const took = await quietestMs(async () => {
+    for (const result of await whole(long)) assert.equal(result.score, 0);
+    assert.equal(gradeMultiAnswerResponse(question, { value: long }).parts[0].credit, 0);
+  }, 100);
   assert.ok(took < 100, `a ${long.length}-character roster took ${Math.round(took)} ms`);
 });
 

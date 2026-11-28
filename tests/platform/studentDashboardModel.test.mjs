@@ -1,3 +1,9 @@
+// The student's browser is in the school's zone (Central). The fixtures are
+// built in local time (a period on the local hour, `dueAt` four hours after a
+// 10 a.m. NOW, the Warm-Up's instruction date): pinned, so a runner in another
+// zone (UTC+5:30 puts NOW at 20:30, UTC+9 on the next day) reads the same day.
+process.env.TZ = 'America/Chicago';
+
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';

@@ -71,12 +71,25 @@ const READERS = Object.freeze({
 // journeys on four cores) slows three readings in a row, and one quiet slice
 // is enough. A reader that is really slow still fails: no reading comes in
 // under the budget, and one over four times it stops at once.
+//
+// Each reading is the smaller of the time on the clock and the CPU time this
+// process spent. On a runner with more work than cores the clock also counts
+// the time the scheduler gave to other jobs, for seconds at a stretch (eight
+// readings in a row all over budget, with the suite and other jobs beside
+// it), and CPU time does not; a collection on a helper thread can push CPU
+// time past the clock, so the smaller is held. The old cost (0.7 to 8 s) was
+// work, and is CPU time on every reading.
+const cpuMs = () => {
+  const { user, system } = process.cpuUsage();
+  return (user + system) / 1000;
+};
 const fastest = (read, text, budget = BUDGET_MS) => {
   let best = Infinity;
   for (let round = 0; round < (best > budget ? 8 : 3) && best > budget / 4; round += 1) {
-    const started = performance.now();
+    const clock = performance.now();
+    const cpu = cpuMs();
     read(text);
-    best = Math.min(best, performance.now() - started);
+    best = Math.min(best, performance.now() - clock, cpuMs() - cpu);
     if (best > budget * 4) break;
   }
   return best;

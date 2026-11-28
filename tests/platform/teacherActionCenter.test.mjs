@@ -1,3 +1,8 @@
+// The teacher's browser is in the school's zone (America/Chicago): "today"
+// and "overdue" are read on the local day. Pinned, so a runner at UTC+14
+// (where 12:00 UTC is already the next day) orders the list the same way.
+process.env.TZ = 'America/Chicago';
+
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { buildTeacherActionItems, openTeacherActionCount, resolveTeacherActionState, TEACHER_ACTION_KIND } from '../../src/platform/teacher/teacherActionCenter.js';

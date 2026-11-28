@@ -1,3 +1,8 @@
+// The fixtures are local clock times (`at(hour, minute)`) on a school day, and
+// the server finalizer reads the school's zone (America/Chicago): pinned, so
+// local and school time agree on any runner (UTC-8 and UTC+14 both failed).
+process.env.TZ = 'America/Chicago';
+
 import test from 'node:test';
 import assert from 'node:assert/strict';
 

@@ -1,3 +1,8 @@
+// The cards name the day a game was played in the school's zone
+// (America/Chicago): pinned, so a runner at UTC+14 does not read Oct 28's
+// game as Oct 29.
+process.env.TZ = 'America/Chicago';
+
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';

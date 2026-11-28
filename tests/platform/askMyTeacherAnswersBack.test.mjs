@@ -17,6 +17,10 @@
  * district calendar), not the clock alone. The emulator half of this contract
  * — who may read and write what — is tests/rules/askTeacherRules.test.mjs.
  */
+// The fixtures are school days in the school's zone (America/Chicago: `noon`
+// is 17:00 UTC, the bell schedule is local), and the period check reads the
+// process zone: pinned, so a runner at UTC+14 sees the same Monday window.
+process.env.TZ = 'America/Chicago';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';

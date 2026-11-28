@@ -46,6 +46,7 @@ import { toolWorkFor } from '../../pathBankAnswerSweep.mjs';
 import { capturedToolWork, familyQuestionCorpus, pathBankQuestions } from '../corpus.mjs';
 import { errorLine, finding } from '../findings.mjs';
 import { FREE_CLASSES, INPUT_CLASSES, typedInput } from '../inputs.mjs';
+import { startWorkClock } from '../workClock.mjs';
 
 export const id = 'structuredWork';
 
@@ -270,15 +271,15 @@ export const check = async (fuzzCase, { slowMs = 2000 } = {}) => {
   const where = `${surfaceId}${fuzzCase.given ? '/authored-given' : ''}`;
 
   const timed = (name, run) => {
-    const started = performance.now();
+    const sinceStart = startWorkClock();
     try {
       return { result: run() };
     } catch (error) {
       report('never-throws', `${where}/${name}/${errorLine(error)}`, `${name} threw for ${surfaceId}: ${error?.message}`);
       return { thrown: true };
     } finally {
-      const elapsed = performance.now() - started;
-      if (elapsed > slowMs) report('answers-in-time', `${where}/${name}`, `${name} took ${Math.round(elapsed)} ms for ${surfaceId}`);
+      const spentMs = sinceStart();
+      if (spentMs > slowMs) report('answers-in-time', `${where}/${name}`, `${name} took ${Math.round(spentMs)} ms for ${surfaceId}`);
     }
   };
 

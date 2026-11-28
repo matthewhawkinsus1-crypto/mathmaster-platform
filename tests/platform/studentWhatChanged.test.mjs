@@ -3,6 +3,10 @@
  * platform already records. These tests run the real model; the screen is
  * covered by tests/browser/studentWhatChanged.mjs.
  */
+// The student's browser is in the school's zone (America/Chicago): due dates
+// are shown in local time, and 17:00 UTC is midday there. Pinned, so a runner
+// at UTC+14 does not show Oct 30 as Oct 31.
+process.env.TZ = 'America/Chicago';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
