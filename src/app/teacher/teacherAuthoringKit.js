@@ -34,3 +34,5 @@ export { withAppendedQuestionSections } from '../../platform/rigor/honorsExtensi
 export { creationRecoveryContent } from '../../platform/recovery/recoveryContentAuthoring.js';
 export { recoveryPreparationAvailable } from '../../../functions/shared/recoveryContentPlan.mjs';
 export { stripAssignmentInstanceState } from '../../../functions/shared/assignmentPrivacy.mjs';
+// The Assignments screen's JSX, which waits for this code anyway (./assignmentsTabView.jsx).
+export { renderAssignmentsTab } from './assignmentsTabView.jsx';
