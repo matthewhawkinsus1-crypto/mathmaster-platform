@@ -11,7 +11,7 @@ import { readFileSync } from 'node:fs';
 import test from 'node:test';
 import { ASSIGNMENT_LIST_GROUP, groupAssignmentList } from '../../src/platform/teacher/assignmentListGroups.js';
 import { executableSource, region } from './helpers/sourceContract.mjs';
-import { teacherControlsSource } from './helpers/appScreens.mjs';
+import { teacherControlsSource, teacherWorkspaceSource } from './helpers/appScreens.mjs';
 
 const NOW = new Date(2026, 8, 30, 10, 0, 0);
 const DAY = 24 * 60 * 60 * 1000;
@@ -84,13 +84,13 @@ test('empty groups are not rendered', () => {
 const app = readFileSync(new URL('../../src/App.jsx', import.meta.url), 'utf8');
 // The Assignments tab and the class page are the teacher's screen, its own
 // module since G2; App keeps the class grade loader and hands it over by name.
-const teacherWorkspace = readFileSync(new URL('../../src/app/teacher/TeacherWorkspace.jsx', import.meta.url), 'utf8');
+const teacherWorkspace = teacherWorkspaceSource();
 
 test('the Assignments tab renders the grouped list, imported, flat only while searching or filtered', () => {
   // App.jsx is .jsx: nothing imports it, so a call without an import passes
   // every check and throws at runtime (AGENTS.md). Assert both.
   assert.match(teacherWorkspace, /^import \{ groupAssignmentList \} from '\.\.\/\.\.\/platform\/teacher\/assignmentListGroups\.js';$/m);
-  const tab = executableSource(region(teacherWorkspace, "{teacherTab === 'assignments' && (", "{teacherTab === 'students' && (", 'Assignments tab'));
+  const tab = executableSource(region(teacherWorkspace, 'export function renderAssignmentsTab(scope) {', '\n  );\n}', 'Assignments tab'));
   assert.match(tab, /groupAssignmentList\(\{\s*assignments: visibleAssignments,/);
   assert.match(tab, /flat: assignmentListIsFiltered/);
   assert.match(teacherWorkspace, /const assignmentListIsFiltered = Boolean\(assignmentSearch\.trim\(\) \|\| libraryNavigation\?\.folder \|\| libraryNavigation\?\.smartView\);/);

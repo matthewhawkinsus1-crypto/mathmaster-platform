@@ -10,14 +10,15 @@ import StudentPerformanceBadge from '../common/StudentPerformanceBadge.jsx';
 // Drawn only while a student presents (a Spotlight they accepted), with MathText and
 // so MathLive: its code arrives then, or before it with the workspace's idle
 // prefetch (app/teacher/teacherPanels.js, teacher's first load).
-import { StudentSpotlightView, WorthAConversationTile } from '../../app/teacher/teacherPanels.js';
-import ClassPointsAwardDialog from './ClassPointsAwardDialog.jsx';
-import ClassPointsHistoryPanel from './ClassPointsHistoryPanel.jsx';
+// So are Class points' award dialog and its activity panel, and Today's Live
+// Attendance, drawn only once the teacher opens one.
+import { ClassPointsAwardDialog, ClassPointsHistoryPanel, LiveAttendancePanel as AttendancePanel, StudentSpotlightView, WorthAConversationTile } from '../../app/teacher/teacherPanels.js';
 import HelpAcknowledgeControls from './HelpAcknowledgeControls.jsx';
 import { classPointsBalanceFor, watchClassPointAccounts } from '../../platform/classPointsClient.js';
 import DOLCountdown from '../student/DOLCountdown.jsx';
 import { dolExtraTimeForClass } from '../../platform/teacher/dolExtraTimeRoster.js';
-import { STUDENT_NAME_UNAVAILABLE, formatStudentLabel, formatStudentName } from '../../platform/studentName';
+import { STUDENT_NAME_UNAVAILABLE, formatStudentLabel } from '../../platform/studentName';
+import { smallButtonStyle } from './liveMonitorStyles.js';
 import {
   assignmentIsForStudent,
   getDOLState,
@@ -61,7 +62,7 @@ import { classMeetsToday, buildReturnCheckInEvent, resolveReturnCheckIns } from 
 
 // The district instructional calendar does not change per class or per
 // render, so it is built once at module load rather than recomputed on every
-// tick — the same reason `formatStudentName`/`ATTENDANCE_LABEL` above are
+// tick — the same reason `formatStudentName`/`ATTENDANCE_LABEL` (LiveAttendancePanel.jsx) are
 // module-level constants.
 const SCHOOL_NON_INSTRUCTIONAL_KEYS = buildNonInstructionalSet(schoolYearNonInstructionalRanges());
 
@@ -106,13 +107,6 @@ const WALKTHROUGH_STYLE = {
   [WALKTHROUGH_STATUS.ELSEWHERE]: { border: 'var(--mm-border-strong)', background: 'var(--mm-surface-sunken)', color: 'var(--mm-text-muted)', label: 'Elsewhere' },
 };
 
-const ATTENDANCE_LABEL = {
-  [LIVE_ATTENDANCE_MARK.PRESENT]: 'Present',
-  [LIVE_ATTENDANCE_MARK.LATE]: 'Late',
-  [LIVE_ATTENDANCE_MARK.ABSENT]: 'Absent',
-  excused: 'Absent',
-  unexcused: 'Absent',
-};
 
 function ProgressStrip({ questionStates, questionIndex, conceal = false }) {
   // On the projector (Large room tiles) an omitted item is drawn exactly like
@@ -143,7 +137,6 @@ function ProgressStrip({ questionStates, questionIndex, conceal = false }) {
   );
 }
 
-const smallButtonStyle = { minHeight: 24, padding: '5px 8px', borderRadius: 7, border: '1px solid var(--mm-border-strong)', background: 'var(--mm-surface)', fontWeight: 800, fontSize: 'calc(11.5 * var(--mm-px))', cursor: 'pointer' };
 
 // "Classwork Q2": the section and question a tile shows, for a control's name.
 const liveQuestionName = (live) => {
@@ -509,59 +502,6 @@ function LiveTeachingPanel({
   );
 }
 
-function AttendancePanel({ roster, attendanceByStudentId, onMark, busyStudentId = null }) {
-  // Named students by name, then any with no name on file (by id). The id is
-  // always the secondary line here, never the name.
-  const sorted = roster
-    .map((student) => ({
-      student,
-      id: String(student?.id || student?.studentId || ''),
-      name: formatStudentName(student, { lastFirst: false, fallbackToNeutral: false }),
-    }))
-    .sort((a, b) => Number(!a.name) - Number(!b.name) || a.name.localeCompare(b.name) || a.id.localeCompare(b.id));
-  return (
-    <div style={{ margin: '-4px 0 14px', padding: '12px 14px', borderRadius: 12, border: '1px solid var(--mm-border)', background: 'var(--mm-surface-sunken)' }}>
-      <div style={{ fontWeight: 900, color: 'var(--mm-text-strong)' }}>Today&apos;s Live Attendance</div>
-      <div style={{ marginTop: 3, marginBottom: 10, fontSize: 'calc(12 * var(--mm-px))', color: 'var(--mm-text-muted)' }}>
-        Absent students are removed from live monitoring for today only. Mark Present or Late if a student arrives; their saved assignment work is never changed.
-      </div>
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 260px), 1fr))', gap: 7 }}>
-        {sorted.map(({ student, id, name: resolvedName }) => {
-          const name = resolvedName || STUDENT_NAME_UNAVAILABLE;
-          const mark = normalizeLiveAttendance(attendanceByStudentId[id]).mark || LIVE_ATTENDANCE_MARK.PRESENT;
-          const busy = busyStudentId === id;
-          return (
-            <div key={id} style={{ background: 'var(--mm-surface)', border: '1px solid var(--mm-border)', borderRadius: 9, padding: '8px 9px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, flexWrap: 'wrap' }}>
-              <div>
-                <strong style={{ fontSize: 'calc(12.5 * var(--mm-px))' }}>{name}</strong>
-                {id && <div style={{ marginTop: 1, fontSize: 'calc(10 * var(--mm-px))', color: 'var(--mm-text-subtle)' }}>ID {id}</div>}
-                <div style={{ fontSize: 'calc(10.5 * var(--mm-px))', color: attendanceIsAbsent(mark) ? 'var(--mm-error-text)' : mark === LIVE_ATTENDANCE_MARK.LATE ? 'var(--mm-warning-text)' : 'var(--mm-success-text)', fontWeight: 900 }}>{ATTENDANCE_LABEL[mark] || 'Present'}</div>
-              </div>
-              <div style={{ display: 'flex', gap: 4 }}>
-                {[
-                  [LIVE_ATTENDANCE_MARK.PRESENT, 'Present'],
-                  [LIVE_ATTENDANCE_MARK.LATE, 'Late'],
-                  [LIVE_ATTENDANCE_MARK.ABSENT, 'Absent'],
-                ].map(([value, label]) => (
-                  <button
-                    key={value}
-                    type="button"
-                    disabled={busy}
-                    onClick={() => onMark(student, value)}
-                    aria-pressed={mark === value || (value === LIVE_ATTENDANCE_MARK.ABSENT && attendanceIsAbsent(mark))}
-                    style={{ ...smallButtonStyle, padding: '4px 6px', background: mark === value || (value === LIVE_ATTENDANCE_MARK.ABSENT && attendanceIsAbsent(mark)) ? 'var(--mm-primary-soft)' : 'var(--mm-surface)', borderColor: mark === value || (value === LIVE_ATTENDANCE_MARK.ABSENT && attendanceIsAbsent(mark)) ? '#1a73e8' : 'var(--mm-border)', opacity: busy ? 0.55 : 1 }}
-                  >
-                    {label}
-                  </button>
-                ))}
-              </div>
-            </div>
-          );
-        })}
-      </div>
-    </div>
-  );
-}
 
 // A prominent-but-compact "welcome back" banner. It lives here, not behind a
 // settings toggle, because the whole point is that a teacher taking

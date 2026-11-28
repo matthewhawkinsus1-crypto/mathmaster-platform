@@ -73,6 +73,7 @@ import {
   questionExampleExemption,
   workedExampleFor,
 } from '../../src/platform/supports/workedExample/examplePlayer.js';
+import { teacherWorkspaceSource } from './helpers/appScreens.mjs';
 
 const read = (path) => readFileSync(new URL(`../../${path}`, import.meta.url), 'utf8');
 const fixture = () => JSON.parse(read('tests/platform/fixtures/learningSupportsLessonFragment.json'));
@@ -600,7 +601,7 @@ test("the lesson's examples reach the student's assignment; one without them is 
   assert.deepEqual(reopened.lessonSupports, source.lessonSupports);
   assert.deepEqual(canonicalV5PersistencePatch(reopened).lessonSupports, source.lessonSupports);
   // The new-assignment save carries them the same way.
-  const workspace = executableSource(read('src/app/teacher/TeacherWorkspace.jsx'));
+  const workspace = executableSource(teacherWorkspaceSource());
   assert.match(workspace, /\.\.\.lessonSupportsFields\(reviewedV5\),/);
 
   // No lesson supports: no key at all, so nothing about the stored record moves.

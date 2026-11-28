@@ -24,6 +24,7 @@ import {
 } from '../../src/platform/teacher/disciplineTrackerModel.js';
 import { createFamilyMessageBridge, installFamilyMessageBridge } from '../../src/platform/teacher/familyMessageBridge.js';
 import { componentSource, executableSource, region } from './helpers/sourceContract.mjs';
+import { teacherWorkspaceSource } from './helpers/appScreens.mjs';
 
 const at = (hhmm, day = '2026-11-30') => Date.parse(`${day}T${hhmm}:00-06:00`);
 const tap = (overrides = {}) => ({
@@ -90,11 +91,13 @@ test('it sits with Student Support, has an address, and reads Parent Contacts', 
   assert.match(sidebar, /\{ id: 'support', label: 'Student Support', tabs: \[[^\]]*'discipline'[^\]]*\] \}/);
   assert.match(readFileSync('src/app/routes/appUrl.js', 'utf8'), /'parentContacts', 'discipline',/);
   assert.match(readFileSync('src/app/screenScopes.js', 'utf8'), /TEACHER_PARENT_CONTACT_STREAM_TABS = new Set\(\[[^\]]*'discipline'/);
-  const workspace = executableSource(readFileSync('src/app/teacher/TeacherWorkspace.jsx', 'utf8'));
+  const workspace = executableSource(teacherWorkspaceSource());
   const rendered = region(workspace, "{teacherTab === 'discipline' && (", '/>', 'the tracker element');
   assert.match(rendered, /students=\{allStudents\}/);
   assert.match(rendered, /contacts=\{parentContacts\}/);
-  assert.match(rendered, /onRecordContact=\{\(contact\) => recordParentContact\(\{ db, teacherEmail: user\.email, contact \}\)\}/);
+  // The store comes on demand (the tab's own read already asked for it).
+  assert.match(rendered, /onRecordContact=\{\(contact\) => parentContactStore\(\)\.then\(\(store\) => store\.recordParentContact\(\{ db, teacherEmail: user\.email, contact \}\)\)\}/);
+  assert.match(workspace, /^const parentContactStore = \(\) => import\('\.\.\/\.\.\/platform\/teacher\/parentContactStore\.js'\);$/m);
 });
 
 test('it shows only the teacher\'s own classes, and only students on that class\'s roster', () => {

@@ -27,14 +27,14 @@ import { teacherAssignmentView, legacyStudentIds, overrideAuthorizationContext, 
 import { stripAssignmentInstanceState } from '../../functions/shared/assignmentPrivacy.mjs';
 import { ALL_STUDENTS, CLASS_ID, TEACHER, legacyAssignment } from '../fixtures/studentAssignmentOverrideLegacyFixtures.mjs';
 import { importsComponent } from './helpers/componentImport.mjs';
-import { appHookSource } from './helpers/appScreens.mjs';
+import { appHookSource, teacherWorkspaceSource } from './helpers/appScreens.mjs';
 
 const read = (file) => readFileSync(new URL(`../../${file}`, import.meta.url), 'utf8');
 const app = read('src/App.jsx');
 const code = executableSource(app);
 // The teacher's screen is its own module since G2: App renders it and hands
 // it every handler by name.
-const teacherWorkspace = read('src/app/teacher/TeacherWorkspace.jsx');
+const teacherWorkspace = teacherWorkspaceSource();
 const count = (source, pattern) => (source.match(pattern) || []).length;
 
 const sourceFiles = (dir) => readdirSync(dir).flatMap((entry) => {

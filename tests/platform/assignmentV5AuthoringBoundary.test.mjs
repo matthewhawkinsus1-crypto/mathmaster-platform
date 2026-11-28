@@ -52,7 +52,8 @@ test('stored assignment review paths reuse canonical V5 instead of recompiling r
   assert.match(app, /openStoredAssignmentForPreflight/);
 
   const libraryStart = app.indexOf('const openStoredAssignmentForPreflight');
-  const libraryEnd = app.indexOf('const beginEditAssignmentSetup', libraryStart);
+  // Its end is the next action declared beside it (app/teacher/workspaceAssignmentActions.js).
+  const libraryEnd = app.indexOf('const handleRepairAssignmentFromLibrary', libraryStart);
   const libraryBlock = app.slice(libraryStart, libraryEnd);
   assert.match(libraryBlock, /prepareStoredAssignmentForReuse/);
   assert.doesNotMatch(libraryBlock, /readAssignmentJson\(/);
