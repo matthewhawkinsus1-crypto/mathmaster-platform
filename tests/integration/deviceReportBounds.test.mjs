@@ -10,11 +10,13 @@
 // The real `reportStudentDeviceQueue` callable and the real grades trigger
 // prove:
 //   * a student keeps at most MAX_DEVICE_REPORTS_PER_STUDENT report rows; a
-//     new device past the cap evicts the oldest drained row, never the one
+//     report past the cap evicts the oldest stale or drained rows, never one
 //     still holding work, which goes on holding the final passback;
 //   * every stored queue count is clamped;
 //   * a row last reported before the stale window does not hold a passback;
-//   * the reader that decides the passback answers whatever the row volume.
+//   * the reader that decides the passback reads one bounded page and never
+//     throws; a read that did not reach the end holds the passback;
+//   * a fresh row still holding work is never evicted.
 //
 // Every id starts with `devbounds-`, with its own class, assignment and
 // Classroom publication, so it shares no fixture with another file.
@@ -139,16 +141,33 @@ test('a row last reported before the stale window does not hold the final grade'
   assert.equal(await passbackPosts(heldStudent), 0);
 });
 
-test('the passback reader answers whatever the row volume', async () => {
+test('a read that does not reach the end holds the passback, and the next report trims the rows back', async () => {
   const studentId = await finishedStudent('volume');
-  // Rows written before the cap existed: far more than any one page.
+  // Rows written before the cap existed: more than the reader's one page.
   const writer = db.bulkWriter();
-  const ROWS = 15_050;
+  const ROWS = 150;
   for (let index = 0; index < ROWS; index += 1) {
     writer.set(db.collection(REPORTS).doc(`${encodeURIComponent(studentId)}__legacy-${String(index).padStart(5, '0')}`), {
-      studentId, deviceId: `legacy-${index}`, queuedGradeBearingByAssignment: {}, reportedAt: Timestamp.now(),
+      studentId, deviceId: `legacy-${index}`, queuedGradeBearingByAssignment: {}, reportedAt: Timestamp.fromMillis(Date.now() - 60_000 + index),
     });
   }
   await writer.close();
-  assert.ok(await passbackPosts(studentId) >= 1, 'a bounded read decides, and nothing on these rows holds the grade');
+  assert.equal(await passbackPosts(studentId), 0, 'a partial read is not read as the whole set: the grade is held, nothing throws');
+
+  await report(studentId, 'current-device', {});
+  assert.equal((await rowsOf(studentId)).length, MAX_DEVICE_REPORTS_PER_STUDENT, 'the drained rows past the cap were evicted');
+  assert.ok(await passbackPosts(studentId) >= 1, 'with every row read and none holding, the grade goes out');
+});
+
+test('a fresh row still holding work is never evicted, however many there are', async () => {
+  const studentId = await finishedStudent('all-holding');
+  for (let device = 1; device <= MAX_DEVICE_REPORTS_PER_STUDENT; device += 1) {
+    // eslint-disable-next-line no-await-in-loop
+    await report(studentId, `holding-${String(device).padStart(2, '0')}`, { [ASSIGNMENT_ID]: 1 });
+  }
+  await report(studentId, 'one-more', {});
+  const rows = await rowsOf(studentId);
+  assert.equal(rows.length, MAX_DEVICE_REPORTS_PER_STUDENT + 1, 'nothing safe to evict, so nothing was');
+  assert.equal(rows.filter((doc) => doc.data().deviceId.startsWith('holding-')).length, MAX_DEVICE_REPORTS_PER_STUDENT);
+  assert.equal(await passbackPosts(studentId), 0);
 });

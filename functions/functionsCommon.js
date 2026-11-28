@@ -1047,12 +1047,14 @@ const persistenceResolutionDocumentId = ({ studentId, assignmentId } = {}) => (
 /*
  * A STUDENT'S DEVICE REPORTS: BOUNDED WHEN WRITTEN, BOUNDED WHEN READ.
  *
- * `reportStudentDeviceQueue` keeps at most MAX_DEVICE_REPORTS_PER_STUDENT rows
- * per student, evicting the oldest (a stale or drained row before one still
- * holding work), so a class set of Chromebooks or a reset browser never grows
- * the set past it. The reader reads one bounded page, DEVICE_REPORT_READ_LIMIT
- * (above the write cap, so rows written before it existed are still seen),
- * and never throws on volume.
+ * `reportStudentDeviceQueue` keeps a student's rows near
+ * MAX_DEVICE_REPORTS_PER_STUDENT: past it, each report evicts the oldest rows
+ * that are stale or drained. A fresh row still holding work is never evicted.
+ *
+ * The reader reads one bounded page, DEVICE_REPORT_READ_LIMIT rows, and never
+ * throws on volume. A read that did not reach the end says so (`complete:
+ * false`), and `readPersistencePending` then holds the final passback rather
+ * than reading a partial set as the whole.
  *
  * A row last reported more than DEVICE_REPORT_STALE_MS ago is not evidence of
  * work still on a device: `readPersistencePending` ignores it when deciding
@@ -1063,13 +1065,21 @@ const MAX_DEVICE_REPORTS_PER_STUDENT = 20;
 const DEVICE_REPORT_READ_LIMIT = 100;
 const DEVICE_REPORT_STALE_MS = 14 * 24 * 60 * 60 * 1000;
 
-async function readAllDeviceReportsForStudent({ db, studentId }) {
+/** Up to DEVICE_REPORT_READ_LIMIT of the student's rows, and whether that is all of them. */
+async function readDeviceReportsForStudent({ db, studentId }) {
   const snapshot = await db.collection(DEVICE_QUEUE_REPORT_COLLECTION)
     .where("studentId", "==", studentId)
     .orderBy(FieldPath.documentId())
-    .limit(DEVICE_REPORT_READ_LIMIT)
+    .limit(DEVICE_REPORT_READ_LIMIT + 1)
     .get();
-  return snapshot.docs;
+  return {
+    documents: snapshot.docs.slice(0, DEVICE_REPORT_READ_LIMIT),
+    complete: snapshot.size <= DEVICE_REPORT_READ_LIMIT,
+  };
+}
+
+async function readAllDeviceReportsForStudent({ db, studentId }) {
+  return (await readDeviceReportsForStudent({ db, studentId })).documents;
 }
 
 /** When a device report was last written, in ms (0 when unknown). */
@@ -1126,7 +1136,7 @@ async function readPersistencePending({
 }) {
   const { workspaceDraftDocumentId } = await import("./shared/workspaceDraftSchema.mjs");
   const [deviceDocuments, checkpointSnapshot, sessionSnapshot, draftSnapshot, resolutionSnapshot] = await Promise.all([
-    readAllDeviceReportsForStudent({ db, studentId }).then((documents) => freshDeviceReports(documents)),
+    readDeviceReportsForStudent({ db, studentId }),
     db.collection(CHECKPOINT_COLLECTION).where("studentId", "==", studentId)
       .where("assignmentId", "==", assignmentId).where("status", "==", CHECKPOINT_STATUS_ACTIVE).limit(200).get(),
     db.collection(STUDENT_SESSION_SUMMARY_COLLECTION).where("studentId", "==", studentId)
@@ -1137,9 +1147,11 @@ async function readPersistencePending({
       .doc(persistenceResolutionDocumentId({ studentId, assignmentId })).get(),
   ]);
   const assignmentKey = encodeURIComponent(assignmentId);
-  const queuedGradeBearing = deviceDocuments.reduce(
+  const queuedFromReports = freshDeviceReports(deviceDocuments.documents).reduce(
     (total, snapshot) => total + (Number(snapshot.data()?.queuedGradeBearingByAssignment?.[assignmentKey]) || 0), 0,
   );
+  // A read that did not reach the end of the student's rows holds the passback.
+  const queuedGradeBearing = deviceDocuments.complete ? queuedFromReports : Math.max(1, queuedFromReports);
   const worked = sessionSnapshot.docs.reduce(
     (maximum, snapshot) => Math.max(maximum, Number(snapshot.data()?.answered) || 0), 0,
   );

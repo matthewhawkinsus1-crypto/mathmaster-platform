@@ -2556,10 +2556,9 @@ exports.reportStudentDeviceQueue = onCall(async (request) => {
    */
   const outcome = await db.runTransaction(async (transaction) => {
     const previousSnapshot = await transaction.get(reportRef);
-    // This student's other rows, read before any write: a new device past the
-    // cap evicts the oldest (stale or drained first) so at most
-    // MAX_DEVICE_REPORTS_PER_STUDENT remain.
-    const siblingSnapshot = previousSnapshot.exists ? null : await transaction.get(
+    // This student's rows, read before any write: past the cap, the oldest
+    // stale or drained rows are evicted (never a fresh row still holding work).
+    const siblingSnapshot = await transaction.get(
       db.collection(DEVICE_QUEUE_REPORT_COLLECTION).where("studentId", "==", studentId).limit(DEVICE_REPORT_EVICTION_SCAN),
     );
     const previousData = previousSnapshot.data() || {};
@@ -2586,20 +2585,19 @@ exports.reportStudentDeviceQueue = onCall(async (request) => {
       };
     }
 
-    if (siblingSnapshot && siblingSnapshot.size >= MAX_DEVICE_REPORTS_PER_STUDENT) {
+    const others = siblingSnapshot.docs.filter((doc) => doc.id !== reportRef.id);
+    const overCap = others.length + 1 - MAX_DEVICE_REPORTS_PER_STUDENT;
+    if (overCap > 0) {
       const nowMs = Date.now();
       const holdsWork = (data) => Object.values(data?.queuedGradeBearingByAssignment || {}).some((count) => Number(count) > 0);
-      const evictionRank = (doc) => {
-        const data = doc.data() || {};
-        const stale = nowMs - deviceReportReportedAtMs(data) > DEVICE_REPORT_STALE_MS;
-        return [stale || !holdsWork(data) ? 0 : 1, deviceReportReportedAtMs(data)];
-      };
-      siblingSnapshot.docs
-        .filter((doc) => doc.id !== reportRef.id)
-        .map((doc) => ({ doc, rank: evictionRank(doc) }))
-        .sort((a, b) => (a.rank[0] - b.rank[0]) || (a.rank[1] - b.rank[1]))
-        .slice(0, siblingSnapshot.size - MAX_DEVICE_REPORTS_PER_STUDENT + 1)
-        .forEach(({ doc }) => transaction.delete(doc.ref));
+      others
+        .filter((doc) => {
+          const data = doc.data() || {};
+          return nowMs - deviceReportReportedAtMs(data) > DEVICE_REPORT_STALE_MS || !holdsWork(data);
+        })
+        .sort((a, b) => deviceReportReportedAtMs(a.data()) - deviceReportReportedAtMs(b.data()))
+        .slice(0, overCap)
+        .forEach((doc) => transaction.delete(doc.ref));
     }
 
     transaction.set(reportRef, {
