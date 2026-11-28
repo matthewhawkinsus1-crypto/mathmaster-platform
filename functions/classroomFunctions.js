@@ -60,6 +60,7 @@ const {
   publicationMarker,
 } = require("./lib/publication");
 const authLib = require("./lib/auth");
+const { ownedMappings } = require("./lib/classroomMappingOwnership");
 const {
   assignmentUsesTeacherReleasePolicy,
   assignmentFeedbackWasReleased,
@@ -304,9 +305,21 @@ exports.linkGoogleAccount = onCall(async (request) => {
     throw translateAuthError(error);
   }
 
+  // Guesses are throttled per signed-in account, as PIN sign-in is per ID
+  // (security review 2026-11-28, A1).
+  const throttleKey = `googleLink_${request.auth.uid}`;
+  const throttle = await authLib.checkThrottle(db, throttleKey);
+  if (throttle.locked) {
+    throw new HttpsError("resource-exhausted", authLib.describeLockout(throttle.retryAfterMs));
+  }
+  const refuseAndCount = async (code, message) => {
+    await authLib.recordFailedAttempt(db, throttleKey);
+    return new HttpsError(code, message);
+  };
+
   const joinCode = await lookupJoinCode(db, code);
   if (!joinCode) {
-    throw new HttpsError("permission-denied", "That class code is not valid. Ask your teacher for the current one.");
+    throw await refuseAndCount("permission-denied", "That class code is not valid. Ask your teacher for the current one.");
   }
 
   // Linking may attach Google identity to an EXISTING roster row, but it may
@@ -348,15 +361,30 @@ exports.linkGoogleAccount = onCall(async (request) => {
     );
   }
   if (!joinCodeMatchesRoster(rosterSnapshot.data() || {}, joinMembership)) {
-    throw new HttpsError("permission-denied", "That class code does not match the class assigned to this student ID.");
+    throw await refuseAndCount("permission-denied", "That class code does not match the class assigned to this student ID.");
   }
   const record = rosterSnapshot.data() || {};
+  // A roster row that already knows this student's Google account (from the
+  // Classroom roster) links only that account. And an account already linked
+  // to one student is not moved to another by itself: the teacher unlinks it
+  // first. Either way a classmate holding the class code cannot take over a
+  // student's record (security review 2026-11-28, A1).
+  const knownGoogleEmail = String(record.googleEmail || "").trim().toLowerCase();
+  if (knownGoogleEmail && knownGoogleEmail !== email) {
+    throw await refuseAndCount("permission-denied", "That student ID belongs to a different Google account. Ask your teacher.");
+  }
+  const callerLink = await directoryRef.get();
+  const callerLinkedStudent = callerLink.exists ? String(callerLink.data()?.studentId || "") : "";
+  if (callerLinkedStudent && callerLinkedStudent !== studentId) {
+    throw new HttpsError("already-exists", "This Google account is already linked to a different student ID. Ask your teacher to unlink it.");
+  }
   await directoryRef.set(
     { email, studentId, linkedAt: FieldValue.serverTimestamp(), uid: request.auth.uid },
     { merge: true },
   );
   await db.collection("grades").doc(studentId).set({ linkedEmail: email }, { merge: true });
   await assignClaims(request.auth.uid, { role: "student", studentId });
+  await authLib.clearThrottle(db, throttleKey);
 
   return { role: "student", studentId, classPeriod: record.classPeriod || joinCode.classPeriod || "Unassigned" };
 });
@@ -531,10 +559,19 @@ function classroomMaterialDocumentId(teacherUid, courseId, materialKey) {
     .slice(0, 32);
 }
 
+// Upper bounds for one call that makes a Google request per course (and per
+// topic). The publish callables already stop at 20 courses.
+const CLASSROOM_MAX_COURSES_PER_CALL = 20;
+const CLASSROOM_MAX_TOPICS_PER_CALL = 100;
+
 async function getTeacherClassroomMapping(db, teacherUid, courseId) {
   const mappingId = classroomMappingDocumentId(teacherUid, String(courseId));
   const snap = await db.doc(`classroomCourseMappings/${mappingId}`).get();
-  return snap.exists ? { id: snap.id, ...snap.data() } : null;
+  if (!snap.exists) return null;
+  // A mapping whose class has moved to another teacher is no mapping at all
+  // (lib/classroomMappingOwnership.js).
+  const [mapping] = await ownedMappings(db, [{ id: snap.id, ...snap.data() }], { isRootAdminEmail: authLib.isRootAdminEmail });
+  return mapping || null;
 }
 
 function studentBelongsToMappedClass(student, classRecord, classId) {
@@ -952,12 +989,17 @@ exports.ensureClassroomTopics = onCall(
   { secrets: GOOGLE_API_SECRETS },
   async (request) => {
     const teacherUid = await requireTeacher(request);
-    const courseIds = [...new Set((request.data?.courseIds || []).map(String).filter(Boolean))];
+    const courseIds = [...new Set((Array.isArray(request.data?.courseIds) ? request.data.courseIds : []).map(String).filter(Boolean))];
     const topicNames = [...new Set(
-      (request.data?.topicNames || []).map((value) => String(value).trim()).filter(Boolean)
+      (Array.isArray(request.data?.topicNames) ? request.data.topicNames : []).map((value) => String(value).trim().slice(0, 120)).filter(Boolean)
     )];
     if (!courseIds.length || !topicNames.length) {
       throw new HttpsError("invalid-argument", "Select at least one course and one topic.");
+    }
+    // One Google call per course and topic: bounded as the publish callables
+    // are (security review 2026-11-28, A5).
+    if (courseIds.length > CLASSROOM_MAX_COURSES_PER_CALL || topicNames.length > CLASSROOM_MAX_TOPICS_PER_CALL) {
+      throw new HttpsError("invalid-argument", `Choose at most ${CLASSROOM_MAX_COURSES_PER_CALL} courses and ${CLASSROOM_MAX_TOPICS_PER_CALL} topics at once.`);
     }
 
     const db = getFirestore();
@@ -1128,13 +1170,16 @@ exports.publishClassroomMaterial = onCall(
   async (request) => {
     const teacherUid = await requireTeacher(request);
     const { title, description, topicName, materialKey } = request.data || {};
-    const courseIds = [...new Set((request.data?.courseIds || []).map(String).filter(Boolean))];
+    const courseIds = [...new Set((Array.isArray(request.data?.courseIds) ? request.data.courseIds : []).map(String).filter(Boolean))];
     let materials = cleanMaterials(request.data?.materials);
     if (!title || !courseIds.length || !materials.length) {
       throw new HttpsError(
         "invalid-argument",
         "title, courseIds and at least one material link are required."
       );
+    }
+    if (courseIds.length > CLASSROOM_MAX_COURSES_PER_CALL) {
+      throw new HttpsError("invalid-argument", `Choose at most ${CLASSROOM_MAX_COURSES_PER_CALL} courses at once.`);
     }
 
     const db = getFirestore();
@@ -2765,11 +2810,14 @@ exports.resolveLaunchToken = onRequest(
 
 exports.getAssignmentByLaunchId = onCall(async (request) => {
   const { assignmentId } = request.data || {};
-  if (!assignmentId) {
+  // Called before sign-in (the launch preview), so the id is one assignment
+  // document id and nothing else: a path with a slash would name a document
+  // somewhere under it (security review 2026-11-28, A6).
+  if (typeof assignmentId !== "string" || !assignmentId || assignmentId.length > 200 || assignmentId.includes("/")) {
     throw new HttpsError("invalid-argument", "assignmentId is required.");
   }
   const db = getFirestore();
-  const snap = await db.doc(`assignments/${assignmentId}`).get();
+  const snap = await db.collection("assignments").doc(assignmentId).get();
   if (!snap.exists) throw new HttpsError("not-found", "Assignment not found.");
   const { title, dueAt, dueDate } = snap.data();
   return {
