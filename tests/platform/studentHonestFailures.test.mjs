@@ -19,6 +19,10 @@
  * bound to the region that does the work where it is a .jsx screen. The real
  * engine and solver run in tests/browser/submitNotQueued.mjs.
  */
+// The student's browser is in the school's zone (America/Chicago): due dates
+// are shown in local time, and 17:00 UTC is midday there. Pinned, so a runner
+// at UTC+14 does not show Oct 9 as Oct 10.
+process.env.TZ = 'America/Chicago';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
