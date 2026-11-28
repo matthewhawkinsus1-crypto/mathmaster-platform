@@ -65,7 +65,44 @@ Where slice G lives:
 What slice A plays: the question family's sibling, or the step card a lesson
 wrote (`steps`), when it passes `similarExampleIsSafe`. Not yet: a sibling for
 a question no family claims (an authored step card, or the generators of WE-I
-in the build plan).
+in the build plan; WE-I's Algebra I batch, below, is the first of those).
+
+Where WE-I's Algebra I batch lives, and what it plays:
+- **The family:** `src/platform/supports/families/linearReasoning.js`, last in
+  the index, so it takes only an Algebra I (`A.`) multi-part answer box that no
+  other family reads. It works one sibling per skill, as a step card: a sales
+  or savings model and a goal, an inequality solved by dividing by a negative,
+  how many solutions an equation has, a solution checked by substituting, a
+  system written from a situation, solved by substitution, or sorted into
+  parallel, the same line and crossing lines, the intercepts and slope of a
+  linear model, a two-variable inequality from a situation or from a graph, a
+  system of inequalities tested at points or sorted by region, and a linear
+  function shifted or stretched. Each step says the move and why.
+- **The perpendicular-lines sibling:** `perpendicularLines.js` now works one
+  for a multi-part item (the slope perpendicular to a line, the line through a
+  point; or horizontal and vertical lines). Never for the proof that a quarter
+  turn makes slopes negative reciprocals, a sort or a choice: their answers are
+  the facts a sibling would show.
+- **The guard both use:** `siblingGuard.js`. A sibling is generated, never
+  copied, and offered only when its prompt, steps and answer state none of the
+  item's answers in any spelling a step could write (≤ for <=, − for -,
+  spaces, (1/2)x for 1/2x), and its prompt states no equation the item states.
+  The platform's `similarExampleIsSafe` runs after it.
+- **What a student sees while the item is open** is otherwise unchanged: these
+  families give no hint, back-up step or extra answer spelling, so the item's
+  own hints and scaffold are kept.
+- **What it leaves uncovered, and why.** A field that asks for the name of a
+  property of equality (the sibling would name the same properties), and an
+  item whose answers are the general rules a sibling would show (an equation
+  with no solution or infinitely many, the slope of every horizontal line):
+  the guard refuses every sibling for those, so they still need an example the
+  lesson writes. A sibling that decides a case works every case side by side,
+  so it never says which case the item is.
+- **Never on a DOL, quiz or test:** the section rule shows none there, and
+  `linearReasoning` does not even claim a question whose role is one of those.
+- **Tests:** `tests/platform/weI_algebra1Siblings.test.mjs` walks every
+  lesson in `teacher-import-jsons/` and holds each of these for every real
+  question it claims.
 
 Where slice C lives, and what it plays:
 - **The replay:** `src/platform/supports/workedExample/stepAlgebraReplay.js`.
@@ -351,7 +388,7 @@ Build on these; do not write a second version of any of them.
 | "See a similar problem worked" | `src/platform/supports/workedExample/similarProblem.js`, `examplePlayer.js`, `QuestionEngine.jsx` | The question's support family works a sibling problem with different numbers. Since slice A it plays one slide at a time, and on Classwork it opens by itself before the first question on a new skill; before that it was a list of text steps, shown only on request. `similarExampleIsSafe` refuses a sibling that shares the question's prompt or answer, or whose steps state that answer. Opening one is recorded as `workedExampleUsed`. It is withheld wherever hints are, and on every DOL, quiz and test section. |
 | "Practise one like this" | `practiceLikeThis.js`, `PracticeLikeThis.jsx` | After a miss on Classwork or Practice, an unscored sibling the student answers. Nothing is recorded. |
 | Sibling builders | `numericVariant.js`, `factoringVariant.js`, `radicalVariant.js`, `polynomialVariant.js`, `matrixSystemVariant.js` | New numbers for an item whose method does not change. |
-| Support families | `src/platform/supports/families/` (11 families) | Each has `similarProblem`. Nine also write `workedSolution`. |
+| Support families | `src/platform/supports/families/` (12 families) | Each has `similarProblem`. Nine also write `workedSolution`. |
 | Guided notes | `guidedNotes.js`, `GuidedClassworkCoach.jsx` | Authored `guidedNotes.steps`. Pre-Flight's `guidedNotesBySection` is automatic on Classwork and off on Practice. |
 | Solution Review | `closedQuestionReview.js` | `solutionReview.reasoning` (or `steps`), `answerSummary` and `commonError`, shown after the item closes. |
 | Hints and scaffolds | `questionHints.js` | `hintRelease` gives nothing where `hintsAllowed` is false (DOL, quiz, test). |
@@ -411,6 +448,15 @@ student's item and never another item on the same assignment.
 | **Model answer** | "Explain" and "describe" questions | A short strong answer, and a checklist of what it includes. |
 | **Why this step?** | Classwork examples, once per example | One tap: pick the reason for a step before it plays. |
 | **Reference card** | Lesson level, pinned on Classwork and Practice | The formula or pattern with its parts named (for example, sum and difference of cubes). |
+
+**Reference cards today (WE-H).** A lesson names a card's skill, and the
+platform supplies the card from its built-in library. The cards and their skills
+are listed in `docs/assignments/AUTHORING_LEARNING_SUPPORTS.md` section 4. A card
+shows only where a lesson declares one in `lessonSupports.referenceCards`.
+Existing lessons are not back-filled. Of today's lessons, only the Algebra II
+Honors Thanksgiving packet declares one: the sum and difference of cubes, on its
+Unit 8 Classwork section. Everywhere else a card appears only once an author adds
+one to a new assignment, and in the test fixtures.
 
 ## 5. Behaviour by section
 
@@ -544,6 +590,10 @@ counts the 483 authored ones). Then it was checked for a sibling from
 | Have a built-in example today | 137 of 496 |
 | Have none | 359 |
 | Lessons with no built-in example on any classwork question | 14 of 41 |
+
+Since WE-I's Algebra I batch the same 496 questions measure 240 with a
+built-in example and 256 without (144 of them answer boxes), and 9 of the 41
+lessons have none. Of the uncovered Algebra I answer boxes, 140 became 14.
 
 The 359 without one, by kind:
 - `multipleResponses` 247;

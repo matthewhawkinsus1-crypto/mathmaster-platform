@@ -35,7 +35,7 @@ import { fileURLToPath } from 'node:url';
 import { screenshotKeepingTouch } from './support/touchEmulation.mjs';
 import { answerParts } from './support/partByPart.mjs';
 import { solveLinearInEquationWorkspace } from './equationWorkspacePlanner.mjs';
-import { ASSESSMENT_LEAK_TEXTS, EXAMPLE_CONTROL_SELECTORS } from './support/assessmentLadderWords.mjs';
+import { ASSESSMENT_LEAK_SELECTORS, ASSESSMENT_LEAK_TEXTS } from './support/assessmentLadderWords.mjs';
 
 const ORIGIN = process.env.AUDIT_ORIGIN || 'http://127.0.0.1:5199';
 const ARTIFACTS = path.join(path.dirname(fileURLToPath(import.meta.url)), 'artifacts/showTheStep');
@@ -122,7 +122,7 @@ const noSidewaysScroll = async (page, where) => {
 // anywhere in the document.
 const leaksOn = async (page) => {
   const html = await page.content();
-  const controls = await page.evaluate((selectors) => selectors.filter((selector) => document.querySelector(selector)), EXAMPLE_CONTROL_SELECTORS);
+  const controls = await page.evaluate((selectors) => selectors.filter((selector) => document.querySelector(selector)), ASSESSMENT_LEAK_SELECTORS);
   return [...ASSESSMENT_LEAK_TEXTS.filter((text) => html.includes(text.replace(/&/g, '&amp;'))), ...controls];
 };
 const VERDICT_WORDS = /not on the (line|graph)|are on the (line|graph)|do not match|match them|fits the|does not fit|do not fit|solves? the equation|not right|choose again|Count again/i;

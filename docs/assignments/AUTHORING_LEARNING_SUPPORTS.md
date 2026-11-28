@@ -210,6 +210,39 @@ and difference of cubes). It is pinned beside the questions.
 { "id": "cubes", "skill": "factor.sumDifferenceOfCubes", "sections": ["classwork", "practice"] }
 ```
 
+**What the card shows is MathMaster's own.** A card names only its skill: the
+platform supplies the card for it (its title, each formula, and its parts
+named, in English and Spanish), pins it above the work, and reads it aloud and
+translates it for the students entitled to that. The built-in cards:
+
+| `skill` | The card |
+|---|---|
+| `factor.sumDifferenceOfCubes` | Sum and difference of cubes |
+| `factor.differenceOfSquares` | Difference of squares |
+| `factor.perfectSquareTrinomial` | Perfect square trinomials |
+| `factor.trinomialAC` | Factoring by the a·c method |
+| `lines.slopeInterceptForm` | Slope-intercept form |
+| `lines.pointSlopeForm` | Point-slope form |
+| `lines.slopeFormula` | The slope formula |
+| `lines.standardForm` | Standard form of a line |
+| `quadratics.quadraticFormula` | The quadratic formula |
+| `quadratics.vertexForm` | Vertex form of a parabola |
+| `theorems.remainder` | The remainder theorem |
+| `transformations.combined` | Transformations of a function, a·f(b(x − h)) + k |
+
+A few other spellings of the same skills work too (for example
+`linear.graphFromSlopeIntercept`). On a new assignment, a card whose skill has
+no built-in card is a Pre-Flight warning, because students would never see it.
+
+Where it is shown:
+- on Classwork and Practice only, by the section's own role. That includes
+  Classwork reopened as practice after its due date;
+- never on a DOL, quiz or test, even one practised after its due date;
+- never on Warm-Up, Review or Corrections, even when `sections` names them.
+
+It never changes a score. An attempt made with a card on the screen records
+that fact (`referenceCardShown`) for the teacher, and nothing else.
+
 ## 5. A question's `example`
 
 A question names the example that covers it by `id`:

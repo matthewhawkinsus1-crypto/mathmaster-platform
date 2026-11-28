@@ -59,7 +59,11 @@ const typedValue = (rng) => typedInput(rng, rng.pick(FREE_CLASSES), { maxLength:
 // 240 characters: a saved operand of 41 like terms with varied coefficients
 // took 203 s to reopen here, and a 47-link division chain 25 s (mathjs's rule
 // matcher; docs/handoffs/NOVEMBER_BUILD_2026-11.md section 6, "A long side").
-// The operation box refuses such an operand when it is typed
+// Since simplifyFirstMatch.mjs (issue #559) those two take about 0.5 s and
+// 0.2 s, but the matcher still tries every split of a sum or product that no
+// rule matches, so a few of the class's shapes at 240 characters still take
+// tens of seconds (119 links of 1/x/x/…, 41 terms of x^1 + x^2 + …), and the
+// class stays out. The operation box refuses such an operand when it is typed
 // (stepAlgebraEquivalence.mjs STUDENT_EXPRESSION_BUDGET); a saved draft is not
 // read through that budget.
 const SHORT_CLASSES = FREE_CLASSES.filter((inputClass) => inputClass !== 'long' && inputClass !== 'manyTerms');
@@ -73,8 +77,12 @@ const shortTypedValue = (rng) => typedInput(rng, rng.pick(SHORT_CLASSES)).text;
  * in progress rebuilds that move (makePendingMove). Until mathjs's
  * simplifyCore was ported without its discarded call (simplifyCoreOnce.mjs,
  * issue #559), that cost doubled with every term: 18 terms took over twenty
- * times as long as 9, and 24 did not finish. A time limit would depend on the
- * machine; the RATIO does not, so that is what is held.
+ * times as long as 9, and 24 did not finish. Like terms with different
+ * coefficients still cost the cube of their length until simplify looked for
+ * the first match of a rule only (simplifyFirstMatch.mjs, the same issue;
+ * tests/platform/stepAlgebraManyTermsReopen.test.mjs counts that work). A
+ * time limit would depend on the machine; the RATIO does not, so that is what
+ * is held.
  */
 const GROWTH_TERMS = Object.freeze({ short: 9, long: 18 });
 const GROWTH_RATIO_LIMIT = 8;
