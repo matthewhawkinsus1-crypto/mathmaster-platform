@@ -1757,6 +1757,7 @@ const platformFamilySentences = [
   ['Simplify {1}, {2} and {3}.', 'Simplifica {1}, {2} y {3}.'],
   ['Write each answer with positive exponents only.', 'Escribe cada respuesta solo con exponentes positivos.'],
   ['Assume no variable equals zero.', 'Supón que ninguna variable es igual a cero.'],
+  ['Assume all variables are positive.', 'Supón que todas las variables son positivas.'],
   ['In {1}, the base {2} appears more than once.', 'En {1}, la base {2} aparece más de una vez.'],
   ['Its exponent is {1}.', 'Su exponente es {1}.'],
   ['Factors with the same base multiply by adding their exponents, so that base’s exponents are added first.', 'Los factores con la misma base se multiplican sumando sus exponentes, así que primero se suman los exponentes de esa base.'],

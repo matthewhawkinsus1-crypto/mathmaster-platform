@@ -22,9 +22,14 @@
  *                      shows a is an nth root of b, and both real even roots.
  */
 import {
+  ASSUME,
+  ASSUME_SENTENCE,
   MINUS,
   Q,
+  assumptionOf,
   firstFitting,
+  identity,
+  itemAllowsNegative,
   intPow,
   math,
   qAdd,
@@ -40,6 +45,7 @@ import {
   expressionText,
   monomialSteps,
   mutateMonomial,
+  needsPositiveVariables,
   parseMonomialExpression,
   positiveForm,
   sameKindOfResult,
@@ -107,7 +113,7 @@ const rationalClaim = (question, fields) => {
   // One sibling part for each kind of part, in the item's order.
   const shapes = [];
   parts.forEach((part) => { if (!shapes.some((other) => other.shape === part.shape)) shapes.push(part); });
-  return { shapes, items: parts };
+  return { shapes, items: parts, allowsNegative: itemAllowsNegative(question) };
 };
 
 const evaluateOptions = (shape) => {
@@ -132,12 +138,12 @@ const evaluatePart = (shape, { k, q, b, p }) => {
   if (p !== 1) steps.push({ show: `The numerator ${math(p)} is the power: ${math(`${power(root)}${superscript(p)} = ${signed(raised)}`)}.`, why: RATIONAL_WHY.power });
   const value = negativeExponent ? (raised < 0 ? `${MINUS}1/${Math.abs(raised)}` : `1/${raised}`) : signed(raised);
   if (negativeExponent) steps.push({ show: `The exponent is negative, so take the reciprocal: ${math(`${asked} = 1/${power(base)}${exponentText(p, q)} = ${value}`)}.`, why: RATIONAL_WHY.reciprocal });
-  return { ask: `Evaluate ${math(asked)}.`, steps, answer: math(`${asked} = ${value}`), problem: asked, key: b };
+  return { ask: `Evaluate ${math(asked)}.`, steps, answer: math(`${asked} = ${value}`), problem: asked, key: b, identities: [identity(asked, value)] };
 };
 
 const rootValuePart = ({ k, q, b }) => {
   const sign = rootOf(q, String(b));
-  return { ask: `Evaluate ${math(sign)}.`, steps: [{ show: `${math(`${sign} = ${k}`)}, because ${math(`${k}${superscript(q)} = ${b}`)}.`, why: RATIONAL_WHY.rootValue }], answer: math(`${sign} = ${k}`), problem: sign, key: b };
+  return { ask: `Evaluate ${math(sign)}.`, steps: [{ show: `${math(`${sign} = ${k}`)}, because ${math(`${k}${superscript(q)} = ${b}`)}.`, why: RATIONAL_WHY.rootValue }], answer: math(`${sign} = ${k}`), problem: sign, key: b, identities: [identity(sign, k), identity(`${k}${superscript(q)}`, b)] };
 };
 
 // Whether a negative base to a rational power is real: the sibling's case is
@@ -151,6 +157,7 @@ const realCheckPart = (even, { k, q, b, p }) => {
       answer: `${math(expression)} is not a real number`,
       problem: expression,
       key: b,
+      identities: [],
     };
   }
   const value = intPow(-k, p);
@@ -160,6 +167,7 @@ const realCheckPart = (even, { k, q, b, p }) => {
     answer: math(`${expression} = ${signed(value)}`),
     problem: expression,
     key: b,
+    identities: [identity(expression, signed(value))],
   };
 };
 
@@ -170,6 +178,7 @@ const toRadicalPart = ({ letter, q }) => ({
   answer: math(`${letter}^(1/${q}) = ${rootOf(q, letter)}`),
   problem: `${letter}^(1/${q})`,
   key: letter,
+  identities: [identity(`${letter}^(1/${q})`, rootOf(q, letter), q % 2 === 0 ? ASSUME.POSITIVE : ASSUME.REAL)],
 });
 const toExponentialPart = ({ letter, q }) => ({
   ask: `Write ${math(rootOf(q, letter))} in exponential form.`,
@@ -177,6 +186,7 @@ const toExponentialPart = ({ letter, q }) => ({
   answer: math(`${rootOf(q, letter)} = ${letter}^(1/${q})`),
   problem: rootOf(q, letter),
   key: letter,
+  identities: [identity(rootOf(q, letter), `${letter}^(1/${q})`, q % 2 === 0 ? ASSUME.POSITIVE : ASSUME.REAL)],
 });
 
 const rationalPart = (shape, seed, used, ok) => {
@@ -206,11 +216,17 @@ const rationalDraw = (plan, seed, ok = null) => {
     used.add(part.key);
     parts.push(part);
   }
+  const identities = parts.flatMap((part) => part.identities);
+  const assume = assumptionOf(identities);
+  // An even root of a letter holds for positive values only; an item that asks for negative ones gets none.
+  if (assume === ASSUME.POSITIVE && plan.allowsNegative) return null;
   return {
-    prompt: parts.map((part) => part.ask).join(' '),
+    prompt: [...parts.map((part) => part.ask), ...(assume === ASSUME.POSITIVE ? [ASSUME_SENTENCE.positive] : [])].join(' '),
     steps: parts.flatMap((part) => part.steps),
     answer: joinParts(parts.map((part) => part.answer)),
     problems: parts.map((part) => part.problem),
+    identities,
+    assume,
   };
 };
 
@@ -246,7 +262,7 @@ const monomialClaim = (question, fields) => {
   if (!expressions.length) return null;
   // An exponent field names a base of the expression after it.
   if (parts.some((part, index) => part.kind === 'exponentOf' && parts[index + 1]?.kind !== 'simplify')) return null;
-  return { parts };
+  return { parts, allowsNegative: itemAllowsNegative(question) };
 };
 
 const exponentsOfIn = (tree, letter) => {
@@ -260,6 +276,7 @@ const monomialDraw = (plan, seed, ok = null) => {
   const asks = [];
   const steps = [];
   const answers = [];
+  const identities = [];
   const avoidLetters = [];
   for (let index = 0; index < plan.parts.length; index += 1) {
     const part = plan.parts[index];
@@ -283,23 +300,31 @@ const monomialDraw = (plan, seed, ok = null) => {
         extra.push({ show: `In ${math(expression)}, the base ${math(named)} appears more than once. Its exponent is ${math(`${signedSum(exponents)} = ${qText(exponents.reduce(qAdd))}`)}.`, why: 'Factors with the same base multiply by adding their exponents, so that base’s exponents are added first.' });
         extraAnswer = `exponent of the repeated base = ${math(qText(exponents.reduce(qAdd)))}`;
       }
+      // An even root of a letter: the rules hold for positive values only, and
+      // an item that asks for negative ones gets a sibling that needs none.
+      const positive = needsPositiveVariables(mutated);
+      if (positive && plan.allowsNegative) continue;
       const answer = math(`${expression} = ${positiveForm(worked.value)}`);
       const partSteps = [...extra, ...worked.steps];
       if (ok && !ok([...partSteps.flatMap((step) => [step.show, step.why]), answer, extraAnswer].filter(Boolean))) continue;
-      sibling = { expression, steps: partSteps, answers: [extraAnswer, answer].filter(Boolean), tree: mutated };
+      sibling = { expression, steps: partSteps, answers: [extraAnswer, answer].filter(Boolean), tree: mutated, identity: identity(expression, positiveForm(worked.value), positive ? ASSUME.POSITIVE : ASSUME.NONZERO) };
     }
     if (!sibling) return null;
     asks.push(sibling.expression);
     steps.push(...sibling.steps);
     answers.push(...sibling.answers);
+    identities.push(sibling.identity);
     Object.keys(evaluateMonomial(sibling.tree)?.v || {}).forEach((letter) => avoidLetters.push(letter));
   }
   if (!asks.length) return null;
+  const assume = assumptionOf(identities);
   return {
-    prompt: `Simplify ${articleList(asks.map(math))}. Write each answer with positive exponents only. Assume no variable equals zero.`,
+    prompt: `Simplify ${articleList(asks.map(math))}. Write each answer with positive exponents only. ${ASSUME_SENTENCE[assume === ASSUME.POSITIVE ? 'positive' : 'nonzero']}`,
     steps,
     answer: joinParts(answers),
     problems: asks,
+    identities,
+    assume,
   };
 };
 
@@ -348,6 +373,8 @@ const vocabularyDraw = (plan, seed, ok = null) => {
   const answers = [];
   const asks = [];
   const has = (kind) => plan.parts.some((part) => part.kind === kind);
+  let namedIdentities = [];
+  let evenIdentities = [];
   if (plan.named) {
     const named = firstFitting(POWERS.filter(({ q, b }) => q >= 3 && q !== plan.named.q && !avoid.has(b)), seed, ({ k, q, b }) => {
       const sign = rootOf(q, String(b));
@@ -365,9 +392,10 @@ const vocabularyDraw = (plan, seed, ok = null) => {
         partSteps.push({ show: `${math(k)} is a root of ${math(b)} with index ${math(q)}, because ${math(`${k}${superscript(q)} = ${b}`)}.`, why: VOCABULARY_WHY.proof });
         partAnswers.push(math(`${k}${superscript(q)} = ${b}`));
       }
-      return { ask: `Name the parts of ${math(sign)}.`, steps: partSteps, answer: partAnswers.join('; '), key: b };
+      return { ask: `Name the parts of ${math(sign)}.`, steps: partSteps, answer: partAnswers.join('; '), key: b, identities: [identity(`${k}${superscript(q)}`, b), identity(sign, k)] };
     }, ok);
     if (!named) return null;
+    namedIdentities = named.identities;
     avoid.add(named.key);
     asks.push(named.ask);
     steps.push(...named.steps);
@@ -385,15 +413,16 @@ const vocabularyDraw = (plan, seed, ok = null) => {
         partSteps.push({ show: `${math(`(${MINUS}${k})${superscript(q)} = ${b}`)} too, so the other real root is ${math(`${MINUS}${rootSign(q)}${b} = ${MINUS}${k}`)}.`, why: VOCABULARY_WHY.other });
         partAnswers.push(`other real root = ${math(`${MINUS}${k}`)}`);
       }
-      return { ask: `Find both real roots of ${math(b)} with index ${math(q)}.`, steps: partSteps, answer: partAnswers.join('; ') };
+      return { ask: `Find both real roots of ${math(b)} with index ${math(q)}.`, steps: partSteps, answer: partAnswers.join('; '), identities: [identity(rootOf(q, String(b)), k), identity(`(${MINUS}${k})${superscript(q)}`, b), identity(`${MINUS}${rootSign(q)}${b}`, `${MINUS}${k}`)] };
     }, ok);
     if (!even) return null;
+    evenIdentities = even.identities;
     asks.push(even.ask);
     steps.push(...even.steps);
     answers.push(even.answer);
   }
   if (!steps.length) return null;
-  return { prompt: asks.join(' '), steps, answer: joinParts(answers) };
+  return { prompt: asks.join(' '), steps, answer: joinParts(answers), identities: [...(plan.named ? namedIdentities : []), ...(plan.even ? evenIdentities : [])], assume: ASSUME.REAL };
 };
 
 export const rootVocabulary = Object.freeze({ id: 'rootVocabulary', standards: ['A2.7G'], claim: vocabularyClaim, draw: vocabularyDraw });

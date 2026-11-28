@@ -289,6 +289,19 @@ Where the Algebra II answer-box generators live (WE-I), and what they claim:
   passes `similarExampleIsSafe`. Mathematics is written in plain text with
   superscripts, as the items' labels are, and the reasons are written in words
   with no letter standing alone.
+- **What a sibling assumes about its variables.** An even root, or a rational
+  power with an even denominator, follows the exponent rules only for
+  positive values ((x⁴)^(1/4) is |x|). A sibling that uses one says "Assume
+  all variables are positive." and its answer is the one that holds then, with
+  no absolute values, as the lessons write it; any other says no variable is
+  zero where it divides by one. An item whose own prompt lets its variables be
+  negative gets no such sibling (`itemAllowsNegative`, `shared.js`).
+- **Every sibling states something true.** Each names the identities it states
+  (`identities`: its starting expression, its answer, the assumption), and
+  `tests/platform/workedExampleSiblingIdentities.test.mjs` evaluates both sides
+  with mathjs, from the plain text alone, at random values that satisfy the
+  assumption, over every real item each WE-I family claims and seeds 0 to 20:
+  they must agree to 1e-9. It covers the division replay too.
 - **Each answer line is in parts** ("Quotient = …; remainder = …"), so
   "Practise one like this" can check the student's answer part by part.
 - **Every sentence translates.** Its mathematics is set in `$…$` (`math`,
@@ -307,7 +320,8 @@ Where the Algebra II answer-box generators live (WE-I), and what they claim:
   writes, so no sibling would pass the guard; those items keep needing an
   example the lesson writes.
 - **Tests:** `tests/platform/algebra2AnswerBoxExamples.test.mjs` (every claim
-  over the real lessons) and the answer-box scenario of
+  over the real lessons), `workedExampleSiblingIdentities.test.mjs` (every
+  sibling's mathematics, numerically) and the answer-box scenario of
   `tests/browser/divisionReplay.mjs`.
 
 Where slice F lives, and what it does:

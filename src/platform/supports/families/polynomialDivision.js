@@ -51,5 +51,7 @@ export const similarProblem = (question, { seed = 0 } = {}) => {
     steps: replay.steps.map((step) => ({ show: step.show, why: step.why })),
     answer: replay.answer,
     problems: replay.problems,
+    identities: replay.identities,
+    assume: replay.assume,
   };
 };

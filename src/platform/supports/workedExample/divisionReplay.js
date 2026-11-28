@@ -264,6 +264,13 @@ const syntheticTextReplay = (question) => {
     record: work,
     fadeLimit,
     problems: [exactPolynomialTyped(entriesOf(dividend.coefficients), letter)],
+    // Dividend = divisor × quotient + remainder, in plain text, for the numeric check.
+    identities: [{
+      start: exactPolynomialPlainText(entriesOf(dividend.coefficients), letter),
+      answer: `(${exactPolynomialPlainText(entriesOf(divisor.coefficients), letter)})(${exactPolynomialPlainText(key.quotient, letter)}) + (${ratioPlainText(key.remainderOverDivisor)})`,
+      assume: 'real',
+    }],
+    assume: 'real',
   };
 };
 
@@ -352,6 +359,11 @@ const theoremsReplay = (question) => {
     record: work,
     fadeLimit,
     problems: [exactPolynomialTyped(entriesOf(top), 'x')],
+    identities: [
+      { start: exactPolynomialPlainText(entriesOf(top), 'x'), answer: `(x − (${ratioPlainText(exact(r))}))(${exactPolynomialPlainText(entriesOf(quotient), 'x')}) + (${ratioPlainText(exact(remainder))})`, assume: 'real' },
+      { start: exactPolynomialPlainText(entriesOf(top), 'x'), answer: ratioPlainText(exact(remainder)), assume: 'real', values: { x: ratioValue(exact(r)) } },
+    ],
+    assume: 'real',
   };
 };
 
@@ -430,6 +442,12 @@ const longReplay = (question) => {
     record: work,
     fadeLimit,
     problems: [exactPolynomialTyped(entriesOf(dividend.coefficients), letter)],
+    identities: [{
+      start: exactPolynomialPlainText(entriesOf(dividend.coefficients), letter),
+      answer: `(${exactPolynomialPlainText(entriesOf(divisor.coefficients), letter)})(${exactPolynomialPlainText(key.quotient, letter)}) + (${exactPolynomialPlainText(key.remainder, letter)})`,
+      assume: 'real',
+    }],
+    assume: 'real',
   };
 };
 

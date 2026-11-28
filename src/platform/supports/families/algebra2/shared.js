@@ -274,5 +274,27 @@ export const toLatex = (value) => {
   out = out.replace(SUPERSCRIPT_RUN, (run) => `^{${run.split('').map(plainOf).join('')}}`);
   return out;
 };
+/*
+ * WHAT A SIBLING ASSUMES ABOUT ITS VARIABLES. An even root, or a rational
+ * power with an even denominator, follows the exponent rules only for
+ * positive values: (x⁴)^(1/4) is |x|, not x. A sibling that uses one says
+ * "Assume all variables are positive." and its answer is the one that holds
+ * then (no absolute values, as the lessons write it); any other says no
+ * variable is zero where it divides by one. An item whose own prompt asks for
+ * negative values too would make such a sibling teach something false for
+ * it, so then the sibling is not played.
+ */
+export const ASSUME = Object.freeze({ POSITIVE: 'positive', NONZERO: 'nonzero', REAL: 'real' });
+export const ASSUME_SENTENCE = Object.freeze({ positive: 'Assume all variables are positive.', nonzero: 'Assume no variable equals zero.' });
+/** The item says its variables may be negative (or any real number). */
+export const itemAllowsNegative = (question) => /\b(?:assume|for)\b[^.]*\b(?:negative|any real|all real)\b/i.test(text(question?.prompt));
+/** The strongest assumption among a sibling's identities. */
+export const assumptionOf = (identities) => {
+  const all = list(identities).map((identity) => identity.assume);
+  return all.includes(ASSUME.POSITIVE) ? ASSUME.POSITIVE : all.includes(ASSUME.NONZERO) ? ASSUME.NONZERO : ASSUME.REAL;
+};
+/** An identity a sibling states: its starting expression equals its answer, under `assume` (plain text). */
+export const identity = (start, answer, assume = ASSUME.REAL, values = null) => ({ start: text(start), answer: text(answer), assume, ...(values ? { values } : {}) });
+
 /** A piece of mathematics, set in $…$. */
 export const math = (value) => `$${toLatex(value)}$`;

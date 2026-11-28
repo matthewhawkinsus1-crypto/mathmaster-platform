@@ -24,8 +24,11 @@
  * that answer.
  */
 import {
+  ASSUME,
+  ASSUME_SENTENCE,
   MINUS,
   divisorsOf,
+  identity,
   evaluate,
   firstFitting,
   linearFactorText,
@@ -228,6 +231,14 @@ const chainPart = (plan, option) => {
     steps,
     answer: joinParts(answers),
     problems: [pText],
+    // The polynomial, factored and divided, and each zero putting it to zero.
+    identities: [
+      identity(pText, `(${linearFactorText(r)})${factors.map(factorText).join('')}`),
+      identity(pText, `(${linearFactorText(r)})(${polynomialText(quadratic)})`),
+      identity(polynomialText(quadratic), factors.map(factorText).join('')),
+      ...option.zeros.map((zero) => identity(pText, '0', ASSUME.REAL, { x: zero.n / zero.d })),
+    ],
+    assume: ASSUME.REAL,
   };
 };
 
@@ -248,7 +259,7 @@ const listOnlyPart = (plan, [leading, constant, middle]) => {
     steps.push({ show: `Divide each factor of ${math(signed(constant))} by each factor of ${math(leading)}: the possible rational zeros are ${math(list)}.`, why: ZERO_WHY.candidates });
     answers.push(`possible rational zeros = ${math(list)}`);
   }
-  return { prompt: `List all of the possible rational zeros of ${math(`f(x) = ${polynomialText(coefficients)}`)}.`, steps, answer: joinParts(answers), problems: [polynomialText(coefficients)] };
+  return { prompt: `List all of the possible rational zeros of ${math(`f(x) = ${polynomialText(coefficients)}`)}.`, steps, answer: joinParts(answers), problems: [polynomialText(coefficients)], identities: [], assume: ASSUME.REAL };
 };
 
 const chainDraw = (plan, seed, ok = null) => {
@@ -310,7 +321,12 @@ const quadraticFormPart = (plan, [a, b]) => {
   if (plan.kinds.includes('back')) answers.push(math(`(x² ${MINUS} ${A})(x² ${MINUS} ${B})`));
   if (plan.kinds.includes('factored')) answers.push(math(linear));
   if (plan.kinds.includes('zeros')) answers.push(`zeros = ${math(zeros)}`);
-  return { prompt: `Factor ${math(`f(x) = ${poly}`)} completely with ${math('u = x²')}. Then list its zeros.`, steps, answer: joinParts(answers), problems: [poly] };
+  return { prompt: `Factor ${math(`f(x) = ${poly}`)} completely with ${math('u = x²')}. Then list its zeros.`, steps, answer: joinParts(answers), problems: [poly], identities: [
+    identity(poly, linear),
+    identity(poly, `(x² ${MINUS} ${A})(x² ${MINUS} ${B})`),
+    identity(`u² ${MINUS} ${middle}u + ${product}`, `(u ${MINUS} ${A})(u ${MINUS} ${B})`),
+    ...[-b, -a, a, b].map((zero) => identity(poly, '0', ASSUME.REAL, { x: zero })),
+  ], assume: ASSUME.REAL };
 };
 
 export const quadraticForm = Object.freeze({
@@ -359,7 +375,12 @@ const groupingPart = (plan, [k, m]) => {
     steps.push({ show: `The pairing ${math(`(${kText}xy + xz) + (${km}y + ${m}z)`)} works too: ${math(`x(${kText}y + z) + ${m}(${kText}y + z) = (x + ${m})(${kText}y + z)`)}.`, why: GROUPING_WHY.other });
     answers.push(`also ${math(`(${kText}xy + xz) + (${km}y + ${m}z)`)}`);
   }
-  return { prompt: `Factor ${math(expression)} by grouping. Rearrange the terms first if a pair shares no factor.`, steps, answer: joinParts(answers), problems: [expression] };
+  return { prompt: `Factor ${math(expression)} by grouping. Rearrange the terms first if a pair shares no factor.`, steps, answer: joinParts(answers), problems: [expression], identities: [
+    identity(expression, `(x + ${m})(${kText}y + z)`),
+    identity(`${kText}xy + ${km}y`, `${kText}y(x + ${m})`),
+    identity(`xz + ${m}z`, `z(x + ${m})`),
+    identity(`(${kText}xy + xz) + (${km}y + ${m}z)`, `x(${kText}y + z) + ${m}(${kText}y + z)`),
+  ], assume: ASSUME.REAL };
 };
 
 export const groupFourTerms = Object.freeze({
@@ -434,7 +455,7 @@ const overMonomialDraw = (plan, seed, ok = null) => {
     if (failed) continue;
     const quotient = pieces.map((piece, index) => (index === 0 ? piece.quotient : piece.quotient.startsWith(MINUS) ? `${MINUS} ${piece.quotient.slice(1)}` : `+ ${piece.quotient}`)).join(' ');
     steps.push({ show: `Add the quotients: ${math(quotient)}.`, why: 'The quotient is the sum of the terms’ quotients, each in simplest form.' });
-    const example = { prompt: `Simplify ${math(`(${numerator})/(${down})`)}.`, steps, answer: `Quotient = ${math(quotient)}`, problems: [numerator] };
+    const example = { prompt: `Simplify ${math(`(${numerator})/(${down})`)}. ${ASSUME_SENTENCE.nonzero}`, steps, answer: `Quotient = ${math(quotient)}`, problems: [numerator], identities: [identity(`(${numerator})/(${down})`, quotient, ASSUME.NONZERO)], assume: ASSUME.NONZERO };
     if (!ok || ok([...steps.flatMap((step) => [step.show, step.why]), example.answer])) return example;
   }
   return null;

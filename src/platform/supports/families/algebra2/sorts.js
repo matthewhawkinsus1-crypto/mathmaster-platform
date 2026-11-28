@@ -14,7 +14,7 @@
  * the generator keeps it safe itself: no card of the sibling is a card of the
  * item, and the sibling's radicand is not the item's.
  */
-import { MINUS, firstFitting, math, rootOf, signed, superscript, text } from './shared.js';
+import { ASSUME, MINUS, firstFitting, identity, math, rootOf, signed, superscript, text } from './shared.js';
 
 const list = (value) => (Array.isArray(value) ? value : []);
 const labelsOf = (values) => list(values).map((value) => text(value?.label)).filter(Boolean);
@@ -61,7 +61,11 @@ const realCard = ([index, radicand]) => {
   else show = `The real solutions of ${math(equation)}: an even power is never negative, so no real number works. No real roots.`;
   const group = kind === 'evenPositive' ? 'Two real roots' : kind === 'evenNegative' ? 'No real roots' : 'Exactly one real root';
   const value = kind === 'evenPositive' ? `${rootOf(index, String(radicand))} = ${magnitude}` : kind === 'odd' ? `${rootOf(index, signed(radicand))} = ${signed(Math.sign(radicand) * magnitude)}` : null;
-  return { label, equation, group, value: value && math(value), step: { show, why: REAL_ROOTS_WHY[kind] } };
+  // Each root the card states makes its equation true.
+  const roots = kind === 'evenPositive' ? [magnitude, -magnitude] : kind === 'odd' ? [Math.sign(radicand) * magnitude] : kind === 'zero' ? [0] : [];
+  const identities = roots.map((root) => identity(`x${superscript(index)}`, signed(radicand), ASSUME.REAL, { x: root }));
+  if (value) identities.push(identity(value.split(' = ')[0], value.split(' = ')[1]));
+  return { label, equation, group, value: value && math(value), identities, step: { show, why: REAL_ROOTS_WHY[kind] } };
 };
 
 const realRootsDraw = (plan, seed) => {
@@ -80,6 +84,8 @@ const realRootsDraw = (plan, seed) => {
     steps: [...cards.map((card) => card.step), { show: `${groups.join('. ')}.`, why: 'Two things decide the number of real roots: whether the index is even or odd, and the sign of the radicand.' }],
     // Each root a card has, then the groups (in words).
     answer: [...cards.map((card) => card.value).filter(Boolean), ...groups].join('; '),
+    identities: cards.flatMap((card) => card.identities),
+    assume: ASSUME.REAL,
     problems: [],
   };
 };
@@ -122,6 +128,8 @@ const likeDraw = (plan, seed, ok) => firstFitting(SQUARE_FREE.filter((value) => 
     steps: [...cards.map((card) => ({ show: card.show, why: card.why })), { show: `Can be combined with ${math(`√${n}`)}: ${math(likeGroup)}. Cannot: ${math(unlikeGroup)}.`, why: LIKE_RADICALS_WHY.like }],
     // Each card simplified, then the groups (in words).
     answer: [math(`√${9 * n} = 3√${n}`), math(`2√${16 * n} = 8√${n}`), math(`√${4 * other} = 2√${other}`), `can be combined: ${math(likeGroup)}`, `cannot: ${math(unlikeGroup)}`].join('; '),
+    identities: [identity(`√${9 * n}`, `3√${n}`), identity(`2√${16 * n}`, `8√${n}`), identity(`√${4 * other}`, `2√${other}`)],
+    assume: ASSUME.REAL,
     problems: [],
   };
 }, ok);

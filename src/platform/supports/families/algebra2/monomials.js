@@ -399,6 +399,24 @@ export const mutateMonomial = (node, seed, { avoidLetters = [] } = {}) => {
   return mutated;
 };
 
+/**
+ * Whether the expression holds only for positive values of its letters: a
+ * rational power with an even denominator applied to something with a letter
+ * in it, or a value left with such an exponent. (x⁴)^(1/4) is |x|, so the
+ * exponent rules give x only when x > 0.
+ */
+export const needsPositiveVariables = (node) => {
+  const lettered = (current) => isObject(current) && (current.t === 'var' || [current.a, current.b, ...(current.items || [])].some(lettered));
+  const walk = (current) => {
+    if (!isObject(current)) return false;
+    if (current.t === 'pow' && current.e.d % 2 === 0 && lettered(current.a)) return true;
+    return [current.a, current.b, ...(current.items || [])].some(walk);
+  };
+  if (walk(node)) return true;
+  const value = evaluateMonomial(node);
+  return Boolean(value) && Object.values(value.v).some((exponent) => exponent.d % 2 === 0);
+};
+
 /** The same kind of result: the same letters' signs in the same places, a whole coefficient where the item's is. */
 export const sameKindOfResult = (item, sibling, letterMap = null) => {
   if (!item || !sibling) return false;
