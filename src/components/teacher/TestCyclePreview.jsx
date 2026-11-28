@@ -82,7 +82,7 @@ const clearPreviewDrafts = (assignmentId) => {
 
 const DEVICE_WORDS = Object.freeze({ chromebook: 'Chromebook', ipad: 'iPad', phone: 'phone' });
 
-const SecureItemsPreview = ({ assignment, candidate = null, stage, accommodation, onBack }) => {
+const SecureItemsPreview = ({ assignment, candidate = null, sourceAssignmentId = null, stage, accommodation, onBack }) => {
   const previewKey = assignment.id || UNSAVED_PREVIEW_KEY;
   const [draw, setDraw] = useState(1);
   const [data, setData] = useState(null);
@@ -104,7 +104,7 @@ const SecureItemsPreview = ({ assignment, candidate = null, stage, accommodation
       // The stage decides the capability policy the server stamps on each
       // item (Secure Test or Secure Retest) — the one a student would get.
       const response = candidate
-        ? await previewTestCycleSecureItems({ candidate, draw: nextDraw, stage })
+        ? await previewTestCycleSecureItems({ candidate, sourceAssignmentId, draw: nextDraw, stage })
         : await previewTestCycleSecureItems({ assignmentId: assignment.id, draw: nextDraw, stage });
       setData(response);
       setIndex(0);
@@ -113,7 +113,7 @@ const SecureItemsPreview = ({ assignment, candidate = null, stage, accommodation
     } catch (loadError) {
       setError(loadError.message || 'The secure Test could not be previewed.');
     }
-  }, [assignment.id, candidate, previewKey, stage]);
+  }, [assignment.id, candidate, sourceAssignmentId, previewKey, stage]);
 
   useEffect(() => { load(draw); }, [load, draw]);
   useEffect(() => () => clearPreviewDrafts(previewKey), [previewKey]);
@@ -131,7 +131,7 @@ const SecureItemsPreview = ({ assignment, candidate = null, stage, accommodation
     if (!item?.previewItemId) return null;
     setChecking(true);
     try {
-      const graded = await gradeTestCyclePreviewItem({ previewItemId: item.previewItemId, responsePayload, candidate });
+      const graded = await gradeTestCyclePreviewItem({ previewItemId: item.previewItemId, responsePayload, candidate, sourceAssignmentId });
       setResults((current) => ({
         ...current,
         [item.ordinal]: graded.incomplete ? `incomplete:${graded.detail || 'The work is not complete yet.'}` : graded.isCorrect ? 'correct' : 'incorrect',
@@ -150,7 +150,7 @@ const SecureItemsPreview = ({ assignment, candidate = null, stage, accommodation
     if (!item?.previewItemId) return null;
     setChecking(true);
     try {
-      const graded = await gradeTestCyclePreviewItem({ previewItemId: item.previewItemId, responsePayload, candidate });
+      const graded = await gradeTestCyclePreviewItem({ previewItemId: item.previewItemId, responsePayload, candidate, sourceAssignmentId });
       if (graded.incomplete) return { blocked: true, message: graded.detail || 'Finish your work in the tool, then check it.' };
       const previous = correctionFeedback[item.ordinal] || { attemptsUsed: 0 };
       const attemptsUsed = previous.attemptsUsed + 1;
@@ -267,7 +267,7 @@ const SecureItemsPreview = ({ assignment, candidate = null, stage, accommodation
   );
 };
 
-export const TestCyclePreview = ({ assignment, onClose, onPreviewReview = null, candidate = null }) => {
+export const TestCyclePreview = ({ assignment, onClose, onPreviewReview = null, candidate = null, sourceAssignmentId = null }) => {
   const [scenario, setScenario] = useState('review');
   const [device, setDevice] = useState('chromebook');
   const [view, setView] = useState('card');
@@ -324,7 +324,7 @@ export const TestCyclePreview = ({ assignment, onClose, onPreviewReview = null, 
               />
             )}
             {(view === 'test' || view === 'retest') && (
-              <SecureItemsPreview assignment={assignment} candidate={candidate} stage={view} accommodation={accommodation} onBack={() => setView('card')} />
+              <SecureItemsPreview assignment={assignment} candidate={candidate} sourceAssignmentId={sourceAssignmentId} stage={view} accommodation={accommodation} onBack={() => setView('card')} />
             )}
             {view === 'corrections' && (
               <section style={{ background: 'var(--mm-surface)', border: '1px solid var(--mm-border)', borderRadius: 14, padding: 18, display: 'grid', gap: 10 }}>
@@ -349,7 +349,7 @@ export const TestCyclePreview = ({ assignment, onClose, onPreviewReview = null, 
               </section>
             )}
             {view === 'correctionItems' && (
-              <SecureItemsPreview assignment={assignment} candidate={candidate} stage="corrections" accommodation={accommodation} onBack={() => setView('corrections')} />
+              <SecureItemsPreview assignment={assignment} candidate={candidate} sourceAssignmentId={sourceAssignmentId} stage="corrections" accommodation={accommodation} onBack={() => setView('corrections')} />
             )}
           </div>
         </div>

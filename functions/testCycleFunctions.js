@@ -2387,6 +2387,55 @@ exports.preflightTestCycleAssignment = onCall(TEST_CYCLE_ACTION_OPTIONS, async (
   return { success: true, preflight: result };
 });
 
+/*
+ * A TEST CYCLE CANDIDATE BUILT IN THE BROWSER, CHECKED BEFORE ANYTHING IS READ FOR IT.
+ *
+ * A candidate may name a `secureTestReference` only as the one its saved
+ * assignment already carries: `sourceAssignmentId` names that assignment, the
+ * caller must be able to manage it (as `attachTestCycleContract` requires), and
+ * the manifest ids must match. The root
+ * administrator may name any manifest. A manifest id is one document id, and
+ * a candidate's blueprint names at most TEST_CYCLE_CANDIDATE_MAX_FAMILIES
+ * families.
+ */
+const TEST_CYCLE_CANDIDATE_MAX_FAMILIES = 100;
+
+function secureReferenceManifestId(reference) {
+  return String(reference?.manifestId || reference?.blueprintId || reference?.id || "").trim();
+}
+
+async function assertTestCycleCandidateAllowed(request, db, candidate, shared) {
+  const candidateManifestId = secureReferenceManifestId(candidate?.secureTestReference);
+  if (candidate?.secureTestReference !== undefined && candidate?.secureTestReference !== null
+    && (typeof candidate.secureTestReference !== "object" || Array.isArray(candidate.secureTestReference))) {
+    throw new HttpsError("invalid-argument", "secureTestReference must be an object.");
+  }
+  if (candidateManifestId) {
+    if (!validDocumentId(candidateManifestId)) {
+      throw new HttpsError("invalid-argument", "A secure test reference must name one manifest id.");
+    }
+    if (!authLib.isRootAdminEmail(callerEmail(request))) {
+      const sourceAssignmentId = String(request.data?.sourceAssignmentId || "").trim();
+      if (!validDocumentId(sourceAssignmentId)) {
+        throw new HttpsError("permission-denied", "A secure test reference can only come from your own saved assignment.");
+      }
+      const sourceSnapshot = await db.collection("assignments").doc(sourceAssignmentId).get();
+      if (!sourceSnapshot.exists) {
+        throw new HttpsError("permission-denied", "A secure test reference can only come from your own saved assignment.");
+      }
+      // The same right `attachTestCycleContract` asks for to change it.
+      await assertTeacherMayManageAssignmentLifecycle(request, sourceSnapshot);
+      if (secureReferenceManifestId(sourceSnapshot.data()?.secureTestReference) !== candidateManifestId) {
+        throw new HttpsError("permission-denied", "A secure test reference can only come from your own saved assignment.");
+      }
+    }
+  }
+  const embedded = shared.blueprint.normalizeTestBlueprint(candidate?.testBlueprint);
+  if (blueprintFamilyIds(embedded).length > TEST_CYCLE_CANDIDATE_MAX_FAMILIES) {
+    throw new HttpsError("invalid-argument", `A Test Cycle blueprint may name at most ${TEST_CYCLE_CANDIDATE_MAX_FAMILIES} families.`);
+  }
+}
+
 /** Authoritative pre-save gate used only for Test Cycle candidates. */
 exports.preflightTestCycleCandidate = onCall(async (request) => {
   await requireTeacher(request);
@@ -2399,6 +2448,7 @@ exports.preflightTestCycleCandidate = onCall(async (request) => {
   if (!shared.policy.declaresTestCycle(assignment)) {
     return { success: true, testCycle: false, preflight: null };
   }
+  await assertTestCycleCandidateAllowed(request, db, assignment, shared);
   const policy = shared.policy.normalizeTestCyclePolicy(assignment.assessmentPolicy)
     || shared.policy.defaultTestCyclePolicy();
   const resolution = await resolveSecureTestBlueprint(db, assignment, shared);
@@ -4494,7 +4544,7 @@ function decodePreviewItem(text) {
  * preview student. Any teacher can make a blueprint real by saving it, so this
  * is no wider an answer oracle than a saved Test Cycle already is.
  */
-async function loadTestCycleCandidate(db, candidate) {
+async function loadTestCycleCandidate(db, candidate, request) {
   if (!candidate || typeof candidate !== "object" || Array.isArray(candidate)) {
     throw new HttpsError("invalid-argument", "A Test Cycle assignment candidate is required.");
   }
@@ -4502,6 +4552,7 @@ async function loadTestCycleCandidate(db, candidate) {
   if (!shared.policy.declaresTestCycle(candidate)) {
     throw new HttpsError("failed-precondition", "That assignment is not a MathMaster Test Cycle.");
   }
+  await assertTestCycleCandidateAllowed(request, db, candidate, shared);
   const policy = shared.policy.normalizeTestCyclePolicy(candidate.assessmentPolicy)
     || shared.policy.defaultTestCyclePolicy();
   const { blueprint } = await resolveSecureTestBlueprint(db, candidate, shared);
@@ -4524,7 +4575,7 @@ exports.previewTestCycleSecureItems = onCall(async (request) => {
   } else {
     // The unsaved Test Cycle on the teacher's review screen.
     teacherUid = await requireTeacher(request);
-    loaded = { ...(await loadTestCycleCandidate(db, request.data?.assignment)), candidate: true };
+    loaded = { ...(await loadTestCycleCandidate(db, request.data?.assignment, request)), candidate: true };
   }
   const { assignmentId, assignment, policy, blueprint, shared } = loaded;
   if (!blueprint.targets.length) throw new HttpsError("failed-precondition", "This Test Cycle has no secure Test blueprint to preview.");
@@ -4642,7 +4693,7 @@ exports.gradeTestCyclePreviewItem = onCall(async (request) => {
     // An unsaved candidate's item: judged against the candidate the teacher
     // is reviewing, under the same family and preview-seed checks below.
     teacherUid = await requireTeacher(request);
-    ({ blueprint } = await loadTestCycleCandidate(db, request.data?.assignment));
+    ({ blueprint } = await loadTestCycleCandidate(db, request.data?.assignment, request));
   } else {
     const assignmentSnapshot = await db.collection("assignments").doc(String(decoded.a)).get();
     if (!assignmentSnapshot.exists) throw new HttpsError("not-found", "That assignment was not found.");

@@ -1185,7 +1185,10 @@ export default function TeacherWorkspace({
       // authoritative call, and no assignment is saved/assigned before it
       // passes.
       if (isTestCycleAssignment(assignmentV5)) {
-        const authoritative = await preflightTestCycleCandidate({ assignment: assignmentV5 });
+        const authoritative = await preflightTestCycleCandidate({
+          assignment: assignmentV5,
+          sourceAssignmentId: assignmentPreflight?.mode === 'update' ? assignmentPreflight?.existingAssignmentId || null : null,
+        });
         if (authoritative.preflight?.blocked) {
           throw new Error(`This Test Cycle cannot be published:\n${(authoritative.preflight.errors || []).join('\n')}`);
         }
@@ -2322,6 +2325,9 @@ export default function TeacherWorkspace({
             onConfirmPublish={confirmAssignmentPreflight}
             busy={assignmentPreflightBusy}
             reviewMode={assignmentPreflight.mode || 'create'}
+            // The saved assignment an update review was opened from: the one a
+            // Test Cycle's secure test reference is checked against.
+            sourceAssignmentId={assignmentPreflight.mode === 'update' ? assignmentPreflight.existingAssignmentId || null : null}
             // Imported or authored now, not a stored Library assignment reused (SP-5).
             authoredNow={assignmentPreflight.authoredNow === true}
             allowQuestionRepair={assignmentPreflight.allowQuestionRepair !== false}

@@ -258,6 +258,7 @@ export const LessonPreflightModal = ({
   // The saved assignments, so a reused assignmentKey is caught here and not at
   // Create (findAssignmentKeyConflict; TT10).
   existingAssignments = [],
+  sourceAssignmentId = null,
   // { classId: number of active students } — lets Pre-Flight compare each
   // question's distinct versions with the class it will actually be given to.
   rosterSizesByClassId = {},
@@ -368,7 +369,7 @@ export const LessonPreflightModal = ({
       return () => { active = false; };
     }
     setServerCyclePreflight({ loading: true, blocked: true, checks: [], errors: [] });
-    preflightTestCycleCandidate({ assignment: effectiveAssignmentV5 })
+    preflightTestCycleCandidate({ assignment: effectiveAssignmentV5, sourceAssignmentId })
       .then((response) => {
         if (active) setServerCyclePreflight({ ...(response.preflight || {}), loading: false });
       })
@@ -376,7 +377,7 @@ export const LessonPreflightModal = ({
         if (active) setServerCyclePreflight({ loading: false, blocked: true, checks: [], errors: [error.message || 'Secure Test validation could not be completed.'] });
       });
     return () => { active = false; };
-  }, [effectiveAssignmentV5, serverCyclePreflightRun]);
+  }, [effectiveAssignmentV5, serverCyclePreflightRun, sourceAssignmentId]);
   // What the server is sent to preview the unsaved Test Cycle: its contract,
   // not its Review answers. Memoized, because the preview reloads on a change.
   const testCycleCandidate = useMemo(
@@ -2717,6 +2718,7 @@ export const LessonPreflightModal = ({
           <TestCyclePreview
             assignment={effectiveAssignmentV5}
             candidate={testCycleCandidate}
+            sourceAssignmentId={sourceAssignmentId}
             onClose={() => setCyclePreviewOpen(false)}
             // Review is ordinary content, already playable in this review's
             // own student preview: go there instead of a second player.

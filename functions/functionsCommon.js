@@ -842,6 +842,10 @@ async function resolveSecureTestBlueprint(db, assignment, shared) {
   if (!secureManifestId) {
     return { blueprint: embedded, blueprintSource: null, secureReferencePresent: false, secureReferenceResolved: false, secureManifestId: null };
   }
+  // A manifest id is one document id, or it resolves to nothing.
+  if (!validDocumentId(secureManifestId)) {
+    return { blueprint: embedded, blueprintSource: null, secureReferencePresent: true, secureReferenceResolved: false, secureManifestId: null };
+  }
   const manifestSnapshot = await db.collection("secureTestManifests").doc(secureManifestId).get();
   const blueprintSource = manifestSnapshot.exists
     ? manifestSnapshot.data()?.testBlueprint || manifestSnapshot.data()?.blueprint
