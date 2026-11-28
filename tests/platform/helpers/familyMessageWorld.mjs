@@ -27,11 +27,13 @@ export const fakeDb = (seed) => {
     get: async () => snapshot(path),
     set: async (data, options) => { store.set(path, options?.merge ? { ...store.get(path), ...structuredClone(data) } : structuredClone(data)); },
   });
-  const OPS = { '==': (left, right) => left === right, '>=': (left, right) => left >= right, '<=': (left, right) => left <= right };
+  const OPS = { '==': (left, right) => left === right, '>=': (left, right) => left >= right, '<=': (left, right) => left <= right, in: (left, right) => right.includes(left) };
   const query = (name, filters = [], max = Infinity) => ({
     isQuery: true,
     where: (field, op, value) => query(name, [...filters, { field, op, value }], max),
     limit: (n) => query(name, filters, n),
+    // A field mask changes nothing the stand-in returns.
+    select: () => query(name, filters, max),
     run: () => [...store.keys()]
       .filter((path) => path.startsWith(`${name}/`) && filters.every(({ field, op, value }) => OPS[op](store.get(path)?.[field], value)))
       .slice(0, max)

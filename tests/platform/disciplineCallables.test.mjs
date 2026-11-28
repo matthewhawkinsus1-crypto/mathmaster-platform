@@ -124,3 +124,11 @@ test('the discipline collections are server-only in the rules', () => {
     assert.match(rules, new RegExp(`match /${collection}/\\{[A-Za-z]+\\} \\{ allow read, write: if false; \\}`), collection);
   }
 });
+
+test('the Discipline Tracker and the extension are sent the messaging settings as their caller may see them', () => {
+  const list = body('listDisciplineIncidents');
+  assert.match(list, /familyOutbox\.messagingSettingsForCaller\(\{\s*db,\s*teacherEmail: callerEmail\(request\),\s*isRootAdmin: request\.auth\?\.token\?\.rootAdmin === true && authLib\.isRootAdminEmail\(callerEmail\(request\)\),/);
+  assert.doesNotMatch(list, /readMessagingSettings/, 'the unfiltered settings are not returned');
+  const outboxCall = body('familyMessageOutbox');
+  assert.match(outboxCall, /const isRootAdmin = request\.auth\?\.token\?\.rootAdmin === true && authLib\.isRootAdminEmail\(email\);\s*return familyOutbox\.familyMessageStatus\(\{ db, teacherEmail: email, nowMs, isRootAdmin \}\);/);
+});

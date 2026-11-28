@@ -215,7 +215,11 @@ exports.listDisciplineIncidents = onCall(async (request) => {
   const nowMs = Date.now();
   const [familyMessages, familyMessaging] = await Promise.all([
     familyOutbox.listFamilyMessages({ db, teacherEmail: teacher, fromDateKey, toDateKey, classId: authority ? authority.classId : "", nowMs }),
-    familyOutbox.readMessagingSettings(db),
+    familyOutbox.messagingSettingsForCaller({
+      db,
+      teacherEmail: callerEmail(request),
+      isRootAdmin: request.auth?.token?.rootAdmin === true && authLib.isRootAdminEmail(callerEmail(request)),
+    }),
   ]);
   return {
     incidents,
@@ -461,7 +465,10 @@ exports.familyMessageOutbox = onCall(async (request) => {
   if (!email) throw new HttpsError("permission-denied", "A teacher account is required.");
   const action = disciplineText(request.data?.action, 20);
   const nowMs = Date.now();
-  if (action === "status") return familyOutbox.familyMessageStatus({ db, teacherEmail: email, nowMs });
+  if (action === "status") {
+    const isRootAdmin = request.auth?.token?.rootAdmin === true && authLib.isRootAdminEmail(email);
+    return familyOutbox.familyMessageStatus({ db, teacherEmail: email, nowMs, isRootAdmin });
+  }
   const runnerId = disciplineText(request.data?.runnerId, 80);
   if (!RUNNER_ID.test(runnerId)) throw new HttpsError("invalid-argument", "The extension must name itself (runnerId).");
   if (action === "claim") return familyMessageCall(() => familyOutbox.claimNextFamilyMessage({ db, teacherEmail: email, runnerId, nowMs }));
