@@ -254,6 +254,11 @@ export const awardPayloadFingerprint = ({
  * against a document that is not there. Everything past that point is a
  * business rule the administrator may bypass, matching the rest of the
  * platform's admin escape hatch (see `overrideStudentResponseGrade`).
+ *
+ * Order: the class must exist; then the caller must be its teacher of record
+ * (one permission-denied for anyone who is not, before the student is looked
+ * at); only then the student's existence, an archived class, the student's
+ * membership and the roster copy are checked.
  */
 export const authorizeClassPointsActor = ({
   isRootAdmin = false,
@@ -265,11 +270,25 @@ export const authorizeClassPointsActor = ({
   if (!classRecord) {
     return { authorized: false, reason: 'not-found', message: 'That class was not found.' };
   }
+  const notTeacherOfRecord = {
+    authorized: false,
+    reason: 'permission-denied',
+    message: "Only this class's teacher of record may do that.",
+  };
+  const teacherOfRecord = cleanEmail(classRecord.teacherOfRecord);
+
+  if (isRootAdmin) {
+    if (!studentRecord) return { authorized: false, reason: 'not-found', message: 'That student was not found.' };
+    return { authorized: true };
+  }
+
+  // The teacher of record first: a caller who is not one is refused the same
+  // way whatever the student, the class's state or its roster says.
+  if (!teacherOfRecord || cleanEmail(teacherEmail) !== teacherOfRecord) return notTeacherOfRecord;
+
   if (!studentRecord) {
     return { authorized: false, reason: 'not-found', message: 'That student was not found.' };
   }
-
-  if (isRootAdmin) return { authorized: true };
 
   if (classRecord.status === 'archived') {
     return {
@@ -287,21 +306,12 @@ export const authorizeClassPointsActor = ({
     };
   }
 
-  const teacherOfRecord = cleanEmail(classRecord.teacherOfRecord);
   const assignedTeacherEmail = cleanEmail(studentRecord.assignedTeacherEmail);
-  if (!teacherOfRecord || assignedTeacherEmail !== teacherOfRecord) {
+  if (assignedTeacherEmail !== teacherOfRecord) {
     return {
       authorized: false,
       reason: 'failed-precondition',
       message: "This class's roster authorization is out of sync. An administrator must resave the class before Class Points can be issued or reversed.",
-    };
-  }
-
-  if (cleanEmail(teacherEmail) !== teacherOfRecord) {
-    return {
-      authorized: false,
-      reason: 'permission-denied',
-      message: "Only this class's teacher of record may do that.",
     };
   }
 

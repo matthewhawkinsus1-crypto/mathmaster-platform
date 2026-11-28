@@ -220,6 +220,11 @@ export async function redeemPracticePass(db, {
      * should spend a pass or real points against. A replay of an existing
      * waiver (above) is exempt: it spends nothing.
      */
+    // A class with no teacher of record is a roster out of sync, as it always
+    // read here (the actor check below refuses it as permission-denied).
+    if (classRecord && !String(classRecord.teacherOfRecord || '').trim()) {
+      fail('failed-precondition', "This class's roster authorization is out of sync. An administrator must resave the class before Class Points can be issued or reversed.");
+    }
     const consistency = authorizeClassPointsActor({
       isRootAdmin: false,
       teacherEmail: classRecord?.teacherOfRecord,
