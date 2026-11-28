@@ -4,6 +4,7 @@ import { createRequire } from 'node:module';
 import { readFileSync } from 'node:fs';
 import { spawnSync } from 'node:child_process';
 import { functionsBackendPaths, functionsBackendSource, topLevelDeclaration } from './helpers/functionsBackendSource.mjs';
+import { teacherWorkspaceSource } from './helpers/appScreens.mjs';
 
 const require = createRequire(import.meta.url);
 const admin = require('../../functions/lib/admin.js');
@@ -207,7 +208,7 @@ test('teacher admin client exposes preview and reset only through the audited ca
 
 test('root Administration exposes a dedicated pre-production reset tab and refreshes stale in-memory test data', () => {
   // Administration is the teacher's screen, its own module since G2.
-  const app = readFileSync(new URL('../../src/app/teacher/TeacherWorkspace.jsx', import.meta.url), 'utf8');
+  const app = teacherWorkspaceSource();
   assert.match(app, /PreproductionReset/);
   assert.match(app, /\['reset', 'Pre-production reset'\]/);
   assert.match(app, /adminTab === 'reset'/);

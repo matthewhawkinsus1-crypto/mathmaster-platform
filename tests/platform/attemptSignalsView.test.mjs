@@ -18,6 +18,7 @@ import { ATTEMPT_SIGNAL_KINDS } from '../../src/platform/signals/attemptSignalFa
 import { buildLiveStatus } from '../../src/livePresence.js';
 import { chainTo, firstLoadGraph, repo, teacherFirstLoadGraph } from './helpers/firstLoadGraph.mjs';
 import { executableSource, region } from './helpers/sourceContract.mjs';
+import { teacherWorkspaceSource } from './helpers/appScreens.mjs';
 
 const read = (file) => readFileSync(path.join(repo, file), 'utf8');
 
@@ -173,7 +174,7 @@ test("in the assignment's results: a student's signals beside the question they 
   assert.match(forQuestion[0].facts, /part 2/);
   assert.deepEqual(questionAttemptSignals(stored, { assignmentId: 'a-1', questionIndex: 9 }), []);
   // Drawn inside each question's card of the gradebook's student view, on demand.
-  const workspace = executableSource(read('src/app/teacher/TeacherWorkspace.jsx'));
+  const workspace = executableSource(teacherWorkspaceSource());
   assert.match(workspace, /<QuestionSignalNotes studentId=\{student\.id\} assignmentId=\{selectedAssignment\.id\} questionIndex=\{index\} teacherEmail=\{user\?\.role === 'teacher' \? user\.email \|\| '' : ''\} \/><\/article>/);
   const panels = executableSource(read('src/app/teacher/teacherPanels.js'));
   assert.match(panels, /^export const QuestionSignalNotes = drawnPanel\(\(\) => import\('\.\.\/\.\.\/components\/teacher\/QuestionSignalNotes\.jsx'\), ""\);$/m);

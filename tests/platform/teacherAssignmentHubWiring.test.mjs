@@ -13,13 +13,13 @@ import { readFileSync } from 'node:fs';
 import test from 'node:test';
 import { executableSource, region } from './helpers/sourceContract.mjs';
 import { importsComponent } from './helpers/componentImport.mjs';
-import { teacherControlsSource } from './helpers/appScreens.mjs';
+import { teacherControlsSource, teacherWorkspaceSource } from './helpers/appScreens.mjs';
 
 const read = (path) => readFileSync(new URL(`../../${path}`, import.meta.url), 'utf8');
 const app = read('src/App.jsx');
 // Every screen below is the teacher's screen, its own module since G2. App
 // keeps the handlers and hands each to it by name.
-const teacherWorkspace = read('src/app/teacher/TeacherWorkspace.jsx');
+const teacherWorkspace = teacherWorkspaceSource();
 const hub = executableSource(read('src/components/teacher/AssignmentHub.jsx'));
 
 test('App renders the hub, imported, with the shared audited handlers', () => {

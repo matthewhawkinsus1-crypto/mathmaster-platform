@@ -29,6 +29,12 @@ import { familyFor } from '../families/index.js';
 import { questionAnswerValues } from '../hints/questionHints.js';
 
 const text = (value) => String(value ?? '').trim();
+// A family step is a sentence, or { show, why }: the move and the reason it is
+// made (a family that writes its reasons apart, as the A2 generators do). The
+// guard reads both, so a reason cannot state an answer either.
+const isStepObject = (step) => Boolean(step) && typeof step === 'object' && !Array.isArray(step);
+const stepText = (step) => (isStepObject(step) ? [text(step.show), text(step.why)].filter(Boolean).join(' ') : text(step));
+const stepPart = (step) => (isStepObject(step) ? { show: text(step.show), why: text(step.why) } : { show: text(step), why: '' });
 const numeric = (value) => {
   const match = text(value).replace(/−/g, '-').replace(/\s+/g, '');
   if (/^-?\d+(?:\.\d+)?$/.test(match)) return Number(match);
@@ -41,15 +47,28 @@ const numeric = (value) => {
 const caseWordsOf = (example) => (Array.isArray(example?.caseAnswers) ? example.caseAnswers : [])
   .map(text).filter((value) => value && !/[0-9=]/.test(value)).map((value) => value.toLowerCase());
 
+// Answers a family knows that no field holds (a workshop division's quotient
+// and remainder), read by this guard only: `exampleAnswers`, not
+// `expectedValues`, so the hint guard and what a lesson's hints show are
+// unchanged by a family that exists to build an example.
+const exampleOnlyAnswers = (question) => {
+  try {
+    const family = familyFor(question);
+    return typeof family?.exampleAnswers === 'function' ? (family.exampleAnswers(question) || []).map(text).filter(Boolean) : [];
+  } catch {
+    return [];
+  }
+};
+
 export const similarExampleIsSafe = (question, example, { keepCase = false } = {}) => {
   if (!example || typeof example !== 'object') return false;
   const prompt = text(example.prompt);
   const answer = text(example.answer);
-  const steps = (Array.isArray(example.steps) ? example.steps : []).map(text).filter(Boolean);
+  const steps = (Array.isArray(example.steps) ? example.steps : []).map(stepText).filter(Boolean);
   if (!prompt || !answer || !steps.length) return false;
   if (prompt === text(question?.prompt)) return false;
   const shared = keepCase ? caseWordsOf(example) : [];
-  const answers = questionAnswerValues(question).filter((value) => !shared.includes(value.toLowerCase()));
+  const answers = [...questionAnswerValues(question), ...exampleOnlyAnswers(question)].filter((value) => !shared.includes(value.toLowerCase()));
   if (answers.some((value) => value.toLowerCase() === answer.toLowerCase())) return false;
   const exampleValue = numeric(answer);
   if (exampleValue !== null && answers.some((value) => numeric(value) !== null && Math.abs(numeric(value) - exampleValue) < 1e-9)) return false;
@@ -67,7 +86,18 @@ export const buildSimilarWorkedExample = (question, { seed = 0, keepCase = false
     for (let attempt = 0; attempt < 6; attempt += 1) {
       const example = family.similarProblem(question, { seed: Number(seed) + attempt, keepCase: keepCase === true });
       if (similarExampleIsSafe(question, example, { keepCase: keepCase === true })) {
-        return { prompt: text(example.prompt), steps: example.steps.map(text).filter(Boolean), answer: text(example.answer) };
+        const parts = example.steps.map(stepPart).filter((part) => part.show);
+        // `steps` stays one sentence a step (practice and the coverage report
+        // read it); `parts` keeps each move's reason apart for the player.
+        return {
+          prompt: text(example.prompt),
+          steps: parts.map((part) => [part.show, part.why].filter(Boolean).join(' ')),
+          ...(example.steps.some(isStepObject) ? { parts } : {}),
+          // The sibling's own problems (its polynomial, its expressions), so
+          // the player can keep out one that is written in another item.
+          ...(Array.isArray(example.problems) ? { problems: example.problems.map(text).filter(Boolean) } : {}),
+          answer: text(example.answer),
+        };
       }
     }
     return null;

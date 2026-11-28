@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import { functionsBackendSource } from './helpers/functionsBackendSource.mjs';
-import { teacherControlsSource } from './helpers/appScreens.mjs';
+import { teacherControlsSource, teacherWorkspaceSource } from './helpers/appScreens.mjs';
 
 const read = (path) => fs.readFileSync(path, 'utf8');
 
@@ -92,7 +92,7 @@ test('browser exposes teacher repair controls for missing Classroom assignments'
   const api = read('src/classroomApi.js');
   const manager = read('src/ClassroomManagerV2.jsx');
   // App's handler, and the teacher's screen (its own module since G2) that offers it.
-  const app = `${read('src/App.jsx')}\n${read('src/app/teacher/TeacherWorkspace.jsx')}`;
+  const app = `${read('src/App.jsx')}\n${teacherWorkspaceSource()}`;
 
   assert.match(api, /repairClassroomAssignmentPublications = call\("repairClassroomAssignmentPublications"\)/);
   assert.match(manager, /repairClassroomAssignmentPublications/);

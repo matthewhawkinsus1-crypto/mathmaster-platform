@@ -6,8 +6,10 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { executableSource, region } from './helpers/sourceContract.mjs';
+import { teacherWorkspaceSource } from './helpers/appScreens.mjs';
 
-const workspace = executableSource(readFileSync('src/app/teacher/TeacherWorkspace.jsx', 'utf8'));
+// The workspace and the modules it moved code into (helpers/appScreens.mjs).
+const workspace = executableSource(teacherWorkspaceSource());
 const controls = executableSource(readFileSync('src/app/teacher/controls/assignmentPreflightControls.js', 'utf8'));
 const modal = executableSource(readFileSync('src/components/teacher/LessonPreflightModal.jsx', 'utf8'));
 const preview = executableSource(readFileSync('src/components/teacher/TestCyclePreview.jsx', 'utf8'));

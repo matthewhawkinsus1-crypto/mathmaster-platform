@@ -2268,6 +2268,14 @@ exports.assignTestCycleSessions = onCall(TEST_CYCLE_SWEEP_OPTIONS, async (reques
   }
   const requestedStudentIds = [...new Set((Array.isArray(request.data?.studentIds) ? request.data.studentIds : [])
     .map((value) => String(value || "").trim()).filter(Boolean))];
+  // Bounded before anything is read: at most one batch of students, each a
+  // roster document id (security review 2026-11-28, T3).
+  if (requestedStudentIds.length > TEST_CYCLE_MAX_BATCH_STUDENTS) {
+    throw new HttpsError("invalid-argument", `Choose at most ${TEST_CYCLE_MAX_BATCH_STUDENTS} students at once.`);
+  }
+  if (requestedStudentIds.some((id) => id.length > 180 || id.includes("/"))) {
+    throw new HttpsError("invalid-argument", "A student id is not valid.");
+  }
   const classIds = requestedStudentIds.length
     ? []
     : (requestedClassId ? [requestedClassId] : audienceClassIds);

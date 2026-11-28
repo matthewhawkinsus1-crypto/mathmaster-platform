@@ -494,6 +494,38 @@ exports.studentSignIn = onCall(async (request) => {
   };
 });
 
+/**
+ * The student's own teacher (the roster teacher or the class's teacher of
+ * record), or the root administrator, or a refusal. A PIN reset or a Google
+ * unlink reopens the student's account to whoever signs in next with the
+ * class code, so neither is any teacher's to make (security review
+ * 2026-11-28, A2). `studentId` is the roster (grades) document id the
+ * Sign-in Access screen lists; a sign-in key resolves through its alias.
+ */
+async function requireStudentsTeacherForAccount(db, request, studentId) {
+  const email = callerEmail(request);
+  if (request.auth?.token?.rootAdmin === true && authLib.isRootAdminEmail(email)) return;
+  const refuse = () => new HttpsError("permission-denied", "Only this student's teacher can change their sign-in.");
+  if (!email) throw refuse();
+  let [snapshot] = await db.getAll(db.collection("grades").doc(String(studentId)), { fieldMask: ["assignedTeacherEmail", "classId"] });
+  if (!snapshot.exists) {
+    const alias = await db.collection(authLib.ALIAS_COLLECTION).doc(String(studentId).toUpperCase()).get();
+    const aliased = alias.exists ? String(alias.data()?.studentId || "") : "";
+    if (aliased && !aliased.includes("/")) {
+      [snapshot] = await db.getAll(db.collection("grades").doc(aliased), { fieldMask: ["assignedTeacherEmail", "classId"] });
+    }
+  }
+  if (!snapshot.exists) throw refuse();
+  const student = snapshot.data() || {};
+  if (String(student.assignedTeacherEmail || "").trim().toLowerCase() === email) return;
+  const classId = String(student.classId || "").trim();
+  if (classId && !classId.includes("/")) {
+    const classSnapshot = await db.collection(CLASS_COLLECTION).doc(classId).get();
+    if (String(classSnapshot.data()?.teacherOfRecord || "").trim().toLowerCase() === email) return;
+  }
+  throw refuse();
+}
+
 /** Teacher action: force a student to choose a new PIN at their next sign-in. */
 exports.resetStudentPasscode = onCall(async (request) => {
   await requireTeacher(request);
@@ -505,6 +537,7 @@ exports.resetStudentPasscode = onCall(async (request) => {
   } catch (error) {
     throw translateAuthError(error);
   }
+  await requireStudentsTeacherForAccount(db, request, authLib.normalizeStudentId(request.data?.studentId));
 
   await db.collection(authLib.CREDENTIALS_COLLECTION).doc(key).set(
     {
@@ -533,6 +566,7 @@ exports.unlinkStudentAccount = onCall(async (request) => {
   } catch (error) {
     throw translateAuthError(error);
   }
+  await requireStudentsTeacherForAccount(db, request, studentId);
 
   const links = await db
     .collection(authLib.DIRECTORY_COLLECTION)
@@ -550,8 +584,6 @@ exports.unlinkStudentAccount = onCall(async (request) => {
   // update() on a row that exists, never set(merge): clearing the link on an
   // ID with no roster row must not create one — a ghost row with no name that
   // the roster would then show as a bare ID.
-  // FOLLOW-UP: like resetStudentPasscode, this asks only for a teacher, not
-  // for this student's teacher of record (see setStudentSisId for the check).
   const rosterRow = await readStudentRosterPresence(db, studentId);
   if (rosterRow.exists) {
     await db.collection("grades").doc(studentId).update({ linkedEmail: FieldValue.delete() });

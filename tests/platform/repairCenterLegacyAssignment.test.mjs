@@ -18,8 +18,9 @@ import { readFileSync } from 'node:fs';
 
 import { storedAssignmentToV5 } from '../../src/platform/contract/storedAssignmentV5.js';
 import { region } from './helpers/sourceContract.mjs';
+import { teacherWorkspaceSource } from './helpers/appScreens.mjs';
 
-const workspace = readFileSync(new URL('../../src/app/teacher/TeacherWorkspace.jsx', import.meta.url), 'utf8');
+const workspace = teacherWorkspaceSource();
 const editorWrapper = readFileSync(new URL('../../src/AssignmentQuestionEditor.jsx', import.meta.url), 'utf8');
 
 // The shape the teacher harness and an old production record share: a V5 record
@@ -50,7 +51,7 @@ test('a legacy assignment with no course cannot be rebuilt as V5, and says why i
 });
 
 test('Edit Questions rebuilds the assignment first and opens the editor only if that worked', () => {
-  const handler = region(workspace, 'const openQuestionEditor = (assignment) => {', 'const saveQuestionEditor', 'openQuestionEditor');
+  const handler = region(workspace, 'const openQuestionEditor = (assignment) => {', 'const beginEditAssignmentSetup', 'openQuestionEditor');
   const guard = handler.indexOf('storedAssignmentToV5(assignment)');
   const open = handler.indexOf('setQuestionEditorAssignment(assignment)');
   assert.ok(guard >= 0, 'the handler rebuilds the assignment the way the editor will');

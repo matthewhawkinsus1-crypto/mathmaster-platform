@@ -79,7 +79,7 @@ const asEditorSpelling = (value) => String(value ?? '')
  * wrong option, GR06; sameValue's `typed` comes from fieldValueOptions).
  */
 const TYPED_EDITOR_CHARACTERS = /[⁰¹²³⁴⁵⁶⁷⁸⁹·⋅×]/;
-const typedAsEditorSpelling = (value) => (typeof value === 'string' && TYPED_EDITOR_CHARACTERS.test(value) ? asEditorSpelling(value) : value);
+export const typedAsEditorSpelling = (value) => (typeof value === 'string' && TYPED_EDITOR_CHARACTERS.test(value) ? asEditorSpelling(value) : value);
 
 /*
  * WHAT THE EDITOR WRITES THAT THE SAME CHARACTERS TYPED DO NOT (TS05).

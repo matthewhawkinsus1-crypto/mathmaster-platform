@@ -5,7 +5,7 @@ import { readFile } from 'node:fs/promises';
 import { buildStudentProgressBrief, contactsCsv, groupContactsByStudent, progressBriefText, projectProgressBriefGrades, validateContactDraft } from '../../src/platform/teacher/parentContactCenter.js';
 import { resolveContactEvents } from '../../src/platform/teacher/parentContactStore.js';
 import { importsComponent } from './helpers/componentImport.mjs';
-import { appHookPaths, positionalHookSource } from './helpers/appScreens.mjs';
+import { appHookPaths, positionalHookSource, teacherWorkspaceSource } from './helpers/appScreens.mjs';
 
 test('contact history groups canonical student IDs and always resolves the current roster name', () => {
   const contacts = [
@@ -100,9 +100,15 @@ test('runtime wiring imports the contact center and store next to their calls', 
   // the store in every student's first load. A late-arriving store must not
   // subscribe for a teacher who already left the tab.
   const app = await readFile(new URL('../../src/App.jsx', import.meta.url), 'utf8');
-  const teacherWorkspace = await readFile(new URL('../../src/app/teacher/TeacherWorkspace.jsx', import.meta.url), 'utf8');
+  const teacherWorkspace = teacherWorkspaceSource();
   assert.ok(importsComponent('src/app/teacher/TeacherWorkspace.jsx', 'ParentContactCenter', 'src/components/teacher/ParentContactCenter.jsx'));
-  assert.match(teacherWorkspace, /import \{ fetchAllParentContactsForExport, recordParentContact, recordParentContactResolution \} from '..\/..\/platform\/teacher\/parentContactStore\.js'/);
+  // The workspace takes the store on demand too (teacher's first load, third
+  // pass), and each of its three calls goes through that one import.
+  assert.doesNotMatch(teacherWorkspace, /^import [^;]*from '[./]*\/platform\/teacher\/parentContactStore\.js'/m);
+  assert.match(teacherWorkspace, /^const parentContactStore = \(\) => import\('\.\.\/\.\.\/platform\/teacher\/parentContactStore\.js'\);$/m);
+  for (const call of ['recordParentContact', 'recordParentContactResolution', 'fetchAllParentContactsForExport']) {
+    assert.match(teacherWorkspace, new RegExp(`parentContactStore\\(\\)\\.then\\(\\(store\\) => store\\.${call}\\(\\{ db, teacherEmail: user\\.email`), call);
+  }
   assert.doesNotMatch(app, /^import [^;]*from '\.\/platform\/teacher\/parentContactStore\.js'/m);
   // The listener is useTeacherActionCenterData's since the App split. App's
   // hooks ride in every first load as App does, so none of them may import

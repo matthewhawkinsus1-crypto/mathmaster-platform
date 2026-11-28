@@ -22,6 +22,10 @@
  * as for a teacher screen's chunk that cannot load. A failed idle prefetch is
  * left to the action or screen that needs the code to report.
  *
+ * The workspace's assignment actions (./workspaceAssignmentActions.js), which
+ * run this code, load the same way: their own small chunk, prefetched first,
+ * so the workspace does not carry them before Home draws.
+ *
  * Plain JS, no React, so node tests drive it.
  */
 import { createIdlePrefetch } from '../student/studentScreenPrefetch.js';
@@ -37,10 +41,24 @@ export const loadAuthoringKit = () => {
   return pending;
 };
 
+let actionsLoaded = null;
+let actionsPending = null;
+
+export const loadedAssignmentActions = () => actionsLoaded;
+
+export const loadAssignmentActions = () => {
+  if (actionsLoaded) return Promise.resolve(actionsLoaded);
+  if (!actionsPending) actionsPending = import('./workspaceAssignmentActions.js').then((actions) => { actionsLoaded = actions; return actions; });
+  return actionsPending;
+};
+
 const prefetchOnce = createIdlePrefetch();
+const actionsCode = {
+  prefetch: () => { loadAssignmentActions().catch(() => { /* reported by the action that needs it */ }); },
+};
 const authoringCode = {
   prefetch: () => { loadAuthoringKit().catch(() => { /* reported by what needs it */ }); },
 };
 
 /** Ask for the code when the browser is next idle; returns a cancel for the effect that asked. */
-export const prefetchAuthoringKit = (win) => prefetchOnce([authoringCode], win);
+export const prefetchAuthoringKit = (win) => prefetchOnce([actionsCode, authoringCode], win);
