@@ -52,7 +52,6 @@ const EXPECTED_CLASSWORK = Object.freeze({
   rationalZeroChain: ['rf-cw-4', 'rf-cw-6', 'rf-cw-8', 'rfh-cw-4'],
   quadraticForm: ['fph-cw-3'],
   groupFourTerms: ['fph-cw-1'],
-  twoRadicals: ['sr-cw-3'],
   realRoots: ['a2r1-cw-2'],
   likeRadicals: ['a2r2-cw-1'],
 });
@@ -128,6 +127,14 @@ test('over every question claimed and several seeds, the sibling is safe, explai
 
 // --------------------------------------------------- 3. the mathematics checks
 
+// An answer as the generators write it ($…$ LaTeX) back in the plain form the engines read.
+const SUP = Object.freeze({ '-': '⁻', 0: '⁰', 1: '¹', 2: '²', 3: '³', 4: '⁴', 5: '⁵', 6: '⁶', 7: '⁷', 8: '⁸', 9: '⁹' });
+const plainAnswer = (value) => String(value).replace(/\$/g, '')
+  .replace(/\^\{(-?\d+)\}/g, (match, exponent) => [...exponent].map((c) => SUP[c]).join(''))
+  .replace(/\^\{(-?\d+\/\d+)\}/g, '^($1)')
+  .replace(/\\sqrt\[(\d+)\]\{([^{}]*)\}/g, (match, index, inner) => `${[...index].map((c) => SUP[c]).join('')}√(${inner})`)
+  .replace(/\\sqrt\{([^{}]*)\}/g, '√($1)')
+  .replace(/\\\{/g, '{').replace(/\\\}/g, '}').replace(/\\pm /g, '±').replace(/\\cdot /g, '·');
 const number = (value) => {
   const plain = String(value).replace(/−/g, '-').trim();
   const fraction = /^(-?\d+)\/(\d+)$/.exec(plain);
@@ -140,7 +147,7 @@ test('a rational exponent sibling states each value its numbers give', () => {
   const siblings = siblingsOf('rationalExponents');
   assert.ok(siblings.length >= 10);
   let values = 0;
-  siblings.forEach((sibling) => sibling.answer.split('; ').forEach((piece) => {
+  siblings.forEach((sibling) => plainAnswer(sibling.answer).split('; ').forEach((piece) => {
     const evaluated = /^\(?([−-]?\d+)\)?\^\(([−-]?\d+)\/(\d+)\) = ([−-]?\d+(?:\/\d+)?)$/.exec(piece);
     if (!evaluated) return;
     const [base, p, q] = [number(evaluated[1]), number(evaluated[2]), number(evaluated[3])];
@@ -154,7 +161,7 @@ test('a rational exponent sibling states each value its numbers give', () => {
 test('a monomial sibling\'s simplified form is the value of its expression', () => {
   const siblings = siblingsOf('monomialRules');
   assert.ok(siblings.length >= 6);
-  siblings.forEach((sibling) => sibling.answer.split('; ').filter((piece) => !piece.startsWith('the exponent')).forEach((piece) => {
+  siblings.forEach((sibling) => plainAnswer(sibling.answer).split('; ').filter((piece) => !piece.startsWith('exponent of')).forEach((piece) => {
     const [left, right] = piece.split(' = ');
     const value = evaluateMonomial(parseMonomialExpression(left));
     const stated = evaluateMonomial(parseMonomialExpression(right));
@@ -176,30 +183,18 @@ test('a factoring sibling\'s factors multiply back to its polynomial, and its ze
   for (const id of ['rationalZeroChain', 'quadraticForm']) {
     siblingsOf(id).forEach((sibling) => {
       // The whole polynomial's factoring: the factored piece with the longest polynomial on its left.
-      const factored = sibling.answer.split('; ').filter((piece) => /^[^=]+ = \(/.test(piece) && !piece.startsWith('u'))
+      const answer = plainAnswer(sibling.answer);
+      const factored = answer.split('; ').filter((piece) => /^[^=]+ = \(/.test(piece) && !piece.startsWith('u'))
         .sort((a, b) => (readPolynomial(b.split(' = ')[0])?.length || 0) - (readPolynomial(a.split(' = ')[0])?.length || 0))[0];
       if (!factored) return;
       const [left, right] = factored.split(' = ');
       const coefficients = readPolynomial(left);
       assert.ok(coefficients, left);
       [-3, -1, 0, 2, 5].forEach((x) => assert.equal(product(right, x) + 0, at(coefficients, x) + 0, factored));
-      const zeros = /(?:^|; )zeros \{([^}]*)\}/.exec(sibling.answer)?.[1];
+      const zeros = /(?:^|; )zeros = \{([^}]*)\}/.exec(answer)?.[1];
       if (zeros) zeros.split(', ').map(number).forEach((zero) => assert.ok(Math.abs(at(coefficients, zero)) < 1e-9, `${zero} is a zero of ${left}`));
     });
   }
-});
-
-test('a two-radical sibling\'s answer is what its own check shows', () => {
-  const siblings = siblingsOf('twoRadicals');
-  assert.ok(siblings.length >= 2);
-  siblings.forEach((sibling) => {
-    const [, a, b] = /√\(x − (\d+)\) = (\d+) − √x/.exec(sibling.prompt).map(Number);
-    const x = Number(/= (\d+)\.$/.exec(sibling.parts[2].show)[1]);
-    const holds = Math.abs(Math.sqrt(x - a) - (b - Math.sqrt(x))) < 1e-9;
-    assert.equal(sibling.answer, holds ? `x = ${x}` : `no real solution (${x} is extraneous)`);
-    // The squared equation does hold: the candidate is the honest one.
-    assert.ok(Math.abs((x - a) - (b - Math.sqrt(x)) ** 2) < 1e-9);
-  });
 });
 
 // ------------------------------------- 4. nothing else changes; never on a DOL

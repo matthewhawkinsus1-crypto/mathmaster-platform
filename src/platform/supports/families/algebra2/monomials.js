@@ -21,6 +21,7 @@ import {
   exactRoot,
   fromSuperscript,
   isObject,
+  math,
   qAdd,
   qDiv,
   qEq,
@@ -285,10 +286,10 @@ export const monomialSteps = (node) => {
       const result = evaluateMonomial(current);
       if (!inner || !result) return;
       const e = current.e;
-      const coefficient = qIsInt(e) || inner.c.n === 1 ? '' : `${qText(inner.c)}^(${qText(e)}) = ${qText(result.c)}; `;
-      const letters = sortedLetters(inner.v).map((letter) => `${letter}: ${qText(inner.v[letter])} · ${e.n < 0 ? `(${qText(e)})` : qText(e)} = ${qText(qMul(inner.v[letter], e))}`).join('; ');
+      const coefficient = qIsInt(e) || inner.c.n === 1 ? '' : `${qText(inner.c)}^(${qText(e)}) = ${qText(result.c)}, `;
+      const letters = sortedLetters(inner.v).map((letter) => `${letter}: ${qText(inner.v[letter])} · ${e.n < 0 ? `(${qText(e)})` : qText(e)} = ${qText(qMul(inner.v[letter], e))}`).join(', ');
       steps.push({
-        show: `${expressionText(current)}: raise every factor to the power ${qText(e)}. ${coefficient}${letters}. That gives ${monomialText(result)}.`,
+        show: `Raise every factor of ${math(expressionText(current))} to the power ${math(qText(e))}: ${math(`${coefficient}${letters}`)}. That gives ${math(monomialText(result))}.`,
         why: qIsInt(e) ? MONOMIAL_WHY.power : `${MONOMIAL_WHY.power} ${MONOMIAL_WHY.rational}`,
       });
       return;
@@ -301,8 +302,10 @@ export const monomialSteps = (node) => {
       const sums = letters.map((letter) => {
         const exponents = parts.map((part) => part.v[letter]).filter(Boolean);
         return exponents.length > 1 ? `${letter}: ${exponentSum(exponents)} = ${qText(exponents.reduce(qAdd))}` : null;
-      }).filter(Boolean).join('; ');
-      steps.push({ show: `${expressionText(current)}: add the exponents of each base${sums ? ` (${sums})` : ''}. That gives ${monomialText(result)}.`, why: MONOMIAL_WHY.product });
+      }).filter(Boolean).join(', ');
+      steps.push({ show: sums
+        ? `Add the exponents of each base in ${math(expressionText(current))}: ${math(sums)}. That gives ${math(monomialText(result))}.`
+        : `Multiply the factors of ${math(expressionText(current))}. That gives ${math(monomialText(result))}.`, why: MONOMIAL_WHY.product });
       return;
     }
     if (current.t === 'div') {
@@ -311,15 +314,15 @@ export const monomialSteps = (node) => {
       const result = evaluateMonomial(current);
       if (!top || !bottom || !result) return;
       const letters = [...new Set([...Object.keys(top.v), ...Object.keys(bottom.v)])].sort();
-      const differences = letters.map((letter) => `${letter}: ${qText(top.v[letter] || Q(0))} ${MINUS} ${(bottom.v[letter] || Q(0)).n < 0 ? `(${qText(bottom.v[letter])})` : qText(bottom.v[letter] || Q(0))} = ${qText(result.v[letter] || Q(0))}`).join('; ');
-      const numbers = qEq(top.c, ONE) && qEq(bottom.c, ONE) ? '' : `${qText(top.c)} ÷ ${qText(bottom.c)} = ${qText(result.c)}; `;
-      steps.push({ show: `${expressionText(current)}: divide the numbers and subtract the exponents of each base (${numbers}${differences}). That gives ${monomialText(result)}.`, why: MONOMIAL_WHY.quotient });
+      const differences = letters.map((letter) => `${letter}: ${qText(top.v[letter] || Q(0))} ${MINUS} ${(bottom.v[letter] || Q(0)).n < 0 ? `(${qText(bottom.v[letter])})` : qText(bottom.v[letter] || Q(0))} = ${qText(result.v[letter] || Q(0))}`).join(', ');
+      const numbers = qEq(top.c, ONE) && qEq(bottom.c, ONE) ? '' : `${qText(top.c)} ÷ ${qText(bottom.c)} = ${qText(result.c)}, `;
+      steps.push({ show: `Divide the numbers and subtract the exponents of each base in ${math(expressionText(current))}: ${math(`${numbers}${differences}`)}. That gives ${math(monomialText(result))}.`, why: MONOMIAL_WHY.quotient });
     }
   };
   describe(node);
   if (!steps.length) return null;
   if (hasNegativeExponent(value)) {
-    steps.push({ show: `${monomialText(value)} has negative exponents. Move each such factor to the denominator with a positive exponent: ${positiveForm(value)}.`, why: MONOMIAL_WHY.negative });
+    steps.push({ show: `${math(monomialText(value))} has negative exponents. Move those factors to the denominator with positive exponents: ${math(positiveForm(value))}.`, why: MONOMIAL_WHY.negative });
   }
   return { steps, value };
 };
@@ -367,7 +370,9 @@ export const mutateMonomial = (node, seed, { avoidLetters = [] } = {}) => {
       const onGroup = current.a.t !== 'var' && current.a.t !== 'num';
       if (qIsInt(e)) {
         const magnitude = Math.abs(e.n);
-        if (magnitude === 1) next = e;
+        // An exponent of 1 written out (c⁻¹) may become another; one left unwritten (x) stays.
+        if (magnitude === 1 && (onGroup || q > 1)) next = e;
+        else if (magnitude === 1) next = Q(Math.sign(e.n) * draw([1, 2, 3]), 1);
         else if (q > 1) next = Q(Math.sign(e.n) * q * draw([1, 2, 3]), 1);
         // A power on a whole group stays small (2 or 3), so its numbers do.
         else if (onGroup) next = Q(Math.sign(e.n) * draw([2, 3]), 1);

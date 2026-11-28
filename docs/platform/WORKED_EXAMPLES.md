@@ -281,8 +281,6 @@ Where the Algebra II answer-box generators live (WE-I), and what they claim:
     cubic built from its zeros;
   - `quadraticForm` (A2.7D, A2.7E): x⁴ − bx² + c with u = x²;
   - `groupFourTerms` (A2.7E): four terms grouped in pairs;
-  - `twoRadicals` (A2.4G): √(x − a) = b − √x, squared twice and checked (the
-    sibling's case from the seed alone);
   - `realRoots` and `likeRadicals` (A2.7G sorts): how many real nth roots, and
     which radicals combine with √n.
 - **Never the item's answer.** The answer guard reads a number as a token, so a
@@ -293,11 +291,21 @@ Where the Algebra II answer-box generators live (WE-I), and what they claim:
   with no letter standing alone.
 - **Each answer line is in parts** ("Quotient = …; remainder = …"), so
   "Practise one like this" can check the student's answer part by part.
+- **Every sentence translates.** Its mathematics is set in `$…$` (`math`,
+  `shared.js`), so each sentence has one shape whatever its numbers, and each
+  shape has its Spanish in `src/platform/language/packs/esSupport.js`
+  (`platformFamilySentences`, the WE-I block); `readAloudAndTranslate.test.mjs`
+  holds every family's sentences to that.
 - **Coverage, from `node scripts/report-classwork-example-coverage.mjs`**
-  (2026-11-27): covered 371 → 442 of 687 Classwork questions, uncovered 316 →
-  245, built in 165 → 199. Every change is on an `A2.` standard: 33 questions
-  are built in directly (14 by the division replay, 19 by the answer-box
-  generators) and 38 more are covered by an earlier question on the same skill.
+  (2026-11-27): covered 371 → 443 of 687 Classwork questions, uncovered 316 →
+  244, built in 165 → 200. Every change is on an `A2.` standard: 34 questions
+  are built in directly (14 by the division replay, 18 answer boxes and 2
+  sorts by the generators) and 38 more are covered by an earlier question on
+  the same skill.
+- **Not claimed:** a radical equation in answer boxes (A2.4G, A2.7H). Each such
+  item's own answers include small numbers (2, 4) that any worked squaring
+  writes, so no sibling would pass the guard; those items keep needing an
+  example the lesson writes.
 - **Tests:** `tests/platform/algebra2AnswerBoxExamples.test.mjs` (every claim
   over the real lessons) and the answer-box scenario of
   `tests/browser/divisionReplay.mjs`.
@@ -646,7 +654,7 @@ counts the 483 authored ones). Then it was checked for a sibling from
 
 | | Count |
 |---|---|
-| Have a built-in example today | 137 of 496 |
+| Have a built-in example today | 137 of 496 (171 since WE-I) |
 | Have none | 359 |
 | Lessons with no built-in example on any classwork question | 14 of 41 |
 

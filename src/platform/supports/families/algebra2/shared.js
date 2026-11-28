@@ -245,3 +245,34 @@ export const divisorsOf = (value) => {
 };
 /** A set as the lessons write one: "{−2, 1, 3}". */
 export const setText = (values) => `{${values.map((value) => (typeof value === 'object' ? qText(value) : signed(value))).join(', ')}}`;
+
+/* ------------------------------------------------- mathematics as LaTeX */
+
+const SUPERSCRIPT_RUN = /[⁰¹²³⁴⁵⁶⁷⁸⁹⁻ⁿᵖᵠᵐ]+/g;
+const SUPERSCRIPT_LETTERS = Object.freeze({ ⁿ: 'n', ᵖ: 'p', ᵠ: 'q', ᵐ: 'm' });
+const plainOf = (character) => FROM_SUPERSCRIPT[character] ?? SUPERSCRIPT_LETTERS[character] ?? character;
+/**
+ * Plain mathematics ("(s⁻⁹)(s⁴t⁷)", "∜81", "x^(2/3)", "{±1, ±2}") as LaTeX.
+ * Every piece of mathematics a generator writes goes through `math` and is
+ * set in $…$: the player draws it as mathematics, Read aloud says it, and
+ * Translate keeps it whole while the sentence around it is translated.
+ */
+export const toLatex = (value) => {
+  let out = text(value)
+    .replace(/−/g, '-')
+    .replace(/\{/g, '\\{').replace(/\}/g, '\\}')
+    .replace(/±/g, '\\pm ')
+    .replace(/·/g, '\\cdot ')
+    .replace(/÷/g, '\\div ');
+  // ⁿ√(…) and ⁿ√x; √, ∛, ∜.
+  const rootIndex = (sign) => (sign === '√' ? '' : sign === '∛' ? '3' : sign === '∜' ? '4' : sign.slice(0, -1).split('').map(plainOf).join(''));
+  out = out.replace(/([⁰¹²³⁴⁵⁶⁷⁸⁹ⁿᵠ]*√|∛|∜)(\(([^()]*)\)|\w+)/g, (match, sign, whole, inner) => {
+    const index = rootIndex(sign);
+    return `\\sqrt${index ? `[${index}]` : ''}{${inner ?? whole}}`;
+  });
+  out = out.replace(/\^\(([^()]*)\)/g, (match, exponent) => `^{${exponent}}`);
+  out = out.replace(SUPERSCRIPT_RUN, (run) => `^{${run.split('').map(plainOf).join('')}}`);
+  return out;
+};
+/** A piece of mathematics, set in $…$. */
+export const math = (value) => `$${toLatex(value)}$`;

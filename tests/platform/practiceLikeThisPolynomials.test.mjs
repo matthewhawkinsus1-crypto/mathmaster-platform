@@ -264,9 +264,14 @@ test('Operations on Polynomials, and the packet unit that reviews it: exactly th
   // Every Classwork and Practice item of the lesson is one or the other.
   const lessonIds = itemsOf(OPERATIONS).filter(({ role }) => PRACTICE_LIKE_THIS_ROLES.includes(role)).map(({ question }) => question.questionId).sort();
   assert.deepEqual(lessonIds, [...Object.keys(WORK), ...Object.keys(NOT_VARIED)].sort());
-  // Open pull request #540 changes Dividing Polynomials: none of its items is varied.
+  // Open pull request #540 changes Dividing Polynomials: none of its items is
+  // varied in its own numbers. Since WE-I a division item and the monomial
+  // quotient have a family sibling (polynomialDivision, algebra2AnswerBoxes),
+  // so the practice offered is that sibling, never a numeric variant of the item.
   itemsOf(DIVIDING).filter(({ role }) => PRACTICE_LIKE_THIS_ROLES.includes(role)).forEach(({ question }) => {
-    assert.equal(buildPracticeLikeThis(question, { seed: 0 }), null, `${question.questionId}: Dividing Polynomials is left as it is`);
+    const practice = buildPracticeLikeThis(question, { seed: 0 });
+    assert.ok(practice === null || practice.source === PRACTICE_SOURCE.FAMILY, `${question.questionId}: Dividing Polynomials is never varied`);
+    assert.equal(buildNumericVariant(question, { seed: 0 }), null, `${question.questionId}: no numeric variant`);
   });
 });
 

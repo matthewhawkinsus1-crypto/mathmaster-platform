@@ -131,7 +131,7 @@ export const DIVISION_WHY = Object.freeze({
   last: 'The last column is the constant column. What is left after it cannot be divided by x − r again, so it is the remainder.',
   read: 'Dividing by x lowers every power by one, so the bottom row (all but its last number) is the quotient, starting one power below the dividend.',
   unscale: 'The table divided by x − r, which is the divisor divided by a. Multiplying the table’s remainder by a gives the remainder over the divisor as it was written.',
-  answer: 'Dividend = divisor × quotient + remainder, so dividing by the divisor gives the quotient plus the remainder over the divisor.',
+  answer: 'The dividend is the divisor times the quotient plus the remainder, so dividing by the divisor gives the quotient plus the remainder over the divisor.',
   remainderTheorem: 'The Remainder Theorem: dividing P(x) by x − r leaves the remainder P(r), because P(x) = (x − r)Q(x) + R and x − r is 0 at x = r.',
   depressed: 'The bottom row, all but the remainder, is the quotient: the polynomial left once x − r is divided out, one degree lower.',
   factorYes: 'The Factor Theorem: x − r is a factor exactly when the remainder is 0. Here it is 0. A remainder that is not 0 would mean x − r is not a factor.',

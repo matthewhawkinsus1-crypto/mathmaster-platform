@@ -14,7 +14,7 @@
  * the generator keeps it safe itself: no card of the sibling is a card of the
  * item, and the sibling's radicand is not the item's.
  */
-import { MINUS, firstFitting, rootOf, signed, superscript, text } from './shared.js';
+import { MINUS, firstFitting, math, rootOf, signed, superscript, text } from './shared.js';
 
 const list = (value) => (Array.isArray(value) ? value : []);
 const labelsOf = (values) => list(values).map((value) => text(value?.label)).filter(Boolean);
@@ -48,17 +48,20 @@ const REAL_ROOT_CARDS = Object.freeze([
 ]);
 const kindOf = ([index, radicand]) => (radicand === 0 ? 'zero' : index % 2 === 1 ? 'odd' : radicand > 0 ? 'evenPositive' : 'evenNegative');
 const realCard = ([index, radicand]) => {
+  // The item names its cards in words ("The fourth roots of 81"); the sibling's
+  // card is the equation they solve, so each sentence has one shape.
   const label = `The ${NAME[index]} roots of ${signed(radicand)}`;
+  const equation = `x${superscript(index)} = ${signed(radicand)}`;
   const kind = kindOf([index, radicand]);
   const magnitude = Math.round(Math.abs(radicand) ** (1 / index));
   let show;
-  if (kind === 'evenPositive') show = `${label}: ${magnitude}${superscript(index)} = ${radicand} and (${MINUS}${magnitude})${superscript(index)} = ${radicand}, so the roots are ±${magnitude}. Two real roots.`;
-  else if (kind === 'odd') show = `${label}: ${radicand < 0 ? `(${signed(-magnitude)})` : magnitude}${superscript(index)} = ${signed(radicand)}, and no other real number works. Exactly one real root.`;
-  else if (kind === 'zero') show = `${label}: only zero works. Exactly one real root.`;
-  else show = `${label}: an even power is never negative, so no real number works. No real roots.`;
+  if (kind === 'evenPositive') show = `The real solutions of ${math(equation)}: ${math(`${magnitude}${superscript(index)} = ${radicand}`)} and ${math(`(${MINUS}${magnitude})${superscript(index)} = ${radicand}`)}, so the roots are ${math(`±${magnitude}`)}. Two real roots.`;
+  else if (kind === 'odd') show = `The real solutions of ${math(equation)}: ${math(`${radicand < 0 ? `(${signed(-magnitude)})` : magnitude}${superscript(index)} = ${signed(radicand)}`)}, and no other real number works. Exactly one real root.`;
+  else if (kind === 'zero') show = `The real solutions of ${math(equation)}: only zero works. Exactly one real root.`;
+  else show = `The real solutions of ${math(equation)}: an even power is never negative, so no real number works. No real roots.`;
   const group = kind === 'evenPositive' ? 'Two real roots' : kind === 'evenNegative' ? 'No real roots' : 'Exactly one real root';
   const value = kind === 'evenPositive' ? `${rootOf(index, String(radicand))} = ${magnitude}` : kind === 'odd' ? `${rootOf(index, signed(radicand))} = ${signed(Math.sign(radicand) * magnitude)}` : null;
-  return { label, group, value, step: { show, why: REAL_ROOTS_WHY[kind] } };
+  return { label, equation, group, value: value && math(value), step: { show, why: REAL_ROOTS_WHY[kind] } };
 };
 
 const realRootsDraw = (plan, seed) => {
@@ -71,10 +74,10 @@ const realRootsDraw = (plan, seed) => {
   const unique = [...new Map(chosen.map((card) => [card.join(':'), card])).values()];
   const cards = unique.map(realCard);
   if (cards.some((card) => plan.labels.includes(card.label))) return null;
-  const groups = ['Two real roots', 'Exactly one real root', 'No real roots'].map((group) => `${group}: ${cards.filter((card) => card.group === group).map((card) => card.label.replace(/^The /, 'the ')).join(', ')}`);
+  const groups = ['Two real roots', 'Exactly one real root', 'No real roots'].map((group) => `${group}: ${math(cards.filter((card) => card.group === group).map((card) => card.equation).join(', '))}`);
   return {
-    prompt: `Sort each set of roots by how many real roots it has: ${cards.map((card) => card.label.replace(/^The /, 'the ')).join('; ')}.`,
-    steps: [...cards.map((card) => card.step), { show: `The groups. ${groups.join('. ')}.`, why: 'Two things decide the number of real roots: whether the index is even or odd, and the sign of the radicand.' }],
+    prompt: `Sort each equation by how many real solutions it has: ${math(cards.map((card) => card.equation).join(', '))}.`,
+    steps: [...cards.map((card) => card.step), { show: `${groups.join('. ')}.`, why: 'Two things decide the number of real roots: whether the index is even or odd, and the sign of the radicand.' }],
     // Each root a card has, then the groups (in words).
     answer: [...cards.map((card) => card.value).filter(Boolean), ...groups].join('; '),
     problems: [],
@@ -104,21 +107,21 @@ const SQUARE_FREE = Object.freeze([2, 3, 6, 7]);
 const likeDraw = (plan, seed, ok) => firstFitting(SQUARE_FREE.filter((value) => value !== plan.radicand), seed, (n) => {
   const other = SQUARE_FREE.find((value) => value !== n && value !== plan.radicand);
   const cards = [
-    { label: `4√${n}`, show: `4√${n} is already simplified, with radicand ${n}.`, why: LIKE_RADICALS_WHY.like, like: true },
-    { label: `√${9 * n}`, show: `√${9 * n} = √(9 · ${n}) = 3√${n}.`, why: `${LIKE_RADICALS_WHY.simplify} ${LIKE_RADICALS_WHY.like}`, like: true },
-    { label: `2√${16 * n}`, show: `2√${16 * n} = 2 · √(16 · ${n}) = 2 · 4√${n} = 8√${n}.`, why: `${LIKE_RADICALS_WHY.simplify} ${LIKE_RADICALS_WHY.like}`, like: true },
-    { label: `√${4 * other}`, show: `√${4 * other} = √(4 · ${other}) = 2√${other}: radicand ${other}.`, why: `${LIKE_RADICALS_WHY.simplify} ${LIKE_RADICALS_WHY.unlikeRadicand}`, like: false },
-    { label: `${rootOf(3, String(n))}`, show: `${rootOf(3, String(n))} is a cube root.`, why: LIKE_RADICALS_WHY.unlikeIndex, like: false },
-    { label: `√(${n}y)`, show: `√(${n}y) has the radicand ${n}y.`, why: LIKE_RADICALS_WHY.unlikeLetter, like: false },
+    { label: `4√${n}`, show: `${math(`4√${n}`)} is already simplified, with radicand ${math(n)}.`, why: LIKE_RADICALS_WHY.like, like: true },
+    { label: `√${9 * n}`, show: `Simplify: ${math(`√${9 * n} = √(9 · ${n}) = 3√${n}`)}.`, why: `${LIKE_RADICALS_WHY.simplify} ${LIKE_RADICALS_WHY.like}`, like: true },
+    { label: `2√${16 * n}`, show: `Simplify: ${math(`2√${16 * n} = 2 · √(16 · ${n}) = 2 · 4√${n} = 8√${n}`)}.`, why: `${LIKE_RADICALS_WHY.simplify} ${LIKE_RADICALS_WHY.like}`, like: true },
+    { label: `√${4 * other}`, show: `Simplify: ${math(`√${4 * other} = √(4 · ${other}) = 2√${other}`)}, with radicand ${math(other)}.`, why: `${LIKE_RADICALS_WHY.simplify} ${LIKE_RADICALS_WHY.unlikeRadicand}`, like: false },
+    { label: `${rootOf(3, String(n))}`, show: `${math(rootOf(3, String(n)))} is a cube root.`, why: LIKE_RADICALS_WHY.unlikeIndex, like: false },
+    { label: `√(${n}y)`, show: `${math(`√(${n}y)`)} has the radicand ${math(`${n}y`)}.`, why: LIKE_RADICALS_WHY.unlikeLetter, like: false },
   ];
   if (cards.some((card) => plan.labels.includes(card.label))) return null;
   const likeGroup = cards.filter((card) => card.like).map((card) => card.label).join(', ');
   const unlikeGroup = cards.filter((card) => !card.like).map((card) => card.label).join(', ');
   return {
-    prompt: `Sort each expression: once simplified, can it be combined with √${n}, or not? ${cards.map((card) => card.label).join(', ')}.`,
-    steps: [...cards.map((card) => ({ show: card.show, why: card.why })), { show: `Can be combined with √${n}: ${likeGroup}. Cannot: ${unlikeGroup}.`, why: LIKE_RADICALS_WHY.like }],
+    prompt: `Sort each expression: once simplified, can it be combined with ${math(`√${n}`)}, or not? ${math(cards.map((card) => card.label).join(', '))}.`,
+    steps: [...cards.map((card) => ({ show: card.show, why: card.why })), { show: `Can be combined with ${math(`√${n}`)}: ${math(likeGroup)}. Cannot: ${math(unlikeGroup)}.`, why: LIKE_RADICALS_WHY.like }],
     // Each card simplified, then the groups (in words).
-    answer: [`√${9 * n} = 3√${n}`, `2√${16 * n} = 8√${n}`, `√${4 * other} = 2√${other}`, `can be combined with √${n}: ${likeGroup}`, `cannot: ${unlikeGroup}`].join('; '),
+    answer: [math(`√${9 * n} = 3√${n}`), math(`2√${16 * n} = 8√${n}`), math(`√${4 * other} = 2√${other}`), `can be combined: ${math(likeGroup)}`, `cannot: ${math(unlikeGroup)}`].join('; '),
     problems: [],
   };
 }, ok);

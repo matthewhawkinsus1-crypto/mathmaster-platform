@@ -26,13 +26,12 @@
 import { fieldsOf, firstSafe, standardOf, text } from './algebra2/shared.js';
 import { EXPONENT_GENERATORS } from './algebra2/exponents.js';
 import { POLYNOMIAL_GENERATORS } from './algebra2/polynomials.js';
-import { RADICAL_EQUATION_GENERATORS } from './algebra2/radicalEquations.js';
 import { SORT_GENERATORS } from './algebra2/sorts.js';
 
 export const family = 'algebra2AnswerBoxes';
 export const implemented = true;
 
-export const GENERATORS = Object.freeze([...EXPONENT_GENERATORS, ...POLYNOMIAL_GENERATORS, ...RADICAL_EQUATION_GENERATORS]);
+export const GENERATORS = Object.freeze([...EXPONENT_GENERATORS, ...POLYNOMIAL_GENERATORS]);
 
 /** The generator that claims the question, and its plan, or null. */
 export const claimFor = (question) => {

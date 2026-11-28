@@ -26,6 +26,7 @@ import {
   Q,
   firstFitting,
   intPow,
+  math,
   qAdd,
   qText,
   rootOf,
@@ -51,17 +52,20 @@ const exponentText = (p, q) => `^(${p < 0 ? MINUS : ''}${Math.abs(p)}/${q})`;
 const joinParts = (parts) => parts.join('; ');
 const articleList = (items) => (items.length > 1 ? `${items.slice(0, -1).join(', ')} and ${items[items.length - 1]}` : items[0]);
 
+
 /* =================================================== rationalExponents */
 
+// The reasons, in words: no digit and no letter standing alone, so that no
+// item's answer can be read in them (shared.js, the guard).
 export const RATIONAL_WHY = Object.freeze({
-  root: 'In a rational exponent p/q the denominator q is the index of a root: b to the power one over q is the qth root of b.',
-  power: 'The numerator p is a power of that root: b^(p/q) = (ᵠ√b)ᵖ. Taking the root first keeps the numbers small.',
-  reciprocal: 'A negative exponent means a reciprocal: b⁻ⁿ is one over bⁿ. It never makes the number negative.',
+  root: 'The denominator of a rational exponent is the index of a root, and the numerator is a power.',
+  power: 'Take the root first, then the power: the numbers stay small.',
+  reciprocal: 'A negative exponent means the reciprocal. It never makes the number negative.',
   oddRoot: 'An odd root of a negative number is real and negative, because a negative number to an odd power is negative.',
   evenRoot: 'An even root of a negative number is not a real number: no real number to an even power is negative.',
-  toRadical: 'b to the power one over n is ⁿ√b: the denominator of the exponent becomes the index of the root.',
-  toExponential: 'ⁿ√b is b to the power one over n: the index of the root becomes the denominator of the exponent. A square root’s index is two, though it is not written.',
-  rootValue: 'ⁿ√b is the number whose nth power is b.',
+  toRadical: 'The denominator of the exponent becomes the index of the root.',
+  toExponential: 'The index of the root becomes the denominator of the exponent.',
+  rootValue: 'The root is the number whose power, with the index as the exponent, is the radicand.',
 });
 
 const gcdOf = (a, b) => (b ? gcdOf(b, a % b) : Math.abs(a));
@@ -122,18 +126,18 @@ const evaluatePart = (shape, { k, q, b, p }) => {
   const signedP = negativeExponent ? -p : p;
   const asked = `${power(base)}${exponentText(signedP, q)}`;
   const steps = [{
-    show: `${asked}: the denominator ${q} is the index, so take ${rootOf(q, signed(base))} first. It is ${signed(root)}, because ${power(root)}${superscript(q)} = ${signed(base)}.`,
+    show: `The denominator of ${math(asked)} is ${math(q)}, so take the root first: ${math(`${rootOf(q, signed(base))} = ${signed(root)}`)}, because ${math(`${power(root)}${superscript(q)} = ${signed(base)}`)}.`,
     why: base < 0 ? `${RATIONAL_WHY.root} ${RATIONAL_WHY.oddRoot}` : RATIONAL_WHY.root,
   }];
-  if (p !== 1) steps.push({ show: `The numerator ${p} is the power: ${power(root)}${superscript(p)} = ${signed(raised)}.`, why: RATIONAL_WHY.power });
+  if (p !== 1) steps.push({ show: `The numerator ${math(p)} is the power: ${math(`${power(root)}${superscript(p)} = ${signed(raised)}`)}.`, why: RATIONAL_WHY.power });
   const value = negativeExponent ? (raised < 0 ? `${MINUS}1/${Math.abs(raised)}` : `1/${raised}`) : signed(raised);
-  if (negativeExponent) steps.push({ show: `The exponent is negative, so take the reciprocal: ${asked} = 1/${power(base)}${exponentText(p, q)} = ${value}.`, why: RATIONAL_WHY.reciprocal });
-  return { ask: `evaluate ${asked}`, steps, answer: `${asked} = ${value}`, key: b };
+  if (negativeExponent) steps.push({ show: `The exponent is negative, so take the reciprocal: ${math(`${asked} = 1/${power(base)}${exponentText(p, q)} = ${value}`)}.`, why: RATIONAL_WHY.reciprocal });
+  return { ask: `Evaluate ${math(asked)}.`, steps, answer: math(`${asked} = ${value}`), problem: asked, key: b };
 };
 
 const rootValuePart = ({ k, q, b }) => {
   const sign = rootOf(q, String(b));
-  return { ask: `evaluate ${sign}`, steps: [{ show: `${sign} = ${k}, because ${k}${superscript(q)} = ${b}.`, why: RATIONAL_WHY.rootValue }], answer: `${sign} = ${k}`, key: b };
+  return { ask: `Evaluate ${math(sign)}.`, steps: [{ show: `${math(`${sign} = ${k}`)}, because ${math(`${k}${superscript(q)} = ${b}`)}.`, why: RATIONAL_WHY.rootValue }], answer: math(`${sign} = ${k}`), problem: sign, key: b };
 };
 
 // Whether a negative base to a rational power is real: the sibling's case is
@@ -142,32 +146,36 @@ const realCheckPart = (even, { k, q, b, p }) => {
   const expression = `(${MINUS}${b})${exponentText(p, q)}`;
   if (even) {
     return {
-      ask: `decide whether ${expression} is a real number`,
-      steps: [{ show: `${expression}: the denominator ${q} is even, so it asks for an even root of ${MINUS}${b}. That is not a real number.`, why: RATIONAL_WHY.evenRoot }],
-      answer: `${expression} is not a real number`,
+      ask: `Decide whether ${math(expression)} is a real number.`,
+      steps: [{ show: `The denominator of ${math(expression)} is ${math(q)}, an even number, so it asks for an even root of ${math(`${MINUS}${b}`)}. That is not a real number.`, why: RATIONAL_WHY.evenRoot }],
+      answer: `${math(expression)} is not a real number`,
+      problem: expression,
       key: b,
     };
   }
   const value = intPow(-k, p);
   return {
-    ask: `decide whether ${expression} is a real number`,
-    steps: [{ show: `${expression}: the denominator ${q} is odd, so ${rootOf(q, `${MINUS}${b}`)} = ${MINUS}${k} is real.${p === 1 ? '' : ` Then (${MINUS}${k})${superscript(p)} = ${signed(value)}.`}`, why: RATIONAL_WHY.oddRoot }],
-    answer: `${expression} = ${signed(value)}, a real number`,
+    ask: `Decide whether ${math(expression)} is a real number.`,
+    steps: [{ show: `The denominator of ${math(expression)} is ${math(q)}, an odd number, so ${math(`${rootOf(q, `${MINUS}${b}`)} = ${MINUS}${k}`)} is real.${p === 1 ? '' : ` Then ${math(`(${MINUS}${k})${superscript(p)} = ${signed(value)}`)}.`}`, why: RATIONAL_WHY.oddRoot }],
+    answer: math(`${expression} = ${signed(value)}`),
+    problem: expression,
     key: b,
   };
 };
 
 const LETTERS = Object.freeze(['m', 'p', 'k', 't', 'u', 'v', 'g', 'h']);
 const toRadicalPart = ({ letter, q }) => ({
-  ask: `write ${letter}^(1/${q}) in radical form`,
-  steps: [{ show: `${letter}^(1/${q}) has denominator ${q}, so it is the root with index ${q}: ${rootOf(q, letter)}.`, why: RATIONAL_WHY.toRadical }],
-  answer: `${letter}^(1/${q}) = ${rootOf(q, letter)}`,
+  ask: `Write ${math(`${letter}^(1/${q})`)} in radical form.`,
+  steps: [{ show: `The denominator of ${math(`${letter}^(1/${q})`)} is ${math(q)}, so it is the root with index ${math(q)}: ${math(rootOf(q, letter))}.`, why: RATIONAL_WHY.toRadical }],
+  answer: math(`${letter}^(1/${q}) = ${rootOf(q, letter)}`),
+  problem: `${letter}^(1/${q})`,
   key: letter,
 });
 const toExponentialPart = ({ letter, q }) => ({
-  ask: `write ${rootOf(q, letter)} in exponential form`,
-  steps: [{ show: `${rootOf(q, letter)} has index ${q}${q === 2 ? ' (a square root’s index is not written)' : ''}, so it is ${letter}^(1/${q}).`, why: RATIONAL_WHY.toExponential }],
-  answer: `${rootOf(q, letter)} = ${letter}^(1/${q})`,
+  ask: `Write ${math(rootOf(q, letter))} in exponential form.`,
+  steps: [{ show: `${math(rootOf(q, letter))} has index ${math(q)}, so it is ${math(`${letter}^(1/${q})`)}.${q === 2 ? ' A square root’s index is not written.' : ''}`, why: RATIONAL_WHY.toExponential }],
+  answer: math(`${rootOf(q, letter)} = ${letter}^(1/${q})`),
+  problem: rootOf(q, letter),
   key: letter,
 });
 
@@ -189,7 +197,6 @@ const rationalPart = (shape, seed, used, ok) => {
   return null;
 };
 
-const capitalised = (value) => value.charAt(0).toUpperCase() + value.slice(1);
 const rationalDraw = (plan, seed, ok = null) => {
   const used = new Set(plan.items.map((item) => Math.abs(Number(item.base) || 0)).filter(Boolean));
   const parts = [];
@@ -200,10 +207,10 @@ const rationalDraw = (plan, seed, ok = null) => {
     parts.push(part);
   }
   return {
-    prompt: `${capitalised(articleList(parts.map((part) => part.ask)))}.`,
+    prompt: parts.map((part) => part.ask).join(' '),
     steps: parts.flatMap((part) => part.steps),
     answer: joinParts(parts.map((part) => part.answer)),
-    problems: parts.map((part) => part.answer.split(' = ')[0]),
+    problems: parts.map((part) => part.problem),
   };
 };
 
@@ -273,10 +280,10 @@ const monomialDraw = (plan, seed, ok = null) => {
           .find((letter) => exponentsOfIn(mutated, letter).length > 1);
         if (!named) continue;
         const exponents = exponentsOfIn(mutated, named);
-        extra.push({ show: `In ${expression}, the base ${named} appears more than once. Its exponent is ${signedSum(exponents)} = ${qText(exponents.reduce(qAdd))}.`, why: 'Factors with the same base multiply by adding their exponents, so that base’s exponents are added first.' });
-        extraAnswer = `exponent of ${named} = ${qText(exponents.reduce(qAdd))}`;
+        extra.push({ show: `In ${math(expression)}, the base ${math(named)} appears more than once. Its exponent is ${math(`${signedSum(exponents)} = ${qText(exponents.reduce(qAdd))}`)}.`, why: 'Factors with the same base multiply by adding their exponents, so that base’s exponents are added first.' });
+        extraAnswer = `exponent of the repeated base = ${math(qText(exponents.reduce(qAdd)))}`;
       }
-      const answer = `${expression} = ${positiveForm(worked.value)}`;
+      const answer = math(`${expression} = ${positiveForm(worked.value)}`);
       const partSteps = [...extra, ...worked.steps];
       if (ok && !ok([...partSteps.flatMap((step) => [step.show, step.why]), answer, extraAnswer].filter(Boolean))) continue;
       sibling = { expression, steps: partSteps, answers: [extraAnswer, answer].filter(Boolean), tree: mutated };
@@ -289,7 +296,7 @@ const monomialDraw = (plan, seed, ok = null) => {
   }
   if (!asks.length) return null;
   return {
-    prompt: `Simplify ${articleList(asks)}. Write each answer with positive exponents only. Assume no variable equals 0.`,
+    prompt: `Simplify ${articleList(asks.map(math))}. Write each answer with positive exponents only. Assume no variable equals zero.`,
     steps,
     answer: joinParts(answers),
     problems: asks,
@@ -304,9 +311,9 @@ const ORDINAL = Object.freeze({ 2: 'square', 3: 'cube', 4: 'fourth', 5: 'fifth',
 const ORDINAL_INDEX = Object.freeze(Object.fromEntries(Object.entries(ORDINAL).map(([index, name]) => [name, Number(index)])));
 
 export const VOCABULARY_WHY = Object.freeze({
-  index: 'In ⁿ√b the small number n written in the crook of the root sign is the index: it says which root.',
+  index: 'The small number written in the crook of the root sign is the index: it says which root.',
   radicand: 'The number under the root sign is the radicand.',
-  proof: 'a is an nth root of b exactly when aⁿ = b, so the statement that shows it raises a to the nth power.',
+  proof: 'A number is a root of another exactly when its power, with the index as the exponent, equals that number.',
   principal: 'An even root of a positive number has two real values, one positive and one negative. The positive one is the principal root.',
   other: 'The other real root is the opposite of the principal root, because a negative number to an even power is positive.',
 });
@@ -347,18 +354,18 @@ const vocabularyDraw = (plan, seed, ok = null) => {
       const partSteps = [];
       const partAnswers = [];
       if (has('index')) {
-        partSteps.push({ show: `In ${sign} the index is ${q}: it is the ${ORDINAL[q] || `${q}th`} root.`, why: VOCABULARY_WHY.index });
-        partAnswers.push(`index = ${q}`);
+        partSteps.push({ show: `In ${math(sign)} the index is ${math(q)}.`, why: VOCABULARY_WHY.index });
+        partAnswers.push(`index = ${math(q)}`);
       }
       if (has('radicand')) {
-        partSteps.push({ show: `The radicand is ${b}, the number under the root sign.`, why: VOCABULARY_WHY.radicand });
-        partAnswers.push(`radicand = ${b}`);
+        partSteps.push({ show: `The radicand is ${math(b)}, the number under the root sign.`, why: VOCABULARY_WHY.radicand });
+        partAnswers.push(`radicand = ${math(b)}`);
       }
       if (has('proof')) {
-        partSteps.push({ show: `${k} is ${ORDINAL[q] ? `a ${ORDINAL[q]}` : `an ${q}th`} root of ${b} because ${k}${superscript(q)} = ${b}.`, why: VOCABULARY_WHY.proof });
-        partAnswers.push(`${k}${superscript(q)} = ${b}`);
+        partSteps.push({ show: `${math(k)} is a root of ${math(b)} with index ${math(q)}, because ${math(`${k}${superscript(q)} = ${b}`)}.`, why: VOCABULARY_WHY.proof });
+        partAnswers.push(math(`${k}${superscript(q)} = ${b}`));
       }
-      return { ask: `name the parts of ${sign}`, steps: partSteps, answer: partAnswers.join('; '), key: b };
+      return { ask: `Name the parts of ${math(sign)}.`, steps: partSteps, answer: partAnswers.join('; '), key: b };
     }, ok);
     if (!named) return null;
     avoid.add(named.key);
@@ -368,18 +375,17 @@ const vocabularyDraw = (plan, seed, ok = null) => {
   }
   if (plan.even) {
     const even = firstFitting(POWERS.filter(({ q, b }) => q % 2 === 0 && !avoid.has(b) && b !== plan.even.base), seed + 3, ({ k, q, b }) => {
-      const name = ORDINAL[q];
       const partSteps = [];
       const partAnswers = [];
       if (has('principal')) {
-        partSteps.push({ show: `${k}${superscript(q)} = ${b}, so the principal ${name} root of ${b} is ${rootOf(q, String(b))} = ${k}.`, why: VOCABULARY_WHY.principal });
-        partAnswers.push(`principal ${name} root = ${k}`);
+        partSteps.push({ show: `${math(`${k}${superscript(q)} = ${b}`)}, so the principal root is ${math(`${rootOf(q, String(b))} = ${k}`)}.`, why: VOCABULARY_WHY.principal });
+        partAnswers.push(`principal root = ${math(k)}`);
       }
       if (has('other')) {
-        partSteps.push({ show: `(${MINUS}${k})${superscript(q)} = ${b} too, so the other real ${name} root is ${MINUS}${rootSign(q)}${b} = ${MINUS}${k}.`, why: VOCABULARY_WHY.other });
-        partAnswers.push(`other real ${name} root = ${MINUS}${k}`);
+        partSteps.push({ show: `${math(`(${MINUS}${k})${superscript(q)} = ${b}`)} too, so the other real root is ${math(`${MINUS}${rootSign(q)}${b} = ${MINUS}${k}`)}.`, why: VOCABULARY_WHY.other });
+        partAnswers.push(`other real root = ${math(`${MINUS}${k}`)}`);
       }
-      return { ask: `find both real ${name} roots of ${b}`, steps: partSteps, answer: partAnswers.join('; ') };
+      return { ask: `Find both real roots of ${math(b)} with index ${math(q)}.`, steps: partSteps, answer: partAnswers.join('; ') };
     }, ok);
     if (!even) return null;
     asks.push(even.ask);
@@ -387,7 +393,7 @@ const vocabularyDraw = (plan, seed, ok = null) => {
     answers.push(even.answer);
   }
   if (!steps.length) return null;
-  return { prompt: `${asks.map((ask, index) => (index === 0 ? capitalised(ask) : ask)).join(', and then ')}.`, steps, answer: joinParts(answers) };
+  return { prompt: asks.join(' '), steps, answer: joinParts(answers) };
 };
 
 export const rootVocabulary = Object.freeze({ id: 'rootVocabulary', standards: ['A2.7G'], claim: vocabularyClaim, draw: vocabularyDraw });
