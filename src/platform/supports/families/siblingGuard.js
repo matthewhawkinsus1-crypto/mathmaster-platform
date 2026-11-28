@@ -67,31 +67,60 @@ const numericValue = (raw) => {
 
 const mathKey = (value) => text(value).toLowerCase().replace(/[−–]/g, '-').replace(/[()\s$]/g, '').replace(/≤/g, '<=').replace(/≥/g, '>=');
 
+// LaTeX as a student reads it: \frac{4}{3} is (4)/(3); \left( and \right) are brackets; $ is not mathematics.
+const fromLatex = (value) => {
+  let out = text(value).replace(/\$/g, '').replace(/\\(?:left|right)\s*/g, '').replace(/\\cdot/g, '*');
+  for (let pass = 0; pass < 4; pass += 1) out = out.replace(/\\[dt]?frac\s*\{([^{}]*)\}\s*\{([^{}]*)\}/g, '($1)/($2)');
+  return out;
+};
+const WORD_BREAK = '\u0001';
+
 /** The equations and inequalities a text states. A word (two letters or more) ends one; a lone letter is a variable. */
-export const statedEquations = (value) => new Set(text(value).replace(/[A-Za-z]{2,}/g, '|').split(/[|,;:?\n]|\.\s|\.$/)
+export const statedEquations = (value) => new Set(fromLatex(value).replace(/[A-Za-z]{2,}/g, WORD_BREAK).split(/[\u0001,;:?\n]|\.\s|\.$/)
   .map((piece) => piece.trim())
   .filter((piece) => /[=<>≤≥]/.test(piece) && /[a-z]/i.test(piece) && /\d/.test(piece))
   .map(mathKey)
   .filter((key) => key.length >= 3));
 
-// "k = 0" or "t = 3" alone is a value of a letter, not a problem. "y = −2" and
-// "x = 5" are lines, so they still count.
-const BARE_VALUE = /^[a-wz]=-?[\d./]+$/;
+// "k = 0", "t = 3" or "n ≥ 2" alone is a value or a condition on a letter, not
+// a problem. "y = −2" and "x = 5" are lines, so they still count.
+const BARE_VALUE = /^[a-wz](?:=|<|>|<=|>=)-?[\d./]+$/;
 const itemShows = (question) => [text(question?.prompt), ...list(question?.answerFields).filter(isObject).map((field) => text(field.label))].join('\n');
 
-/** The sibling names none of the item's answers, and is not the item: not its prompt, nor any equation it states. */
-export const siblingIsSafe = (question, guard, example) => {
-  if (!isObject(example)) return false;
+/** A sibling prompt that states an equation or inequality the item itself states (not a bare value such as k = 0). */
+export const sharesItemEquation = (question, prompt) => {
+  const itemEquations = statedEquations(itemShows(question));
+  return [...statedEquations(prompt)].some((key) => itemEquations.has(key) && !BARE_VALUE.test(key));
+};
+
+/**
+ * What a sibling gives away: each way its prompt, steps or answer state one of
+ * the item's answers, or its prompt states one of the item's own equations.
+ * [] when it gives nothing away. (How many steps it has is not a leak; see siblingIsSafe.)
+ */
+export const siblingLeaks = (question, guard, example) => {
+  if (!isObject(example)) return ['no sibling'];
   const prompt = text(example.prompt);
   const answer = text(example.answer);
   const steps = list(example.steps).map(text).filter(Boolean);
-  if (!prompt || !answer || steps.length < 2 || prompt === text(question?.prompt)) return false;
-  const itemEquations = statedEquations(itemShows(question));
-  if ([...statedEquations(prompt)].some((key) => itemEquations.has(key) && !BARE_VALUE.test(key))) return false;
-  if (guard.some((value) => value.toLowerCase() === answer.toLowerCase())) return false;
+  const out = [];
+  if (prompt && prompt === text(question?.prompt)) out.push('the prompt is the item\'s');
+  if (sharesItemEquation(question, prompt)) out.push('the prompt states one of the item\'s own equations');
+  if (answer && guard.some((value) => value.toLowerCase() === answer.toLowerCase())) out.push('the answer is the item\'s');
   const own = numericValue(answer);
-  if (own !== null && guard.some((value) => numericValue(value) !== null && Math.abs(numericValue(value) - own) < 1e-9)) return false;
-  return ![prompt, ...steps, answer].some((piece) => hintRevealsAnswer(piece, guard));
+  if (own !== null && guard.some((value) => numericValue(value) !== null && Math.abs(numericValue(value) - own) < 1e-9)) out.push('the answer has the item\'s value');
+  [prompt, ...steps, answer].forEach((piece) => guard.forEach((value) => {
+    if (piece && hintRevealsAnswer(piece, [value])) out.push(`"${value}" in: ${piece}`);
+  }));
+  return out;
+};
+
+/** The sibling names none of the item's answers, and is not the item: not its prompt, nor any equation it states; and it is worked (two steps or more). */
+export const siblingIsSafe = (question, guard, example) => {
+  if (!isObject(example)) return false;
+  const steps = list(example.steps).map(text).filter(Boolean);
+  if (!text(example.prompt) || !text(example.answer) || steps.length < 2) return false;
+  return siblingLeaks(question, guard, example).length === 0;
 };
 
 const hashText = (value) => {

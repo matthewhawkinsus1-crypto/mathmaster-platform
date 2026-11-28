@@ -51,6 +51,7 @@ import { latexToExpression } from '../../../../functions/shared/algebra/latexToE
 import { linearEquationForm } from '../../../../functions/shared/toolMath/systemsWorkspace/algebraicSystemsEngine.mjs';
 import { SYSTEMS_WORKSPACE_DEFAULTS, matrix3x4Rows } from '../../../../functions/shared/toolMath/systemsWorkspace/systemsMath.mjs';
 import { resolveSystemsWorkspaceMode } from '../../../../functions/shared/toolMath/systemsWorkspace/systemsWorkspaceMode.mjs';
+import { sharesItemEquation } from './siblingGuard.js';
 
 export const family = 'systems';
 export const implemented = true;
@@ -1095,6 +1096,9 @@ export const similarProblem = (question, { seed = 0 } = {}) => {
       const pieces = [candidate.prompt, ...candidate.steps, candidate.answer];
       if (pieces.some((piece) => revealsAnswer(piece, guard))) continue;
       if (text(candidate.prompt) === text(question?.prompt)) continue;
+      // Not one of this question's own equations either (the examples safety audit: a sibling of
+      // "y = 2x + 1 and y = −x + 6" was worked with y = −x + 6).
+      if (sharesItemEquation(question, candidate.prompt)) continue;
       return { prompt: candidate.prompt, steps: candidate.steps, answer: candidate.answer };
     }
     return null;
