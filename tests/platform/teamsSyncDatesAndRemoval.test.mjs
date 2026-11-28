@@ -254,3 +254,38 @@ test('planning a removal or a date change is pure: the same inputs give the same
   assert.deepEqual(removing.ops.map((op) => [op.type, op.columnId, op.gradeCount]), [['deleteColumn', 'A1', 1]]);
   assert.equal(JSON.stringify({ unit, ledgerEntry, gradebook }), frozen);
 });
+
+// The extension reads the marking period TEAMS has open, so a read-back of
+// another period simply does not contain the column (review of #625).
+test('a removal is never recorded from a read-back of another marking period', async () => {
+  const gradebook = book();
+  let result = await sync(gradebook, [target({ rows: [] })]);
+  const column = only(gradebook);
+  const key = `${target().key}@${REF}`;
+  assert.equal(result.ledger[key].markingPeriod, 'MP2', 'the column\'s marking period is kept');
+  // TEAMS has MP3 open: MP2's columns are not in the read-back.
+  const otherPeriod = {
+    async readGradebook(ref) {
+      const book2 = await gradebook.readGradebook(ref);
+      return { ...book2, markingPeriods: book2.markingPeriods.filter((period) => period.id === 'MP3'), columns: book2.columns.filter((item) => item.markingPeriod === 'MP3'), cells: {} };
+    },
+  };
+  const removal = { requestedAt: '2026-11-18' };
+  result = await runTeamsSync({ targets: [target({ rows: [], removal })], ledger: result.ledger, adapter: otherPeriod, capabilities: ZERO_WEIGHT, now: clock() });
+  assert.equal(result.ledger[key].removed, undefined, 'not recorded as removed');
+  assert.equal(result.plans[0].removal.state, 'otherPeriod');
+  assert.ok(gradebook.columnById(column.id), 'still in TEAMS');
+  // The teacher opens MP2: the next sync removes it.
+  result = await sync(gradebook, [target({ rows: [], removal })], result.ledger);
+  assert.deepEqual(gradebook.calls.deleteColumn, [column.id]);
+  assert.equal(result.ledger[key].removed, true);
+});
+
+test('a delete sent, then a read-back of another marking period: still unverified, not removed', () => {
+  const entry = { columnId: 'A1', created: true, markingPeriod: 'MP2', pendingDelete: { columnId: 'A1', markingPeriod: 'MP2', attempts: 1 } };
+  const unit = { ...target({ removal: { requestedAt: 'x' } }), key: 'k@15001/01', teamsSectionRef: REF };
+  const mp3 = { markingPeriods: [{ id: 'MP3', start: '2027-01-05', end: '2027-02-26' }], roster: [], columns: [], cells: {} };
+  const plan = planTeamsTarget({ target: unit, ledgerEntry: entry, gradebook: mp3, capabilities: ZERO_WEIGHT });
+  assert.equal(plan.removal.state, 'otherPeriod');
+  assert.deepEqual(plan.ops, []);
+});

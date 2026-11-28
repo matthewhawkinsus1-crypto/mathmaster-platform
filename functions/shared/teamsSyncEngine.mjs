@@ -181,6 +181,20 @@ export const teamsDay = (value, timeZone = 'America/Chicago') => {
   return new Intl.DateTimeFormat('en-CA', { timeZone, year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date(millis));
 };
 
+/*
+ * Does this read-back show the marking period a ledger entry's column is in?
+ * The extension reads the marking period TEAMS has open, so a column in
+ * another period is simply not in it: that is "not read", never "gone". The
+ * period is the one recorded for the column, else the due date's.
+ */
+const showsPeriodOf = (gradebook, entry = {}, dueDate = '') => {
+  const periods = gradebook?.markingPeriods || [];
+  const id = text(entry.markingPeriod || entry.pendingDelete?.markingPeriod);
+  if (id) return periods.some((period) => period.id === id);
+  const due = text(dueDate);
+  return Boolean(due) && periods.some((period) => period.start <= due && due <= period.end);
+};
+
 const enrolledOn = (gradebook, sisStudentId, date) => (gradebook.roster || []).some((entry) => (
   text(entry.sisStudentId) === text(sisStudentId)
   && (!entry.enteredOn || entry.enteredOn <= date)
@@ -235,6 +249,13 @@ export const planTeamsTarget = ({ target, ledgerEntry = {}, gradebook, capabilit
     if (landed.length > 1) { exception(TEAMS_EXCEPTION.AMBIGUOUS_COLUMN, { columnIds: landed.map((item) => item.id) }); holdAll('Ambiguous TEAMS assignment'); return result; }
     const column = mapped || landed[0] || null;
     const created = column && (mapped ? entry.created === true : true);
+    if (!column && (entry.columnId || entry.pendingDelete) && !showsPeriodOf(gradebook, entry, target.dueDate)) {
+      // TEAMS has another marking period open: the column was not read, so
+      // nothing is known about it yet. Open its marking period in TEAMS.
+      result.removal = { state: 'otherPeriod' };
+      holdAll('TEAMS shows another marking period');
+      return result;
+    }
     if (!column) {
       if (entry.pendingColumn) result.removal = { state: 'removing' };
       holdAll('Removed from TEAMS');
@@ -265,7 +286,7 @@ export const planTeamsTarget = ({ target, ledgerEntry = {}, gradebook, capabilit
     }
     result.ops.push({
       type: 'deleteColumn', key: target.key, sectionRef: target.teamsSectionRef, columnId: column.id,
-      name: column.name, dueDate: column.dueDate || '', gradeCount,
+      name: column.name, dueDate: column.dueDate || '', markingPeriod: column.markingPeriod || '', gradeCount,
     });
     result.removal = { state: 'removing', gradeCount };
     holdAll('Being removed from TEAMS');
@@ -517,6 +538,8 @@ export const planTeamsTarget = ({ target, ledgerEntry = {}, gradebook, capabilit
 // verified, a weight switch that shows is recorded as done.
 const reconcileEntry = ({ entry, plan, gradebook, at, target }) => {
   // A removal that shows: the column MathMaster asked to delete is gone.
+  // Only a read-back of the column's own marking period can show it gone.
+  if (target?.removal && !entry.removed && !showsPeriodOf(gradebook, entry, target.dueDate) && (entry.columnId || entry.pendingDelete)) return entry;
   if (target?.removal && entry.pendingDelete) {
     const gone = !(gradebook.columns || []).some((item) => item.id === entry.pendingDelete.columnId);
     if (gone) return { removed: true, removedAt: at, removedColumnId: entry.pendingDelete.columnId, removedGradeCount: entry.pendingDelete.gradeCount ?? 0 };
@@ -536,6 +559,9 @@ const reconcileEntry = ({ entry, plan, gradebook, at, target }) => {
   }
   delete next.pendingColumn;
   const column = (gradebook.columns || []).find((item) => item.id === plan.columnId);
+  // The column's marking period, so a later read of another period is not
+  // taken for the column being gone (Remove from TEAMS).
+  if (column?.markingPeriod) next.markingPeriod = column.markingPeriod;
   if (next.pendingDates && column && column.dueDate === next.pendingDates.dueDate && text(column.assignedDate) === next.pendingDates.assignedDate) {
     delete next.pendingDates;
   }
@@ -709,7 +735,7 @@ export const recordTeamsIntent = (ledger, op, at) => {
   }
   if (op.type === 'deleteColumn') {
     const same = entry.pendingDelete?.columnId === op.columnId;
-    entry.pendingDelete = { columnId: op.columnId, gradeCount: op.gradeCount, attempts: same ? (entry.pendingDelete.attempts || 0) + 1 : 1, attemptedAt: at };
+    entry.pendingDelete = { columnId: op.columnId, gradeCount: op.gradeCount, ...(op.markingPeriod ? { markingPeriod: op.markingPeriod } : {}), attempts: same ? (entry.pendingDelete.attempts || 0) + 1 : 1, attemptedAt: at };
   }
   return ledger;
 };

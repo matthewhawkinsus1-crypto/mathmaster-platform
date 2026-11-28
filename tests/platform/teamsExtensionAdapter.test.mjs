@@ -44,6 +44,13 @@ const fakeTeams = ({ deleteAfterPolls = 2, deleteNever = false } = {}) => {
         row.dueDate = args.fields['Due Date'];
         return { done: true };
       }
+      case 'setCount': {
+        // TEAMS finds the row by its name and the due date it has now.
+        const row = state.rows.find((entry) => entry.name === args.name && entry.dueDate === args.dueDate);
+        if (!row) throw new Error(`Expected one assignment "${args.name}" in TEAMS, found 0.`);
+        row.count = String(args.count);
+        return { done: true };
+      }
       case 'markForDelete': return { done: true };
       case 'awaitDeleted':
         state.polls += 1;
@@ -101,4 +108,16 @@ test('deleteColumn gives up with a clear message when the row is not deleted in 
     Date.now = realNow;
   }
   assert.equal(teams.state.rows.length, 1);
+});
+
+// Review of #625: a later op in the same batch finds the row by its new date.
+test('after setDates, an op later in the same batch finds the row by its new due date', async () => {
+  const teams = fakeTeams();
+  const adapter = createTeamsAdapter({ run: teams.run, wait: async () => {} });
+  await adapter.readSection(SECTION);
+  await adapter.setDates(SECTION, 'A7', { 'Assign Date': '11-16-2026', 'Due Date': '11-20-2026' });
+  await adapter.setCount(SECTION, 'A7', 1);
+  const step = teams.state.actions.filter((entry) => entry.action === 'setCount').at(-1);
+  assert.equal(step.args.dueDate, '11-20-2026');
+  assert.equal(teams.state.rows[0].count, '1');
 });

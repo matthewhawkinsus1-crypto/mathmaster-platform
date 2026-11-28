@@ -153,6 +153,7 @@ const REMOVAL_STATES = Object.freeze({
   confirm: { tone: 'warning', text: 'Has grades in TEAMS. Confirm below before it is removed.' },
   stuck: { tone: 'danger', text: 'Still in TEAMS after several tries. Delete it in TEAMS, or send it to TEAMS again.' },
   removed: { tone: 'success', text: 'Removed from TEAMS.' },
+  otherPeriod: { tone: 'warning', text: 'Your TEAMS tab shows another marking period. Open this assignment\'s marking period in TEAMS, then sync again.' },
   left: { tone: 'neutral', text: 'Made in TEAMS, not by MathMaster, so it was left there. MathMaster no longer sends grades to it.' },
 });
 

@@ -106,6 +106,14 @@ export const createTeamsAdapter = ({ run, wait = (ms) => new Promise((resolve) =
       await until('openAssignments');
       await until('setDates', { ...row, fields });
       await until('returnToGradebook');
+      // The row now has these dates: a later op in the same batch (an import,
+      // #Count) finds it by its new due date, not the one last read.
+      const iso = (value) => { const m = /^(\d{2})-(\d{2})-(\d{4})$/.exec(String(value || '').trim()); return m ? `${m[3]}-${m[1]}-${m[2]}` : ''; };
+      const column = lastRead.get(sectionRef)?.columns.find((entry) => entry.id === columnId);
+      if (column) {
+        if (iso(fields['Assign Date'])) column.assignedDate = iso(fields['Assign Date']);
+        if (iso(fields['Due Date'])) column.dueDate = iso(fields['Due Date']);
+      }
     },
 
     /*
@@ -126,6 +134,8 @@ export const createTeamsAdapter = ({ run, wait = (ms) => new Promise((resolve) =
       await until('returnToGradebook');
       const after = (await readGradebook()).columns;
       if (after.some((entry) => entry.id === columnId)) throw new Error(`"${row.name}" is still in the TEAMS gradebook.`);
+      const read = lastRead.get(sectionRef);
+      if (read) read.columns = read.columns.filter((entry) => entry.id !== columnId);
     },
 
     async importFile(sectionRef, columnId, file) {
