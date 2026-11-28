@@ -6,6 +6,8 @@
  *   questions CSV     one row per question: section, standards, attempts,
  *                     outcome, provenance of the attempt sequence (no response
  *                     text and no answer key — the model never holds them)
+ *   conduct CSV       the Discipline Tracker's records and the family contacts
+ *                     in the window, teacher-written words labelled as such
  *   facts CSV         the narrative facts with provenance and sources
  *   JSON              the whole model, plus the teacher-entered next steps
  *                     labelled as teacher-authored
@@ -40,6 +42,8 @@ export const PRINT_SECTIONS = Object.freeze([
   // Added with the teacher signals (SHOWING_THE_PROCESS.md, section 7): last,
   // so the twelve sections of the original brief keep their numbers.
   { key: 'signals', title: '13. Work-pattern signals (not conclusive)' },
+  // Added with the Discipline Tracker: last, for the same reason.
+  { key: 'conduct', title: '14. Conduct records and family contact' },
 ]);
 
 export const TEACHER_AUTHORED_LABEL = 'Teacher-authored — written by the teacher, not generated evidence.';
@@ -114,6 +118,27 @@ export const caseSignalsCsv = (model) => csv(
     entry.supportIds === null ? 'not recorded' : entry.supportIds.join('; '),
     entry.outcomeLabel, entry.reviewed ? 'yes' : 'no', entry.reviewedBy, entry.reviewed ? iso(entry.reviewedAtMs) : '', entry.reviewNote,
   ]),
+);
+
+/**
+ * The conduct section: one row per conduct record, then one per family
+ * contact. Staff-documented records as they were recorded; the teacher's own
+ * words are labelled as theirs.
+ */
+export const caseConductCsv = (model) => csv(
+  [
+    'Record', 'School day', 'Recorded at', 'What', 'Class', 'District form', 'Contact method',
+    'Outcome (teacher-authored)', 'Follow-up', 'Notes (teacher-authored: the teacher\'s own words, not a recorded fact)', 'How known',
+  ],
+  [
+    ...list(model?.conduct?.incidents).map((row) => [
+      'Conduct record', row.dateKey, iso(row.atMs), row.label, row.classLabel, row.formLabel, '', '', '', '', CASE_PROVENANCE_LABEL[row.provenance] || '',
+    ]),
+    ...list(model?.conduct?.contacts).map((row) => [
+      'Family contact', row.dateKey, iso(row.atMs), row.categoryLabel, '', '', row.methodLabel, row.outcome,
+      row.followUpDate ? `${row.followUpDate} (${row.followUpCompleted ? 'completed' : 'open'})` : '', row.notes, CASE_PROVENANCE_LABEL[row.provenance] || '',
+    ]),
+  ],
 );
 
 export const caseFactsCsv = (model) => csv(

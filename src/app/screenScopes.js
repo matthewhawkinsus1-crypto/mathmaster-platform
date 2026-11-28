@@ -45,7 +45,9 @@ export const TEACHER_FULL_STUDENT_DATA_TABS = new Set([
   'standards', 'analytics', 'exams',
 ]);
 export const TEACHER_SUPPORT_STREAM_TABS = new Set(['home', 'classesWorkspace', 'attendanceHistory', 'actionCenter', 'parentContacts']);
-export const TEACHER_PARENT_CONTACT_STREAM_TABS = new Set(['parentContacts', 'actionCenter']);
+// The Discipline Tracker reads Parent Contacts too: a family message logged
+// there shows on its drafts and in its principal report.
+export const TEACHER_PARENT_CONTACT_STREAM_TABS = new Set(['parentContacts', 'actionCenter', 'discipline']);
 // Tabs that work across every class a teacher teaches by design (Grade
 // Export's units, the Action Center's queue, Parent Contacts' roster): their
 // students' private controls are read for all of those classes, in the one

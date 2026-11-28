@@ -3,8 +3,9 @@ import { EmptyNote, Prov, Tile, pct } from './CaseReviewParts.jsx';
 
 /*
  * EXECUTIVE CASE SUMMARY — the first page, readable without raw logs.
- * Academic snapshot · performance by section (Standard and Modified apart) ·
- * factual trends · a short "needs attention" preview.
+ * Academic snapshot · conduct and family contact · performance by section
+ * (Standard and Modified apart) · factual trends · a short "needs attention"
+ * preview.
  */
 
 const SECTION_ORDER = ['warmup', 'classwork', 'practice', 'dol', 'assessment'];
@@ -85,6 +86,14 @@ export default function CaseSummaryTab({ model, onOpenTab }) {
             {snapshot.activeTime.notRecorded > 0 && <p className="cr-note" style={{ margin: 0 }}>Not recorded for {snapshot.activeTime.notRecorded} assignment{snapshot.activeTime.notRecorded === 1 ? '' : 's'} with work <Prov level={CASE_PROVENANCE.NOT_RECORDED} /></p>}
           </div>
         </div>
+      </section>
+
+      <section className="cr-section" aria-labelledby="cr-summary-conduct" data-case-summary-conduct>
+        <h2 id="cr-summary-conduct">Conduct and family contact</h2>
+        {model.conduct?.loaded
+          ? <ul className="cr-lines">{model.conduct.lines.map((line) => <li key={line}>{line}</li>)}</ul>
+          : <EmptyNote>Conduct records and family contacts could not be loaded. That is a missing read, not an absence of records.</EmptyNote>}
+        <button type="button" className="tw-btn tw-btn--sm" onClick={() => onOpenTab('conduct')}>Open conduct &amp; family contact</button>
       </section>
 
       <section className="cr-section" aria-labelledby="cr-summary-sections">
