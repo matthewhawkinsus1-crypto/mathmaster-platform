@@ -5,13 +5,15 @@
  * only the selected student and the window their selected assignments need,
  * through the same rules-guarded readers PR #401's report uses, plus the
  * read-only `loadStudentCaseEvidence` callable for the records no teacher
- * browser may read directly (docs/STUDENT_CASE_REVIEW_DESIGN.md §5).
+ * browser may read directly (docs/STUDENT_CASE_REVIEW_DESIGN.md §5), and the
+ * read-only `loadStudentConductEvidence` callable for the Discipline
+ * Tracker's records and the family contacts.
  *
  * REQUIRED sources (the grade record, PR #401's support records) fail the
  * build: without them the case review would report missing evidence as "none".
  * OPTIONAL sources (per-attempt evidence, session summaries, export history,
- * saved gradebook snapshots) degrade to an explicit "not loaded", which the
- * model reports as such — never as zero or none.
+ * saved gradebook snapshots, conduct records) degrade to an explicit "not
+ * loaded", which the model reports as such — never as zero or none.
  *
  * Every function takes `db` / `functions` so the module imports nothing that
  * initialises Firebase (node tests import it directly).
@@ -58,6 +60,18 @@ export const caseReviewWindow = ({ included = [], selection = {}, nowMs = Date.n
 /** The read-only callable. Throws; the caller decides how to degrade. */
 export const loadCaseEvidence = async ({ functions, studentId, fromMs, toMs, assignmentIds }) => {
   const response = await httpsCallable(functions, CASE_EVIDENCE_CALLABLE)({ studentId, fromMs, toMs, assignmentIds });
+  return response?.data || null;
+};
+
+export const CONDUCT_EVIDENCE_CALLABLE = 'loadStudentConductEvidence';
+
+/**
+ * The student's conduct records and family contacts over the case's school
+ * days (read-only; functions/disciplineFunctions.js). Throws; the caller
+ * degrades to "not loaded".
+ */
+export const loadConductEvidence = async ({ functions, studentId, fromDateKey, toDateKey }) => {
+  const response = await httpsCallable(functions, CONDUCT_EVIDENCE_CALLABLE)({ studentId, fromDateKey, toDateKey });
   return response?.data || null;
 };
 
@@ -161,7 +175,7 @@ export const loadStudentCaseRecords = async ({
   });
 
   // Optional: each degrades to "not loaded".
-  const [history, transfer, evidence, saved, grants, signals] = await Promise.allSettled([
+  const [history, transfer, evidence, saved, grants, signals, conduct] = await Promise.allSettled([
     fetchStudentSupportHistory({ db, teacherEmail, studentId, supportLimit: 300, sessionLimit: 365 }),
     fullStudent.classId ? loadTeacherGradeTransferState({ classIds: [fullStudent.classId] }) : Promise.resolve(null),
     assignmentIds.length && functions
@@ -170,6 +184,9 @@ export const loadStudentCaseRecords = async ({
     fetchSavedSisSnapshots({ db, studentId }),
     fetchAttendanceExtensionGrants({ db, studentId }),
     fetchAttemptSignals({ db, studentId, fromMs: window.fromMs, toMs: window.toMs }),
+    functions
+      ? loadConductEvidence({ functions, studentId, fromDateKey: window.fromDateKey, toDateKey: window.toDateKey })
+      : Promise.reject(new Error('not available')),
   ]);
   const historyValue = settledValue(history);
   const transferValue = settledValue(transfer);
@@ -197,6 +214,9 @@ export const loadStudentCaseRecords = async ({
     attemptSignals: signals.status === 'fulfilled' ? signals.value.signals : undefined,
     // The earliest signal on record and whether the window held more than was loaded.
     attemptSignalsMeta: signals.status === 'fulfilled' ? { firstRecordedAtMs: signals.value.firstRecordedAtMs, capped: signals.value.capped, max: signals.value.max } : null,
+    // The Discipline Tracker's records and the family contacts; undefined = not loaded.
+    conductEvidence: settledValue(conduct) || undefined,
+    conductEvidenceError: settledError(conduct),
     loadedAtMs: nowMs,
   };
 };

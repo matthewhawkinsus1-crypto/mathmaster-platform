@@ -158,3 +158,6 @@ export const projectGradeTransferUnits = ({
 };
 
 export { newestFirst };
+// For screens that need Grade Transfer's class scope without a first-load file
+// of its own (DisciplineTracker.jsx).
+export { authorizedGradeTransferClasses, gradeTransferRoster };
