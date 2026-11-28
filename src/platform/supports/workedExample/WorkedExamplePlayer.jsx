@@ -265,6 +265,54 @@ function PlaneFigure({ plane }) {
   );
 }
 
+// The synthetic division table a move leaves (divisionReplay.js): r in the
+// box, then the coefficient, products and bottom rows, one column per power.
+// A real table with a caption and named rows and columns, so a screen reader
+// reads each cell with its row and its power; a blank cell is one the example
+// has not filled yet, and is said as "not yet". The remainder's cell is
+// boxed, and its row header says so in words.
+const tableCell = { padding: '4px 8px', textAlign: 'center', borderBottom: '1px solid var(--mm-tint-border)', minWidth: '2.4em' };
+function SyntheticTable({ MathText, table }) {
+  const rows = [
+    { id: 'top', name: 'Coefficients', cells: table.top, offset: 0 },
+    { id: 'middle', name: 'Products (r times the number before)', cells: table.middle, offset: 1 },
+    { id: 'bottom', name: table.remainder ? 'Bottom row (the last is the remainder)' : 'Bottom row', cells: table.bottom, offset: 0 },
+  ];
+  return (
+    // At 200% text on a phone a long row is wider than the player: the table
+    // then scrolls inside this frame, which the keyboard can focus to scroll.
+    <div data-example-synthetic-frame="" role="group" aria-label="Synthetic division table" tabIndex={0} style={{ overflowX: 'auto', maxWidth: '100%' }}>
+      <table data-example-synthetic="" style={{ borderCollapse: 'collapse', fontVariantNumeric: 'tabular-nums' }}>
+        <caption style={{ textAlign: 'left', fontWeight: 700, paddingBottom: 4 }}>
+          <MathText>{`Synthetic division by $r = ${table.r}$`}</MathText>
+        </caption>
+        <thead>
+          <tr>
+            <th scope="col" style={{ ...tableCell, textAlign: 'left' }}>Row</th>
+            {table.columns.map((column, index) => <th key={`h${index}`} scope="col" style={{ ...tableCell, whiteSpace: 'nowrap' }}>{column}</th>)}
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map((row) => (
+            <tr key={row.id} data-example-synthetic-row={row.id}>
+              <th scope="row" style={{ ...tableCell, textAlign: 'left', fontWeight: 700 }}>{row.name}</th>
+              {table.columns.map((_, index) => {
+                const value = index >= row.offset ? row.cells[index - row.offset] : null;
+                const isRemainder = row.id === 'bottom' && index === table.columns.length - 1 && table.remainder;
+                return (
+                  <td key={`${row.id}${index}`} data-example-synthetic-cell={value === null ? 'none' : value ? 'filled' : 'blank'} style={{ ...tableCell, ...(isRemainder ? { outline: '2px solid var(--mm-text-strong)', outlineOffset: -2 } : {}) }}>
+                    {value === null ? '' : value ? <MathText>{asMath(value)}</MathText> : <span style={{ color: 'var(--mm-text-muted)' }}>not yet</span>}
+                  </td>
+                );
+              })}
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
 function ReplayBoard({ MathText, board }) {
   const check = board.kind === 'check';
   // A board that names its own lines (the radical replay) is drawn as given.
@@ -278,6 +326,7 @@ function ReplayBoard({ MathText, board }) {
     <div data-example-board={board.kind} data-example-board-operation={board.operation || ''} style={{ display: 'grid', gap: 8, minWidth: 0 }}>
       <p data-example-board-label="" style={{ margin: 0, fontWeight: 800, lineHeight: 1.55 }}><MathText>{board.label}</MathText></p>
       {board.plane ? <PlaneFigure plane={board.plane} /> : null}
+      {board.synthetic ? <SyntheticTable MathText={MathText} table={board.synthetic} /> : null}
       <ol data-example-board-lines="" style={{ margin: 0, padding: 0, listStyle: 'none', display: 'grid', gap: 8, minWidth: 0 }}>
         {lines.map((line) => (
           <li

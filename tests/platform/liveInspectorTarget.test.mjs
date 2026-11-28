@@ -16,6 +16,7 @@ import { readFileSync } from 'node:fs';
 import { liveInspectorTarget } from '../../src/platform/teacher/liveInspectorTarget.js';
 import { studentAssignmentIndicesWithPracticePass } from '../../src/assignmentLifecycle.js';
 import { executableSource, region } from './helpers/sourceContract.mjs';
+import { teacherWorkspaceSource } from './helpers/appScreens.mjs';
 
 const question = (id, activityRole, extra = {}) => ({ questionId: id, activityRole, type: 'literal', prompt: id, acceptedAnswers: ['1'], ...extra });
 // Warm-Up 1, Classwork 2, Practice 2, DOL 1: storage indices 0..5.
@@ -199,7 +200,7 @@ test('Teacher Home passes it through, and the workspace opens the gradebook\'s o
   const inspectFor = region(monitor, 'const inspectorAssignments =', 'const switchMode', 'the inspector target for a row');
   assert.match(inspectFor, /const inspectorAssignments = Array\.isArray\(timerAssignments\) \? timerAssignments : assignments;/);
   assert.match(inspectFor, /const assignment = inspectorAssignments\.find\(\(entry\) => String\(entry\?\.id \|\| ''\) === String\(row\.live\.assignmentId\)\) \|\| null;/);
-  const workspace = read('src/app/teacher/TeacherWorkspace.jsx');
+  const workspace = teacherWorkspaceSource();
   assert.match(region(workspace, '<TeacherHome', '/>', 'Teacher Home in the workspace'), /onInspectResponse=\{\(target\) => setResponseInspectorTarget\(target\)\}/);
   // One inspector, the same one the gradebook opens: the same screen and callable.
   assert.equal((workspace.match(/<StudentResponseInspector\b/g) || []).length, 1);

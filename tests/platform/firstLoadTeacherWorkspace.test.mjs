@@ -26,10 +26,11 @@ import path from 'node:path';
 import { chainTo, repo, teacherFirstLoadGraph } from './helpers/firstLoadGraph.mjs';
 import { authoringKitExports, authoringKitNames } from './helpers/authoringKitImport.mjs';
 import { executableSource, region } from './helpers/sourceContract.mjs';
+import { teacherWorkspaceSource } from './helpers/appScreens.mjs';
 
 const read = (file) => readFileSync(path.join(repo, file), 'utf8');
 const graph = teacherFirstLoadGraph();
-const workspace = executableSource(read('src/app/teacher/TeacherWorkspace.jsx'));
+const workspace = executableSource(teacherWorkspaceSource());
 
 test('the walker reaches a teacher\'s first load, and what stays on it on purpose', () => {
   assert.ok(graph.size > 500, `only ${graph.size} modules reached`);
@@ -38,10 +39,6 @@ test('the walker reaches a teacher\'s first load, and what stays on it on purpos
     'src/app/teacher/TeacherWorkspace.jsx',
     'src/app/teacher/authoringKitLoader.js',
     'src/app/student/studentScreenPrefetch.js',
-    // What the gradebook draws with: its Recovery marks, alone.
-    'src/platform/recovery/gradebookRecoveryMarks.js',
-    // An import's CCMR request: the callable's client, not the bank.
-    'src/services/assignmentCcmrService.js',
     // Home's screen itself.
     'src/TeacherHome.jsx',
   ]) {
@@ -73,6 +70,17 @@ for (const [file, why] of [
   ['src/platform/recovery/recoveryContentAuthoring.js', 'Create and Duplicate plan Recovery'],
   ['src/platform/recovery/teacherRecoveryAudit.js', 'the Recovery audit trail in a student\'s Details (its own panel)'],
   ['functions/shared/assignmentPrivacy.mjs', 'Duplicate copies no instance state'],
+  // The third pass: what the workspace ran or drew only on its way to another screen.
+  ['src/app/teacher/workspaceAssignmentActions.js', 'the async assignment actions (an import, Create, a question edit\'s Save, Duplicate, Library repair, Dates & Classes)'],
+  ['src/app/teacher/assignmentsTabView.jsx', 'the Assignments screen\'s JSX, which waits for the authoring code anyway'],
+  ['src/app/teacher/gradebookTabView.jsx', 'the gradebook\'s JSX, under the Grades heading'],
+  ['src/services/assignmentCcmrService.js', 'an import\'s CCMR request, which only the assignment actions make'],
+  ['src/platform/recovery/gradebookRecoveryMarks.js', 'the gradebook\'s Recovery marks (R, Held, LC), which only its JSX draws'],
+  ['src/app/teacher/administrationView.jsx', 'the root administrator\'s screen'],
+  ['src/platform/teacher/parentContactStore.js', 'the parent-contact writes, which Discipline and Parent Contacts load as they open'],
+  ['src/components/teacher/LiveAttendancePanel.jsx', 'Today\'s Live Attendance, behind the live monitor\'s toggle'],
+  ['src/components/teacher/ClassPointsAwardDialog.jsx', 'Class points\' award dialog'],
+  ['src/components/teacher/ClassPointsHistoryPanel.jsx', 'Class points\' activity, behind its toggle'],
 ]) {
   test(`${path.basename(file)} is not in a teacher's first load: ${why}`, () => {
     const key = path.join(repo, file);
@@ -106,10 +114,10 @@ test('the workspace takes exactly the kit\'s members from the kit, and imports n
   binds('const updateExistingAssignmentFromReview = async', 'const confirmAssignmentPreflight', ['assertFirestoreSafeAssignmentPayload', 'buildAssignmentV5PreflightModel']);
   binds('const saveQuestionEditor = async', 'const handleDuplicateAssignment', ['GRAPH_VIEWPORT_REPAIR_KIND', 'buildAssignmentV5PreflightModel', 'questionFingerprint', 'repairAssignmentTrackerForGranularWorkflowCredit', 'repairAssignmentTrackerForLiveCorrections', 'withAppendedQuestionSections']);
   binds('const handleDuplicateAssignment = async', 'const openStoredAssignmentForPreflight', ['buildAssignmentV5PreflightModel', 'creationRecoveryContent', 'stripAssignmentInstanceState']);
-  binds('const openStoredAssignmentForPreflight = async', 'const beginEditAssignmentSetup', ['prepareStoredAssignmentForReuse']);
+  binds('const openStoredAssignmentForPreflight = async', 'const handleRepairAssignmentFromLibrary', ['prepareStoredAssignmentForReuse']);
   binds('const beginEditAssignmentSetup = (assignment) => {', 'const beginAssignLibraryAssignment', ['prepareStoredAssignmentForReuse']);
   binds('const handleRepairAssignmentFromLibrary = async', 'const handleSaveAssignmentDates', ['buildSafeLibraryContentRepair', 'inspectLibraryContentRepair']);
-  binds("{teacherTab === 'assignments' && (", 'const renderAssignmentCard = (assignment) => {', ['inspectLibraryContentRepair', 'recoveryPreparationAvailable']);
+  binds('export function renderAssignmentsTab(scope) {', 'const renderAssignmentCard = (assignment) => {', ['inspectLibraryContentRepair', 'recoveryPreparationAvailable']);
   // The kit is read without waiting only where it is certainly here:
   // readAssignmentJson, after handleAssignmentJsonReady's await, and Review /
   // edit setup, which opens at once when it is here (as it did, so the hub
@@ -126,13 +134,13 @@ test('the workspace takes exactly the kit\'s members from the kit, and imports n
   assert.ok(editor.indexOf('authoringKit().catch(') > editor.indexOf('setQuestionEditorAssignment(assignment);'), 'asked for once the editor opens');
   for (const [start, end] of [
     ['const handleAssignmentJsonReady = async', 'const handleCreateAssignment'],
-    ['const openStoredAssignmentForPreflight = async', 'const beginEditAssignmentSetup'],
+    ['const openStoredAssignmentForPreflight = async', 'const handleRepairAssignmentFromLibrary'],
   ]) {
     const opener = region(workspace, start, end, start);
     assert.ok(opener.indexOf('await authoringKit()') >= 0 && opener.indexOf('await authoringKit()') < opener.indexOf('openAssignmentPreflight('), `${start} has the code before the review opens`);
   }
   // Dates & Classes waits for the Library lesson's review before it closes.
-  const dates = region(workspace, 'const handleSaveAssignmentDates = async', 'const rootAdminUiEligible', 'Dates & Classes');
+  const dates = region(workspace, 'const handleSaveAssignmentDates = async', '\n  return {\n    handleAssignmentJsonReady,', 'Dates & Classes');
   assert.equal((dates.match(/await openStoredAssignmentForPreflight\(assignment, \{/g) || []).length, 2);
 });
 
@@ -161,7 +169,7 @@ test('the authoring code loads once, is handed out at once after that, and a fai
   // The list waits only where it is drawn: after the administrator's own
   // screen has returned, before the workspace's.
   assert.ok(workspace.indexOf("if (teacherWorkspaceMode === 'administration' && rootAdminUiEligible) {") < workspace.indexOf('const assignmentListKit ='));
-  assert.ok(workspace.indexOf('const assignmentListKit =') < workspace.indexOf("{teacherTab === 'assignments' && ("));
+  assert.ok(workspace.indexOf('const assignmentListKit =') < workspace.indexOf("{teacherTab === 'assignments' && assignmentsTab.renderAssignmentsTab("));
 });
 
 // Once the workspace has drawn, the next idle moment fetches the code: once

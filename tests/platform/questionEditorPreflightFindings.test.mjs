@@ -30,6 +30,7 @@ import {
 } from '../../src/platform/preflight/questionPreflightFindings.js';
 import { createPreflightFindingsStore } from '../../src/components/teacher/useQuestionPreflightFindings.js';
 import { componentSource, executableSource, region } from './helpers/sourceContract.mjs';
+import { teacherWorkspaceSource } from './helpers/appScreens.mjs';
 
 /* ----------------------------------------------------------------- the fixture */
 
@@ -152,7 +153,7 @@ test('neither warnings nor notes ever block a save', () => {
   const editor = executableSource(componentSource('src/AssignmentQuestionEditorBase.jsx'));
   const save = region(editor, 'const save = async () => {', '<div role="presentation"', 'save()');
   assert.doesNotMatch(save, /preflightFindings|warningCount|noteCount/);
-  const workspace = executableSource(readFileSync(new URL('../../src/app/teacher/TeacherWorkspace.jsx', import.meta.url), 'utf8'));
+  const workspace = executableSource(teacherWorkspaceSource());
   const saveEditor = region(workspace, 'const saveQuestionEditor = async', 'const persistence = canonicalV5PersistencePatch', 'saveQuestionEditor');
   assert.match(saveEditor, /if \(!model\.isValid\) \{/);
   assert.doesNotMatch(saveEditor, /model\.warnings|preflightFindings/);
@@ -167,7 +168,7 @@ test('the editor counts question versions against the class Review counts them a
   assert.match(modal, /const preflightClassSize = useMemo\(\s*\(\) => preflightClassSizeFor\(draft\.assignedClassIds, rosterSizesByClassId\),/);
   const editor = executableSource(componentSource('src/AssignmentQuestionEditorBase.jsx'));
   assert.match(editor, /preflightClassSizeFor\(assignment\?\.assignedClassIds, rosterSizesByClassId\)/);
-  const workspace = executableSource(readFileSync(new URL('../../src/app/teacher/TeacherWorkspace.jsx', import.meta.url), 'utf8'));
+  const workspace = executableSource(teacherWorkspaceSource());
   const mount = region(workspace, '<AssignmentQuestionEditor', '/>', 'the editor\'s mount');
   assert.match(mount, /rosterSizesByClassId=\{preflightRosterSizesByClassId\}/);
 });
