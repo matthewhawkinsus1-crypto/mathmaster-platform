@@ -35,6 +35,7 @@ import { allRegisteredQuestionFamilies } from '../../functions/shared/questionFa
 import { componentSource, executableSource, region } from './helpers/sourceContract.mjs';
 import { chainTo, firstLoadGraph, repo, teacherFirstLoadGraph } from './helpers/firstLoadGraph.mjs';
 import { openedByIntake, openedByLibraryReuse, reviewOpener, rulesReviewShows, storedLibraryRecord } from './helpers/preflightOpenPaths.mjs';
+import { teacherWorkspaceSource } from './helpers/appScreens.mjs';
 
 const lesson = (questions, role = 'classwork') => ({
   schemaVersion: 5,
@@ -300,7 +301,7 @@ test('only an assignment imported or authored now is new for these rules', () =>
 });
 
 test('the intake says it is authored now; the Library and setup-edit paths do not', () => {
-  const workspace = executableSource(componentSource('src/app/teacher/TeacherWorkspace.jsx'));
+  const workspace = executableSource(teacherWorkspaceSource());
   // The intake (pasted, uploaded and dropped JSON, and a repaired Incomplete draft), both ways it opens Review.
   const intake = region(workspace, 'const handleAssignmentJsonReady = async', '\n  };\n', 'the intake');
   const intakeOpens = intake.match(/openAssignmentPreflight\([\s\S]*?\);/g) || [];

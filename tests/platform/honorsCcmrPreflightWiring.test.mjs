@@ -16,11 +16,12 @@ import { executableSource, region } from './helpers/sourceContract.mjs';
 import { takesFromAuthoringKit } from './helpers/authoringKitImport.mjs';
 import { collectReviewBlockers, summarizePreflightReadiness } from '../../src/components/teacher/preflightSteps.js';
 import { functionsBackendSource, topLevelDeclaration } from './helpers/functionsBackendSource.mjs';
+import { teacherWorkspaceSource } from './helpers/appScreens.mjs';
 
 const read = (path) => readFileSync(new URL(`../../${path}`, import.meta.url), 'utf8');
 const modalSource = read('src/components/teacher/LessonPreflightModal.jsx');
 const modal = executableSource(modalSource);
-const workspaceSource = read('src/app/teacher/TeacherWorkspace.jsx');
+const workspaceSource = teacherWorkspaceSource();
 const workspace = executableSource(workspaceSource);
 const functionsIndex = executableSource(functionsBackendSource());
 const service = executableSource(read('src/services/assignmentCcmrService.js'));
@@ -83,7 +84,7 @@ test('the review passes the proven Honors version to Create, only while it is cu
   assert.match(publish, /honorsCandidate: honorsCandidateCurrent \? honorsCandidate : null/);
   assert.match(modal, /const honorsCandidateCurrent = Boolean\(honorsCandidate\) && honorsCandidate\.baseFingerprint === reviewedFingerprint/);
   assert.match(modal, /const reviewedFingerprint = useMemo\(\(\) => \(honorsVersionNeeded \? assignmentFingerprint\(effectiveAssignmentV5\)/);
-  const confirm = region(workspace, 'const confirmAssignmentPreflight = async', 'const openQuestionEditor', 'confirmAssignmentPreflight');
+  const confirm = region(workspace, 'const confirmAssignmentPreflight = async', 'const saveQuestionEditor', 'confirmAssignmentPreflight');
   assert.match(confirm, /async \(\{ draft, assignmentV5, honorsCandidate = null \}\)/);
   assert.match(confirm, /handleCreateAssignment\(draft, assignmentV5, \{ honorsCandidate \}\)/);
 });

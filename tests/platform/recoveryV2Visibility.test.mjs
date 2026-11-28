@@ -36,6 +36,7 @@ import {
   studentRecordsSentence,
 } from '../../src/platform/recovery/recoveryUpgradeCopy.js';
 import { functionsBackendSource } from './helpers/functionsBackendSource.mjs';
+import { teacherWorkspaceSource } from './helpers/appScreens.mjs';
 
 /* ---------------------------------------------------------------------------
  * The words.
@@ -233,10 +234,10 @@ test('after "assignment changed", Approve waits for Check again, and the alert s
 });
 
 test('an assignment card offers Prepare Recovery only where a static Warm-Up or DOL question can gain it, and the details refresh after', () => {
-  const workspace = executableSource(componentSource('src/app/teacher/TeacherWorkspace.jsx'));
+  const workspace = executableSource(teacherWorkspaceSource());
   // The Assignments list takes the check from the authoring code, which it
   // waits for as for its own code (app/teacher/authoringKitLoader.js).
-  const list = region(workspace, "{teacherTab === 'assignments' && (", 'const renderAssignmentCard = (assignment) => {', 'the Assignments list');
+  const list = region(workspace, 'export function renderAssignmentsTab(scope) {', 'const renderAssignmentCard = (assignment) => {', 'the Assignments list');
   assert.ok(takesFromAuthoringKit(list, 'recoveryPreparationAvailable', 'functions/shared/recoveryContentPlan.mjs'));
   const card = region(workspace, 'const renderAssignmentCard = (assignment) => {', 'key: \'move-folder\'', 'assignment card');
   assert.match(card, /const recoveryCanBeAdded = recoveryPreparationAvailable\(assignment\);/);

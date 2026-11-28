@@ -10,6 +10,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { executableSource, region } from './helpers/sourceContract.mjs';
+import { teacherWorkspaceSource } from './helpers/appScreens.mjs';
 
 const read = (path) => readFileSync(new URL(`../../${path}`, import.meta.url), 'utf8');
 const css = read('src/components/teacher/teacherWorkspace.css');
@@ -28,7 +29,7 @@ test('a stack, a pill, a link and a select on a teacher screen can shrink to a p
 });
 
 test('the administrator screen gives long words and a narrow screen room', () => {
-  const workspace = executableSource(read('src/app/teacher/TeacherWorkspace.jsx'));
+  const workspace = executableSource(teacherWorkspaceSource());
   const admin = region(workspace, "if (teacherWorkspaceMode === 'administration' && rootAdminUiEligible) {", 'id={ADMIN_PANEL_ID}', 'the administrator screen');
   assert.match(admin, /overflowWrap:\s*'anywhere'/, 'a long word (Administration at 200% text) breaks instead of being cut by the card');
   assert.match(admin, /padding:\s*'22px clamp\(14px, 4vw, 28px\)'/, 'the header gives up side padding on a phone');
@@ -42,7 +43,9 @@ const numberAfter = (source, pattern) => Number((source.match(pattern) || [])[1]
 test('a link-style button, a student name, a small action button and a disclosure summary are 24 CSS px tall', () => {
   assert.ok(numberAfter(rule('.tw-link'), /min-height:\s*(\d+)px/) >= MIN_TARGET, '.tw-link');
   assert.ok(numberAfter(read('src/components/common/StudentNameLink.jsx'), /minHeight:\s*(\d+)/) >= MIN_TARGET, 'a student name that opens the profile');
-  assert.ok(numberAfter(read('src/components/teacher/LiveClassMonitor.jsx'), /const smallButtonStyle = \{ minHeight: (\d+)/) >= MIN_TARGET, 'the Live Class tile buttons (+ Points)');
+  // The monitor's small buttons share one style with the panels it loads on demand.
+  assert.match(read('src/components/teacher/LiveClassMonitor.jsx'), /^import \{ smallButtonStyle \} from '\.\/liveMonitorStyles\.js';$/m);
+  assert.ok(numberAfter(read('src/components/teacher/liveMonitorStyles.js'), /export const smallButtonStyle = \{ minHeight: (\d+)/) >= MIN_TARGET, 'the Live Class tile buttons (+ Points)');
   for (const file of ['src/components/teacher/LessonPreflightModal.jsx', 'src/components/teacher/NeedsAttentionQueue.jsx', 'src/AssignmentIntakeBase.jsx', 'src/components/teacher/RepresentationAudit.jsx', 'src/components/teacher/SectionBalanceRigorAudit.jsx']) {
     const summaries = read(file).match(/<summary style=\{\{ cursor: 'pointer'[^>]*>/g) || [];
     assert.ok(summaries.length > 0, `${file} has plain disclosure summaries`);
@@ -51,7 +54,7 @@ test('a link-style button, a student name, a small action button and a disclosur
 });
 
 test('the assignment list checkbox and the accommodation review fields are 24 CSS px', () => {
-  const list = read('src/app/teacher/TeacherWorkspace.jsx');
+  const list = teacherWorkspaceSource();
   const checkbox = list.match(/style=\{\{ flex: '0 0 auto', width: '(\d+)px', height: '(\d+)px', cursor: 'pointer' \}\}/);
   assert.ok(checkbox && Number(checkbox[1]) >= MIN_TARGET && Number(checkbox[2]) >= MIN_TARGET, 'the "Select <assignment>" checkbox');
   const review = read('src/components/teacher/RetroactiveAccommodationReview.jsx');

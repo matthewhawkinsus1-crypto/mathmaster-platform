@@ -20,8 +20,36 @@ const read = (repoPath) => readFileSync(new URL(`../../../${repoPath}`, import.m
 export const APP_PATH = 'src/App.jsx';
 export const TEACHER_WORKSPACE_PATH = 'src/app/teacher/TeacherWorkspace.jsx';
 
-/** App.jsx followed by TeacherWorkspace.jsx. */
-export const appAndTeacherWorkspaceSource = () => `${read(APP_PATH)}\n${read(TEACHER_WORKSPACE_PATH)}`;
+/*
+ * THE WORKSPACE'S CODE, WHEREVER THE WORKSPACE KEEPS IT (the teacher's first
+ * load, third pass).
+ *
+ * The workspace's async assignment actions, the Assignments and Grades
+ * screens' JSX and the root administrator's screen moved, verbatim, into
+ * modules it loads on demand. Each is listed with the call that proves the
+ * workspace still runs it: delete the call and the module's text describes
+ * nothing, so teacherWorkspaceSource() throws instead of passing on it.
+ */
+export const TEACHER_WORKSPACE_MODULES = Object.freeze([
+  ['src/app/teacher/workspaceAssignmentActions.js', /\.createAssignmentActions\(assignmentActionScope\)/],
+  ['src/app/teacher/assignmentsTabView.jsx', /\{teacherTab === 'assignments' && assignmentsTab\.renderAssignmentsTab\(\{/],
+  ['src/app/teacher/gradebookTabView.jsx', /\{gradebook\.module \? gradebook\.module\.renderGradebookTab\(\{/],
+  ['src/app/teacher/administrationView.jsx', /return administration\.module\.renderAdministration\(\{/],
+]);
+
+/** TeacherWorkspace.jsx followed by the modules it moved code into, after checking it still calls each. */
+export const teacherWorkspaceSource = () => {
+  const workspace = read(TEACHER_WORKSPACE_PATH);
+  const parts = [workspace];
+  for (const [path, call] of TEACHER_WORKSPACE_MODULES) {
+    if (!call.test(workspace)) throw new Error(`${TEACHER_WORKSPACE_PATH} no longer runs ${path} (${call}): its text proves nothing about the workspace.`);
+    parts.push(read(path));
+  }
+  return parts.join('\n');
+};
+
+/** App.jsx followed by TeacherWorkspace.jsx and the modules the workspace moved code into. */
+export const appAndTeacherWorkspaceSource = () => `${read(APP_PATH)}\n${teacherWorkspaceSource()}`;
 
 export default appAndTeacherWorkspaceSource;
 
@@ -214,4 +242,4 @@ export const appFactorySource = (factoryName) => {
 export const appModulePaths = () => [...new Set([...Object.values(appHookPaths()), ...Object.values(appFactoryPaths()), ...Object.values(teacherControlPaths())])];
 
 /** App.jsx, the teacher workspace and every module App's code moved into: where a forbidden pattern is refused. */
-export const appSurfaceSource = () => [APP_PATH, TEACHER_WORKSPACE_PATH, ...appModulePaths()].map(read).join('\n');
+export const appSurfaceSource = () => [read(APP_PATH), teacherWorkspaceSource(), ...appModulePaths().map(read)].join('\n');

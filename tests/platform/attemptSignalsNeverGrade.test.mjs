@@ -60,7 +60,7 @@ const MAY_MENTION = new Map([
   // WE-G: drawn beside the signals in the same results; names them in words only, and reads none.
   ['src/components/teacher/WorkedExamplesBySkill.jsx', 'worked examples by skill, a teacher panel beside the worth-a-conversation notes'],
   ['src/platform/teacher/workedExampleView.js', "the worked-example counts for that panel; its header says where it is shown"],
-  ['src/app/teacher/TeacherWorkspace.jsx', "draws those notes in the gradebook's student view"],
+  ['src/app/teacher/gradebookTabView.jsx', "the gradebook's JSX, moved out of the workspace: draws those notes in its student view"],
   ['src/platform/caseReview/workPatternSignals.js', "the case review's counts of recorded signals"],
   ['src/platform/caseReview/studentCaseReview.js', 'assembles that section into the case file'],
   ['src/platform/caseReview/caseReviewStore.js', "reads the student's signals for the case review"],

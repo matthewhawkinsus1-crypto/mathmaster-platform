@@ -21,6 +21,7 @@ import { ccmrAuditWarnings } from '../../src/platform/assignments/ccmrAuditWarni
 import { executableSource, region } from './helpers/sourceContract.mjs';
 import { takesFromAuthoringKit } from './helpers/authoringKitImport.mjs';
 import { promisingAGraph } from './helpers/ccmrGraphPromiseFixtures.mjs';
+import { teacherWorkspaceSource } from './helpers/appScreens.mjs';
 
 const require = createRequire(import.meta.url);
 const bank = require('../../functions/lib/ccmrAssignmentBank.js');
@@ -115,7 +116,7 @@ test('an older server (no plan), or JSON that does not compile as written, keeps
 });
 
 test('import asks for the candidates, proves them before the lesson is compiled, and warns about a claim kept as written', () => {
-  const workspace = executableSource(read('src/app/teacher/TeacherWorkspace.jsx'));
+  const workspace = executableSource(teacherWorkspaceSource());
   const block = region(workspace, 'const handleAssignmentJsonReady', 'const handleCreateAssignment', 'import');
   assert.match(block, /await hydrateAssignmentCcmr\(raw, \{ ensurePracticeTarget: false, includeCandidates: true \}\)/);
   assert.match(block, /const proven = proveImportedCcmrClaims\(\{ rawAssignment: raw, authoredAssignmentV5, hydration: hydrated \}\);\s*sourceText = JSON\.stringify\(proven\.assignment\);\s*ccmrAudit = proven\.audit;/);

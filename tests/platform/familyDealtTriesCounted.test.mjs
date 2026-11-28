@@ -52,7 +52,7 @@ import {
 } from '../../functions/shared/attemptPolicy.mjs';
 import { planSeatAdditions } from '../../functions/shared/questionGenerationIdentity.mjs';
 import { executableSource, region } from './helpers/sourceContract.mjs';
-import { appFactorySeam, appFactorySource, appHookSource, appModulePaths } from './helpers/appScreens.mjs';
+import { appFactorySeam, appFactorySource, appHookSource, appModulePaths, teacherWorkspaceSource } from './helpers/appScreens.mjs';
 import {
   CLASS_ID,
   DAY,
@@ -516,7 +516,7 @@ test('a live correction\'s retry on a family slot is counted on the question its
 });
 
 test('the live correction and the grader repair are told whose record they repair', () => {
-  const workspace = executableSource(readFileSync(new URL('../../src/app/teacher/TeacherWorkspace.jsx', import.meta.url), 'utf8'));
+  const workspace = executableSource(teacherWorkspaceSource());
   const live = region(workspace, 'nextTracker = repairAssignmentTrackerForLiveCorrections({', '});', 'the live correction');
   assert.match(live, /assignment: liveAssignment,\s*studentId: student\.id,\s*classId: studentData\.classId \|\| student\.classId \|\| null,/);
   // Each student's entry carries its records joined to their stored detail (gradeEntryStorage.mjs).
