@@ -104,3 +104,11 @@ test('the ingestion transaction reads the server marker before writing and hands
   assert.ok(firstWrite < 0 || firstWrite > markerRead, 'every read precedes every write');
   assert.match(region.slice(build, build + 600), /modelingLabMarker,/, 'the marker reaches buildIngestedAttempt');
 });
+
+test('an evaluation sent without the model-accuracy line lists the two lines it has; the marker grades all three', () => {
+  const { modelAccuracy, ...withheld } = EVALUATION.rubricBreakdown;
+  const browser = gradeModelingLabEvaluation({ ...EVALUATION, rubricBreakdown: withheld, modelAccuracyWithheld: true });
+  assert.deepEqual(browser.parts.map((part) => part.id), ['hypothesis', 'justification']);
+  assert.equal(browser.score, gradeModelingLabEvaluation(EVALUATION).score, 'the score is the composite either way');
+  assert.deepEqual(gradeModelingLabEvaluation(EVALUATION).parts.map((part) => part.id), ['modelAccuracy', 'hypothesis', 'justification']);
+});

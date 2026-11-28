@@ -94,8 +94,11 @@ export const gradeModelingLabEvaluation = (evaluation = null) => {
     isComplete: true,
     isCorrect: evaluation.isMastered === true,
     score: composite,
+    // `submitModelingLab` sends the model-accuracy line only on the final
+    // attempt or once the lab is mastered; until then the browser lists the
+    // two lines it has. The marker ingestion grades from always holds all three.
     parts: [
-      { id: 'modelAccuracy', label: 'Model accuracy', isCorrect: Number(rubric.modelAccuracy || 0) >= RUBRIC_PART_THRESHOLD },
+      ...(rubric.modelAccuracy == null ? [] : [{ id: 'modelAccuracy', label: 'Model accuracy', isCorrect: Number(rubric.modelAccuracy || 0) >= RUBRIC_PART_THRESHOLD }]),
       { id: 'hypothesis', label: 'Hypothesis / experimental process', isCorrect: Number(rubric.hypothesisCompleteness || 0) >= RUBRIC_PART_THRESHOLD },
       { id: 'justification', label: 'Written justification completion', isCorrect: Number(rubric.writtenJustificationCompleteness || 0) >= RUBRIC_PART_THRESHOLD },
     ],
