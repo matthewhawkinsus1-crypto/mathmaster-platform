@@ -16,6 +16,8 @@ export const listDisciplineIncidents = ({ fromDateKey, toDateKey, classId = '' }
 );
 export const getDisciplineSettings = () => call('getDisciplineSettings');
 export const saveDisciplineSettings = (settings) => call('saveDisciplineSettings', settings);
+// The teacher sent the principal report (from Outlook) for these students.
+export const recordPrincipalReportSent = ({ studentIds }) => call('recordPrincipalReportSent', { studentIds });
 export const submitDisciplineFormsNow = ({ classId = '', dateKey = '' } = {}) => (
   call('submitDisciplineFormsNow', { ...(classId ? { classId } : {}), ...(dateKey ? { dateKey } : {}) })
 );

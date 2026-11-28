@@ -91,6 +91,38 @@ record is never shown as "none". Nothing in the section changes a grade, a
 narrative fact or "What needs attention?". See
 `docs/STUDENT_CASE_REVIEW_DESIGN.md` 3.11 and 5.4.
 
+## In the Action Center
+
+What needs the teacher in the tracker also shows in the Action Center
+(`src/platform/teacher/disciplineActionItems.js`), read from the tracker's own
+callables each time the Action Center opens:
+
+- **A violation the district form refused, or did not answer**: one row per
+  student, class and day (one form response). The tracker's **Send again** or
+  **It was recorded** decides. Nothing is resent by itself.
+- **The district form changed**: violations wait until it is checked. This
+  row shows only for a teacher who uses the tracker.
+- **A family message that did not go out, or may not have**: the newest
+  message for that student's day decides.
+- **The week's principal report**:
+  - lists the students who meet the repeat rule and are not in a report the
+    teacher marked sent since their latest violation;
+  - is due on the week's last school day (Friday, or Thursday when the
+    district closes Friday);
+  - **Mark as sent**, beside Open in Outlook, records it in the teacher's own
+    settings (`recordPrincipalReportSent`, the newest 20 kept). The row then
+    moves to Completed, until a student in it has a new violation.
+
+Each row opens the tracker on its class. The tracker lists the other days in
+its window that need the teacher, one tap from each.
+
+The Action Center's own model now loads when the Action Center opens, not
+with a teacher's first load. That makes room for these rows: the teacher's
+first load is about 2 KB smaller.
+
+**Deploy:** functions `getDisciplineSettings` and `recordPrincipalReportSent`, and
+Hosting.
+
 ## Next
 
 1. **Sending family messages without copy and paste.** SchoolStatus has no

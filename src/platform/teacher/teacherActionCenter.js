@@ -25,6 +25,10 @@ export const TEACHER_ACTION_KIND = Object.freeze({
   EXTENSION_RECONCILIATION: 'extensionReconciliation',
   GRADE_UPLOAD: 'gradeUpload',
   RETEST_RECOVERY: 'retestRecovery',
+  // The Discipline Tracker's (disciplineActionItems.js).
+  DISCIPLINE_FORM: 'disciplineForm',
+  FAMILY_MESSAGE: 'familyMessage',
+  PRINCIPAL_REPORT: 'principalReport',
 });
 
 const resolutionReferences = (event) => new Set([
@@ -62,10 +66,15 @@ const priorityRank = (item, todayDateKey) => {
  * already-authorized records and never manufactures a mutable todo record.
  * The returned allow-list also prevents answer/evidence payloads from leaking
  * into an operational queue row.
+ *
+ * `extraItems` are rows another workflow built in this shape (the Discipline
+ * Tracker's, disciplineActionItems.js). They are kept only for the classes
+ * given here, their students are named from the roster by id, and they sort
+ * with the rest.
  */
 export const buildTeacherActionItems = ({
   students = [], classes = [], supportEvents = [], parentContacts = [],
-  returnCheckIns = [], gradeTransferUnits = [], retestRecoveryActions = [],
+  returnCheckIns = [], gradeTransferUnits = [], retestRecoveryActions = [], extraItems = [],
   now = Date.now(),
   todayDateKey = localDateKeyOf(now),
 } = {}) => {
@@ -165,6 +174,15 @@ export const buildTeacherActionItems = ({
     summary: text(action.summary) || 'Review the existing retest or recovery workflow.', priority: action.priority === 'high' ? 'high' : 'normal',
     createdAt: action.createdAt || null, dueAt: action.dueAt || null, sourceType: 'testCycle', sourceId: idOf(action),
     status: action.completed ? 'completed' : 'open', availableActions: ['openRetestWorkflow'],
+  }));
+
+  list(extraItems).filter(authorized).forEach((item) => items.push({
+    ...item,
+    studentName: item.studentId ? canonicalStudentName(studentById, studentIdOf(item), item.studentName) : text(item.studentName),
+    classLabel: text(item.classLabel || classById.get(classIdOf(item))?.name || classById.get(classIdOf(item))?.period),
+    // A row about several students names each from the roster.
+    context: item.contextStudentIds ? list(item.contextStudentIds).map((id) => canonicalStudentName(studentById, text(id))) : list(item.context),
+    availableActions: list(item.availableActions),
   }));
 
   return items.sort((left, right) => priorityRank(left, todayDateKey) - priorityRank(right, todayDateKey)

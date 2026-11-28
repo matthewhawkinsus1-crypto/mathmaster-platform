@@ -165,10 +165,10 @@ test('App loads the kit for a teacher, never hands it to one who has left, and s
 });
 
 // Both projections are computed with the kit, and recomputed when it arrives.
-test('the needs-attention queue and the Action Center wait for the kit, and rebuild when it arrives', () => {
+test('the needs-attention queue and the Action Center wait for the kit (and the Action Center for its model), and rebuild when they arrive', () => {
   // Since the App split the queue is a memo of useTeacherAnalytics and the
   // Action Center's three are memos of useTeacherActionCenterData; App hands
-  // each hook the kit it holds in state.
+  // each hook the kit it holds in state (and the Action Center its model).
   const analyticsCode = executableSource(positionalHookSource('useTeacherAnalytics'));
   const actionCenterCode = executableSource(positionalHookSource('useTeacherActionCenterData'));
   assert.ok(positionalHookSeam('useTeacherAnalytics').passed.includes('teacherKit'));
@@ -177,10 +177,17 @@ test('the needs-attention queue and the Action Center wait for the kit, and rebu
   assert.match(queue, /if \(!teacherKit \|\| !\['home', 'classesWorkspace'\]\.includes\(teacherTab\)\) return \[\];/);
   assert.match(queue, /return teacherKit\.buildNeedsAttentionQueue\(\{/);
   assert.match(queue, /\bteacherKit,\s*$/, 'the memo depends on the kit');
+  // The Action Center's own items are not the kit's: its model
+  // (platform/teacher/teacherActionCenter.js) is used only while the Action
+  // Center is open, so it loads then, not before a teacher's Home draws. App
+  // holds it in state; the items wait for it and rebuild when it arrives.
   const items = region(actionCenterCode, 'const teacherActionItems = useMemo(() => {', '\n  const currentTeacherActionOpenCount', 'action items memo');
-  assert.match(items, /if \(!teacherKit \|\| teacherWorkspaceMode !== 'teacher' \|\| teacherTab !== 'actionCenter'\) return \[\];/);
-  assert.match(items, /return teacherKit\.buildTeacherActionItems\(\{/);
-  assert.match(items, /\}, \[teacherKit, /, 'the memo depends on the kit');
+  assert.match(items, /if \(!actionCenterModel \|\| teacherWorkspaceMode !== 'teacher' \|\| teacherTab !== 'actionCenter'\) return \[\];/);
+  assert.match(items, /return actionCenterModel\.buildTeacherActionItems\(\{/);
+  assert.match(items, /\}, \[actionCenterModel, /, 'the memo depends on the model');
+  assert.match(actionCenterCode, /if \(actionCenterModel \|\| teacherWorkspaceMode !== 'teacher' \|\| teacherTab !== 'actionCenter'\) return undefined;\s*let cancelled = false;\s*import\('\.\.\/\.\.\/platform\/teacher\/teacherActionCenter\.js'\)\s*\.then\(\(model\) => \{ if \(!cancelled\) setActionCenterModel\(model\); \}\)/, 'loaded when the Action Center opens');
+  assert.match(actionCenterCode, /const currentTeacherActionOpenCount = actionCenterModel \? actionCenterModel\.openTeacherActionCount\(teacherActionItems\) : 0;/);
+  assert.doesNotMatch(executableSource(readFileSync(path.join(repo, 'src/app/teacher/teacherKit.js'), 'utf8')), /teacherActionCenter\.js/, 'the kit does not carry it');
   // The Action Center's grade-transfer units (their saved state loads with the
   // first load's grade-transfer store, which rewards use too).
   const scope = region(actionCenterCode, 'const actionGradeScope = useMemo(() => {', '\n  const actionReturnCheckIns', 'grade-transfer scope memo');

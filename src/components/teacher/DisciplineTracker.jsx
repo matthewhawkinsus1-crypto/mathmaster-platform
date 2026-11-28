@@ -4,6 +4,7 @@ import {
   VIOLATION_TYPES,
   disciplineDateKey,
   disciplineLongDay,
+  disciplineShortDay,
   disciplineTime,
   outlookComposeUrl,
   principalReport,
@@ -21,6 +22,7 @@ import {
   formStateWords,
   needsFormRefresh,
   newTapId,
+  otherDaysNeedingTeacher,
   parentDrafts,
   recentViolationCount,
   undoNotice,
@@ -30,6 +32,7 @@ import {
   listDisciplineIncidents,
   queueFamilyMessages,
   recordDisciplineIncident,
+  recordPrincipalReportSent,
   resolveDisciplineFormState,
   resolveFamilyMessage,
   saveDisciplineSettings,
@@ -335,10 +338,31 @@ export default function DisciplineTracker({
     };
   }, [incidents, dateKey, studentsById, myClasses, contacts, signature, settings.principalName]);
 
+  // Other days (and classes) in the window where a send or a family message
+  // waits on the teacher: where the Action Center's rows lead.
+  const classLabelOf = (id) => {
+    const entry = myClasses.find((item) => item.classId === id);
+    return entry ? (entry.name || entry.period || entry.classId) : 'another class';
+  };
+  const otherDays = useMemo(() => otherDaysNeedingTeacher({ incidents, familyMessages, dateKey, classId })
+    .filter((entry) => myClasses.some((item) => item.classId === entry.classId)), [incidents, familyMessages, dateKey, classId, myClasses]);
+
+  // The teacher sends the report from Outlook, then says so here.
+  const lastReport = (settings.principalReports || []).at(-1) || null;
+  const markReportSent = async () => {
+    try {
+      const sent = await recordPrincipalReportSent({ studentIds: report.offenders.map((offender) => offender.studentId) });
+      setSettings((current) => ({ ...current, principalReports: [...(current.principalReports || []), sent].slice(-20) }));
+      setMessage({ tone: 'success', text: `Marked sent: the principal report for ${sent.studentIds.length} student${sent.studentIds.length === 1 ? '' : 's'}.` });
+    } catch (error) {
+      setMessage({ tone: 'danger', text: error.message });
+    }
+  };
+
   const saveSettings = async () => {
     try {
       const saved = await saveDisciplineSettings(settingsDraft);
-      setSettings(saved);
+      setSettings((current) => ({ ...current, ...saved }));
       setSettingsDraft(null);
       setMessage({ tone: 'success', text: 'Saved.' });
     } catch (error) {
@@ -384,6 +408,16 @@ export default function DisciplineTracker({
         <span className="tw-spacer" />
         <button type="button" className="tw-btn tw-btn--sm" disabled={busy || !summary.waiting} onClick={sendNow}>{busy ? 'Sending…' : 'Send now'}</button>
       </div>
+      {otherDays.length > 0 && (
+        <div className="tw-row tw-small" data-discipline-other-days>
+          <span className="tw-strong">Also needs you:</span>
+          {otherDays.slice(0, 6).map((entry) => (
+            <button key={`${entry.dateKey}|${entry.classId}`} type="button" className="tw-link" onClick={() => { setClassId(entry.classId); setDateKey(entry.dateKey); }}>
+              {disciplineShortDay(entry.dateKey)} · {classLabelOf(entry.classId)} ({entry.count})
+            </button>
+          ))}
+        </div>
+      )}
     </div>
 
     {formStatus && formStatus.ok === false && (
@@ -577,7 +611,13 @@ export default function DisciplineTracker({
         <div className="tw-row">
           <a className="tw-btn tw-btn--sm tw-btn--primary" href={outlookComposeUrl({ to: settings.principalEmail, subject: report.subject, body: report.body })} target="_blank" rel="noopener noreferrer">Open in Outlook</a>
           <button type="button" className="tw-btn tw-btn--sm" onClick={async () => setMessage((await copyText(`${report.subject}\n\n${report.body}`)) ? { tone: 'success', text: 'Report copied.' } : { tone: 'warning', text: 'Copy was blocked: select the report and copy it.' })}>Copy report</button>
+          {report.offenders.length > 0 && <button type="button" className="tw-btn tw-btn--sm" onClick={markReportSent}>Mark as sent</button>}
         </div>
+        {lastReport && (
+          <p className="tw-small tw-muted" style={{ margin: 0 }} data-discipline-report-sent>
+            Last marked sent {disciplineShortDay(disciplineDateKey(lastReport.sentAtMs))} at {disciplineTime(lastReport.sentAtMs)}, for {lastReport.studentIds.length} student{lastReport.studentIds.length === 1 ? '' : 's'}. The Action Center asks again about a student only after a new violation.
+          </p>
+        )}
       </div>
     </details>
   </section>;
