@@ -356,7 +356,11 @@ test('minutes cannot be backdated, pre-filled, removed, or filed under another i
   await assertFails(ledgerWrite(studentA(), { minutes: arrayUnion(now - 10) }));
   await assertFails(ledgerWrite(studentA(), { minutes: arrayUnion(now + 5) }));
   await assertFails(ledgerWrite(studentA(), { assignmentId: 'A2', minutes: [now, now - 1, now - 2] }));
-  await assertFails(ledgerWrite(studentA(), { minutes: arrayRemove(now) }));
+  // Remove a minute that is actually stored. `now` may already be the next minute, and removing a
+  // minute that is not there changes nothing, so the rules rightly allow it.
+  const storedMinutes = (await getDoc(doc(teacherA(), `grades/S_A/engagementMinutes/${engagementDocId('A1', utcDayOf(Date.now()))}`))).data()?.minutes || [];
+  if (storedMinutes.length === 0) throw new Error('expected the previous test to have stored a minute');
+  await assertFails(ledgerWrite(studentA(), { minutes: arrayRemove(storedMinutes[0]) }));
   await assertFails(ledgerWrite(studentA(), { assignmentId: 'A3', minutes: arrayUnion(now), id: 'A3__1' }));
   await assertFails(ledgerWrite(studentA(), { assignmentId: 'A4', minutes: arrayUnion(now), utcDay: utcDayOf(Date.now()) - 3 }));
   await assertFails(setDoc(doc(studentB(), `grades/S_A/engagementMinutes/${engagementDocId('A5', utcDayOf(Date.now()))}`), {

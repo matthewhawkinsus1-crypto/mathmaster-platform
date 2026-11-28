@@ -16,6 +16,7 @@ import {
   samePolynomialEquationRelation,
   sameValue,
   splitTopLevelCommaList,
+  typedAsEditorSpelling,
   withoutStaleSetStamp,
 } from './answerEquivalence.mjs';
 import { sameEquivalentExpression } from './equivalentExpression.mjs';
@@ -387,10 +388,16 @@ export const matchesFieldAnswer = (studentAnswer, field = {}) => {
 
   if (field?.gradingMode === 'equivalentExpression') {
     // A mixed number against a number key is read as one here too, never as
-    // a product (answerEquivalence.sameMixedNumber).
+    // a product (answerEquivalence.sameMixedNumber). A typed ², · or × is
+    // read as the editor writes it (^{2}, \cdot, \times), as every other
+    // reader of the mathematics reads it (answerEquivalence
+    // typedAsEditorSpelling): `2·x+3` and `x²-64` were refused here while
+    // `2\cdot x+3` and `x^{2}-64` were right (the real-item grading audit,
+    // 2026-11-28). The student's answer only, never the key.
+    const typed = typedAsEditorSpelling(studentAnswer);
     return acceptedAnswers.some((acceptedAnswer) => (
       sameMixedNumber(studentAnswer, acceptedAnswer, tolerance(1e-6), { thousandsSeparators: options.thousandsSeparators })
-      ?? sameEquivalentExpression(studentAnswer, acceptedAnswer, tolerance(1e-6))));
+      ?? sameEquivalentExpression(typed, acceptedAnswer, tolerance(1e-6))));
   }
 
   // sidesAsKeyed (GR17): the field's own options and tolerance, as for any
@@ -408,8 +415,13 @@ export const matchesFieldAnswer = (studentAnswer, field = {}) => {
   // yet", never toward credit.
   if (FORM_SPECIFIC_GRADING_MODES.includes(field?.gradingMode)) {
     const comparator = FORM_SPECIFIC_COMPARATORS.get(field.gradingMode);
+    // A typed ², · or × as the editor writes it, as above: `2·|x|y^2` was
+    // refused where `2\cdot|x|y^{2}` was simplest radical form (the
+    // real-item grading audit, 2026-11-28). A form the comparator refuses is
+    // still refused: this changes the characters, not the form.
+    const typed = typedAsEditorSpelling(studentAnswer);
     return acceptedAnswers.some((acceptedAnswer) => (
-      (typeof comparator === 'function' && comparator(studentAnswer, acceptedAnswer) === true)
+      (typeof comparator === 'function' && comparator(typed, acceptedAnswer) === true)
       || sameWrittenForm(studentAnswer, acceptedAnswer)));
   }
 

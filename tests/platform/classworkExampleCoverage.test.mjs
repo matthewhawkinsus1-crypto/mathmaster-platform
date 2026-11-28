@@ -217,28 +217,35 @@ const baselineMeasurement = () => {
 };
 
 // Section 8 measured 137 of 496 with a built-in sibling (from a family or the
-// item's own numbers) and 14 of 41 lessons with none. WE-I's Algebra I batch
-// (the linearReasoning family, and the perpendicularLines sibling) works a
-// sibling for 103 more answer boxes; the lessons themselves did not change. A
-// replay on the item's own tool (WE-C to WE-E) is the next test.
-test('the lessons written before the rule: 240 of 496 Classwork questions have a built-in sibling, and 9 of 41 lessons have none (WORKED_EXAMPLES.md section 8, then WE-I)', () => {
+// item's own numbers) and 14 of 41 lessons with none. WE-I's batches are
+// siblings too, so the same lessons now measure more: the Algebra I batch (the
+// linearReasoning family, and the perpendicularLines sibling) works a sibling
+// for 103 more answer boxes, and the Algebra II batch (the division replay and
+// the answer-box generators) for 34 more (tests/platform/
+// algebra2AnswerBoxExamples.test.mjs, divisionReplay.test.mjs). The lessons
+// themselves did not change. A replay on the item's own tool (WE-C to WE-E) is
+// the next test.
+test('the lessons written before the rule: 274 of 496 Classwork questions have a built-in sibling, and 3 of 41 lessons have none (WORKED_EXAMPLES.md section 8, then WE-I)', () => {
   const { lessons, lessonsWithClasswork } = baselineMeasurement();
   assert.equal(lessonsWithClasswork, 41);
   const sibling = ({ builtIn }) => builtIn === 'family' || builtIn === 'numericVariant';
   const entries = lessons.flatMap((lesson) => lesson.questions);
   assert.equal(entries.length, 496);
-  assert.equal(entries.filter(sibling).length, 240);
-  assert.equal(lessons.filter((lesson) => !lesson.questions.some(sibling)).length, 9);
-  // The 256 without one, by kind (section 8 listed 359, 247 of them answer boxes).
+  assert.equal(entries.filter(sibling).length, 274);
+  assert.equal(lessons.filter((lesson) => !lesson.questions.some(sibling)).length, 3);
+  // The 222 without one, by kind (section 8 listed 359, 247 of them answer boxes).
   const without = {};
   entries.filter((entry) => !sibling(entry))
     .forEach(({ kind }) => { without[kind] = (without[kind] || 0) + 1; });
-  assert.equal(Object.values(without).reduce((sum, count) => sum + count, 0), 256);
-  const named = { multipleResponses: 144, solveInequalitySystem: 30, matchFigures: 10, syntheticDivision: 10, sortIntoCategories: 10, solveRadicalEquation: 10, analyzeTransformations: 9 };
+  assert.equal(Object.values(without).reduce((sum, count) => sum + count, 0), 222);
+  // Synthetic and long division have none left without one: the division replay plays them all.
+  assert.equal(without.syntheticDivision, undefined);
+  assert.equal(without.longDivision, undefined);
+  const named = { multipleResponses: 126, solveInequalitySystem: 30, matchFigures: 10, sortIntoCategories: 8, solveRadicalEquation: 10, analyzeTransformations: 9 };
   for (const [kind, count] of Object.entries(named)) assert.equal(without[kind], count, kind);
   const rest = Object.entries(without).filter(([kind]) => !(kind in named));
-  assert.equal(rest.length, 12, '12 other kinds');
-  assert.equal(rest.reduce((sum, [, count]) => sum + count, 0), 33, '33 more questions');
+  assert.equal(rest.length, 11, '11 other kinds');
+  assert.equal(rest.reduce((sum, [, count]) => sum + count, 0), 29, '29 more questions');
 });
 
 test('a question the example player plays a replay for is covered: the same lessons since WE-C to WE-E', () => {
@@ -250,12 +257,12 @@ test('a question the example player plays a replay for is covered: the same less
   // Algebra replay (WE-C) 3 equations no family has a sibling for.
   assert.deepEqual(replays, { solveInequalitySystem: 20, solveStepByStep: 3 });
   // None of these lessons writes an example or an exemption (existing lessons
-  // are not back-filled), so the rest of the rule is the same-skill one: 65
+  // are not back-filled), so the rest of the rule is the same-skill one: 103
   // more questions follow an earlier covered question on their skill. With
-  // WE-I's siblings, 263 are built-in (240 siblings and 23 replays).
-  assert.deepEqual(summary.byStatus, { own: 0, earlierSameSkill: 65, builtIn: 263, exempt: 0, uncovered: 168 });
-  assert.equal(summary.covered, 328);
-  assert.equal(lessonsWithNoBuiltIn, 8);
+  // WE-I's siblings, 297 are built-in (274 siblings and 23 replays).
+  assert.deepEqual(summary.byStatus, { own: 0, earlierSameSkill: 103, builtIn: 297, exempt: 0, uncovered: 96 });
+  assert.equal(summary.covered, 400);
+  assert.equal(lessonsWithNoBuiltIn, 2);
 });
 
 test('the report counts a question as covered whenever workedExampleFor plays a replay for it, on every real lesson', () => {
@@ -318,8 +325,8 @@ test('the real lessons: every uncovered question has a fill hint, and generator 
     const claimed = Boolean(familyFor(asQuestionEngineReceivesIt(questionsById.get(`${lesson.file}#${entry.questionId}`))));
     assert.equal(entry.fillWith, claimed ? FILL.GENERATOR : FILL.AUTHORED_EXAMPLE, `${lesson.file} ${entry.questionId}`);
   }));
-  // { generator: 100, authoredExample: 216 } before WE-I's Algebra I batch and the replays.
-  assert.deepEqual(realMeasurement().summary.byFill, { generator: 63, authoredExample: 105 });
+  // { generator: 100, authoredExample: 216 } before WE-I's batches and the replays.
+  assert.deepEqual(realMeasurement().summary.byFill, { generator: 49, authoredExample: 47 });
 });
 
 test('Pre-Flight\'s view of a question gives the same answer as the student\'s screen', () => {
