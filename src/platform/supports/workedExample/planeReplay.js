@@ -53,6 +53,13 @@ import systemsWorkspaceGrader from '../../../../functions/shared/serverGrading/t
 export const PLANE_REPLAY_TOOL = Object.freeze({ LINE: 'constructLine', SYSTEM: 'graphSystem', INEQUALITY: 'solveInequalitySystem' });
 export const PLANE_BOUNDS = Object.freeze({ xMin: -10, xMax: 10, yMin: -10, yMax: 10 });
 export const PLANE_BOARD = Object.freeze({ MOVE: 'move', CHECK: 'check' });
+/** The least area, in square units of the −10 to 10 plane, a system's overlap is shaded with. */
+export const OVERLAP_MIN_AREA = 4;
+/** A polygon's area (the shoelace formula), its corners in order. */
+export const polygonArea = (points) => Math.abs(points.reduce((sum, [x, y], index) => {
+  const [nx, ny] = points[(index + 1) % points.length];
+  return sum + x * ny - nx * y;
+}, 0)) / 2;
 
 const isObject = (value) => Boolean(value) && typeof value === 'object' && !Array.isArray(value);
 const list = (value) => (Array.isArray(value) ? value : []);
@@ -441,7 +448,9 @@ const inequalityReplay = (question) => {
   if (!graded(systemsWorkspaceGrader, question, work)) return refused('the inequality builder does not mark its record correct.');
   if (boundaries.length > 1) {
     const overlap = feasibleRegionPolygon(boundaries, bounds).map((point) => (Array.isArray(point) ? [point[0], point[1]] : [point.x, point.y]));
-    if (overlap.length < 3) return refused('its shaded sides do not overlap on the plane.');
+    // A corner the two lines meet at on the plane's edge is not an overlap a student can see:
+    // the solution has to be a shaded piece of the board (OVERLAP_MIN_AREA square units).
+    if (overlap.length < 3 || polygonArea(overlap) < OVERLAP_MIN_AREA) return refused('its shaded sides do not overlap on the plane.');
     steps.push(stepOf({
       op: 'overlap',
       label: 'Find where the shaded sides overlap',

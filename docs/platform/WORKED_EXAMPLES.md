@@ -168,6 +168,10 @@ Where slice E lives, and what it plays:
     test point, the shading; for two, the overlap; then the marked point
     checked. An inequality given in standard form is solved for y first, on a
     slide of its own, the sign turning around where the y-term is negative.
+    The overlap is a shaded piece of the board: a system whose two lines
+    cross on the plane's edge shades a single corner as "the solution", so
+    an overlap under `OVERLAP_MIN_AREA` (4 square units) is not played, and
+    the sibling draws other numbers (the maths audit below).
   These inequality questions had no example at all before.
 - **The example draws what the student's tool records.** Each replay builds
   the record the tool itself holds (the plotted points, the style, the shading
@@ -323,6 +327,46 @@ Where the Algebra II answer-box generators live (WE-I), and what they claim:
   over the real lessons), `workedExampleSiblingIdentities.test.mjs` (every
   sibling's mathematics, numerically) and the answer-box scenario of
   `tests/browser/divisionReplay.mjs`.
+
+The maths audit of the examples from before WE-I
+(`tests/platform/workedExampleMathsAudit.test.mjs`, reading through
+`tests/platform/helpers/statedMaths.mjs`):
+- **What it covers:** every source of a built-in example from before WE-I,
+  over every real item each claims, seeds 0 to 20: the question families in
+  `src/platform/supports/families/` (`polynomialDivision` and
+  `algebra2AnswerBoxes` are WE-I's, checked above), the Step Algebra, radical
+  and plane replays, and the Spot the mistake lines. About 11,600 examples.
+- **The start agrees with the answer.** One check per kind of prompt the
+  families write (an equation solved, a system, an inequality, a number line,
+  an area model, p and q, the Factor Theorem, a long division, a line from
+  points or a standard form, a fitted line, transformed points, a function's
+  features, compositions and inverses, a recursive sequence and so on), and a
+  prompt of a kind with no check fails the test. Each reads the start and the
+  answer from the text and evaluates them with mathjs: no family's own
+  arithmetic is reused. No family states an assumption, so values are nonzero.
+- **Every value a step states agrees with the next.** Every "A = B = C" and
+  "A < B is true" a step or a board line states is evaluated: with the
+  prompt's functions as defined (f(x) = …, f⁻¹, (f ∘ g)(2)), with the
+  answer's values put in where the letters are the answer's (each true root
+  satisfies every step on the way to it; one branch of an "or", or a candidate
+  named alone, satisfies one of them), and with a sentence's own values
+  ("put x = 1 into y = 2x − 3. It gives y = −1"). What a step says in words is
+  read too: "both sides equal 25", "a line with slope 3", "a = −2, h = 6",
+  "its image is (−1, 6)", "the factor pairs of −12", "that leaves −6x".
+- **Spot the mistake writes no mathematics of its own:** its step and its
+  reason are the item's own common error, each wrong choice is another item's
+  reason (words only) or a fixed sentence, and the reason it gives as right
+  states nothing false.
+- **It can fail:** for every kind of prompt, a real example with one number of
+  its answer changed fails its check; for every source, at least four in five
+  single-number changes to a step are caught.
+- **What it found (2026-11-28):** one error. The plane replay of a system of
+  inequalities could draw a sibling whose boundaries cross on the board's
+  edge, (6, 10), so the overlap it shades as the solution is a single point
+  and no solution shows (m3t2l5-cw-7 seed 11, m3t2l5-cw-16 seed 12,
+  m3t2l5-p-1 seed 11). Fixed in `planeReplay.js` (`OVERLAP_MIN_AREA`).
+  Nothing else: no wrong sign, no missing assumption, no wrong intermediate
+  step in any family's text.
 
 Where slice F lives, and what it does:
 - **The section rules:** `exampleSectionRule` (`examplePlayer.js`) says
