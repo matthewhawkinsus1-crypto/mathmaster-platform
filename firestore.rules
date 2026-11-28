@@ -1744,10 +1744,12 @@ service cloud.firestore {
     // student may read their own so the app can explain a decision back to
     // them, but only the platform's teacher role writes it — a student who
     // could forge routing history could talk themselves out of remediation.
+    // A teacher reads or changes only a student on their own roster
+    // (security review 2026-11-28, R3); the student's own app logs each route.
     match /pathHistory/{studentId} {
-      allow read: if teacher() || ownsStudent(studentId);
-      allow create, update: if teacher() || (ownsStudent(studentId) && studentRowExists(studentId));
-      allow delete: if teacher();
+      allow read: if rootAdmin() || teachesPresenceStudent(studentId) || ownsStudent(studentId);
+      allow create, update: if rootAdmin() || teachesPresenceStudent(studentId) || (ownsStudent(studentId) && studentRowExists(studentId));
+      allow delete: if rootAdmin() || teachesPresenceStudent(studentId);
     }
 
     // Shared instructional content is readable after sign-in. Only teachers
@@ -2277,9 +2279,21 @@ service cloud.firestore {
       );
     }
 
+    // The shared documents the teacher screens manage. Any other document
+    // here, above all a platform switch the server trusts
+    // (settings/serverGrading: how grade records are stored, whether step
+    // work is required), is the root administrator's alone (security review
+    // 2026-11-28, R1).
+    function teacherManagedSettingsDoc(docId) {
+      return docId in [
+        'classSchedule', 'courseProfiles', 'gradingPeriods', 'assignmentFolders',
+        'classPacing', 'weeklyPathGoals', 'skillOverrides'
+      ];
+    }
+
     match /settings/{docId} {
       allow read: if signedIn();
-      allow create, update, delete: if teacher();
+      allow create, update, delete: if rootAdmin() || (teacher() && teacherManagedSettingsDoc(docId));
     }
 
     /*
@@ -2443,9 +2457,13 @@ service cloud.firestore {
       allow create, update, delete: if false;
     }
 
+    // Written only by the server (mathPathFunctions.js), as the mastery
+    // profile is: a browser that could write it would choose when a
+    // retention probe is due, or widen its own access list (security review
+    // 2026-11-28, R2).
     match /studentRetentionSchedules/{studentId} {
       allow read: if rootAdmin() || ownsStudent(studentId) || authorizedTeacher();
-      allow write: if rootAdmin() || authorizedTeacher();
+      allow write: if false;
     }
 
     /*

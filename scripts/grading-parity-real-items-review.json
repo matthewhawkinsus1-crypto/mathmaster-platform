@@ -1,0 +1,11 @@
+{
+  "about": "Firm wrong verdicts from scripts/audit-grading-parity-real-items.mjs that are a grading rule doing what it documents, left for the owner to rule on. Each entry: the finding's signature, what it is, why it is left, and one repro. The list only shrinks: tests/platform/gradingParityRealItems.test.mjs fails on an entry whose signature no longer occurs. Report: docs/audits/2026-11-28-grading-parity-real-items.md.",
+  "entries": [
+    {
+      "signature": "right answer marked wrong | expression | simplifiedPolynomial | right | redundant brackets | screen=wrong | server=wrong",
+      "what": "A box that asks for a polynomial in simplest form (answerForm simplifiedPolynomial) refuses the right polynomial with brackets round the whole answer, (3a^2-2a) for 3a^2-2a, or a negative constant written +(-63) for -63. 58 answers on 26 boxes of Operations on Polynomials and Dividing Polynomials, on the screen and on the server alike.",
+      "why": "functions/shared/simplifiedPolynomialForm.mjs documents the rule (grouping: no brackets around letters) and the platform's Simplify control holds the same one. Brackets round the whole answer leave nothing to do, so the rule may be stricter than intended there, but whether '(3a^2-2a)' counts as simplest form is the owner's ruling, not a grader bug to fix in an audit. Not loosened.",
+      "repro": { "item": "teacher-import-jsons/algebra2-honors-module2/L1_Operations_on_Polynomials.json#warmup/opp-wu-2", "box": "answerForm simplifiedPolynomial", "key": "3a^2-2a", "input": "(3a^2-2a)" }
+    }
+  ]
+}
