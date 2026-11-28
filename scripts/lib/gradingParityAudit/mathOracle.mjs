@@ -259,6 +259,49 @@ const sameEquation = (left, right, seed) => {
 const holds = (value, sign, other) => ({ '<': value < other - 1e-9, '<=': value <= other + 1e-9, '>': value > other + 1e-9, '>=': value >= other - 1e-9, '=': Math.abs(value - other) <= 1e-9 })[sign];
 
 /** Two relations with an inequality: the same truth value at every sample point. */
+const boundaryPoints = (relations, names, seed) => {
+  if (!names.length) return [];
+  const found = [];
+  const starts = names.length === 1 ? [{}] : samplePoints(names, `${seed}/boundary`, 12).map((point) => Object.fromEntries(Object.entries(point).map(([key, value]) => [key, value * 20])));
+  const along = names[0];
+  for (const { compiled } of relations) {
+    for (let index = 0; index + 1 < compiled.length; index += 1) {
+      for (const start of starts) {
+        const f = (value) => {
+          const point = { ...start, [along]: value };
+          const left = evaluateReal(compiled[index], point);
+          const right = evaluateReal(compiled[index + 1], point);
+          return left === null || right === null ? null : left - right;
+        };
+        let previous = -500;
+        let previousValue = f(previous);
+        for (let value = -499.75; value <= 500; value += 0.25) {
+          const current = f(value);
+          if (current === null || previousValue === null) { previous = value; previousValue = current; continue; }
+          if (current === 0) found.push({ ...start, [along]: value });
+          else if (Math.sign(current) !== Math.sign(previousValue) && previousValue !== 0) {
+            let low = previous;
+            let high = value;
+            for (let step = 0; step < 80; step += 1) {
+              const middle = (low + high) / 2;
+              const at = f(middle);
+              if (at === null) break;
+              if (Math.sign(at) === Math.sign(f(low))) low = middle; else high = middle;
+            }
+            // The side of the root where the relation holds with equality to
+            // within the comparison's tolerance.
+            const root = Math.abs(f(low)) <= Math.abs(f(high)) ? low : high;
+            if (Math.abs(f(root)) <= 1e-10) found.push({ ...start, [along]: root });
+          }
+          previous = value;
+          previousValue = current;
+        }
+      }
+    }
+  }
+  return found;
+};
+
 const sameInequality = (left, right, seed) => {
   const read = (text) => {
     const { parts, signs } = relationParts(text);
@@ -283,6 +326,13 @@ const sameInequality = (left, right, seed) => {
     if (values.includes(null)) return null;
     return signs.every((sign, index) => holds(values[index], sign, values[index + 1]));
   };
+  // Points ON each relation's boundary, where a strict and a non-strict
+  // relation differ: random points almost never land there (x > -3/2,
+  // 2x + 3y >= 20). Found by a sign change of L - R along one letter, from
+  // seeded starting points, then bisected.
+  const boundary = boundaryPoints([a, b], names, seed);
+  if (!boundary.length) return 'unknown';
+  points.push(...boundary);
   let compared = 0;
   for (const point of points) {
     const x = truth(a, point);

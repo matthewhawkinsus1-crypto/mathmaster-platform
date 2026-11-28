@@ -362,3 +362,12 @@ export const groupBySignature = (rows) => {
   }
   return [...groups].map(([signature, list]) => ({ signature, count: list.length, examples: list.slice(0, 5) })).sort((a, b) => b.count - a.count);
 };
+
+/**
+ * Whether a run fails: any disagreement, a firm wrong verdict off the review
+ * list, a failing tool finding, an item's own key refused, or a lesson that
+ * did not compile (and so was not audited at all).
+ */
+export const auditFails = ({ disagreements = 0, wrongVerdictsFirmUnlisted = 0, toolFindingsFailing = 0, keyNotRight = 0, lessonsThatDidNotCompile = 0 } = {}) => (
+  disagreements + wrongVerdictsFirmUnlisted + toolFindingsFailing + keyNotRight + lessonsThatDidNotCompile > 0
+);

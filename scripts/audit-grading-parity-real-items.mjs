@@ -12,7 +12,8 @@
  *   node scripts/audit-grading-parity-real-items.mjs [--seed S] [--seats 2]
  *        [--tool-cases 12] [--out report.json] [--markdown report.md]
  *
- * Exit 1 on any disagreement between the screen and the server, or on any
+ * Exit 1 on any disagreement between the screen and the server, on an
+ * item's own key refused, on a lesson that does not compile, or on any
  * FIRM wrong verdict (a right answer the independent reading confirmed marked
  * wrong, or a wrong one marked right) that is not listed in
  * scripts/grading-parity-real-items-review.json, where each verdict the
@@ -23,7 +24,7 @@
  * Read only: writes only --out and --markdown.
  */
 import { writeFileSync } from 'node:fs';
-import { groupBySignature, runRealItemAudit, runToolItemParity, signatureOf } from './lib/gradingParityAudit/audit.mjs';
+import { auditFails, groupBySignature, runRealItemAudit, runToolItemParity, signatureOf } from './lib/gradingParityAudit/audit.mjs';
 import { readReviewList, unlistedFirm } from './lib/gradingParityAudit/reviewList.mjs';
 
 const argOf = (name, fallback) => {
@@ -92,4 +93,4 @@ if (markdown) {
   ];
   writeFileSync(markdown, lines.join('\n'));
 }
-process.exit(summary.disagreements || firmUnlisted.length || toolFailures.length ? 1 : 0);
+process.exit(auditFails(summary) ? 1 : 0);

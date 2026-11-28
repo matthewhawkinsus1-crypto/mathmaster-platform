@@ -21,6 +21,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 
 import {
+  auditFails,
   runRealItemAudit,
   runToolItemParity,
   screenVerdict,
@@ -102,6 +103,19 @@ test('the independent reading tells the same value from another, and says when i
   for (const [key, typed, kind] of same) assert.equal(compareToKey(key, typed, kind), 'same', `${typed} for ${key}`);
   for (const [key, typed, kind] of different) assert.equal(compareToKey(key, typed, kind), 'different', `${typed} for ${key}`);
   assert.equal(compareToKey('2x+3', '2x+@', 'expression'), 'unknown');
+  // Strict against non-strict differs only ON the boundary, which random
+  // points never reach: the reading samples the boundary itself.
+  for (const [key, typed] of [['2x + 3y >= 20', '2x + 3y > 20'], ['x > -3/2', 'x >= -3/2'], ['0<=b<=420', '0<=b<420'], ['m<80', 'm<=80']]) {
+    assert.equal(compareToKey(key, typed, 'inequality'), 'different', `${typed} for ${key}`);
+  }
+  for (const [key, typed] of [['x > -3/2', '-3/2 < x'], ['2x + 3y >= 20', '3y + 2x >= 20']]) assert.equal(compareToKey(key, typed, 'inequality'), 'same', `${typed} for ${key}`);
+});
+
+test('a run fails on a refused key or a lesson that did not compile, not only on a disagreement', () => {
+  assert.equal(auditFails({}), false);
+  for (const name of ['disagreements', 'wrongVerdictsFirmUnlisted', 'toolFindingsFailing', 'keyNotRight', 'lessonsThatDidNotCompile']) {
+    assert.equal(auditFails({ [name]: 1 }), true, name);
+  }
 });
 
 test('a "wrong" answer the reading finds equal to the key is never built, nor a "right" one it finds unequal', () => {

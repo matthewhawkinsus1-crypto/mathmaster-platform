@@ -28,9 +28,9 @@ reading of the key, `audit.mjs` grades them both ways).
 | Items the server grades | 1,811 (all) |
 | Items with typed boxes (multiAnswer 995, table 1) | 903 |
 | Typed boxes | 2,076 |
-| **Typed answers graded, screen and server** | **44,960** |
+| **Typed answers graded, screen and server** | **45,219** |
 | — right answers in another spelling | 10,070 |
-| — one-slip wrong answers | 7,669 |
+| — one-slip wrong answers | 7,928 |
 | — the key's value, not in the form the box asks for | 225 |
 | — follow-through (a wrong earlier part carried forward) | 8 |
 | — edge input | 26,988 |
@@ -57,7 +57,7 @@ answer is checked against the key by an independent reading
 (`mathOracle.mjs`, mathjs only, nothing of the platform's answer layer): same
 value at seeded sample points, an equation as a non-zero multiple of the
 key's, an inequality by its truth set, pairs, sets and intervals by their
-numbers. A generated "right" answer it reads as another value, or a "wrong"
+numbers. An inequality is also checked on its boundary (found by a sign change of L − R, then bisected), where strict and non-strict differ. A generated "right" answer it reads as another value, or a "wrong"
 one it reads as the same value, is dropped as a generator error. A wrong
 number inside the item's own `numericTolerance` is right by its key and is not
 built as wrong. Where the reading cannot read an answer, a surprising verdict
@@ -78,7 +78,7 @@ check (device against server, never throws, stable).
 
 ## Disagreements between the screen and the server
 
-**None.** 0 of 44,960 typed answers, 0 of 9,780 pieces of tool work.
+**None.** 0 of 45,219 typed answers, 0 of 9,780 pieces of tool work.
 
 | Type | Count |
 | --- | --- |
@@ -95,7 +95,7 @@ check (device against server, never throws, stable).
 Before this change: 141 (78 firm right answers marked wrong, the rest below).
 After: 63, 58 of them one documented rule left for the owner. **No wrong
 answer and no edge input was marked right**, on either path, in any lesson:
-of 7,669 one-slip wrong answers, 225 unsimplified forms and 26,988 edge inputs,
+of 7,928 one-slip wrong answers, 225 unsimplified forms and 26,988 edge inputs,
 none earned credit. Every item's own key is right on both paths.
 
 ### Fixed: a typed `·`, `×` or `²` refused by two grading modes (78 answers)
