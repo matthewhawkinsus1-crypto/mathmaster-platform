@@ -78,6 +78,9 @@ const {
   privateOverrideFrom,
   questionWasAttempted,
   readAllDeviceReportsForStudent,
+  deviceReportReportedAtMs,
+  MAX_DEVICE_REPORTS_PER_STUDENT,
+  DEVICE_REPORT_STALE_MS,
   readPersistencePending,
   requireClassTeacher,
   requireStudent,
@@ -2464,12 +2467,19 @@ function trustedResponseInspectionEvidence(snapshot, {
  * no responses, no records, nothing that could become a grade. The report is
  * keyed by device so one student's two Chromebooks are two rows.
  */
+// The largest count one device report may store, per field.
+const DEVICE_QUEUE_COUNT_MAX = 10_000;
+// How many of a student's rows a new device's report reads to find the oldest.
+const DEVICE_REPORT_EVICTION_SCAN = 200;
+
 exports.reportStudentDeviceQueue = onCall(async (request) => {
   const { studentId } = requireStudent(request);
   const deviceId = String(request.data?.deviceId || "").replace(/[^A-Za-z0-9_-]/g, "").slice(0, 64);
   if (!deviceId) throw new HttpsError("invalid-argument", "A device id is required.");
   const summary = request.data?.summary && typeof request.data.summary === "object" ? request.data.summary : {};
-  const number = (value) => Math.max(0, Math.min(100_000, Number(value) || 0));
+  // Every count is a whole number in [0, DEVICE_QUEUE_COUNT_MAX]: far above
+  // what one device's queue holds, and small enough to sum safely.
+  const number = (value) => Math.max(0, Math.min(DEVICE_QUEUE_COUNT_MAX, Math.floor(Number(value) || 0)));
   const countMap = (value) => Object.fromEntries(
     Object.entries(value && typeof value === "object" ? value : {})
       .slice(0, 40)
@@ -2546,6 +2556,12 @@ exports.reportStudentDeviceQueue = onCall(async (request) => {
    */
   const outcome = await db.runTransaction(async (transaction) => {
     const previousSnapshot = await transaction.get(reportRef);
+    // This student's other rows, read before any write: a new device past the
+    // cap evicts the oldest (stale or drained first) so at most
+    // MAX_DEVICE_REPORTS_PER_STUDENT remain.
+    const siblingSnapshot = previousSnapshot.exists ? null : await transaction.get(
+      db.collection(DEVICE_QUEUE_REPORT_COLLECTION).where("studentId", "==", studentId).limit(DEVICE_REPORT_EVICTION_SCAN),
+    );
     const previousData = previousSnapshot.data() || {};
     const storedGeneration = Math.max(0, Number(previousData.reportGeneration) || 0);
 
@@ -2568,6 +2584,22 @@ exports.reportStudentDeviceQueue = onCall(async (request) => {
         storedGeneration,
         previousByAssignment: previousData.queuedGradeBearingByAssignment || {},
       };
+    }
+
+    if (siblingSnapshot && siblingSnapshot.size >= MAX_DEVICE_REPORTS_PER_STUDENT) {
+      const nowMs = Date.now();
+      const holdsWork = (data) => Object.values(data?.queuedGradeBearingByAssignment || {}).some((count) => Number(count) > 0);
+      const evictionRank = (doc) => {
+        const data = doc.data() || {};
+        const stale = nowMs - deviceReportReportedAtMs(data) > DEVICE_REPORT_STALE_MS;
+        return [stale || !holdsWork(data) ? 0 : 1, deviceReportReportedAtMs(data)];
+      };
+      siblingSnapshot.docs
+        .filter((doc) => doc.id !== reportRef.id)
+        .map((doc) => ({ doc, rank: evictionRank(doc) }))
+        .sort((a, b) => (a.rank[0] - b.rank[0]) || (a.rank[1] - b.rank[1]))
+        .slice(0, siblingSnapshot.size - MAX_DEVICE_REPORTS_PER_STUDENT + 1)
+        .forEach(({ doc }) => transaction.delete(doc.ref));
     }
 
     transaction.set(reportRef, {
