@@ -94,9 +94,12 @@ Checked and **not** a cost (measured):
 `.github/actions/setup/action.yml` restores `node_modules` as `npm ci` left
 it.
 
-- **The key** is the lockfile's hash, the exact Node version, the OS image and
-  the architecture: everything that decides what `npm ci` installs. It is an
-  exact match only; a tree for another lockfile is never a starting point.
+- **The key** is the hash of `package.json` and the lockfile, the exact Node
+  version, the OS image and the architecture: everything that decides what
+  `npm ci` does. `package.json` is in it because `npm ci` refuses a lockfile
+  that does not match it: a pull request that changes `package.json` alone
+  misses the cache, so that refusal still happens in every job. It is an exact
+  match only; a tree for another lockfile is never a starting point.
 - **A restored tree is used only after `scripts/check-lockfile-install.mjs`**
   (the check the browser jobs already run after adding Playwright) finds every
   package at the lockfile's version, read from git HEAD. Anything else is

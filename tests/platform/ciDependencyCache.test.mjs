@@ -10,7 +10,9 @@
  * (.github/actions/setup/action.yml) now restores both from the Actions
  * cache. These hold it to:
  *
- *   1. a key naming everything that decides the tree: the lockfile's hash,
+ *   1. a key naming everything that decides what `npm ci` does: package.json
+ *      and the lockfile (`npm ci` refuses a lockfile that does not match
+ *      package.json, so a change to package.json alone must miss and run it),
  *      the exact Node, the OS image and the architecture;
  *   2. a restored node_modules used only after scripts/check-lockfile-install.mjs
  *      finds every package at the lockfile's version; otherwise it is deleted
@@ -43,9 +45,10 @@ const indexOf = (pattern, label) => {
 };
 const stepWith = (pattern, label) => steps[indexOf(pattern, label)];
 
-test('node_modules is restored under a key naming the lockfile, the exact Node, the OS image and the architecture', () => {
+test('node_modules is restored under a key naming package.json and the lockfile, the exact Node, the OS image and the architecture', () => {
   const key = stepWith(/id: modules-key\n/, 'computing the node_modules key');
-  assert.match(key, /hashFiles\('package-lock\.json'\)/);
+  // package.json too: a change to it alone must miss, so `npm ci` checks it against the lockfile.
+  assert.match(key, /hashFiles\('package\.json', 'package-lock\.json'\)/);
   assert.match(key, /process\.versions\.node/);
   assert.match(key, /\$\{ImageOS/);
   assert.match(key, /\$\{RUNNER_ARCH\}/);

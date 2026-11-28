@@ -26,15 +26,18 @@ runs:
     # node_modules as `npm ci` leaves it, from a cache (docs/audits/
     # 2026-11-28-ci-throughput.md). `npm ci` took about 32 s in every job, even
     # with its downloads cached; the installed tree restores in about 6. The
-    # key is everything that decides what `npm ci` installs: the lockfile, the
-    # exact Node, the OS image and the architecture. A restored tree is used
+    # key is everything that decides what `npm ci` does: package.json and the
+    # lockfile, the exact Node, the OS image and the architecture. package.json
+    # is in it because `npm ci` refuses a lockfile that does not match it: a
+    # change to package.json alone misses the cache, so that check still runs
+    # in every job. A restored tree is used
     # only once scripts/check-lockfile-install.mjs finds every package at the
     # lockfile's version, read from git HEAD; anything else is deleted and
     # installed again with `npm ci`, as before. It is saved right after
     # `npm ci`, before anything (Playwright) is added on top.
     - id: modules-key
       shell: bash
-      run: echo "key=node-modules-${ImageOS:-unknown}-${RUNNER_ARCH}-node$(node -p 'process.versions.node')-${{ hashFiles('package-lock.json') }}" >> "$GITHUB_OUTPUT"
+      run: echo "key=node-modules-${ImageOS:-unknown}-${RUNNER_ARCH}-node$(node -p 'process.versions.node')-${{ hashFiles('package.json', 'package-lock.json') }}" >> "$GITHUB_OUTPUT"
 
     - id: modules
       uses: actions/cache/restore@v4
