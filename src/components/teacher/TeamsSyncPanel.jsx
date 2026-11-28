@@ -169,7 +169,9 @@ export default function TeamsSyncPanel({
                   Send now
                 </button>
               </div>
-              {notices[entry.classId] && <div role="status" className="tw-notice" data-tone={notices[entry.classId].tone}>{notices[entry.classId].text}</div>}
+              {/* Always in the card, so a screen reader announces the text put in it: a status mounted with its text
+                  already in it is not announced by every one (a11y sweep 2026-11-28). Hidden while it has nothing to say. */}
+              <div role="status" className={notices[entry.classId] ? 'tw-notice' : 'tw-sr-only'} data-tone={notices[entry.classId]?.tone}>{notices[entry.classId]?.text}</div>
               {groups.length > 0 && (
                 <details data-teams-sync-decisions>
                   <summary className="tw-small tw-link" style={{ display: 'inline' }}>

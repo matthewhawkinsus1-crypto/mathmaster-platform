@@ -391,8 +391,9 @@ export default function DisciplineTracker({
         The district form has changed, so nothing is being sent: {(formStatus.problems || []).join(' ')} Violations keep saving and go out once it is fixed.
       </div>
     )}
-    {message && <div role="status" className="tw-notice" data-tone={message.tone}>{message.text}</div>}
-    {!loaded && !message && <div role="status" className="tw-notice">Loading…</div>}
+    {/* One status, always in the page, so a screen reader announces the text put in it: a status mounted with its
+        text already in it is not announced by every one (a11y sweep 2026-11-28). Hidden while it has nothing to say. */}
+    <div role="status" className={message || !loaded ? 'tw-notice' : 'tw-sr-only'} data-tone={message?.tone}>{message ? message.text : !loaded ? 'Loading…' : ''}</div>
 
     <div className="tw-stack" style={{ gap: 0 }} role="list" aria-label={`${classLabel} roster`}>
       {visibleRoster.map((student) => {

@@ -404,7 +404,9 @@ export default function StudentCaseReviewView({
               <button type="button" className="tw-btn tw-btn--sm" onClick={() => exportsFor('conduct')}>Conduct CSV</button>
               <button type="button" className="tw-btn tw-btn--sm" onClick={() => exportsFor('facts')}>Facts CSV</button>
               <button type="button" className="tw-btn tw-btn--sm" onClick={() => exportsFor('json')}>JSON (full case file)</button>
-              {notice && <span className="cr-note" role="status">{notice}</span>}
+              {/* Always in the page, so a screen reader announces the text put in it: a status mounted with its text
+                  already in it is not announced by every one (a11y sweep 2026-11-28). Hidden while it has nothing to say. */}
+              <span className={notice ? 'cr-note' : 'tw-sr-only'} role="status">{notice}</span>
             </div>
           </section>
           <section className="cr-section" aria-labelledby="cr-print-preview-title">

@@ -30,7 +30,9 @@ export default function QuestionSignalNotes({ studentId = '', assignmentId = '',
   return (
     <div data-question-signals={questionIndex} style={{ marginTop: 10, padding: '8px 9px', borderRadius: 8, background: 'var(--mm-surface)', border: '1px solid var(--mm-border)', textAlign: 'left' }}>
       <div style={{ fontSize: 'calc(11 * var(--mm-px))', fontWeight: 900, letterSpacing: '.06em', textTransform: 'uppercase', color: 'var(--mm-text-muted)' }}>{WORTH_A_CONVERSATION}</div>
-      <ul style={{ listStyle: 'none', margin: '6px 0 0', padding: 0, display: 'grid', gap: 8 }}>
+      {/* One column that may be narrower than its content's widest word: at 200% text the review button's
+          label set the column at 328 px in a 207 px card, and the facts ran past the results' edge (a11y sweep). */}
+      <ul style={{ listStyle: 'none', margin: '6px 0 0', padding: 0, display: 'grid', gridTemplateColumns: 'minmax(0, 1fr)', gap: 8 }}>
         {signals.map((signal) => (
           <li key={signal.id} data-attempt-signal={signal.kind} data-reviewed={signal.reviewed ? 'true' : undefined}>
             {/* The question is the article this sits in: the place line gives the try, the time and nothing twice. */}
