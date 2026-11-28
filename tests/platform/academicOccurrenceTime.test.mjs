@@ -15,6 +15,12 @@
  * So academic occurrence time and server ingestion time are two different
  * facts, and these tests pin which one reaches which field.
  */
+// The fixtures are the school's days (America/Chicago), and a bare
+// `releaseAt` date is read in the process zone when none is given: pinned, so
+// a runner at UTC+11 or later (where Chicago's September 10 starts on the 9th
+// in UTC) reads the release day the school does.
+process.env.TZ = 'America/Chicago';
+
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import {
