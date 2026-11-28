@@ -39,11 +39,32 @@ class's set, so the three must agree.
 |---|---|
 | `createColumn` | Assignments → **Add**, fill Category, Name, dates, Maximum Value, `#Count`; the row saves when focus leaves it |
 | `setWeight` | Assignments → edit the row's `#Count` |
+| `setColumnDates` | Assignments → the row's Assign Date and Due Date, in the order TEAMS accepts (it reverts an assign date after the due date); the row saves when focus leaves it. Sent when a lesson's due date changes in MathMaster, only for an assignment MathMaster created |
+| `deleteColumn` | **Remove from TEAMS** (Grade Export). The extension marks the row in red on the Assignments page and asks you to delete it with TEAMS's own Delete; it waits up to 5 minutes for the row to be gone, then checks the gradebook. It never presses Delete itself: which control deletes was not recorded on DeSoto's TEAMS. Only an assignment MathMaster created, and one with grades only after you confirm how many in Grade Export |
 | `importScores` / `clearScores` | Assignments → the row's **Import**: Comma, None, ID column 1, grade column 2, no header, Overwrite as the server says. TEAMS answers on the reloaded page ("Total number of grades added: N", one error per refused line). DeSoto's TEAMS refuses a blank grade, so the server never asks it to clear (`canClearCells: false`) |
 
 Every step checks the page before acting and stops if anything is not as
 expected. A stopped run is safe to start again: the server wrote each
 operation's intent first, and the next read-back shows what landed.
+
+## Due dates and Remove from TEAMS (0.3.0)
+
+- **A due date changed in MathMaster** (Assignments → Dates & Classes) moves
+  the TEAMS assignment MathMaster made, in place: its Due Date, and its
+  Assign Date only if that would fall after the new due date. A due date
+  moved into another TEAMS marking period is not moved: Grade Export lists it
+  under "Due dates TEAMS did not take". An assignment you made in TEAMS keeps
+  your dates.
+- **Remove from TEAMS** (Grade Export → Automatic TEAMS sync → a class →
+  "Remove a lesson from TEAMS") takes one lesson section's TEAMS assignment
+  out of TEAMS. The lesson stays in MathMaster. If the assignment has grades
+  in TEAMS, Grade Export asks you to type how many before it is removed, and
+  asks again if more appear. An assignment you made in TEAMS is left there
+  and no longer written to. "Send to TEAMS again" undoes it: the next sync
+  creates a new TEAMS assignment.
+- **Not yet checked on DeSoto's live TEAMS:** editing the dates of an
+  existing row (the same cell editing `addAssignment` was checked with), and
+  the guided delete. Check both on one test assignment before relying on them.
 
 ## Privacy
 

@@ -3993,6 +3993,33 @@ exports.teamsSyncStep = onCall(async (request) => {
   });
 });
 
+/*
+ * Remove a lesson section from TEAMS, confirm how many TEAMS grades go with
+ * it, or send it to TEAMS again (teamsSyncServer.mjs normalizeTeamsRemovalRequest).
+ * The lesson stays in MathMaster either way. The extension carries the removal
+ * out on its next sync; this only records the teacher's decision.
+ */
+exports.setTeamsSyncRemoval = onCall(async (request) => {
+  await requireTeacher(request);
+  const db = getFirestore();
+  const module = await teamsSyncServer();
+  const authority = await gradeTransferClassAuthority(db, request, request.data?.classId);
+  const removalRequest = teamsSyncInput(module, () => module.normalizeTeamsRemovalRequest(request.data || {}, authority.classId));
+  const ref = db.collection("teamsSyncClasses").doc(authority.classId);
+  const removals = await db.runTransaction(async (transaction) => {
+    const existing = (await transaction.get(ref)).data() || {};
+    const next = teamsSyncInput(module, () => module.applyTeamsRemovalRequest(existing.removals || {}, removalRequest, {
+      by: authority.email, at: new Date().toISOString(),
+    }));
+    // The whole map is replaced, so a restored lesson's entry is gone, not merged back.
+    transaction.set(ref, { classId: authority.classId, updatedAt: FieldValue.serverTimestamp(), updatedByUid: request.auth.uid }, { merge: true });
+    transaction.update(ref, { removals: teamsSyncPlain(next) });
+    return next;
+  });
+  logger.info("TEAMS sync removal", { classId: authority.classId, by: authority.email, action: removalRequest.action, targetKey: removalRequest.targetKey });
+  return { classId: authority.classId, removals };
+});
+
 exports.getTeamsSyncState = onCall(async (request) => {
   await requireTeacher(request);
   const db = getFirestore();
@@ -4007,6 +4034,7 @@ exports.getTeamsSyncState = onCall(async (request) => {
     targetsCheckedAt: serializableGradeTransferDate(classState.targetsCheckedAt),
     targetsCheckedBy: classState.targetsCheckedBy || null,
     lastStep: classState.lastStep || null,
+    removals: classState.removals || {},
     batchLeasedUntil: classState.issued?.leaseUntil ? new Date(Number(classState.issued.leaseUntil)).toISOString() : null,
   };
 });

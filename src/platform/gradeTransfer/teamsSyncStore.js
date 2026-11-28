@@ -16,6 +16,15 @@ export const publishTeamsSyncTargets = ({ classId, targets }) => call('publishTe
 
 export const getTeamsSyncState = ({ classId }) => call('getTeamsSyncState', { classId });
 
+/**
+ * Remove one lesson section from TEAMS (it stays in MathMaster), confirm how
+ * many TEAMS grades go with it, or send it to TEAMS again.
+ * `action`: 'remove' | 'confirm' (with `confirmGradeCount`) | 'restore'.
+ */
+export const setTeamsSyncRemoval = ({ classId, targetKey, action, confirmGradeCount }) => (
+  call('setTeamsSyncRemoval', { classId, targetKey, action, ...(action === 'confirm' ? { confirmGradeCount } : {}) })
+);
+
 /** What a sync would do against these read-backs, recording nothing. */
 export const previewTeamsSync = ({ classId, readbacks = {} }) => call('teamsSyncStep', { classId, readbacks, dryRun: true });
 

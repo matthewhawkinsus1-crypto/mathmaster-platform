@@ -14,6 +14,8 @@
 //   teams.createColumn(sectionRef, op) → TEAMS id of the new column
 //   teams.setCount(sectionRef, columnId, count)
 //   teams.importFile(sectionRef, columnId, { body, overwrite, rows }) → { errors }
+//   teams.setDates(sectionRef, columnId, teamsFields)
+//   teams.deleteColumn(sectionRef, columnId, { name, gradeCount })
 
 export const RUN_LIMITS = Object.freeze({ rounds: 25, busyWaits: 4 });
 
@@ -30,6 +32,15 @@ export const applyTeamsOp = async (teams, op) => {
     if (op.type === 'setWeight') {
       if (op.teamsField !== '#Count') throw new Error(`Unexpected weight field ${op.teamsField}.`);
       await teams.setCount(op.sectionRef, op.columnId, op.weight);
+      return { opId: op.opId, ok: true };
+    }
+    if (op.type === 'setColumnDates') {
+      if (!op.teamsFields?.['Due Date']) throw new Error('The date change has no due date.');
+      await teams.setDates(op.sectionRef, op.columnId, op.teamsFields);
+      return { opId: op.opId, ok: true };
+    }
+    if (op.type === 'deleteColumn') {
+      await teams.deleteColumn(op.sectionRef, op.columnId, { name: op.name, gradeCount: op.gradeCount });
       return { opId: op.opId, ok: true };
     }
     if (op.type === 'importScores' || op.type === 'clearScores') {

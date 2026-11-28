@@ -30,7 +30,7 @@ const students = [
 ];
 const NOW = Date.parse('2026-11-18T15:00:00Z');
 
-const targetsFor = ({ closed = false, grades = [70, 60, 55] } = {}) => normalizeTeamsTargets({
+const targetsFor = ({ closed = false, grades = [70, 60, 55], dueDate = '2026-11-18' } = {}) => normalizeTeamsTargets({
   classId: CLASS,
   roster: teamsRosterIndex(students),
   sectionCount: 2,
@@ -39,7 +39,7 @@ const targetsFor = ({ closed = false, grades = [70, 60, 55] } = {}) => normalize
     name: 'Nth Roots - Classwork',
     category: 'Daily',
     assignedDate: '2026-11-16',
-    dueDate: '2026-11-18',
+    dueDate,
     closed,
     rows: students.map((student, index) => ({ studentId: student.id, sisStudentId: student.sisStudentId, grade: grades[index] })),
   }],
@@ -76,6 +76,12 @@ const teamsOver = (gradebook, { failImportsOnce = false } = {}) => {
       return gradebook.createColumn(sectionRef, op.spec);
     },
     async setCount(_sectionRef, columnId, count) { calls.count += 1; await gradebook.setColumnWeight(columnId, count); },
+    async setDates(_sectionRef, columnId, fields) {
+      calls.dates = (calls.dates || 0) + 1;
+      const iso = (value) => `${value.slice(6, 10)}-${value.slice(0, 2)}-${value.slice(3, 5)}`;
+      await gradebook.setColumnDates(columnId, { assignedDate: iso(fields['Assign Date']), dueDate: iso(fields['Due Date']) });
+    },
+    async deleteColumn(_sectionRef, columnId) { calls.delete = (calls.delete || 0) + 1; await gradebook.deleteColumn(columnId); },
     async importFile(_sectionRef, columnId, file) {
       calls.import += 1;
       if (failImportsOnce && !failed) { failed = true; throw new Error('TEAMS did not finish loading (submitImport).'); }
@@ -184,4 +190,33 @@ test('an operation never throws out of the loop: a failure is an outcome the ser
   assert.equal((await applyTeamsOp({}, { opId: '1-3', type: 'importScores', columnId: 'A1' })).error, 'The operation has no import file.');
   assert.equal((await applyTeamsOp({}, { opId: '1-4', type: 'somethingElse' })).ok, false);
   await assert.rejects(runTeamsSync({ mathmaster: {}, teams: {}, sections: [] }), /not linked to a TEAMS section/);
+});
+
+test('the loop carries a due date change and a confirmed Remove from TEAMS through TEAMS\'s own fields', async () => {
+  const gradebook = gradebookFor();
+  let current = targetsFor();
+  const server = makeServer(() => current);
+  const teams = teamsOver(gradebook);
+  let result = await runTeamsSync({ mathmaster: server, teams, sections: [P5, P5_INC], wait: async () => {} });
+  assert.equal(result.status, 'done');
+
+  current = targetsFor({ dueDate: '2026-11-20' });
+  result = await runTeamsSync({ mathmaster: server, teams, sections: [P5, P5_INC], wait: async () => {} });
+  assert.equal(result.status, 'done');
+  assert.equal(teams.calls.dates, 2, 'one date edit per TEAMS section');
+  assert.equal((await cellOf(gradebook, P5, '1500101')).column.dueDate, '2026-11-20');
+
+  server.store.classState.removals = { [`${CLASS}__nth-roots__classwork`]: { requestedAt: 'now', confirmedGradeCount: 2 } };
+  result = await runTeamsSync({ mathmaster: server, teams, sections: [P5, P5_INC], wait: async () => {} });
+  assert.equal(result.status, 'done');
+  assert.equal(teams.calls.delete, 2);
+  assert.equal((await cellOf(gradebook, P5, '1500101')).column, undefined);
+  assert.equal((await cellOf(gradebook, P5_INC, '1500103')).column, undefined);
+});
+
+test('a date change or removal the extension cannot apply is an outcome, never a throw', async () => {
+  const teams = { async setDates() { throw new Error('TEAMS did not take 11-20-2026 for lcstgbcaDueDt.'); }, async deleteColumn() { throw new Error('The TEAMS assignment was not deleted.'); } };
+  assert.deepEqual(await applyTeamsOp(teams, { opId: '1-0', type: 'setColumnDates', teamsFields: { 'Due Date': '11-20-2026' } }), { opId: '1-0', ok: false, error: 'TEAMS did not take 11-20-2026 for lcstgbcaDueDt.' });
+  assert.equal((await applyTeamsOp(teams, { opId: '1-1', type: 'setColumnDates', teamsFields: {} })).ok, false);
+  assert.deepEqual(await applyTeamsOp(teams, { opId: '1-2', type: 'deleteColumn', name: 'X' }), { opId: '1-2', ok: false, error: 'The TEAMS assignment was not deleted.' });
 });

@@ -16,6 +16,8 @@ import { arrayRemove, deleteField, harnessStore, recordHarnessCallable, Timestam
 import { TEACHER_EMAIL } from './fixture.js';
 import {
   TeamsSyncInputError,
+  applyTeamsRemovalRequest,
+  normalizeTeamsRemovalRequest,
   normalizeTeamsSections,
   normalizeTeamsTargets,
   teamsRosterIndex,
@@ -618,6 +620,13 @@ const handlers = {
     harnessStore.set(`teamsSyncClasses/${cls}`, { ...state, classId: cls, targets: result.targets, targetCount: result.targets.length, targetsPublishedAt: new Date().toISOString() });
     return { classId: cls, published: result.targets.length, droppedRows: result.droppedRows };
   },
+  setTeamsSyncRemoval: (data = {}) => {
+    const cls = requireClassTeacher(data.classId);
+    const state = harnessStore.get(`teamsSyncClasses/${cls}`) || {};
+    const removals = teamsSyncHarnessInput(() => applyTeamsRemovalRequest(state.removals || {}, normalizeTeamsRemovalRequest(data, cls), { by: TEACHER_EMAIL, at: new Date().toISOString() }));
+    harnessStore.set(`teamsSyncClasses/${cls}`, { ...state, classId: cls, removals });
+    return { classId: cls, removals };
+  },
   getTeamsSyncState: ({ classId } = {}) => {
     const cls = requireClassTeacher(classId);
     const state = harnessStore.get(`teamsSyncClasses/${cls}`) || {};
@@ -630,6 +639,7 @@ const handlers = {
       targetsCheckedAt: state.targetsPublishedAt || null,
       targetsCheckedBy: state.targetsPublishedAt ? 'teacher' : null,
       lastStep: state.lastStep || null,
+      removals: state.removals || {},
       batchLeasedUntil: state.issued?.leaseUntil ? new Date(Number(state.issued.leaseUntil)).toISOString() : null,
     };
   },

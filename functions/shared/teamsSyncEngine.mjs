@@ -17,7 +17,8 @@
 // The adapter is the only part that knows how TEAMS is reached:
 // `readGradebook`, `createColumn`, `setColumnWeight`, `importScores` (the
 // two-column file TEAMS's own per-assignment Import takes, exactly what Grade
-// Transfer already ships) and optionally `clearScores`. The teacher's Chrome
+// Transfer already ships), `setColumnDates`, `deleteColumn` and optionally
+// `clearScores`. The teacher's Chrome
 // extension (route E), a vendor API, and the test gradebook in
 // tests/platform/helpers/teamsTestGradebook.mjs all implement that one shape.
 //
@@ -78,6 +79,11 @@ export const TEAMS_EXCEPTION = Object.freeze({
   PROVISIONAL_WEIGHT_NOT_ZERO: 'PROVISIONAL_WEIGHT_NOT_ZERO',
   REOPENED_AFTER_COUNTED: 'REOPENED_AFTER_COUNTED',
   COUNT_HELD_FOR_FINAL_GRADE: 'COUNT_HELD_FOR_FINAL_GRADE',
+  DUE_DATE_OTHER_PERIOD: 'DUE_DATE_OTHER_PERIOD',
+  DATES_NOT_PERSISTING: 'DATES_NOT_PERSISTING',
+  REMOVAL_NEEDS_CONFIRMATION: 'REMOVAL_NEEDS_CONFIRMATION',
+  REMOVAL_LEFT_TEACHER_COLUMN: 'REMOVAL_LEFT_TEACHER_COLUMN',
+  REMOVAL_NOT_PERSISTING: 'REMOVAL_NOT_PERSISTING',
 });
 
 const EXCEPTION_MESSAGES = Object.freeze({
@@ -96,6 +102,11 @@ const EXCEPTION_MESSAGES = Object.freeze({
   PROVISIONAL_WEIGHT_NOT_ZERO: 'The provisional TEAMS assignment no longer has #Count 0, so open-lesson scores were not posted.',
   REOPENED_AFTER_COUNTED: 'The lesson reopened after its grades started counting. Scores in TEAMS stay as posted until it closes again.',
   COUNT_HELD_FOR_FINAL_GRADE: 'This student has no final grade yet, and their provisional score is still in TEAMS, so #Count stays 0 for this assignment. It switches by itself once their final grade replaces that score, or once you clear that cell in TEAMS.',
+  DUE_DATE_OTHER_PERIOD: 'The new due date is in a different TEAMS marking period, so the TEAMS assignment was not moved. Change its dates in TEAMS, or move the due date back into its marking period.',
+  DATES_NOT_PERSISTING: 'TEAMS was given the new dates several times, but the old ones still show when read back.',
+  REMOVAL_NEEDS_CONFIRMATION: 'This TEAMS assignment has grades in it. Confirm in Grade Export before MathMaster removes it from TEAMS.',
+  REMOVAL_LEFT_TEACHER_COLUMN: 'This TEAMS assignment was made in TEAMS, not by MathMaster, so it was left there. MathMaster no longer sends grades to it.',
+  REMOVAL_NOT_PERSISTING: 'MathMaster asked for this TEAMS assignment to be removed several times, but it is still in TEAMS.',
 });
 
 const DEFAULT_MAX_ATTEMPTS = 3;
@@ -187,18 +198,79 @@ export const planTeamsTarget = ({ target, ledgerEntry = {}, gradebook, capabilit
     : PROVISIONAL_MODE.NONE;
   const maxAttempts = capabilities.maxAttempts || DEFAULT_MAX_ATTEMPTS;
   const countedWeight = target.countedWeight ?? 1;
-  const entry = ledgerEntry || {};
+  // A lesson section removed from TEAMS and then sent again starts afresh:
+  // its old column is gone, so nothing of the old entry applies.
+  const entry = ledgerEntry?.removed && !(target.removal && typeof target.removal === 'object') ? {} : (ledgerEntry || {});
   const result = {
     key: target.key, columnId: null, columnSource: null, markingPeriod: null,
     weight: null, ops: [], cells: [], exceptions: [],
   };
   const exception = (code, detail = {}) => result.exceptions.push({ key: target.key, code, message: EXCEPTION_MESSAGES[code], ...detail });
+  const removal = target.removal && typeof target.removal === 'object' ? target.removal : null;
   const cell = (row, status, detail = '') => result.cells.push({
     studentId: row.studentId || '', sisStudentId: text(row.sisStudentId), status, detail,
   });
   const holdAll = (detail) => (target.rows || []).forEach((row) => cell(row, TEAMS_CELL_STATUS.HELD, detail));
 
   if (!gradebook) { exception(TEAMS_EXCEPTION.CLASS_NOT_MAPPED); holdAll('Class not linked to TEAMS'); return result; }
+
+  // REMOVED FROM TEAMS (the teacher's "Remove from TEAMS" in Grade Export).
+  // Only a column MathMaster created is deleted, and one that holds grades
+  // only once the teacher has confirmed at least that many. A teacher's own
+  // column is left in TEAMS and no longer written to. Nothing is ever
+  // created for a removed lesson section.
+  if (removal) {
+    // `removal`: where the removal stands, for Grade Export's list.
+    result.removal = { state: 'removed' };
+    if (entry.removed) {
+      result.removal = { state: entry.leftColumnId ? 'left' : 'removed', ...(entry.removedGradeCount ? { gradeCount: entry.removedGradeCount } : {}) };
+      holdAll(entry.leftColumnId ? 'Removed from TEAMS (left in TEAMS)' : 'Removed from TEAMS');
+      return result;
+    }
+    const mapped = entry.columnId ? (gradebook.columns || []).find((item) => item.id === entry.columnId) || null : null;
+    const pendingName = entry.pendingColumn ? teamsAssignmentName(target.name) : '';
+    const landed = !entry.columnId && pendingName
+      ? (gradebook.columns || []).filter((item) => !claimedColumnIds.has(item.id) && sameName(item.name, pendingName))
+      : [];
+    if (landed.length > 1) { exception(TEAMS_EXCEPTION.AMBIGUOUS_COLUMN, { columnIds: landed.map((item) => item.id) }); holdAll('Ambiguous TEAMS assignment'); return result; }
+    const column = mapped || landed[0] || null;
+    const created = column && (mapped ? entry.created === true : true);
+    if (!column) {
+      if (entry.pendingColumn) result.removal = { state: 'removing' };
+      holdAll('Removed from TEAMS');
+      return result;
+    }
+    result.columnId = column.id;
+    result.columnSource = created ? 'created' : 'matched';
+    if (!created) {
+      result.removal = { state: 'left' };
+      exception(TEAMS_EXCEPTION.REMOVAL_LEFT_TEACHER_COLUMN, { columnId: column.id });
+      holdAll('Removed from TEAMS (left in TEAMS)');
+      return result;
+    }
+    const values = gradebook.cells?.[column.id] || {};
+    const gradeCount = Object.values(values).filter((value) => !isBlank(value)).length;
+    const confirmed = Number.isInteger(removal.confirmedGradeCount) ? removal.confirmedGradeCount : 0;
+    if (gradeCount > confirmed) {
+      result.removal = { state: 'confirm', gradeCount };
+      exception(TEAMS_EXCEPTION.REMOVAL_NEEDS_CONFIRMATION, { columnId: column.id, gradeCount });
+      holdAll('Waiting for you to confirm removing it from TEAMS');
+      return result;
+    }
+    if ((entry.pendingDelete?.attempts || 0) >= maxAttempts) {
+      result.removal = { state: 'stuck', gradeCount };
+      exception(TEAMS_EXCEPTION.REMOVAL_NOT_PERSISTING, { columnId: column.id, attempts: entry.pendingDelete.attempts });
+      holdAll('Removal not taking in TEAMS');
+      return result;
+    }
+    result.ops.push({
+      type: 'deleteColumn', key: target.key, sectionRef: target.teamsSectionRef, columnId: column.id,
+      name: column.name, dueDate: column.dueDate || '', gradeCount,
+    });
+    result.removal = { state: 'removing', gradeCount };
+    holdAll('Being removed from TEAMS');
+    return result;
+  }
 
   const columnName = teamsAssignmentName(target.name);
   const dueDate = text(target.dueDate);
@@ -258,6 +330,33 @@ export const planTeamsTarget = ({ target, ledgerEntry = {}, gradebook, capabilit
   result.weight = Number(column.weight);
   if (column.category && target.category && column.category !== target.category) {
     exception(TEAMS_EXCEPTION.CATEGORY_MISMATCH, { teamsCategory: column.category, intended: target.category });
+  }
+
+  // DATES. A column MathMaster created follows the lesson's due date (the
+  // teacher's Dates & Classes). The assign date stays as it is unless it would
+  // fall after the new due date. TEAMS needs both inside the column's marking
+  // period, so a due date moved into another period is reported, never moved.
+  // A teacher's own column keeps the dates the teacher gave it.
+  if (result.columnSource === 'created' && column.dueDate && dueDate) {
+    if (column.markingPeriod && column.markingPeriod !== period.id) {
+      exception(TEAMS_EXCEPTION.DUE_DATE_OTHER_PERIOD, { columnId: column.id, teamsDueDate: column.dueDate, dueDate, markingPeriod: column.markingPeriod });
+    } else {
+      const columnAssigned = text(column.assignedDate);
+      const assignedDate = columnAssigned && columnAssigned <= dueDate && (!period.start || columnAssigned >= period.start)
+        ? columnAssigned
+        : [[text(target.assignedDate) || dueDate, dueDate].sort()[0], period.start].filter(Boolean).sort().pop();
+      if (column.dueDate !== dueDate || columnAssigned !== assignedDate) {
+        const pendingDates = entry.pendingDates;
+        if (pendingDates && pendingDates.dueDate === dueDate && pendingDates.assignedDate === assignedDate && (pendingDates.attempts || 0) >= maxAttempts) {
+          exception(TEAMS_EXCEPTION.DATES_NOT_PERSISTING, { columnId: column.id, teamsDueDate: column.dueDate, dueDate, attempts: pendingDates.attempts });
+        } else {
+          result.ops.push({
+            type: 'setColumnDates', key: target.key, sectionRef: target.teamsSectionRef, columnId: column.id,
+            from: { assignedDate: columnAssigned, dueDate: column.dueDate }, assignedDate, dueDate,
+          });
+        }
+      }
+    }
   }
 
   // Weight is managed only on a column MathMaster created. A teacher's own
@@ -417,7 +516,19 @@ export const planTeamsTarget = ({ target, ledgerEntry = {}, gradebook, capabilit
 // Fold a read-back into the ledger: pending writes that now show are
 // verified, a weight switch that shows is recorded as done.
 const reconcileEntry = ({ entry, plan, gradebook, at, target }) => {
-  if (!plan.columnId) return entry;
+  // A removal that shows: the column MathMaster asked to delete is gone.
+  if (target?.removal && entry.pendingDelete) {
+    const gone = !(gradebook.columns || []).some((item) => item.id === entry.pendingDelete.columnId);
+    if (gone) return { removed: true, removedAt: at, removedColumnId: entry.pendingDelete.columnId, removedGradeCount: entry.pendingDelete.gradeCount ?? 0 };
+  }
+  if (target?.removal && !plan.columnId && !entry.removed && !entry.pendingColumn) {
+    // Never in TEAMS (or a teacher's column, left there): nothing to delete.
+    return { ...entry, removed: true, removedAt: at };
+  }
+  if (target?.removal && plan.columnSource === 'matched') {
+    return { removed: true, removedAt: at, leftColumnId: plan.columnId };
+  }
+  if (!plan.columnId || target?.removal) return entry;
   const next = { ...entry, cells: { ...entry.cells } };
   if (!next.columnId) {
     next.columnId = plan.columnId;
@@ -425,6 +536,9 @@ const reconcileEntry = ({ entry, plan, gradebook, at, target }) => {
   }
   delete next.pendingColumn;
   const column = (gradebook.columns || []).find((item) => item.id === plan.columnId);
+  if (next.pendingDates && column && column.dueDate === next.pendingDates.dueDate && text(column.assignedDate) === next.pendingDates.assignedDate) {
+    delete next.pendingDates;
+  }
   const current = gradebook.cells?.[plan.columnId] || {};
   for (const [sis, value] of Object.entries(next.cells)) {
     const score = asScore(current[sis]);
@@ -575,6 +689,8 @@ export const reconcileTeamsLedger = ({ units = [], plans = [], ledger = {}, grad
  * value, never as a teacher's, and a lost create is found, not duplicated.
  */
 export const recordTeamsIntent = (ledger, op, at) => {
+  // Sent to TEAMS again after a removal: the new column starts a new entry.
+  if (op.type === 'createColumn' && ledger[op.key]?.removed) ledger[op.key] = {};
   const entry = (ledger[op.key] ||= {});
   entry.cells ||= {};
   if (op.type === 'createColumn') entry.pendingColumn = { name: op.spec.name, attemptedAt: at };
@@ -587,6 +703,14 @@ export const recordTeamsIntent = (ledger, op, at) => {
   }
   if (op.type === 'clearScores') op.sisStudentIds.forEach((sis) => { entry.cells[sis] = { ...entry.cells[sis], pendingClear: true }; });
   if (op.type === 'setWeight') entry.pendingWeight = op.weight;
+  if (op.type === 'setColumnDates') {
+    const same = entry.pendingDates?.dueDate === op.dueDate && entry.pendingDates?.assignedDate === op.assignedDate;
+    entry.pendingDates = { assignedDate: op.assignedDate, dueDate: op.dueDate, attempts: same ? (entry.pendingDates.attempts || 0) + 1 : 1, attemptedAt: at };
+  }
+  if (op.type === 'deleteColumn') {
+    const same = entry.pendingDelete?.columnId === op.columnId;
+    entry.pendingDelete = { columnId: op.columnId, gradeCount: op.gradeCount, attempts: same ? (entry.pendingDelete.attempts || 0) + 1 : 1, attemptedAt: at };
+  }
   return ledger;
 };
 
@@ -659,6 +783,10 @@ export const runTeamsSync = async ({
           else await adapter.importScores(op.columnId, teamsClearCsv(op.sisStudentIds), { overwrite: true });
         } else if (op.type === 'setWeight') {
           await adapter.setColumnWeight(op.columnId, op.weight);
+        } else if (op.type === 'setColumnDates') {
+          await adapter.setColumnDates(op.columnId, { assignedDate: op.assignedDate, dueDate: op.dueDate });
+        } else if (op.type === 'deleteColumn') {
+          await adapter.deleteColumn(op.columnId);
         }
         recordTeamsOutcome(state, op, outcome, now());
         log.push({ pass, op: op.type, key: op.key, ok: true, ...(op.rows ? { rows: op.rows.length, overwrite: op.overwrite } : {}) });

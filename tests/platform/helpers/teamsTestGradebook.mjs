@@ -44,11 +44,13 @@ export const createTeamsTestGradebook = ({
   faults = {},
 } = {}) => {
   const state = { sections: clone(sections), columns: new Map(), cells: new Map(), nextId: 1 };
-  const calls = { createColumn: 0, setColumnWeight: [], importScores: [], clearScores: 0 };
+  const calls = { createColumn: 0, setColumnWeight: [], importScores: [], clearScores: 0, setColumnDates: [], deleteColumn: [] };
   const pendingFaults = {
     phantomSaves: new Map(Object.entries(faults.phantomSaves || {})), // sis -> remaining phantom saves
     dropImportAfter: faults.dropImportAfter ?? null, // first import writes this many rows, then throws
     loseCreateResponse: Boolean(faults.loseCreateResponse),
+    ignoreDates: Number(faults.ignoreDates || 0), // date edits that report success and reopen unchanged
+    ignoreDeletes: Number(faults.ignoreDeletes || 0), // deletes that report success and leave the row
   };
 
   const section = (ref) => {
@@ -134,6 +136,30 @@ export const createTeamsTestGradebook = ({
       return { added, errors };
     },
 
+    // Assign and Due Date on the Assignments grid (teacher, 2026-11-27: both
+    // must be inside the marking period; the assign date not after the due).
+    async setColumnDates(id, { assignedDate, dueDate }) {
+      calls.setColumnDates.push({ id, assignedDate, dueDate });
+      const target = column(id);
+      const period = (section(target.sectionRef).markingPeriods || []).find((item) => item.id === target.markingPeriod);
+      for (const date of [assignedDate, dueDate]) {
+        if (period && date && (date < period.start || date > period.end)) throw new Error('Assign and due dates must be inside the marking period');
+      }
+      if (assignedDate && dueDate && assignedDate > dueDate) throw new Error('The assign date is after the due date');
+      if (pendingFaults.ignoreDates > 0) { pendingFaults.ignoreDates -= 1; return; } // "saved", reopens unchanged
+      target.assignedDate = assignedDate;
+      target.dueDate = dueDate;
+    },
+
+    // Deleting a row on the Assignments grid (after TEAMS's own confirmation).
+    async deleteColumn(id) {
+      calls.deleteColumn.push(id);
+      column(id);
+      if (pendingFaults.ignoreDeletes > 0) { pendingFaults.ignoreDeletes -= 1; return; }
+      state.columns.delete(id);
+      state.cells.delete(id);
+    },
+
     // Optional: only routes with a clear action of their own. DeSoto's
     // Import route has none; the engine clears with a blank Overwrite file.
     async clearScores(id, sisIds) {
@@ -152,6 +178,8 @@ export const createTeamsTestGradebook = ({
     teacherEnter(id, sis, value) { state.cells.get(id).set(sis, value); },
     teacherClear(id, sis) { state.cells.get(id).delete(sis); },
     teacherSetWeight(id, weight) { column(id).weight = Number(weight); },
+    teacherDelete(id) { state.columns.delete(id); state.cells.delete(id); },
+    columnById(id) { return state.columns.get(id) ? clone(state.columns.get(id)) : null; },
 
     columnsNamed(ref, name) { return [...state.columns.values()].filter((item) => item.sectionRef === ref && item.name === name); },
     columnsIn(ref) { return [...state.columns.values()].filter((item) => item.sectionRef === ref); },

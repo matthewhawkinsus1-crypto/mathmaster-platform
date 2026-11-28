@@ -9,10 +9,12 @@
 import { buildTeamsReadback, newColumnId } from './readback.js';
 
 export const PAGE_TIMEOUT_MS = 45000;
+// Remove from TEAMS waits for the teacher to press TEAMS's own Delete.
+export const DELETE_WAIT_MS = 5 * 60 * 1000;
 
 export const createTeamsAdapter = ({ run, wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms)), log = () => {}, timeoutMs = PAGE_TIMEOUT_MS, nonce = () => Math.random().toString(36).slice(2) }) => {
   // Ask until the page answers with something other than "not yet".
-  const until = async (action, args = {}) => {
+  const until = async (action, args = {}, limitMs = timeoutMs) => {
     const started = Date.now();
     for (;;) {
       let result;
@@ -23,7 +25,10 @@ export const createTeamsAdapter = ({ run, wait = (ms) => new Promise((resolve) =
         result = { waiting: true };
       }
       if (!result?.waiting) return result;
-      if (Date.now() - started > timeoutMs) throw new Error(`TEAMS did not finish loading (${action}). Check the TEAMS tab: are you still signed in?`);
+      if (Date.now() - started > limitMs) {
+        if (action === 'awaitDeleted') throw new Error('The TEAMS assignment was not deleted. It is still in TEAMS; run the sync again to remove it.');
+        throw new Error(`TEAMS did not finish loading (${action}). Check the TEAMS tab: are you still signed in?`);
+      }
       await wait(400);
     }
   };
@@ -92,6 +97,35 @@ export const createTeamsAdapter = ({ run, wait = (ms) => new Promise((resolve) =
       await until('openAssignments');
       await until('setCount', { ...row, count });
       await until('returnToGradebook');
+    },
+
+    /** Assign Date and Due Date on the Assignments grid, in TEAMS's own fields. */
+    async setDates(sectionRef, columnId, fields) {
+      const row = rowOf(sectionRef, columnId);
+      await goToGradebook(sectionRef);
+      await until('openAssignments');
+      await until('setDates', { ...row, fields });
+      await until('returnToGradebook');
+    },
+
+    /*
+     * REMOVE FROM TEAMS. TEAMS deletes an assignment after an in-page
+     * confirmation (DeSoto, 2026-11-27), but which control does it was not
+     * recorded, so the extension does not press it. It marks the row on the
+     * Assignments page and asks the teacher to delete it with TEAMS's own
+     * Delete, then waits for the row to be gone and checks the gradebook.
+     */
+    async deleteColumn(sectionRef, columnId, { gradeCount = 0 } = {}) {
+      const row = rowOf(sectionRef, columnId);
+      await goToGradebook(sectionRef);
+      await until('openAssignments');
+      await until('markForDelete', { ...row, gradeCount });
+      log(`${sectionRef}: delete "${row.name}" in TEAMS now (it is marked on the Assignments page).`);
+      await until('awaitDeleted', row, DELETE_WAIT_MS);
+      // TEAMS may reload the Assignments page after the delete; back to the gradebook either way.
+      await until('returnToGradebook');
+      const after = (await readGradebook()).columns;
+      if (after.some((entry) => entry.id === columnId)) throw new Error(`"${row.name}" is still in the TEAMS gradebook.`);
     },
 
     async importFile(sectionRef, columnId, file) {
