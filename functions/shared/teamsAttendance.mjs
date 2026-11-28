@@ -36,7 +36,7 @@
  * Pure: no Firestore, no clock (today's date is passed in).
  */
 import { canonicalDistrictStudentId, effectiveDistrictStudentId, isValidDistrictStudentId } from './studentDistrictId.mjs';
-import { effectiveAttendanceForStudentDay, eventMatchesClass } from './attendanceDay.mjs';
+import { LIVE_ATTENDANCE_EVENT_KIND, effectiveAttendanceForStudentDay, eventMatchesClass } from './attendanceDay.mjs';
 
 /** What a TEAMS code means, in MathMaster's terms. */
 export const TEAMS_ATTENDANCE_KIND = Object.freeze({
@@ -80,6 +80,13 @@ export const TEAMS_ATTENDANCE_LIMITS = Object.freeze({
 
 /** Where the mirror's records come from, on every one it writes. */
 export const TEAMS_ATTENDANCE_SOURCE = 'teams';
+
+/**
+ * The marks Live Classroom takes. Today's excused or unexcused absence is two
+ * records: absent in Live Classroom, and the classification in the history
+ * beside it.
+ */
+export const TEAMS_LIVE_MARKS = Object.freeze(new Set(['present', 'late', 'absent']));
 
 export class TeamsAttendanceInputError extends Error {
   constructor(message) {
@@ -175,15 +182,37 @@ export const districtIdRosterIndex = (roster = [], { sharedWith = [] } = {}) => 
   return index;
 };
 
-/** The Discipline Tracker tap id of a TEAMS tardy: one per student per class per day, however often it is read. */
-export const teamsTardyTapId = ({ dateKey, studentId }) => {
+/**
+ * The Discipline Tracker tap id of a TEAMS tardy: one per student per class
+ * per day, however often it is read. A tardy TEAMS took back and then showed
+ * again is a new record (`sequence` 2, 3, ...): the one undone stays undone.
+ */
+export const teamsTardyTapId = ({ dateKey, studentId, sequence = 1 }) => {
   // FNV-1a, so any account id fits the tracker's tap-id pattern.
   let hash = 0x811c9dc5;
   for (const char of text(studentId)) {
     hash ^= char.codePointAt(0);
     hash = Math.imul(hash, 0x01000193) >>> 0;
   }
-  return `teams-${text(dateKey)}-${hash.toString(16).padStart(8, '0')}`;
+  const base = `teams-${text(dateKey)}-${hash.toString(16).padStart(8, '0')}`;
+  return Number(sequence) > 1 ? `${base}-${Math.floor(Number(sequence))}` : base;
+};
+
+/**
+ * A student's TEAMS tardies that day among the tracker's records for the
+ * class ({ id } as `${classId}_${tapId}`), with their sequence; the newest last.
+ */
+export const teamsTardyRecords = (incidents = [], { classId, dateKey, studentId }) => {
+  const base = `${text(classId)}_${teamsTardyTapId({ dateKey, studentId })}`;
+  return list(incidents)
+    .map((incident) => {
+      const id = text(incident?.id);
+      if (id === base) return { incident, sequence: 1 };
+      const match = id.startsWith(`${base}-`) ? /^(\d+)$/.exec(id.slice(base.length + 1)) : null;
+      return match ? { incident, sequence: Number(match[1]) } : null;
+    })
+    .filter(Boolean)
+    .sort((left, right) => left.sequence - right.sequence);
 };
 
 const recordTime = (record) => {
@@ -194,16 +223,13 @@ const recordTime = (record) => {
 };
 
 /**
- * The TEAMS code last mirrored for one student on one day: the newest record
- * the mirror wrote, or undefined when it has written none that day.
+ * The newest record the mirror wrote for one student on one day, or null:
+ * its TEAMS code is the one last mirrored.
  */
-const lastMirroredCode = (records, { studentId, classId, classPeriod, dateKey }) => {
-  const mirrored = records
-    .filter((record) => text(record?.studentId) === studentId && text(record?.evidence?.dateKey) === dateKey)
-    .filter((record) => record?.source === TEAMS_ATTENDANCE_SOURCE && eventMatchesClass(record, classId, classPeriod))
-    .sort((left, right) => recordTime(right) - recordTime(left));
-  return mirrored.length ? normalizeTeamsCode(mirrored[0]?.evidence?.teamsCode) : undefined;
-};
+const lastMirroredRecord = (records, { studentId, classId, classPeriod, dateKey }) => records
+  .filter((record) => text(record?.studentId) === studentId && text(record?.evidence?.dateKey) === dateKey)
+  .filter((record) => record?.source === TEAMS_ATTENDANCE_SOURCE && eventMatchesClass(record, classId, classPeriod))
+  .sort((left, right) => recordTime(right) - recordTime(left))[0] || null;
 
 /** Is `dateKey` the student's first marked day back: their latest marked day before it an absence? */
 const returnsFromAbsence = (records, { studentId, classId, classPeriod, dateKey }) => {
@@ -265,15 +291,24 @@ export const planTeamsAttendanceMirror = ({
     const kind = kindOf(code);
     if (!kind) { unknown.add(code); return; }
     const where = { studentId, classId, classPeriod, dateKey: report.dateKey };
-    const last = lastMirroredCode(records, where);
+    const lastRecord = lastMirroredRecord(records, where);
+    const last = lastRecord ? normalizeTeamsCode(lastRecord.evidence?.teamsCode) : undefined;
 
     // Only today's: the Discipline Tracker records today. An excused tardy
     // is never one.
     if (today) (kind === TEAMS_ATTENDANCE_KIND.TARDY ? plan.tardies : plan.notTardy).push(studentId);
 
     let write;
-    if (last !== undefined) {
-      // Mirrored before today: only a change in TEAMS is written, so a
+    let classifyOnly = false;
+    if (last !== undefined && last === code && today && !TEAMS_LIVE_MARKS.has(TEAMS_KIND_MARK[kind])
+      && lastRecord.kind === LIVE_ATTENDANCE_EVENT_KIND) {
+      // Today's classified absence saved only its Live Classroom half: the
+      // classification is written now, while that record is still the
+      // student's mark. A correction the teacher made since then stands.
+      classifyOnly = effectiveAttendanceForStudentDay({ supportEvents: records, ...where }).event === lastRecord;
+      write = classifyOnly;
+    } else if (last !== undefined) {
+      // Mirrored before: only a change in TEAMS is written, so a
       // correction the teacher made in MathMaster since then stands.
       write = last !== code;
     } else if (kind === TEAMS_ATTENDANCE_KIND.PRESENT) {
@@ -288,7 +323,9 @@ export const planTeamsAttendanceMirror = ({
       write = true;
     }
     if (!write) { plan.unchanged += 1; return; }
-    plan.marks.push({ studentId, code, kind, mark: TEAMS_KIND_MARK[kind], label: code ? table[code].label : 'Present', today });
+    plan.marks.push({
+      studentId, code, kind, mark: TEAMS_KIND_MARK[kind], label: code ? table[code].label : 'Present', today, ...(classifyOnly ? { classifyOnly } : {}),
+    });
   });
   plan.unknownCodes = [...unknown].sort();
   return plan;

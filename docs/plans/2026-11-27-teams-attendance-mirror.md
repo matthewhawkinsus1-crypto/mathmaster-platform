@@ -61,6 +61,14 @@ Tracker shows "· from TEAMS" on the tap.
   there as absent, with the classified record in the history beside it. An
   earlier day's mark (the office's later change, for example) is a history
   record.
+  - If only Live Classroom's half of that pair saves, the next read writes
+    the classification.
+  - It does this only while that record is still the student's mark: a
+    correction the teacher made in between stands.
+- **A tardy TEAMS takes back and then shows again is recorded again**, as a
+  new record. The mirror's undo is marked as coming from TEAMS
+  (`voidSource: 'teams'`). A tardy the teacher undid stays undone, whatever
+  TEAMS shows.
 - **Never:**
   - an absence inferred from an unmarked student;
   - an absence called unexcused because TEAMS did not say so;

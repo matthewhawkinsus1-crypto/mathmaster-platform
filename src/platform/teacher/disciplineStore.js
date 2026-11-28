@@ -10,7 +10,10 @@ const call = async (name, data = {}) => (await httpsCallable(functions, name)(da
 export const recordDisciplineIncident = ({ classId, studentId, type, detail = '', tapId, source = '' }) => (
   call('recordDisciplineIncident', { classId, studentId, type, detail, tapId, ...(source ? { source } : {}) })
 );
-export const voidDisciplineIncident = ({ incidentId, reason = '' }) => call('voidDisciplineIncident', { incidentId, reason });
+// `source: 'teams'`: the attendance mirror's undo of a TEAMS tardy that TEAMS took back.
+export const voidDisciplineIncident = ({ incidentId, reason = '', source = '' }) => (
+  call('voidDisciplineIncident', { incidentId, reason, ...(source ? { source } : {}) })
+);
 export const setDisciplineIncidentDetail = ({ incidentId, detail }) => call('setDisciplineIncidentDetail', { incidentId, detail });
 export const listDisciplineIncidents = ({ fromDateKey, toDateKey, classId = '' }) => (
   call('listDisciplineIncidents', { fromDateKey, toDateKey, ...(classId ? { classId } : {}) })

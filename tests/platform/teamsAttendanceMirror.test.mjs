@@ -184,10 +184,16 @@ test('the first read records every code, present only for a return, and today\'s
   assert.deepEqual(first.notTardy.sort(), ['s-absent', 's-excused', 's-present', 's-returning', 's-tardy-excused', 's-zeros']);
 });
 
-// The records the first read leaves, as the mirror writes them.
-const mirrored = (entries, at = NOW) => entries.map((entry, index) => record({
-  studentId: entry.studentId, mark: entry.mark === 'excused' ? 'absent' : entry.mark, at: at + index, source: 'teams', teamsCode: entry.code,
-}));
+// The records a first read leaves, as the mirror writes them: today's
+// classified absence is two, absent in Live Classroom and the classification
+// beside it in the history.
+const LIVE = new Set(['present', 'late', 'absent']);
+const mirrored = (entries, at = NOW) => entries.flatMap((entry, index) => [
+  record({ studentId: entry.studentId, mark: LIVE.has(entry.mark) ? entry.mark : 'absent', at: at + 10 * index, source: 'teams', teamsCode: entry.code }),
+  ...(LIVE.has(entry.mark) ? [] : [record({
+    studentId: entry.studentId, kind: 'attendanceHistory', mark: entry.mark, at: at + 10 * index + 1, source: 'teams', teamsCode: entry.code,
+  })]),
+]);
 
 test('a second read of the same TEAMS marks writes nothing; a change in TEAMS is written', () => {
   const first = plan();
@@ -203,6 +209,24 @@ test('a second read of the same TEAMS marks writes nothing; a change in TEAMS is
   const cleared = plan(MARKS.map((mark) => (mark.districtId === '1002' ? { ...mark, code: '' } : mark)), records);
   assert.deepEqual(cleared.marks.map((entry) => [entry.studentId, entry.mark]), [['s-tardy', 'present']]);
   assert.ok(cleared.notTardy.includes('s-tardy') && !cleared.tardies.includes('s-tardy'));
+});
+
+test('a classified absence whose classification did not save is finished on the next read, unless the teacher marked the student since', () => {
+  const first = plan();
+  const saved = mirrored(first.marks);
+  // The history half of s-excused's pair failed: only Live Classroom's was saved.
+  const partial = [...HISTORY, ...saved.filter((row) => !(row.studentId === 's-excused' && row.kind === 'attendanceHistory'))];
+  const again = plan(MARKS, partial);
+  assert.deepEqual(again.marks.map((entry) => [entry.studentId, entry.mark, entry.classifyOnly]), [['s-excused', 'excused', true]]);
+  // Only the classification is written: Live Classroom's record is there already.
+  const [entry] = again.marks;
+  const events = mirrorModule.teamsAttendanceEvents({ entry, student: ROSTER[2], classRecord: CLASS, sectionRef: '15000/02', dateKey: TODAY, teacherEmail: TEACHER, nowValue: NOW + 1000 });
+  assert.deepEqual(events.map((event) => [event.kind, event.evidence.mark, event.evidence.teamsCode]), [['attendanceHistory', 'excused', 'AE']]);
+  // The teacher marked the student present in the meantime: their mark stands.
+  const corrected = [...partial, record({ studentId: 's-excused', mark: 'present', at: NOW + 600000 })];
+  assert.ok(!plan(MARKS, corrected).marks.some((item) => item.studentId === 's-excused'));
+  // A complete pair is not written again.
+  assert.deepEqual(plan(MARKS, [...HISTORY, ...saved]).marks, []);
 });
 
 test('a correction made in MathMaster after the mirror stands until TEAMS changes', () => {
@@ -310,6 +334,31 @@ test('a TEAMS tardy is recorded once in the Discipline Tracker; an excused one n
   assert.equal(result.tardies, 1);
 });
 
+test('a tardy TEAMS shows again after taking it back is recorded again; one the teacher undid stays undone', async () => {
+  const tap = (sequence) => teamsTardyTapId({ dateKey: TODAY, studentId: 's-tardy', sequence });
+  const record = (sequence, extra = {}) => ({ id: `${CLASS.classId}_${tap(sequence)}`, studentId: 's-tardy', source: 'teams', form: { state: 'pending' }, ...extra });
+  const recorded = async (incidents) => {
+    const { calls, deps } = harness({ incidents });
+    const result = await run(deps);
+    return { tapIds: calls.tardies.map((entry) => entry.tapId), result };
+  };
+  // Recorded and standing: nothing to do.
+  assert.deepEqual((await recorded([record(1)])).tapIds, []);
+  // The mirror undid it (TEAMS took it back), and TEAMS shows it again: a new record, the undone one kept.
+  const restored = await recorded([record(1, { voidedAtMs: NOW - 60000, voidSource: 'teams' })]);
+  assert.deepEqual(restored.tapIds, [tap(2)]);
+  assert.equal(restored.result.tardiesRestored, 1);
+  assert.match(tap(2), /^[A-Za-z0-9_-]{8,64}$/);
+  // Again after that: the newest decides.
+  assert.deepEqual((await recorded([record(1, { voidedAtMs: 1, voidSource: 'teams' }), record(2, { voidedAtMs: 2, voidSource: 'teams' })])).tapIds, [tap(3)]);
+  // The teacher undid it: their undo stands, whatever TEAMS shows.
+  assert.deepEqual((await recorded([record(1, { voidedAtMs: NOW - 60000, voidSource: 'teacher' })])).tapIds, []);
+  // TEAMS takes the restored one back: the newest is the one undone.
+  const { calls, deps } = harness({ incidents: [record(1, { voidedAtMs: 1, voidSource: 'teams' }), record(2)] });
+  await run(deps, report(MARKS.map((mark) => (mark.districtId === '1002' ? { ...mark, code: '' } : mark))));
+  assert.deepEqual(calls.voids, [{ incidentId: `${CLASS.classId}_${tap(2)}`, reason: 'TEAMS no longer shows this tardy', source: 'teams' }]);
+});
+
 test('a tardy TEAMS took back is undone while it waits; one on the form is left for the teacher', async () => {
   const id = (studentId) => `${CLASS.classId}_${teamsTardyTapId({ dateKey: TODAY, studentId })}`;
   const incidents = [
@@ -384,6 +433,8 @@ test('the bridge mirrors a linked section into its class, tardies tagged from TE
   // Only this class's students: the period 5 student is not on its roster.
   assert.ok(calls.attendance.every((event) => event.classId === CLASS.classId));
   assert.deepEqual(calls.tardies.map((entry) => [entry.type, entry.source, entry.studentId]), [['tardy', 'teams', 's-tardy']]);
+  const bridgeSource = readFileSync('src/platform/attendance/teamsAttendanceBridge.js', 'utf8');
+  assert.match(bridgeSource, /voidTardy: \(\{ incidentId, reason \}\) => store\.voidDisciplineIncident\(\{ incidentId, reason, source: 'teams' \}\),/);
   const target = {};
   const undo = installTeamsAttendanceBridge(bridge, target);
   assert.equal(target.mathmasterTeamsAttendance, bridge);
@@ -415,6 +466,11 @@ test('the Discipline Tracker takes a TEAMS record only for a tardy, and shows it
   assert.match(source, /if \(source === "teams" && violation\.type !== "tardy"\) throw new HttpsError\("invalid-argument"/);
   assert.match(source, /recordedByUid: request\.auth\.uid,\s*source,/);
   assert.match(executableSource(functionsDeclaration('disciplineIncidentView')), /source: data\.source === "teams" \? "teams" : "teacher",/);
+  const undo = executableSource(functionsDeclaration('voidDisciplineIncident'));
+  assert.match(undo, /const voidSource = request\.data\?\.source === "teams" \? "teams" : "teacher";/);
+  assert.match(undo, /if \(voidSource === "teams" && data\.source !== "teams"\) \{\s*throw new HttpsError\("invalid-argument"/);
+  assert.match(undo, /voidedByEmail: authority\.email, voidReason: reason, voidSource \};/);
+  assert.match(executableSource(functionsDeclaration('disciplineIncidentView')), /voidSource: data\.voidedAtMs \|\| data\.voidedAt \? \(data\.voidSource === "teams" \? "teams" : "teacher"\) : null,/);
   assert.match(readFileSync('src/components/teacher/DisciplineTracker.jsx', 'utf8'), /\{incident\.source === 'teams' && <span className="tw-muted" data-discipline-from-teams> · from TEAMS<\/span>\}/);
   const history = readFileSync('src/components/teacher/AttendanceHistoryPanel.jsx', 'utf8');
   assert.match(history, /entry\.event\?\.source === 'teams' \? ' \(from TEAMS\)'/);

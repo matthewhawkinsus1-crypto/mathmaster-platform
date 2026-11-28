@@ -94,7 +94,8 @@ export const createTeamsAttendanceBridge = ({
         recordAttendance: context.recordAttendance,
         recordTardy: ({ classId, studentId, tapId }) => store.recordDisciplineIncident({ classId, studentId, type: 'tardy', tapId, source: 'teams' }),
         listIncidents: async ({ classId, dateKey }) => (await store.listDisciplineIncidents({ fromDateKey: dateKey, toDateKey: dateKey, classId })).incidents || [],
-        voidTardy: ({ incidentId, reason }) => store.voidDisciplineIncident({ incidentId, reason }),
+        // Marked as the mirror's undo, so TEAMS showing the tardy again records it again.
+        voidTardy: ({ incidentId, reason }) => store.voidDisciplineIncident({ incidentId, reason, source: 'teams' }),
       });
     },
   });

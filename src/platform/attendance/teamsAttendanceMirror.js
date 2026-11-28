@@ -17,7 +17,7 @@
  */
 import {
   TEAMS_ATTENDANCE_LIMITS, TEAMS_ATTENDANCE_SOURCE, dateKeyDaysBefore, normalizeTeamsAttendanceReport,
-  planTeamsAttendanceMirror, teamsTardyTapId,
+  planTeamsAttendanceMirror, teamsTardyRecords, teamsTardyTapId,
 } from '../../../functions/shared/teamsAttendance.mjs';
 
 // The marks Live Classroom takes. An excused or unexcused absence is shown
@@ -64,7 +64,8 @@ export const teamsAttendanceEvents = ({
   };
   const teams = { teamsCode: entry.code, teamsSection: sectionRef };
   const events = [];
-  if (entry.today) {
+  // `classifyOnly`: Live Classroom's half was saved on an earlier read.
+  if (entry.today && !entry.classifyOnly) {
     events.push({
       kind: 'liveAttendance',
       ...base,
@@ -103,6 +104,7 @@ const emptyResult = (report) => ({
   notOnRoster: 0,
   unknownCodes: [],
   tardies: 0,
+  tardiesRestored: 0,
   tardiesUndone: 0,
   tardiesOnForm: 0,
   failed: 0,
@@ -152,18 +154,36 @@ export const mirrorTeamsAttendance = async ({
     if (saved) result.recorded += 1; else result.failed += 1;
   }
 
+  if (!plan.tardies.length && !plan.notTardy.length) return result;
+  // The tracker's records for the class that day: each student's TEAMS
+  // tardies, by their tap ids, the newest last.
+  let incidents;
+  try {
+    incidents = list(await listIncidents({ classId, dateKey: report.dateKey }));
+  } catch {
+    result.failed += plan.tardies.length;
+    return result;
+  }
+  const newestOf = (studentId) => teamsTardyRecords(incidents, { classId, dateKey: report.dateKey, studentId }).at(-1) || null;
+
   for (const studentId of plan.tardies) {
+    const newest = newestOf(studentId);
+    // Already recorded and standing.
+    if (newest && !newest.incident.voidedAtMs) continue;
+    // The teacher undid it: their undo stands. Only one the mirror undid
+    // (TEAMS took it back) is recorded again when TEAMS shows it again.
+    if (newest && newest.incident.voidSource !== TEAMS_ATTENDANCE_SOURCE) continue;
     try {
       // eslint-disable-next-line no-await-in-loop
-      await recordTardy({ classId, studentId, tapId: teamsTardyTapId({ dateKey: report.dateKey, studentId }) });
+      await recordTardy({ classId, studentId, tapId: teamsTardyTapId({ dateKey: report.dateKey, studentId, sequence: newest ? newest.sequence + 1 : 1 }) });
+      if (newest) result.tardiesRestored += 1;
     } catch {
       result.failed += 1;
     }
   }
   if (plan.notTardy.length) {
-    const incidents = new Map(list(await listIncidents({ classId, dateKey: report.dateKey })).map((incident) => [incident.id, incident]));
     for (const studentId of plan.notTardy) {
-      const incident = incidents.get(`${classId}_${teamsTardyTapId({ dateKey: report.dateKey, studentId })}`);
+      const incident = newestOf(studentId)?.incident;
       if (!incident || incident.voidedAtMs) continue;
       const state = incident.form?.state || 'pending';
       // On the district form, or it may be: the teacher decides.
@@ -172,7 +192,7 @@ export const mirrorTeamsAttendance = async ({
       if (state === 'sending') continue;
       try {
         // eslint-disable-next-line no-await-in-loop
-        await voidTardy({ incidentId: incident.id, reason: 'TEAMS no longer shows this tardy' });
+        await voidTardy({ incidentId: incident.id, reason: 'TEAMS no longer shows this tardy', source: TEAMS_ATTENDANCE_SOURCE });
         result.tardiesUndone += 1;
       } catch {
         result.failed += 1;

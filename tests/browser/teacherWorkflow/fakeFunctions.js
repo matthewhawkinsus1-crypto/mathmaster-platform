@@ -674,12 +674,15 @@ const handlers = {
     }
     return { id: path.split('/')[1], ...harnessStore.get(path) };
   },
-  voidDisciplineIncident: ({ incidentId } = {}) => {
+  voidDisciplineIncident: ({ incidentId, source = '' } = {}) => {
     const path = `disciplineIncidents/${incidentId}`;
     const record = harnessStore.get(path);
     if (!record) throw rejection('not-found', 'That violation was not found.');
     requireClassTeacher(record.classId);
-    if (!record.voidedAtMs) harnessStore.update(path, { voidedAtMs: Date.now() });
+    // As the real callable: who undid it, and a TEAMS undo only of a TEAMS tardy.
+    const voidSource = source === 'teams' ? 'teams' : 'teacher';
+    if (!record.voidedAtMs && voidSource === 'teams' && record.source !== 'teams') throw rejection('invalid-argument', 'Only a tardy recorded from TEAMS is undone from TEAMS.');
+    if (!record.voidedAtMs) harnessStore.update(path, { voidedAtMs: Date.now(), voidSource });
     return { id: incidentId, ...harnessStore.get(path), alreadySubmitted: record.form?.state === 'submitted', maybeSubmitted: record.form?.state === 'unknown' };
   },
   setDisciplineIncidentDetail: ({ incidentId, detail = '' } = {}) => {

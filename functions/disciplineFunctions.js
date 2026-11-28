@@ -82,6 +82,7 @@ function disciplineIncidentView(id, data = {}) {
       submittedAtMs: data.form?.submittedAtMs || null,
     },
     voidedAtMs: data.voidedAtMs || null,
+    voidSource: data.voidedAtMs || data.voidedAt ? (data.voidSource === "teams" ? "teams" : "teacher") : null,
     source: data.source === "teams" ? "teams" : "teacher",
   };
 }
@@ -158,14 +159,21 @@ exports.voidDisciplineIncident = onCall(async (request) => {
   const db = getFirestore();
   const { ref, authority } = await disciplineIncidentAuthority(db, request, request.data?.incidentId);
   const reason = disciplineText(request.data?.reason, 200) || "Undone by the teacher";
+  // Who undid it: the teacher, or the attendance mirror because TEAMS no
+  // longer shows a tardy it recorded (shared/teamsAttendance.mjs). Only a
+  // mirror's undo is recorded again if TEAMS shows the tardy again.
+  const voidSource = request.data?.source === "teams" ? "teams" : "teacher";
   const result = await db.runTransaction(async (transaction) => {
     const snapshot = await transaction.get(ref);
     const data = snapshot.data() || {};
     if (data.voidedAtMs || data.voidedAt) return data;
+    if (voidSource === "teams" && data.source !== "teams") {
+      throw new HttpsError("invalid-argument", "Only a tardy recorded from TEAMS is undone from TEAMS.");
+    }
     if (data.form?.state === "sending") {
       throw new HttpsError("failed-precondition", "This violation is being sent to the district form right now. Try again in a minute.");
     }
-    const update = { voidedAtMs: Date.now(), voidedAt: FieldValue.serverTimestamp(), voidedByEmail: authority.email, voidReason: reason };
+    const update = { voidedAtMs: Date.now(), voidedAt: FieldValue.serverTimestamp(), voidedByEmail: authority.email, voidReason: reason, voidSource };
     transaction.update(ref, update);
     return { ...data, ...update };
   });
