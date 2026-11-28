@@ -52,9 +52,17 @@ const SERVE_PORT = 5213;
 let server = null;
 if (process.argv.includes('--serve')) {
   const repo = path.resolve(here, '../..');
+  // A server already on the port would be used instead of ours, and could go
+  // away under the run: refuse to start on a port that answers.
+  if (await fetch(`http://127.0.0.1:${SERVE_PORT}/`).then(() => true, () => false)) {
+    console.error(`port ${SERVE_PORT} is already serving: stop that server (by its PID) and run again`);
+    process.exit(2);
+  }
   server = spawn(process.execPath, [path.join(repo, 'node_modules/vite/bin/vite.js'), '--host', '127.0.0.1', '--port', String(SERVE_PORT), '--strictPort'], { cwd: repo, stdio: 'ignore' });
   const stop = () => { if (server && server.exitCode === null) process.kill(server.pid); };
   process.on('exit', stop);
+  // Interrupted (Ctrl-C, a CI cancel): stop it too.
+  for (const signal of ['SIGINT', 'SIGTERM']) process.on(signal, () => process.exit(130));
   for (let tries = 0; ; tries += 1) {
     // eslint-disable-next-line no-await-in-loop
     const up = await fetch(`http://127.0.0.1:${SERVE_PORT}/tests/browser/everyQuestionRenders.html`).then((response) => response.ok, () => false);
@@ -628,3 +636,6 @@ if (findings.length) {
   process.exit(1);
 }
 console.log('\nEvery question rendered cleanly.');
+// Exit explicitly: a dev server started with --serve is a child process that
+// keeps the event loop alive, and the 'exit' handler is what stops it by PID.
+process.exit(0);
