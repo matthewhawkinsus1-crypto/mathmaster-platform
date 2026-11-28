@@ -2325,9 +2325,6 @@ export default function TeacherWorkspace({
             onConfirmPublish={confirmAssignmentPreflight}
             busy={assignmentPreflightBusy}
             reviewMode={assignmentPreflight.mode || 'create'}
-            // The saved assignment an update review was opened from: the one a
-            // Test Cycle's secure test reference is checked against.
-            sourceAssignmentId={assignmentPreflight.mode === 'update' ? assignmentPreflight.existingAssignmentId || null : null}
             // Imported or authored now, not a stored Library assignment reused (SP-5).
             authoredNow={assignmentPreflight.authoredNow === true}
             allowQuestionRepair={assignmentPreflight.allowQuestionRepair !== false}
@@ -2337,6 +2334,9 @@ export default function TeacherWorkspace({
             // Offers the in-place import of a Test Cycle's missing secure
             // families; seedPathQuestionBank re-checks the root identity.
             canManageSecureBank={rootAdminUiEligible}
+            // The saved assignment an update review was opened from: the one a
+            // Test Cycle's secure test reference is checked against.
+            sourceAssignmentId={assignmentPreflight.mode === 'update' ? assignmentPreflight.existingAssignmentId || null : null}
           />
         )}
         {/* The student preview of a Test Cycle is a dialog over the screen, drawn inside the main for

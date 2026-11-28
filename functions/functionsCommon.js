@@ -1319,7 +1319,6 @@ module.exports = {
   privateOverrideFrom,
   questionWasAttempted,
   readAllDeviceReportsForStudent,
-  freshDeviceReports,
   deviceReportReportedAtMs,
   MAX_DEVICE_REPORTS_PER_STUDENT,
   DEVICE_REPORT_STALE_MS,
