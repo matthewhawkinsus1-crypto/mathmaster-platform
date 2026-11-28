@@ -41,6 +41,7 @@ import { typedFieldCorpus } from '../corpus.mjs';
 import { errorLine, finding } from '../findings.mjs';
 import { INPUT_CLASSES, breakOf, isUnfinished, typedInput } from '../inputs.mjs';
 import { MAX_TYPED_ANSWER_LENGTH, typedEntryNotice } from '../../../../functions/shared/typedEntryGuard.mjs';
+import { startWorkClock } from '../workClock.mjs';
 
 const require = createRequire(import.meta.url);
 const mathPath = require('../../../../functions/lib/mathPath.js');
@@ -109,15 +110,15 @@ export const check = async (fuzzCase, { slowMs = 2000 } = {}) => {
 
   const verdicts = {};
   const ask = async (name, value) => {
-    const started = performance.now();
+    const sinceStart = startWorkClock();
     try {
       return await graders[name](value);
     } catch (error) {
       report('never-throws', `${name}/${input.inputClass}/${errorLine(error)}`, `${name} threw on ${JSON.stringify(value.slice(0, 80))} for key ${JSON.stringify(field.expected)}: ${error?.message}`);
       return THROWN;
     } finally {
-      const elapsed = performance.now() - started;
-      if (elapsed > slowMs) report('answers-in-time', input.inputClass, `${name} took ${Math.round(elapsed)} ms on a ${value.length}-character ${input.inputClass} value`);
+      const spentMs = sinceStart();
+      if (spentMs > slowMs) report('answers-in-time', input.inputClass, `${name} took ${Math.round(spentMs)} ms on a ${value.length}-character ${input.inputClass} value`);
     }
   };
   for (const name of Object.keys(graders)) verdicts[name] = await ask(name, typed);

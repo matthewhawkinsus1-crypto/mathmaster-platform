@@ -40,6 +40,7 @@ import { readableStoredResponseLatex } from '../../../../src/tools/graphing2/sto
 import { spokenMathValue } from '../../../../src/tools/shared/spokenMathValue.js';
 import { errorLine, finding } from '../findings.mjs';
 import { FREE_CLASSES, typedInput } from '../inputs.mjs';
+import { startWorkClock } from '../workClock.mjs';
 
 export const id = 'readers';
 
@@ -82,15 +83,15 @@ export const check = async (fuzzCase, { slowMs = 2000 } = {}) => {
   const found = [];
   const report = (property, signature, message, severity) => found.push(finding({ target: id, property, signature, message, repro: fuzzCase, severity }));
   const read = (name, helper, onThrow) => {
-    const started = performance.now();
+    const sinceStart = startWorkClock();
     try {
       return { value: helper(text) };
     } catch (error) {
       onThrow(error);
       return { thrown: true };
     } finally {
-      const elapsed = performance.now() - started;
-      if (elapsed > slowMs) report('answers-in-time', `${name}/${inputClass}`, `${name} took ${Math.round(elapsed)} ms on a ${text.length}-character ${inputClass} value`);
+      const spentMs = sinceStart();
+      if (spentMs > slowMs) report('answers-in-time', `${name}/${inputClass}`, `${name} took ${Math.round(spentMs)} ms on a ${text.length}-character ${inputClass} value`);
     }
   };
   for (const [name, helper] of Object.entries(SAFE)) {

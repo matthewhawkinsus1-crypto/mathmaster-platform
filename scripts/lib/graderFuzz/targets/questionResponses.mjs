@@ -40,6 +40,7 @@ import { familyQuestionCorpus } from '../corpus.mjs';
 import { errorLine, finding } from '../findings.mjs';
 import { INPUT_CLASSES, breakOf, isUnfinished, typedInput } from '../inputs.mjs';
 import { typedEntryNotice } from '../../../../functions/shared/typedEntryGuard.mjs';
+import { startWorkClock } from '../workClock.mjs';
 
 export const id = 'questionResponses';
 
@@ -140,15 +141,15 @@ export const check = async (fuzzCase, { slowMs = 2000 } = {}) => {
   const found = [];
   const report = (property, signature, message, severity) => found.push(finding({ target: id, property, signature, message, repro: fuzzCase, severity }));
   const timed = (name, run) => {
-    const started = performance.now();
+    const sinceStart = startWorkClock();
     try {
       return { result: run() };
     } catch (error) {
       report('never-throws', `${question.type}/${name}/${input.inputClass}/${errorLine(error)}`, `${name} threw on a ${question.type} question for ${JSON.stringify(typed.slice(0, 80))}: ${error?.message}`);
       return { thrown: true };
     } finally {
-      const elapsed = performance.now() - started;
-      if (elapsed > slowMs) report('answers-in-time', input.inputClass, `${name} took ${Math.round(elapsed)} ms on a ${typed.length}-character ${input.inputClass} value`);
+      const spentMs = sinceStart();
+      if (spentMs > slowMs) report('answers-in-time', input.inputClass, `${name} took ${Math.round(spentMs)} ms on a ${typed.length}-character ${input.inputClass} value`);
     }
   };
 
