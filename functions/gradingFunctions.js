@@ -3720,6 +3720,9 @@ exports.listGradeTransferState = onCall(async (request) => {
   return { snapshots, practicePassKeys };
 });
 
+// The most rows one Grade Transfer snapshot may hold: far above a class roster.
+const GRADE_TRANSFER_MAX_ROWS = 300;
+
 exports.persistGradeTransferSnapshot = onCall(async (request) => {
   await requireTeacher(request);
   const db = getFirestore();
@@ -3738,7 +3741,14 @@ exports.persistGradeTransferSnapshot = onCall(async (request) => {
   const sectionLabel = String(input.sectionLabel || "").trim().slice(0, 80);
   const authority = await gradeTransferClassAuthority(db, request, classId);
 
-  const rows = (Array.isArray(input.rows) ? input.rows : []).map((row) => {
+  const inputRows = Array.isArray(input.rows) ? input.rows : [];
+  if (inputRows.length > GRADE_TRANSFER_MAX_ROWS) {
+    throw new HttpsError("invalid-argument", `A Grade Transfer snapshot holds at most ${GRADE_TRANSFER_MAX_ROWS} rows.`);
+  }
+  // Only this class's own students: a row for anyone else is dropped.
+  const rosterSnapshot = await db.collection("grades").where("classId", "==", classId).select().get();
+  const roster = new Set(rosterSnapshot.docs.map((entry) => entry.id));
+  const rows = inputRows.filter((row) => roster.has(String(row?.studentId || "").trim())).map((row) => {
     const grade = Number(row?.grade);
     if (!Number.isInteger(grade) || grade < 0 || grade > 100) {
       throw new HttpsError("invalid-argument", "Every TEAMS grade must be a whole number from 0 to 100.");
