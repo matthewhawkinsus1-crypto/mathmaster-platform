@@ -6,8 +6,10 @@ const { onCall, onRequest, HttpsError } = require("firebase-functions/v2/https")
 const { onDocumentWritten } = require("firebase-functions/v2/firestore");
 const { onSchedule } = require("firebase-functions/v2/scheduler");
 const logger = require("firebase-functions/logger");
+const { ownedMappings } = require("./lib/classroomMappingOwnership");
 
 const classroomLib = require("./lib/classroom");
+const authLib = require("./lib/auth");
 const {
   GOOGLE_API_SECRETS,
   LINK_ENCRYPTION_KEY,
@@ -154,10 +156,10 @@ async function loadTeacherMappings(db, teacherUid) {
     .where("teacherUid", "==", teacherUid)
     .limit(100)
     .get();
-  return new Map(snapshot.docs.map((doc) => {
-    const data = doc.data() || {};
-    return [String(data.courseId || ""), { id: doc.id, ...data }];
-  }).filter(([courseId]) => courseId));
+  // Only the mappings whose class this teacher still teaches
+  // (lib/classroomMappingOwnership.js).
+  const owned = await ownedMappings(db, snapshot.docs.map((doc) => ({ id: doc.id, ...(doc.data() || {}) })), { isRootAdminEmail: authLib.isRootAdminEmail });
+  return new Map(owned.map((mapping) => [String(mapping.courseId || ""), mapping]).filter(([courseId]) => courseId));
 }
 
 async function claimSectionPublication(ref, baseRecord) {
