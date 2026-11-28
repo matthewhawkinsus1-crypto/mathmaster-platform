@@ -71,6 +71,71 @@ test('every card is written in English and Spanish, with its title, formulas and
   }
 });
 
+test('every card states when its formulas hold, in both languages, with the same mathematics', () => {
+  for (const card of REFERENCE_CARDS) {
+    assert.ok(Array.isArray(card.conditions) && card.conditions.length >= 1, `${card.id}: its conditions`);
+    for (const condition of card.conditions) {
+      for (const language of REFERENCE_CARD_LANGUAGES) assert.ok(condition[language]?.trim(), `${card.id}: a condition in ${language}`);
+      assert.deepEqual(mathOf(condition.es), mathOf(condition.en), `${card.id}: "${condition.en}" says the same mathematics in Spanish`);
+    }
+    // Read aloud reads them, after the formulas and before the parts.
+    const reading = readingFor(card, 'en');
+    const at = reading.indexOf(`${REFERENCE_CARD_TEXT.en.conditions}:`);
+    assert.ok(at > reading.indexOf(card.formulas.at(-1).latex) && at < reading.indexOf(`${REFERENCE_CARD_TEXT.en.parts}:`), `${card.id}: read in order`);
+    for (const condition of card.conditions) assert.ok(reading.includes(condition.en), `${card.id}: "${condition.en}" is read`);
+  }
+  // The maths pass: every condition a formula needs is on its card.
+  const conditionsOf = (skill) => referenceCardFor(skill).conditions.map((condition) => condition.en).join(' ');
+  const NEEDS = {
+    'quadratics.quadraticFormula': [/\$a \\neq 0\$/, /ax\^2 \+ bx \+ c = 0/],
+    'quadratics.vertexForm': [/\$a \\neq 0\$/],
+    'factor.trinomialAC': [/\$a \\neq 0\$/, /common factor/],
+    'lines.slopeFormula': [/\$x_1 \\neq x_2\$/, /vertical/, /undefined/],
+    'lines.slopeInterceptForm': [/vertical/],
+    'lines.pointSlopeForm': [/vertical/],
+    'theorems.remainder': [/\$x - c\$/, /\$c = -2\$/],
+    'transformations.combined': [/\$a \\neq 0\$ and \$b \\neq 0\$/, /Factor \$b\$ out first/],
+    'factor.differenceOfSquares': [/sum \$a\^2 \+ b\^2\$ does not factor/],
+    'factor.perfectSquareTrinomial': [/\$2ab\$ or \$-2ab\$/],
+    'factor.sumDifferenceOfCubes': [/perfect cube/, /does not factor further/],
+  };
+  for (const [skill, patterns] of Object.entries(NEEDS)) for (const pattern of patterns) assert.match(conditionsOf(skill), pattern, skill);
+  // The cubes: the binomial keeps the sign, the trinomial's middle sign is the opposite one, its last is plus.
+  const [sum, difference] = referenceCardFor('factor.sumDifferenceOfCubes').formulas.map((formula) => formula.latex);
+  assert.equal(sum, 'a^3 + b^3 = (a + b)(a^2 - ab + b^2)');
+  assert.equal(difference, 'a^3 - b^3 = (a - b)(a^2 + ab + b^2)');
+  // Each identity holds: checked numerically on a few values.
+  for (const [a, b] of [[2, 3], [-1, 4], [5, -2]]) {
+    assert.equal(a ** 3 + b ** 3, (a + b) * (a * a - a * b + b * b));
+    assert.equal(a ** 3 - b ** 3, (a - b) * (a * a + a * b + b * b));
+    assert.equal(a * a - b * b, (a + b) * (a - b));
+    assert.equal(a * a + 2 * a * b + b * b, (a + b) ** 2);
+    assert.equal(a * a - 2 * a * b + b * b, (a - b) ** 2);
+  }
+});
+
+test('standard form: each intercept formula says when it holds, and the zero cases are on the card', () => {
+  const card = referenceCardFor('lines.standardForm');
+  const [both, horizontal, vertical] = card.conditions.map((condition) => condition.en);
+  assert.match(both, /\$A\$ and \$B\$ are not both \$0\$/);
+  assert.match(both, /x-intercept needs \$A \\neq 0\$/);
+  assert.match(both, /y-intercept needs \$B \\neq 0\$/);
+  assert.equal(horizontal, 'If $A = 0$, the line is horizontal, $y = \\frac{C}{B}$, and has no x-intercept, unless $C = 0$: then it is the x-axis.');
+  assert.equal(vertical, 'If $B = 0$, the line is vertical, $x = \\frac{C}{A}$, and has no y-intercept, unless $C = 0$: then it is the y-axis.');
+  const [, xIntercept, yIntercept] = card.parts;
+  assert.match(xIntercept.says.en, /^the x-intercept, when \$A \\neq 0\$/);
+  assert.match(yIntercept.says.en, /^the y-intercept, when \$B \\neq 0\$/);
+  assert.match(xIntercept.says.es, /cuando \$A \\neq 0\$/);
+  assert.match(yIntercept.says.es, /cuando \$B \\neq 0\$/);
+  // In Spanish too, the zero cases, word for word in their mathematics.
+  assert.match(card.conditions[1].es, /^Si \$A = 0\$, la recta es horizontal, \$y = \\frac\{C\}\{B\}\$, y no tiene intersección con el eje x, salvo si \$C = 0\$: entonces es el eje x\.$/);
+  assert.match(card.conditions[2].es, /^Si \$B = 0\$, la recta es vertical, \$x = \\frac\{C\}\{A\}\$, y no tiene intersección con el eje y, salvo si \$C = 0\$: entonces es el eje y\.$/);
+  // Read aloud says it: no division by zero is left unqualified.
+  const spoken = speechTextFor(readingFor(card, 'en'));
+  assert.match(spoken, /If A equals 0, the line is horizontal, y equals C over B, and has no x-intercept/);
+  assert.match(spoken, /the x-intercept, when A is not equal to 0/);
+});
+
 test('a lesson\'s skill finds its card, by its id or an alias, and an unknown skill finds none', () => {
   assert.equal(referenceCardFor('factor.sumDifferenceOfCubes')?.title.en, 'Sum and difference of cubes');
   // The example lesson in the authoring guide, and a lesson family's own id for the same skill.
@@ -361,6 +426,8 @@ test('the card draws its title, each formula, its parts in a disclosure, and Rea
     assert.match(html, /data-reference-cards=""/);
     assert.equal([...html.matchAll(/data-reference-card="/g)].length, 1, 'only the card the library has');
     assert.match(html, /data-reference-card="cubes"/);
+    assert.match(html, /<p[^>]*>When it works<\/p>/, "the conditions are drawn, not folded away");
+    assert.equal([...html.matchAll(/data-reference-card-condition=""/g)].length, 2);
     assert.match(html, />Sum and difference of cubes</);
     assert.equal([...html.matchAll(/data-reference-card-formula=""/g)].length, 2);
     assert.equal([...html.matchAll(/data-reference-card-part=""/g)].length, 4);

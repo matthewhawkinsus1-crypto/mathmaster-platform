@@ -101,6 +101,7 @@ const cardsOn = (page) => page.locator('[data-reference-card]').evaluateAll((nod
   title: node.querySelector('[data-reference-card-title]')?.textContent.trim() || '',
   formulas: node.querySelectorAll('[data-reference-card-formula]').length,
   parts: node.querySelectorAll('[data-reference-card-part]').length,
+  conditions: [...node.querySelectorAll('[data-reference-card-condition]')].filter((item) => item.getBoundingClientRect().height > 0).length,
   partsOpen: node.querySelector('[data-reference-card-parts]')?.open === true,
 })));
 const answer = async (page, value) => {
@@ -156,6 +157,7 @@ for (const device of DEVICES) {
     check(cards.map((card) => card.id).join(' ') === 'card-1 card-2', `${where}: both cards are pinned before anything is pressed`, JSON.stringify(cards));
     check(cards[0]?.title === 'Sum and difference of cubes' && cards[0]?.formulas === 2 && cards[0]?.parts === 4, `${where}: the cubes card has its title, both formulas and its four parts`, JSON.stringify(cards[0]));
     check(cards[1]?.title === 'The slope formula' && cards[1]?.formulas === 1 && cards[1]?.parts === 3, `${where}: the slope card has its title, its formula and its parts`, JSON.stringify(cards[1]));
+    check(cards[0]?.conditions === 2 && cards[1]?.conditions === 1, `${where}: each card says when its formulas hold, in sight without a tap`, JSON.stringify(cards.map((card) => card.conditions)));
     check(cards.every((card) => card.partsOpen === !device.isMobile), `${where}: the parts are ${device.isMobile ? 'one tap away on a phone' : 'open on a laptop'}`, JSON.stringify(cards.map((card) => card.partsOpen)));
     check(fetched.length >= 1, `${where}: the card's chunk was fetched`);
     const place = await page.evaluate(() => {

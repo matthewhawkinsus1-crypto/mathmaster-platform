@@ -99,7 +99,7 @@ export const EXAMPLE_CONTROL_SELECTORS = Object.freeze([
  */
 export const REFERENCE_CARD_SELECTORS = Object.freeze([
   '[data-reference-cards-row]', '[data-reference-cards]', '[data-reference-card]', '[data-reference-card-skill]', '[data-reference-card-note]', '[data-reference-card-name]',
-  '[data-reference-card-title]', '[data-reference-card-formulas]', '[data-reference-card-formula]', '[data-reference-card-parts]', '[data-reference-card-part]',
+  '[data-reference-card-title]', '[data-reference-card-formulas]', '[data-reference-card-formula]', '[data-reference-card-conditions]', '[data-reference-card-condition]', '[data-reference-card-parts]', '[data-reference-card-part]',
 ]);
 
 /** Every control or support a DOL, quiz or test page may not carry: the worked example's and the reference card's. */

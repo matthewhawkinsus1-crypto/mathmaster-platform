@@ -87,6 +87,17 @@ function ReferenceCard({ MathText, SupportedTextActions, entry, card, openParts,
           </li>
         ))}
       </ul>
+      {/* When the formulas hold (a ≠ 0, x₁ ≠ x₂, …): always in sight, never folded away. */}
+      <div data-reference-card-conditions="" style={{ minWidth: 0 }}>
+        <p style={{ margin: 0, fontWeight: 800, fontSize: 'calc(13.5 * var(--mm-px))', color: 'var(--mm-text-strong, var(--mm-text))' }}>{words.conditions}</p>
+        <ul style={{ margin: '2px 0 0', paddingLeft: 20, display: 'grid', gap: 4 }}>
+          {card.conditions.map((condition, index) => (
+            <li key={`condition-${index}`} data-reference-card-condition="" style={{ minWidth: 0, overflowWrap: 'anywhere', lineHeight: 1.55 }}>
+              <MathText>{condition.en}</MathText>
+            </li>
+          ))}
+        </ul>
+      </div>
       <details data-reference-card-parts="" open={openParts}>
         <summary style={summaryStyle}>{words.parts}</summary>
         <dl style={{ margin: '4px 0 0', display: 'grid', gap: 6 }}>
