@@ -24,6 +24,7 @@
     "verify:deployed-build": "node scripts/verify-deployed-build.mjs",
     "check:deploy-provenance": "node scripts/check-deploy-provenance.mjs",
     "fuzz:graders": "node scripts/fuzz-graders.mjs",
+    "audit:grading-parity": "node scripts/audit-grading-parity-real-items.mjs",
     "audit:answer-acceptance": "node scripts/audit-correct-answer-acceptance.mjs --samples 12",
     "audit:every-question": "node tests/browser/everyQuestionRenders.mjs --serve",
     "audit:assignment-authoring-boundary": "node scripts/audit-assignment-authoring-boundary.mjs",

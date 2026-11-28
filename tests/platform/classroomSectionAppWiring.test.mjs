@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import { assertCapability, region } from './helpers/sourceContract.mjs';
-import { appFactorySource } from './helpers/appScreens.mjs';
+import { appFactorySource, teacherWorkspaceSource } from './helpers/appScreens.mjs';
 
 const source = fs.readFileSync(
   new URL('../../src/App.jsx', import.meta.url),
@@ -23,7 +23,7 @@ test('App consumes canonical section grade and Classroom launch helpers', () => 
 
 test('teacher gradebook exposes Overall, Warm-Up, Classwork, Practice, and DOL academic scores', () => {
   // The gradebook is the teacher's screen, its own module since G2.
-  const source = fs.readFileSync(new URL('../../src/app/teacher/TeacherWorkspace.jsx', import.meta.url), 'utf8');
+  const source = teacherWorkspaceSource();
   for (const label of ['Overall', 'Warm-Up', 'Classwork', 'Practice', 'DOL']) {
     assert.match(source, new RegExp(`>${label}<`));
   }

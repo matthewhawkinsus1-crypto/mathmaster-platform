@@ -16,6 +16,7 @@ import {
   practicePassPolicyOverride,
 } from '../../functions/shared/classPointRewards.mjs';
 import { executableSource, region } from './helpers/sourceContract.mjs';
+import { teacherWorkspaceSource } from './helpers/appScreens.mjs';
 
 /*
  * "ALLOW PRACTICE PASSES" ON ONE ASSIGNMENT: THE AUTHORING SWITCH (LC23).
@@ -173,7 +174,7 @@ test('the switch is shown only where a pass could be used', () => {
 
 const read = (relative) => executableSource(readFileSync(new URL(`../../${relative}`, import.meta.url), 'utf8'));
 const modal = read('src/components/teacher/LessonPreflightModal.jsx');
-const workspace = read('src/app/teacher/TeacherWorkspace.jsx');
+const workspace = teacherWorkspaceSource();
 
 test('the review starts with passes allowed, and the switch writes the teacher\'s choice to the draft', () => {
   const defaults = region(modal, 'const initialReviewDraft = (draft = {}) => {', '\n};', 'the review draft defaults');
