@@ -263,6 +263,31 @@ the narrative facts: `narrativeFacts.js` never reads it, and
 `narrativeGuard.js` has an `integrity-conclusion` family that refuses a
 template saying a student cheated, copied or used AI.
 
+### 3.11 Conduct records and family contact (`conductRecords.js`)
+
+Added with the Discipline Tracker (`docs/plans/2026-11-27-discipline-tracker.md`),
+so the case shows the district's conduct expectations beside the academic
+evidence. The inputs are the student's Discipline Tracker records and their
+family contacts from Parent Contacts, both read through the
+`loadStudentConductEvidence` callable (5.4). The section holds:
+
+- the records in the case's window, counted by type in the tracker's own order,
+  with the finer detail the teacher chose (for example "ID not displayed (no
+  lanyard)") and the days they fall on. A type with no record is not listed:
+  no record is not evidence that nothing happened, and the section says so;
+- where each record stands with the district's Campus Violation Tracker form
+  (sent, waiting, or to check);
+- the family contacts in the window, with the method, the reason and the
+  follow-up state. The outcome and notes are the teacher's own words and are
+  labelled teacher-written on screen, in print and in the CSV.
+
+An undone tap is never a record: the server leaves it out. Every row is
+staff documented. The section feeds the summary (its lines), the timeline
+(kinds `conduct-record` and `family-contact`, group `conduct`), the Conduct
+CSV and print section 14. It does not feed a grade, the narrative facts or
+"What needs attention?"; only a read that failed or was cut short is listed as
+an evidence gap.
+
 ## 4. The case review model and exports (`studentCaseReview.js`, `caseReviewExport.js`)
 
 `buildStudentCaseReview(inputs)` calls PR #401's `buildSupportEvidenceReport` once (same selection, rows,
@@ -308,6 +333,19 @@ Why a callable: these records are deliberately not client-readable (assignment e
 access list; drafts, receipts and audits are owner/server-only). Loosening an existing rule would undo a
 tested security decision; a teacher-of-record callable is the established pattern (Response Inspector,
 Grade Transfer).
+
+### 5.4 New read-only callable `loadStudentConductEvidence`
+In `functions/disciplineFunctions.js`. Inputs `{studentId, fromDateKey, toDateKey}` (school days, a range
+≤ 400 days). The caller is authorized exactly as 5.2: `authorizeCaseEvidenceCaller` with the root
+administrator recognised by the claim and the address, as every discipline callable does. Only then does
+it read, by `studentId` alone (single-field indexes): `disciplineIncidents` (≤ 2 000) and
+`parentContactLogs` (≤ 1 000), each flagged when cut short. The pure
+`functions/shared/conductEvidence.mjs` keeps this student's records in the window, drops undone taps, keeps
+only the family contacts the caller may already read in Parent Contacts (`authorizedTeacherEmails`, or the
+root administrator), folds follow-up resolutions into their contacts, and projects each record to what the
+case review shows (no recording uid, no access lists). A student's records follow them to a new class, as
+their support history and family contacts do. The function writes nothing. If it is unavailable, the
+section reads "could not be loaded", never "none".
 
 ### 5.3 New collection `grades/{sid}/sisGradebookSnapshots/{id}` (optional save)
 Created only when the teacher chooses "Compare and save with this case file". The student's roster teacher

@@ -15,6 +15,11 @@
 import { arrayRemove, deleteField, harnessStore, recordHarnessCallable, Timestamp } from './fakeFirestore.js';
 import { TEACHER_EMAIL } from './fixture.js';
 import {
+  DisciplineInputError,
+  disciplineDateKey,
+  normalizeViolationInput,
+} from '../../../functions/shared/disciplineTracker.mjs';
+import {
   TeamsSyncInputError,
   normalizeTeamsSections,
   normalizeTeamsTargets,
@@ -49,6 +54,9 @@ import {
 import {
   authorizeCaseEvidenceCaller, buildCaseEvidenceResponse, validateCaseEvidenceRequest,
 } from '../../../functions/shared/caseReviewEvidence.mjs';
+import {
+  ConductEvidenceInputError, buildConductEvidenceResponse, validateConductEvidenceRequest,
+} from '../../../functions/shared/conductEvidence.mjs';
 import { workspaceDraftDocumentId } from '../../../functions/shared/workspaceDraftSchema.mjs';
 import { CRASH_REPORTING_FLAG, resolveCrashReportingMode } from '../../../functions/shared/crashReport.mjs';
 import { explainStudentChallengeRewards } from '../../../functions/shared/rewardDiagnostics.mjs';
@@ -602,6 +610,67 @@ const handlers = {
     });
     return { studentId, ...next };
   },
+  // The Discipline Tracker (functions/disciplineFunctions.js). The harness has
+  // no Google Form: Send now marks taps sent, and nothing leaves the browser.
+  recordDisciplineIncident: ({ classId, studentId, type, detail = '', tapId } = {}) => {
+    const cls = requireClassTeacher(classId);
+    const student = harnessStore.get(`grades/${studentId}`);
+    if (!student || student.classId !== cls) throw rejection('permission-denied', "That student is not on this class's roster.");
+    let violation;
+    try { violation = normalizeViolationInput({ type, detail }); } catch (error) {
+      if (error instanceof DisciplineInputError) throw rejection('invalid-argument', error.message);
+      throw error;
+    }
+    const path = `disciplineIncidents/${cls}_${tapId}`;
+    if (!harnessStore.get(path)) {
+      const nowMs = Date.now();
+      const classRecord = harnessStore.get(`classes/${cls}`) || {};
+      harnessStore.set(path, {
+        classId: cls, classPeriod: classRecord.period || '', classLabel: classRecord.name || classRecord.period || '', studentId,
+        ...violation, occurredAtMs: nowMs, dateKey: disciplineDateKey(nowMs), teacherOfRecord: lower(TEACHER_EMAIL), form: { state: 'pending', attempts: 0 },
+      });
+    }
+    return { id: path.split('/')[1], ...harnessStore.get(path) };
+  },
+  voidDisciplineIncident: ({ incidentId } = {}) => {
+    const path = `disciplineIncidents/${incidentId}`;
+    const record = harnessStore.get(path);
+    if (!record) throw rejection('not-found', 'That violation was not found.');
+    requireClassTeacher(record.classId);
+    if (!record.voidedAtMs) harnessStore.update(path, { voidedAtMs: Date.now() });
+    return { id: incidentId, ...harnessStore.get(path), alreadySubmitted: record.form?.state === 'submitted', maybeSubmitted: record.form?.state === 'unknown' };
+  },
+  setDisciplineIncidentDetail: ({ incidentId, detail = '' } = {}) => {
+    const path = `disciplineIncidents/${incidentId}`;
+    const record = harnessStore.get(path);
+    if (!record) throw rejection('not-found', 'That violation was not found.');
+    requireClassTeacher(record.classId);
+    const violation = normalizeViolationInput({ type: record.type, detail });
+    harnessStore.update(path, { detail: violation.detail });
+    return { id: incidentId, ...harnessStore.get(path) };
+  },
+  listDisciplineIncidents: ({ fromDateKey, toDateKey } = {}) => ({
+    incidents: harnessStore.paths('disciplineIncidents/')
+      .map((path) => ({ id: path.split('/')[1], ...harnessStore.get(path) }))
+      .filter((entry) => entry.teacherOfRecord === lower(TEACHER_EMAIL) && entry.dateKey >= fromDateKey && entry.dateKey <= toDateKey),
+    formStatus: harnessStore.get('disciplineStatus/form') || null,
+  }),
+  getDisciplineSettings: () => ({ principalEmail: '', principalName: '', teacherName: '', ...(harnessStore.get(`disciplineSettings/${lower(TEACHER_EMAIL)}`) || {}) }),
+  saveDisciplineSettings: (settings = {}) => {
+    const saved = { principalEmail: String(settings.principalEmail || ''), principalName: String(settings.principalName || ''), teacherName: String(settings.teacherName || '') };
+    harnessStore.set(`disciplineSettings/${lower(TEACHER_EMAIL)}`, saved);
+    return saved;
+  },
+  submitDisciplineFormsNow: ({ classId = '', dateKey = '' } = {}) => {
+    const pending = harnessStore.paths('disciplineIncidents/').filter((path) => {
+      const entry = harnessStore.get(path);
+      return entry.form?.state === 'pending' && !entry.voidedAtMs && (!classId || entry.classId === classId) && (!dateKey || entry.dateKey === dateKey);
+    });
+    pending.forEach((path) => harnessStore.update(path, { form: { ...harnessStore.get(path).form, state: 'submitted', submittedAtMs: Date.now() } }));
+    const students = new Set(pending.map((path) => `${harnessStore.get(path).classId}|${harnessStore.get(path).studentId}`));
+    return { submitted: [...students].map((key) => ({ key })), waiting: [], blocked: [], retry: [], failed: [], unknown: [], formProblems: [] };
+  },
+  resolveDisciplineFormState: () => ({ changed: [] }),
   // The TEAMS sync (#612): the real pure server module, a class's state in one
   // harness document (the server splits it across three collections).
   setTeamsSyncSections: ({ classId, sections } = {}) => {
@@ -742,6 +811,32 @@ const handlers = {
       .map((path) => ({ id: path.split('/').pop(), data: harnessStore.get(path) }))
       .filter((entry) => wanted.has(entry.data?.source?.assignmentId));
     return buildCaseEvidenceResponse({ request: validation.request, events, receipts, drafts, audits, misconceptionRecords, nowMs: Date.now() });
+  },
+  // The case review's conduct section (functions/disciplineFunctions.js
+  // loadStudentConductEvidence): the real request validation, the case
+  // review's own teacher decision and the real projection, over the store's
+  // Discipline Tracker records and Parent Contacts.
+  loadStudentConductEvidence: (data) => {
+    let request;
+    try { request = validateConductEvidenceRequest(data); } catch (error) {
+      if (error instanceof ConductEvidenceInputError) throw rejection('invalid-argument', error.message);
+      throw error;
+    }
+    const student = harnessStore.get(`grades/${request.studentId}`) || null;
+    const classRecord = student?.classId ? harnessStore.get(`classes/${student.classId}`) || null : null;
+    const decision = authorizeCaseEvidenceCaller({ callerEmail: TEACHER_EMAIL, callerRole: 'teacher', student, classRecord });
+    if (!decision.allowed) {
+      throw rejection(decision.reason === 'student-not-found' ? 'not-found' : 'permission-denied', 'Only this student\'s teacher may load their conduct records.');
+    }
+    const byStudent = (prefix) => harnessStore.paths(prefix)
+      .map((path) => ({ id: path.split('/').pop(), ...harnessStore.get(path) }))
+      .filter((entry) => entry.studentId === request.studentId);
+    return buildConductEvidenceResponse({
+      ...request,
+      incidents: byStudent('disciplineIncidents/'),
+      contacts: byStudent('parentContactLogs/'),
+      callerEmail: TEACHER_EMAIL,
+    });
   },
   // The Response Inspector, as functions/index.js inspectStudentResponse
   // answers: the same checks in the same order (a teacher; this student's

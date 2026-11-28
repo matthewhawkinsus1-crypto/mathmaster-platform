@@ -2459,6 +2459,16 @@ service cloud.firestore {
     match /teamsSyncLedger/{entryId} { allow read, write: if false; }
 
     /*
+     * Discipline tracker: a teacher's violation taps, their settings, and the
+     * last check of the district form. Only the backend reads or writes them
+     * (functions/disciplineFunctions.js), after its own teacher-of-record
+     * check. Students never see them.
+     */
+    match /disciplineIncidents/{incidentId} { allow read, write: if false; }
+    match /disciplineSettings/{teacherEmail} { allow read, write: if false; }
+    match /disciplineStatus/{statusId} { allow read, write: if false; }
+
+    /*
      * Immutable SIS transfer evidence. A teacher can create a snapshot only
      * for a class they own and can subsequently add only upload-confirmation
      * fields. Downloading never writes those fields. Students have no access.
