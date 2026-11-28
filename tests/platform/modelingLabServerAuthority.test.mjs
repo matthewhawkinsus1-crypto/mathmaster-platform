@@ -106,7 +106,7 @@ test('the ingestion transaction reads the server marker before writing and hands
 });
 
 test('an evaluation sent without the model-accuracy line lists the two lines it has; the marker grades all three', () => {
-  const { modelAccuracy, ...withheld } = EVALUATION.rubricBreakdown;
+  const { modelAccuracy: _withheld, ...withheld } = EVALUATION.rubricBreakdown;
   const browser = gradeModelingLabEvaluation({ ...EVALUATION, rubricBreakdown: withheld, modelAccuracyWithheld: true });
   assert.deepEqual(browser.parts.map((part) => part.id), ['hypothesis', 'justification']);
   assert.equal(browser.score, gradeModelingLabEvaluation(EVALUATION).score, 'the score is the composite either way');

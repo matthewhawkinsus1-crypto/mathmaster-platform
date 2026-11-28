@@ -3236,7 +3236,7 @@ const MODELING_LAB_MAX_ATTEMPTS = 3;
 
 function modelingLabPublicEvaluation(evaluation, { revealModelAccuracy }) {
   if (revealModelAccuracy) return evaluation;
-  const { modelAccuracy, ...rubricBreakdown } = evaluation.rubricBreakdown || {};
+  const { modelAccuracy: _withheld, ...rubricBreakdown } = evaluation.rubricBreakdown || {};
   return { ...evaluation, rubricBreakdown, modelAccuracyWithheld: true };
 }
 
@@ -3284,7 +3284,7 @@ exports.submitModelingLab = onCall(async (request) => {
       if (counted.exists && counted.data()?.publicResult) return counted.data().publicResult;
     }
     if (!assignmentSnapshot.exists || !labSnapshot.exists) throw new HttpsError("not-found", "That modeling lab is not available.");
-    const assignment = { id: assignmentSnapshot.id, ...(assignmentSnapshot.data() || {}) };
+    const assignment = { id: assignmentSnapshot.id, ...assignmentSnapshot.data() };
     const labDefinition = labSnapshot.data() || {};
     if (String(labDefinition.assignmentId || "") !== assignmentId) throw new HttpsError("failed-precondition", "The modeling lab is not attached to this assignment.");
     const studentData = studentSnapshot.exists ? (studentSnapshot.data() || {}) : {};
