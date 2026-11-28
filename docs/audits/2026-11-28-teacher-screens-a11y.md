@@ -115,6 +115,9 @@ sweep's own mistakes, corrected before the final run:
 - At 200% text a sticky bar (Pre-Flight's steps, Grade Export's selection bar) or an open pop-up over the page counted
   as "controls drawn over each other". Only controls in the same layer are compared now, from the top of every
   scroller.
+- On CI's fonts, a Pre-Flight class checkbox scrolled out of its pane still had a layout box under the footer's
+  "Back" button, and counted as an overlap (phone, 200% text). Each control is now compared by its visible part,
+  clipped by the ancestors that clip it.
 - A target under an open pop-up counted for target size. A target whose centre hits something else is not measured.
 - One Case Review run in dark at 1366×900 lost focus mid-walk, once. It did not happen again in three reruns. An item
   whose scene does not open is run once more, and the report says so.

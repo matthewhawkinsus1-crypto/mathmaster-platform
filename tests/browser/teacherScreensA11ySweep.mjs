@@ -367,7 +367,23 @@ const MEASURE_TEXT = (selector) => {
     }
     return null;
   };
-  const boxes = controls.map((element) => ({ element, rect: element.getBoundingClientRect(), layer: layerOf(element) }));
+  // What of a control is on screen: its box clipped by every ancestor that clips (a scrolling body, a card with overflow
+  // hidden). A control scrolled out of its pane still has a box under the pane's footer, which nobody sees or presses
+  // (Pre-Flight's class checkboxes under its "Back" bar, on CI's fonts).
+  const visibleRect = (element) => {
+    let { left, top, right, bottom } = element.getBoundingClientRect();
+    for (let node = element.parentElement; node && node !== document.documentElement; node = node.parentElement) {
+      const style = getComputedStyle(node);
+      if (style.overflowX === 'visible' && style.overflowY === 'visible') continue;
+      const box = node.getBoundingClientRect();
+      if (style.overflowX !== 'visible') { left = Math.max(left, box.left); right = Math.min(right, box.right); }
+      if (style.overflowY !== 'visible') { top = Math.max(top, box.top); bottom = Math.min(bottom, box.bottom); }
+      if (style.position === 'fixed') break;
+    }
+    return { left, top, right, bottom };
+  };
+  const boxes = controls.map((element) => ({ element, rect: visibleRect(element), layer: layerOf(element) }))
+    .filter((box) => box.rect.right - box.rect.left > 1 && box.rect.bottom - box.rect.top > 1);
   const overlapping = [];
   for (let i = 0; i < boxes.length; i += 1) {
     for (let j = i + 1; j < boxes.length; j += 1) {
