@@ -5,6 +5,8 @@ const { getFirestore, FieldValue } = require("firebase-admin/firestore");
 const { HttpsError } = require("firebase-functions/v2/https");
 
 const classroomLib = require("./lib/classroom");
+const authLib = require("./lib/auth");
+const { ownedMappings } = require("./lib/classroomMappingOwnership");
 const classroomPushQueue = require("./lib/classroomPushQueue");
 const { readPublicEnv } = require("./lib/config");
 const { encryptLaunchPayload } = require("./lib/linkToken");
@@ -64,10 +66,10 @@ async function loadTeacherMappings(db, teacherUid) {
     .where("teacherUid", "==", teacherUid)
     .limit(100)
     .get();
-  return new Map(snapshot.docs.map((doc) => {
-    const data = doc.data() || {};
-    return [String(data.courseId || ""), { id: doc.id, ...data }];
-  }).filter(([courseId]) => courseId));
+  // Only the mappings whose class this teacher still teaches
+  // (lib/classroomMappingOwnership.js).
+  const owned = await ownedMappings(db, snapshot.docs.map((doc) => ({ id: doc.id, ...(doc.data() || {}) })), { isRootAdminEmail: authLib.isRootAdminEmail });
+  return new Map(owned.map((mapping) => [String(mapping.courseId || ""), mapping]).filter(([courseId]) => courseId));
 }
 
 function forcePublicationInstanceMarker(forceRequestId, publicationId) {

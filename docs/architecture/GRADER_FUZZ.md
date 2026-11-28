@@ -84,6 +84,20 @@ node scripts/fuzz-graders.mjs --replay case.json       # one finding's repro, ag
 A case is plain JSON holding its own question and value, so a finding's
 `repro` runs again on any checkout with no seed and no corpus.
 
+## Real lesson items, answered as students answer them
+
+`node scripts/audit-grading-parity-real-items.mjs` (`npm run audit:grading-parity`)
+types student-like answers (right answers in many spellings, one-slip wrong
+answers, the key's value in a form the box does not ask for, edge input) into
+every typed box of every gradable item in `teacher-import-jsons/`. It grades
+each on the screen's path and the server's, and judges both against the item's
+own key with an independent reading (`scripts/lib/gradingParityAudit`). Rich
+tools on those items are run through the `structuredWork` check above with
+work built from the item's own numbers. A seeded slice runs on every pull
+request (`tests/platform/gradingParityRealItems.test.mjs`). A rule left for the
+owner is listed in `scripts/grading-parity-real-items-review.json`. First
+run: `docs/audits/2026-11-28-grading-parity-real-items.md`.
+
 ## When it finds something
 
 A finding has a **signature**: its target, its property and what tells one
