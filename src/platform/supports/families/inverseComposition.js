@@ -83,6 +83,7 @@
 //     never a value; its option order follows the visible problem.
 //
 // Pure: no React, no I/O.
+import { sharesItemEquation } from './siblingGuard.js';
 import { hintRevealsAnswer } from '../../../../functions/shared/pathSolutionSupport.mjs';
 import { answerCandidatesForField, matchesFieldAnswer } from '../../../../functions/shared/answerUtils.mjs';
 import { exactFractionText } from '../../../../functions/shared/toolMath/shared/toolMath.mjs';
@@ -1167,6 +1168,8 @@ const siblingIsSafe = (question, guard, example) => {
   const answer = text(example.answer);
   const steps = list(example.steps).map(text).filter(Boolean);
   if (!prompt || !answer || steps.length < 2 || prompt === text(question.prompt)) return false;
+  // Not one of this question's own rules (the examples safety audit: a sibling of f·g with g(x) = x − 4 used g(x) = x − 4).
+  if (sharesItemEquation(question, prompt)) return false;
   if (guard.some((value) => value.toLowerCase() === answer.toLowerCase())) return false;
   const own = numericValue(answer);
   if (own !== null && guard.some((value) => numericValue(value) !== null && Math.abs(numericValue(value) - own) < 1e-9)) return false;

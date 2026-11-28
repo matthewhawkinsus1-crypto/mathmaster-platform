@@ -67,17 +67,31 @@ const numericValue = (raw) => {
 
 const mathKey = (value) => text(value).toLowerCase().replace(/[−–]/g, '-').replace(/[()\s$]/g, '').replace(/≤/g, '<=').replace(/≥/g, '>=');
 
+// LaTeX as a student reads it: \frac{4}{3} is (4)/(3); \left( and \right) are brackets; $ is not mathematics.
+const fromLatex = (value) => {
+  let out = text(value).replace(/\$/g, '').replace(/\\(?:left|right)\s*/g, '').replace(/\\cdot/g, '*');
+  for (let pass = 0; pass < 4; pass += 1) out = out.replace(/\\[dt]?frac\s*\{([^{}]*)\}\s*\{([^{}]*)\}/g, '($1)/($2)');
+  return out;
+};
+const WORD_BREAK = '\u0001';
+
 /** The equations and inequalities a text states. A word (two letters or more) ends one; a lone letter is a variable. */
-export const statedEquations = (value) => new Set(text(value).replace(/[A-Za-z]{2,}/g, '|').split(/[|,;:?\n]|\.\s|\.$/)
+export const statedEquations = (value) => new Set(fromLatex(value).replace(/[A-Za-z]{2,}/g, WORD_BREAK).split(/[\u0001,;:?\n]|\.\s|\.$/)
   .map((piece) => piece.trim())
   .filter((piece) => /[=<>≤≥]/.test(piece) && /[a-z]/i.test(piece) && /\d/.test(piece))
   .map(mathKey)
   .filter((key) => key.length >= 3));
 
-// "k = 0" or "t = 3" alone is a value of a letter, not a problem. "y = −2" and
-// "x = 5" are lines, so they still count.
-const BARE_VALUE = /^[a-wz]=-?[\d./]+$/;
+// "k = 0", "t = 3" or "n ≥ 2" alone is a value or a condition on a letter, not
+// a problem. "y = −2" and "x = 5" are lines, so they still count.
+const BARE_VALUE = /^[a-wz](?:=|<|>|<=|>=)-?[\d./]+$/;
 const itemShows = (question) => [text(question?.prompt), ...list(question?.answerFields).filter(isObject).map((field) => text(field.label))].join('\n');
+
+/** A sibling prompt that states an equation or inequality the item itself states (not a bare value such as k = 0). */
+export const sharesItemEquation = (question, prompt) => {
+  const itemEquations = statedEquations(itemShows(question));
+  return [...statedEquations(prompt)].some((key) => itemEquations.has(key) && !BARE_VALUE.test(key));
+};
 
 /** The sibling names none of the item's answers, and is not the item: not its prompt, nor any equation it states. */
 export const siblingIsSafe = (question, guard, example) => {
@@ -86,8 +100,7 @@ export const siblingIsSafe = (question, guard, example) => {
   const answer = text(example.answer);
   const steps = list(example.steps).map(text).filter(Boolean);
   if (!prompt || !answer || steps.length < 2 || prompt === text(question?.prompt)) return false;
-  const itemEquations = statedEquations(itemShows(question));
-  if ([...statedEquations(prompt)].some((key) => itemEquations.has(key) && !BARE_VALUE.test(key))) return false;
+  if (sharesItemEquation(question, prompt)) return false;
   if (guard.some((value) => value.toLowerCase() === answer.toLowerCase())) return false;
   const own = numericValue(answer);
   if (own !== null && guard.some((value) => numericValue(value) !== null && Math.abs(numericValue(value) - own) < 1e-9)) return false;
