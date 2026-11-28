@@ -193,7 +193,10 @@ export function createAttendanceExtensionControls(
 
   const ATTENDANCE_EVENT_KINDS = [LIVE_ATTENDANCE_EVENT_KIND, ATTENDANCE_HISTORY_EVENT_KIND];
 
-  const handleRecordStudentSupportEvent = async (event) => {
+  // `quiet`: the TEAMS attendance mirror records a whole section at once
+  // (platform/attendance/teamsAttendanceMirror.js) and reports it once; a
+  // failure is still shown.
+  const handleRecordStudentSupportEvent = async (event, { quiet = false } = {}) => {
     if (user?.role !== 'teacher' || !user.email) return null;
     const isAttendanceEvent = ATTENDANCE_EVENT_KINDS.includes(event?.kind);
     try {
@@ -243,12 +246,14 @@ export function createAttendanceExtensionControls(
           );
           return record;
         }
-        toastSuccess(
-          event.kind === ATTENDANCE_HISTORY_EVENT_KIND ? 'Attendance correction saved' : 'Attendance recorded',
-          reviewCount > 0
-            ? `${reviewCount} extension${reviewCount === 1 ? '' : 's'} would have shortened — review before changing.`
-            : 'The prior mark stays in the record; any earned extension was reconciled.',
-        );
+        if (!quiet || reviewCount > 0) {
+          toastSuccess(
+            event.kind === ATTENDANCE_HISTORY_EVENT_KIND ? 'Attendance correction saved' : 'Attendance recorded',
+            reviewCount > 0
+              ? `${reviewCount} extension${reviewCount === 1 ? '' : 's'} would have shortened — review before changing.`
+              : 'The prior mark stays in the record; any earned extension was reconciled.',
+          );
+        }
         return record;
       }
 

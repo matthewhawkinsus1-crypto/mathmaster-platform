@@ -95,3 +95,15 @@ on the page.
   hold), that section's `#Count` stays 0 (the owner's decision, 2026-11-27).
   It switches once the final grade replaces the score, or once the teacher
   clears that cell in TEAMS; the sync shows which students it waits for.
+
+## Attendance (next: built in a session on the teacher's computer)
+
+MathMaster's side of mirroring TEAMS attendance is built. On every teacher
+screen, `window.mathmasterTeamsAttendance` takes one section's marks for a day
+and records them through the same handler as a Live Classroom mark: deadline
+extensions follow, and today's tardies go to the Discipline Tracker "from
+TEAMS". This extension does not read the TEAMS attendance screen yet. That
+needs a read-only look at the screen and its code legend in the teacher's
+signed-in TEAMS, and DeSoto's codes confirmed by the teacher
+(`DESOTO_TEAMS_ATTENDANCE_CODES`). The call, the rules and the steps are in
+`docs/plans/2026-11-27-teams-attendance-mirror.md`.

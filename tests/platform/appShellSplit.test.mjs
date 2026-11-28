@@ -224,9 +224,14 @@ test('the teacher workspace is App\'s teacher branch, given every input it reads
   // authoring code (app/teacher/authoringKitLoader.js) it hands
   // AppErrorBoundary, the idle prefetches once it has drawn (the panels drawn
   // closed and Home's math, app/teacher/teacherPanelPrefetch.js, then the
-  // authoring code), and the Assignments list's wait for the authoring code.
+  // authoring code), the Assignments list's wait for the authoring code, and
+  // the TEAMS attendance bridge, installed once the workspace has drawn
+  // (app/teacher/useTeamsAttendanceBridge.js: a ref and effects, no state;
+  // it records through App's own handler, passed in by name).
   const hooks = [...teacherWorkspaceCode.matchAll(/\b(use(?:[A-Z]\w*)?)\(/g)].map((match) => match[1]);
-  assert.deepEqual(hooks.sort(), ['use', 'useEffect', 'useEffect', 'useState'], 'no other hook in the workspace');
+  assert.deepEqual(hooks.sort(), ['use', 'useEffect', 'useEffect', 'useState', 'useTeamsAttendanceBridge'], 'no other hook in the workspace');
+  assert.match(teacherWorkspaceCode, /useTeamsAttendanceBridge\(\{ user, classes, students: allStudents, recordAttendance: handleRecordStudentSupportEvent \}\);/);
+  assert.doesNotMatch(read('src/app/teacher/useTeamsAttendanceBridge.js'), /useState|useReducer|useContext/, 'the bridge keeps no state of App\'s');
   assert.match(teacherWorkspaceCode, /const \[authoringKitError, setAuthoringKitError\] = useState\(null\);/);
   assert.match(teacherWorkspaceCode, /useEffect\(\(\) => prefetchTeacherPanels\(\), \[\]\);/);
   assert.match(teacherWorkspaceCode, /useEffect\(\(\) => prefetchAuthoringKit\(\), \[\]\);/);

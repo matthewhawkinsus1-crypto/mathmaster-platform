@@ -53,13 +53,17 @@ Still worth revisiting later, but not blocking: a substitute or co-teacher
 covering a period cannot mark anything under this rule. Treat a delegate as a
 future addition rather than part of the first build.
 
-### ~~Is there an SIS attendance export to reconcile against?~~ — decided
-**Status:** decided · not needed · nothing to build
+### ~~Is there an SIS attendance export to reconcile against?~~ — decided, then reversed
+**Status:** reversed on 2026-11-27 · MathMaster mirrors TEAMS attendance
 
-No SIS export is required. The teacher reconciles attendance in MathMaster and
-that record stands on its own; there is no second system to agree with. Nothing
-here needs building, and the import-shaped record this section was holding open
-is not required either.
+First decision: no SIS export was required. The teacher reconciled attendance in
+MathMaster, and that record stood on its own.
+
+On 2026-11-27 the teacher asked for the opposite: take attendance once, in TEAMS,
+and have MathMaster mirror it. TEAMS is now the source. Marks arrive through the
+MathMaster extension and the teacher's MathMaster tab, recorded through the same
+handler as a Live Classroom mark. See
+`docs/plans/2026-11-27-teams-attendance-mirror.md`.
 
 ---
 
