@@ -1,3 +1,8 @@
+// The teacher's browser is in the school's zone (Central): "today" below is
+// the Chicago date, and the ranking reads the local date. Pinned, so a runner
+// at UTC+9 or later (where NOW is already the next day) ranks the same way.
+process.env.TZ = 'America/Chicago';
+
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
