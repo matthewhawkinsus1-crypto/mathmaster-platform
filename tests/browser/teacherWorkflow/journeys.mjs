@@ -370,12 +370,15 @@ const journeys = {
     // Enabled once the export history is in; the click waits for that.
     await row().getByRole('button', { name: /^Export$/ }).click();
     await page.locator('.tw-review').getByRole('button', { name: 'Download ZIP' }).click();
-    await settle(async () => /Nothing was downloaded/.test(await text(page.locator('[role="status"]').first())));
+    // Every status region's text: the screen keeps empty regions in the page (the TEAMS sync's per-class notices, its
+    // own), so the notice is not "the first status" (a11y sweep 2026-11-28).
+    const notices = async () => (await page.locator('[role="status"]').allInnerTexts()).join(' | ');
+    await settle(async () => /Nothing was downloaded/.test(await notices()));
     // A download that must not come cannot be waited for: once the screen has
     // answered, the driver still gives one the time it always did (900 ms here,
     // 1200 ms below), so these checks are no weaker than before.
     await page.waitForEvent('download', { timeout: 900 }).catch(() => {});
-    expect('retry', downloads === 0 && /Nothing was downloaded/.test(await text(page.locator('[role="status"]').first())), 'a failed save stops the download and says so');
+    expect('retry', downloads === 0 && /Nothing was downloaded/.test(await notices()), 'a failed save stops the download and says so');
     await page.locator('.tw-review').getByRole('button', { name: 'Download ZIP' }).click();
     await settle(async () => downloads === 1 && /exported 1 time/.test(await text(row())));
     await page.waitForEvent('download', { timeout: 1200 }).catch(() => {});
