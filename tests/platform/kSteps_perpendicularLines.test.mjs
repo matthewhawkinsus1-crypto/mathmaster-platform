@@ -51,7 +51,7 @@ import { familyFor } from '../../src/platform/supports/families/index.js';
 import { buildClosedQuestionReview } from '../../src/platform/supports/review/closedQuestionReview.js';
 import { buildQuestionHints } from '../../src/platform/supports/hints/questionHints.js';
 import { backUpStepFor } from '../../src/platform/supports/feedback/backUpStep.js';
-import { buildSimilarWorkedExample } from '../../src/platform/supports/workedExample/similarProblem.js';
+import { buildSimilarWorkedExample, similarExampleIsSafe } from '../../src/platform/supports/workedExample/similarProblem.js';
 import { parseAssignmentBlueprintText } from '../../src/assignmentBlueprint.js';
 import { compileAuthoringIntentV5 } from '../../src/platform/contract/authoringIntentV5.js';
 import { buildPreflightReviewedAssignmentV5 } from '../../src/components/teacher/preflightV5Review.js';
@@ -776,17 +776,29 @@ test('the closed review shows these steps for the 48, as a family\'s worked solu
   }
 });
 
-test('while the question is open nothing changes: no hint, back-up step, sibling or answer spelling comes from this family', () => {
+test('while the question is open nothing changes but the sibling: no hint, back-up step or answer spelling comes from this family', () => {
+  let siblings = 0;
   for (const { source, question } of [...WORKED_REAL, ...VARIANTS, ...WORKFLOW_VARIANTS]) {
     assert.deepEqual(perpendicularLines.hints(question), [], source);
     assert.deepEqual(perpendicularLines.expectedValues(question), [], source);
     assert.equal(perpendicularLines.backUpQuestion(question), null, source);
-    assert.equal(perpendicularLines.similarProblem(question, { seed: 3 }), null, source);
-    // So the ladder, the back-up step and "Try a similar one" are the item's own or the platform's.
+    // So the ladder and the back-up step are the item's own or the platform's.
     assert.ok(buildQuestionHints(question).every((hint) => hint.source !== 'family'), source);
     assert.notEqual(backUpStepFor(question).source, 'family', source);
-    assert.equal(buildSimilarWorkedExample(question, { seed: 0 }), null, source);
+    // Since WE-I a multi-part item may get a worked sibling on new numbers, and
+    // only one that names none of its answers. The proof, a sort and a choice
+    // never do: their answers are the facts a sibling would show.
+    const sibling = perpendicularLines.similarProblem(question, { seed: 3 });
+    if (perpendicularLines.questionKind(question) !== 'parts' || question.type !== 'multiAnswer') {
+      assert.equal(sibling, null, source);
+      assert.equal(buildSimilarWorkedExample(question, { seed: 0 }), null, source);
+    } else if (sibling) {
+      siblings += 1;
+      assert.ok(similarExampleIsSafe(question, sibling), source);
+      assert.notEqual(sibling.prompt, question.prompt, source);
+    }
   }
+  assert.ok(siblings > 0, 'some multi-part item gets a sibling');
 });
 
 test('it claims nothing else: the real lessons, the docs and samples, and the demo bank', () => {

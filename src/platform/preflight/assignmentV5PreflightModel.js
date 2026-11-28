@@ -1,5 +1,5 @@
 import { normalizeAssignmentV5, validateAssignmentV5, flattenV5Sections } from '../contract/assignmentSchemaV5.js';
-import { validateLessonSupportsV5 } from '../contract/lessonSupportsV5.js';
+import { referenceCardSkillWarnings, validateLessonSupportsV5 } from '../contract/lessonSupportsV5.js';
 import { stepAlgebraReplayErrors } from '../supports/workedExample/stepAlgebraReplay.js';
 import { radicalReplayErrors } from '../supports/workedExample/radicalReplay.js';
 import { checkpointSourceErrors } from '../supports/showTheStep/checkpointSource.js';
@@ -135,6 +135,9 @@ export const buildAssignmentV5PreflightModel = (input = {}, { titleOverride = nu
   // an error (SP-4; checkpointEngine.js).
   if (!supports.errors.length) structural.errors.push(...stepAlgebraReplayErrors(source), ...radicalReplayErrors(source), ...checkpointSourceErrors(source));
   structural.warnings.push(...supports.warnings);
+  // A reference card whose skill has no built-in card (WE-H): a warning on a
+  // new assignment only, as SP-5's rules are; an existing one gains nothing.
+  if (isNewAssignment === true) structural.warnings.push(...referenceCardSkillWarnings(source));
   const sections = (runtimeSource.sections || []).map((section, index) => withRuntimeSectionMetadata(section, index, runtimeSource));
   const persistenceSections = (source.sections || []).map((section, index) => withRuntimeSectionMetadata(section, index, source));
 
