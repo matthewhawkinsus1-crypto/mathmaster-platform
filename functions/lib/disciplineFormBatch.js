@@ -23,6 +23,11 @@
  *      `unknown` and is not posted again by itself: a duplicate would be a
  *      second violation on the district's record. The teacher decides.
  *
+ * While family messages through SchoolStatus are in test mode, a test
+ * student's violations are never posted (form state `testOnly`, final): they
+ * exist only so a test message can be sent, and must not reach a district
+ * record. Switching to live later does not post them either.
+ *
  * Collections: disciplineIncidents (the taps), disciplineStatus/form (the
  * last check of the live form). Both server-only.
  */
@@ -36,6 +41,19 @@ const loadShared = async () => {
   if (!sharedModule) sharedModule = await import("../shared/disciplineTracker.mjs");
   return sharedModule;
 };
+let familyMessagesModule = null;
+const loadFamilyMessages = async () => {
+  if (!familyMessagesModule) familyMessagesModule = await import("../shared/familyMessages.mjs");
+  return familyMessagesModule;
+};
+
+/** Test students' violations while SchoolStatus test mode is on: never for the district form. */
+async function testStudentIds(db) {
+  const { normalizeMessagingSettings } = await loadFamilyMessages();
+  const snapshot = await db.collection("disciplineStatus").doc("familyMessaging").get();
+  const settings = normalizeMessagingSettings(snapshot.exists ? snapshot.data() : {});
+  return new Set(settings.mode === "test" ? settings.testDistrictIds : []);
+}
 
 const STUDENT_FIELDS = ["classId", "sisStudentId", "firstName", "lastName", "displayName", "googleName", "name", "profile"];
 
@@ -85,7 +103,7 @@ async function submitDisciplineForms({
   db, now = Date.now(), scope = {}, force = false, fetchImpl = globalThis.fetch, delayMs = DEFAULT_DELAY_MS, logger = console,
 }) {
   const shared = await loadShared();
-  const summary = { submitted: [], waiting: [], blocked: [], retry: [], failed: [], unknown: [], formProblems: [] };
+  const summary = { submitted: [], waiting: [], blocked: [], retry: [], failed: [], unknown: [], testOnly: [], formProblems: [] };
 
   // A group stuck in `sending` (the function stopped mid-post) cannot be known
   // to have been recorded or not: it becomes `unknown`, for the teacher.
@@ -109,8 +127,23 @@ async function submitDisciplineForms({
     db.collection("settings").doc("classSchedule").get(),
   ]);
   const schedule = scheduleSnapshot.exists ? scheduleSnapshot.data() : null;
-  const { submissions, blocked } = shared.pendingFormSubmissions({ incidents: pending, studentsById });
+  const { submissions: allSubmissions, blocked } = shared.pendingFormSubmissions({ incidents: pending, studentsById });
   summary.blocked = blocked.map((entry) => ({ key: entry.key, reason: entry.reason }));
+
+  const testIds = await testStudentIds(db);
+  const submissions = [];
+  for (const submission of allSubmissions) {
+    if (!testIds.has(submission.sisStudentId)) {
+      submissions.push(submission);
+      continue;
+    }
+    // eslint-disable-next-line no-await-in-loop
+    await transition(db, submission.incidentIds, {
+      from: ["pending"],
+      update: () => ({ state: "testOnly", reason: "A test student while SchoolStatus messages are in test mode: not sent to the district form." }),
+    });
+    summary.testOnly.push({ key: submission.key });
+  }
 
   const due = submissions.filter((submission) => {
     if (force) return true;

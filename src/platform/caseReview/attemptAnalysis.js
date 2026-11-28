@@ -125,10 +125,14 @@ export const EXAMPLE_SHOWN_LABEL = 'Example shown by Classwork (not asked for)';
 // "Spot the mistake" after an example (WE-F): that the student answered it,
 // never whether the choice was right.
 export const SPOT_THE_MISTAKE_LABEL = 'Spot the mistake answered';
+// A reference card pinned beside the question (WE-H): on the screen without
+// being asked for, so a fact, never help.
+export const REFERENCE_CARD_LABEL = 'Reference card pinned (not asked for)';
 const flagsOf = (usage) => [
   ...SUPPORT_FLAGS.filter(([key]) => usage?.[key] === true).map(([, label]) => label),
   ...(usage?.workedExampleShown === 'auto' ? [EXAMPLE_SHOWN_LABEL] : []),
   ...(usage?.spotTheMistakeUsed === true ? [SPOT_THE_MISTAKE_LABEL] : []),
+  ...(usage?.referenceCardShown === true ? [REFERENCE_CARD_LABEL] : []),
 ];
 
 // --- Per-attempt server events ------------------------------------------------------------

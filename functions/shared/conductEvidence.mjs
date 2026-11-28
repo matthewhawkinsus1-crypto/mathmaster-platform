@@ -40,7 +40,8 @@ export const validateConductEvidenceRequest = (data = {}) => {
   return { studentId, fromDateKey, toDateKey };
 };
 
-const FORM_STATES = new Set(['pending', 'sending', 'submitted', 'unknown', 'failed']);
+// testOnly: a SchoolStatus test student's violation, never posted to the form.
+const FORM_STATES = new Set(['pending', 'sending', 'submitted', 'unknown', 'failed', 'testOnly']);
 
 /** One recorded violation, as the case review shows it. */
 export const projectConductIncident = (record = {}) => ({

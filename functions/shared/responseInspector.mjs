@@ -23,6 +23,7 @@ import {
   parserChangeReason,
 } from './responseInspectorReasons.mjs';
 import { buildResponseView } from './responseInspectorView.mjs';
+import { followThroughKeys } from './followThrough.mjs';
 
 export const GRADER_VERSION = 'ordinary-response-v3';
 export const GRADING_EVIDENCE_VERSION = 3;
@@ -72,8 +73,13 @@ export const scoreGradingResult = (result = {}) => {
   return possible ? Math.round((earned / possible) * 100) : 0;
 };
 
-const traceField = (field, rawValue, result) => {
-  const accepted = answerCandidatesForField(field);
+// `keyed` (SP-3): the keys built from the student's earlier answer for a
+// follow-through part, which the grader takes besides the part's own answer
+// (followThrough.mjs withFollowThroughKeys). They are the key it used, so they
+// are listed first; the verdict is still the recorded one.
+const traceField = (field, rawValue, result, keyed = null) => {
+  const own = answerCandidatesForField(field);
+  const accepted = keyed?.length ? [...new Set([...keyed, ...own])] : own;
   const raw = String(rawValue ?? '');
   const numericStudent = parseNumericAnswer(raw);
   const numericAccepted = accepted.map(parseNumericAnswer);
@@ -98,6 +104,7 @@ const traceField = (field, rawValue, result) => {
     normalizedAvailable: normalized !== null,
     normalizedUnavailableReason: normalized === null ? NORMALIZED_UNAVAILABLE : null,
     expected: accepted,
+    ...(keyed?.length ? { followThroughKeys: [...keyed], authoredExpected: own } : {}),
     comparator: modeComparator
       ? modeComparator
       : numericComparison
@@ -114,6 +121,8 @@ export const buildGradingTrace = ({ question, response, grading } = {}) => {
   }
   const values = Object.fromEntries(list(response.fields).map((field) => [String(field?.id), field?.value]));
   const resultById = new Map(list(grading?.parts).map((part) => [String(part?.id), part]));
+  let keyed = new Map();
+  try { keyed = followThroughKeys(list(question.answerFields).filter((field) => field?.id), values); } catch { keyed = new Map(); }
   return {
     available: true,
     reason: null,
@@ -121,7 +130,7 @@ export const buildGradingTrace = ({ question, response, grading } = {}) => {
     // that asks for no form takes any equation of its line (GR03).
     fields: list(question.answerFields)
       .filter((field) => field?.id)
-      .map((field) => traceField(withLineFormPolicy(question, field), values[String(field.id)], resultById.get(String(field.id)))),
+      .map((field) => traceField(withLineFormPolicy(question, field), values[String(field.id)], resultById.get(String(field.id)), keyed.get(String(field.id)))),
   };
 };
 
